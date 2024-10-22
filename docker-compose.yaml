@@ -1,0 +1,7 @@
+version: "3.5"
+
+services:
+
+networks:
+  superform-v2-relayer-docker:
+    driver: bridge

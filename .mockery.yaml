@@ -1,0 +1,6 @@
+with-expecter: true
+dir: "mock"
+filename: "{{.InterfaceName | lower }}.generated.go"
+mockname: "{{.InterfaceName}}"
+outpkg: "mock"
+# TODO: Define interface to be mocked
