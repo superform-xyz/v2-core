@@ -25,9 +25,11 @@ jobs:
         uses: "oven-sh/setup-bun@v1"
 
       - name: "Install the Node.js dependencies"
+        working-directory: "./contracts"
         run: "bun install"
 
       - name: "Lint the code"
+        working-directory: "./contracts"
         run: "bun run lint"
 
       - name: "Add lint summary"
@@ -48,9 +50,11 @@ jobs:
         uses: "oven-sh/setup-bun@v1"
 
       - name: "Install the Node.js dependencies"
+        working-directory: "./contracts"
         run: "bun install"
 
       - name: "Build the contracts and print their size"
+        working-directory: "./contracts"
         run: "forge build --sizes"
 
       - name: "Add build summary"
@@ -72,9 +76,11 @@ jobs:
         uses: "oven-sh/setup-bun@v1"
 
       - name: "Install the Node.js dependencies"
+        working-directory: "./contracts"
         run: "bun install"
 
       - name: "Show the Foundry config"
+        working-directory: "./contracts"
         run: "forge config"
 
       - name: "Generate a fuzz seed that changes weekly to avoid burning through RPC allowance"
@@ -84,6 +90,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
+        working-directory: "./contracts"
         run: "forge test"
 
       - name: "Add test summary"
