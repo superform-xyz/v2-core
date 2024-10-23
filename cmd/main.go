@@ -30,6 +30,16 @@ func main() {
 				Usage:  "start the Superform Bridge",
 				Action: bridge,
 			},
+			{
+				Name:   "automation",
+				Usage:  "start the Superform Automation",
+				Action: automation,
+			},
+			{
+				Name:   "pricer",
+				Usage:  "start the Superform Pricer",
+				Action: pricer,
+			},
 		},
 		Version: v2relayer.Version,
 	}
@@ -41,6 +51,54 @@ func main() {
 
 // bridge launches the bridge component of the superform v2
 func bridge(ctx context.Context, cmd *cli.Command) error {
+	// Init config
+	conf := config.Load()
+
+	// Set up logger
+	setupLogger(&conf)
+
+	// Print config and app details
+	conf.Print()
+	v2relayer.PrintVersion()
+
+	// TODO: Complete setup here
+
+	// Start the healthcheck server
+	startHealthcheckServer(conf.HealthcheckServerHost)
+
+	return graceful.ShutDown(func() error {
+		// TODO: Shutdown services here
+
+		return nil
+	})
+}
+
+// automation launches the automation component of the superform v2
+func automation(ctx context.Context, cmd *cli.Command) error {
+	// Init config
+	conf := config.Load()
+
+	// Set up logger
+	setupLogger(&conf)
+
+	// Print config and app details
+	conf.Print()
+	v2relayer.PrintVersion()
+
+	// TODO: Complete setup here
+
+	// Start the healthcheck server
+	startHealthcheckServer(conf.HealthcheckServerHost)
+
+	return graceful.ShutDown(func() error {
+		// TODO: Shutdown services here
+
+		return nil
+	})
+}
+
+// automation launches the automation component of the superform v2
+func pricer(ctx context.Context, cmd *cli.Command) error {
 	// Init config
 	conf := config.Load()
 
