@@ -8,11 +8,11 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	v2relayer "github.com/superform-xyz/v2-relayer"
-	"github.com/superform-xyz/v2-relayer/config"
-	"github.com/superform-xyz/v2-relayer/pkg/graceful"
-	"github.com/superform-xyz/v2-relayer/pkg/healthcheck"
-	"github.com/superform-xyz/v2-relayer/pkg/zlogsentry"
+	"github.com/superform-xyz/v2-core"
+	"github.com/superform-xyz/v2-core/config"
+	"github.com/superform-xyz/v2-core/pkg/graceful"
+	"github.com/superform-xyz/v2-core/pkg/healthcheck"
+	"github.com/superform-xyz/v2-core/pkg/zlogsentry"
 	"github.com/urfave/cli/v3"
 )
 
@@ -41,7 +41,7 @@ func main() {
 				Action: pricer,
 			},
 		},
-		Version: v2relayer.Version,
+		Version: v2core.Version,
 	}
 
 	if err := mainCmd.Run(context.Background(), os.Args); err != nil {
@@ -59,7 +59,7 @@ func bridge(ctx context.Context, cmd *cli.Command) error {
 
 	// Print config and app details
 	conf.Print()
-	v2relayer.PrintVersion()
+	v2core.PrintVersion()
 
 	// TODO: Complete setup here
 
@@ -83,7 +83,7 @@ func automation(ctx context.Context, cmd *cli.Command) error {
 
 	// Print config and app details
 	conf.Print()
-	v2relayer.PrintVersion()
+	v2core.PrintVersion()
 
 	// TODO: Complete setup here
 
@@ -107,7 +107,7 @@ func pricer(ctx context.Context, cmd *cli.Command) error {
 
 	// Print config and app details
 	conf.Print()
-	v2relayer.PrintVersion()
+	v2core.PrintVersion()
 
 	// TODO: Complete setup here
 
@@ -147,7 +147,11 @@ func setupLogger(conf *config.Config) {
 
 	// Init sending logs to sentry if DSN is provided
 	if conf.SentryDSN != "" {
-		w, err := zlogsentry.New(conf.SentryDSN, zlogsentry.WithEnvironment(conf.Env), zlogsentry.WithRelease(v2relayer.Version))
+		w, err := zlogsentry.New(
+			conf.SentryDSN,
+			zlogsentry.WithEnvironment(conf.Env),
+			zlogsentry.WithRelease(v2core.Version),
+		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to init zerolog Sentry plugin")
 		}

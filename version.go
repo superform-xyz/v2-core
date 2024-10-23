@@ -1,4 +1,4 @@
-package v2relayer
+package v2core
 
 import (
 	"runtime"

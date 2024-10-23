@@ -33,9 +33,9 @@ services:
       start_period: 20s
       timeout: 10s
     networks:
-      - superform-v2-relayer-docker
+      - superform-v2-core-docker
     restart: unless-stopped
 
 networks:
-  superform-v2-relayer-docker:
+  superform-v2-core-docker:
     driver: bridge

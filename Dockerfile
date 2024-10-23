@@ -1,7 +1,7 @@
 # CONTAINER FOR BUILDING BINARY
 FROM golang:1.22 AS build
 
-WORKDIR $GOPATH/src/github.com/superform-xyz/v2-relayer
+WORKDIR $GOPATH/src/github.com/superform-xyz/v2-core
 
 # INSTALL DEPENDENCIES
 COPY go.mod go.sum ./
@@ -17,6 +17,6 @@ FROM alpine:3.19.0
 # This is needed for the docker compose healthcheck
 RUN apk add curl
 
-COPY --from=build /go/src/github.com/superform-xyz/v2-relayer/dist/relayer /app/relayer
+COPY --from=build /go/src/github.com/superform-xyz/v2-core/dist/relayer /app/relayer
 
 CMD ["/app/relayer"]
