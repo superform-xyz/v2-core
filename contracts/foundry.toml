@@ -19,6 +19,9 @@
   fuzz = { runs = 10_000 }
   verbosity = 4
 
+[etherscan.84532]
+key = "${API_KEY_BASESCAN}"
+
 [etherscan]
   arbitrum = { key = "${API_KEY_ARBISCAN}" }
   avalanche = { key = "${API_KEY_SNOWTRACE}" }
@@ -44,7 +47,7 @@
 [rpc_endpoints]
   arbitrum = "https://arbitrum-mainnet.infura.io/v3/${API_KEY_INFURA}"
   avalanche = "https://avalanche-mainnet.infura.io/v3/${API_KEY_INFURA}"
-  base = "https://mainnet.base.org"
+  base = "https://base-sepolia.infura.io/v3/${API_KEY_INFURA}"
   bnb_smart_chain = "https://bsc-dataseed.binance.org"
   gnosis_chain = "https://rpc.gnosischain.com"
   goerli = "https://goerli.infura.io/v3/${API_KEY_INFURA}"
