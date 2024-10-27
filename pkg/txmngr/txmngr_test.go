@@ -88,7 +88,7 @@ func Test_txMngr_E2E(t *testing.T) {
 			userAuth.From,
 			time.Second*3, // Bump after 3 blocks
 			time.Second,   // Block time
-			func() (*bind.TransactOpts, error) {
+			func(uint64) (*bind.TransactOpts, error) {
 				return userAuth, nil
 			},
 		)
@@ -169,7 +169,7 @@ func Test_txMngr_E2E(t *testing.T) {
 			userAuth.From,
 			time.Second*3, // Bump after 3 blocks
 			time.Second,   // Block time
-			func() (*bind.TransactOpts, error) {
+			func(uint64) (*bind.TransactOpts, error) {
 				return userAuth, nil
 			},
 		)
@@ -268,7 +268,7 @@ func Test_txMngr_Stress(t *testing.T) {
 		userAuth.From,
 		blockTime*3, // Bump after 3 blocks
 		blockTime,   // Block time
-		func() (*bind.TransactOpts, error) {
+		func(uint64) (*bind.TransactOpts, error) {
 			return userAuth, nil
 		},
 	)
@@ -531,7 +531,7 @@ func Test_txMngr_sendTx(t *testing.T) {
 				userAuth.From,
 				testBumpInterval,
 				testBlockTime,
-				func() (*bind.TransactOpts, error) {
+				func(uint64) (*bind.TransactOpts, error) {
 					return userAuth, nil
 				},
 			)
