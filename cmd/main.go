@@ -9,13 +9,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/ethclient"
-
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	v2core "github.com/superform-xyz/v2-core"
@@ -102,7 +101,7 @@ func startBridge(ctx context.Context, cmd *cli.Command) error {
 	// Create tx manager
 	txMngrDb := txmngr.NewInmemDB()
 	sender, auth := getTxAuth(ctx, &conf)
-	txMngr := txmngr.New(txMngrDb, txMngrClients, sender, time.Second*36, time.Second*12, auth)
+	txMngr := txmngr.New(txMngrDb, txMngrClients, sender, time.Second*36, time.Second*12, auth) //nolint:mnd
 	txMngr.Start(ctx)
 
 	// Create bridges configs

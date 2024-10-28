@@ -5,7 +5,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
 )
 
 // Chain contains the chain config
@@ -48,11 +47,4 @@ func (c *Chain) Client(ctx context.Context) *ethclient.Client {
 	}
 
 	return cl
-}
-
-// load loads chains config
-func (c *Chain) load() {
-	if err := viper.Unmarshal(c); err != nil {
-		log.Fatal().Err(err).Msg("unable to unmarshal Chain config")
-	}
 }

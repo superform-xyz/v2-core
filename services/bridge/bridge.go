@@ -75,13 +75,12 @@ func New(
 	}
 }
 
-// Monitor bridge contract on all chain
-// Handle Msg events from the bridge contract
-
+// Start starts the bridge service.
 func (b *Bridge) Start(ctx context.Context) {
 	go b.startBridgesMonitor(ctx)
 }
 
+// Stop stops the bridge service.
 func (b *Bridge) Stop() {
 	close(b.close)
 	b.processes.Wait()
@@ -95,7 +94,7 @@ func (b *Bridge) startBridgesMonitor(ctx context.Context) {
 			defer wg.Done()
 
 			// Create Msg event subscription for the bridge contract
-			events := make(chan types.Log, 100)
+			events := make(chan types.Log, 100) //nolint:mnd
 			sub, err := bridge.Client.SubscribeFilterLogs(ctx, ethereum.FilterQuery{
 				// FromBlock: new(big.Int).SetUint64(bridge.DeploymentBlock),
 				Addresses: []common.Address{bridge.Address},
@@ -159,7 +158,7 @@ func (b *Bridge) handleMsg(ctx context.Context, msg *contracts.SuperBridgeMsg) {
 		msg.DestinationChainId.Uint64(),
 		dstBridge.Address,
 		data,
-		900000,
+		900000, //nolint:mnd
 	)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to send tx")
