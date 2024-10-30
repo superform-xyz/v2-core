@@ -34,6 +34,9 @@ type Config struct {
 
 	// HealthcheckServerHost is the HTTP server port to serve a healthcheck
 	HealthcheckServerHost int `mapstructure:"healthcheck_server_port" env:"HEALTHCHECK_SERVER_PORT" default:"6060"`
+
+	// Chains is the list of chains configs
+	Chains []Chain `mapstructure:"chains"`
 }
 
 // String returns the string representation of the config
@@ -53,10 +56,10 @@ func (c *Config) Print() {
 }
 
 // Load loads configuration from envs
-func Load() Config {
+func Load(config string) Config {
 	loadOnce.Do(func() {
 		viper.SetConfigFile(".env")
-		viper.SetConfigFile("./config.yaml")
+		viper.SetConfigFile(config)
 
 		// Read configuration from environment
 		if err := viper.ReadInConfig(); err != nil {
@@ -82,7 +85,7 @@ func bindEnv(name string, defaultVal interface{}, envs ...string) {
 
 func init() {
 	// Initializes configuration based on tags defined for each field
-	types := []interface{}{Config{}}
+	types := []interface{}{Config{}, Chain{}}
 	for _, obj := range types {
 		t := reflect.TypeOf(obj)
 		for i := 0; i < t.NumField(); i++ {

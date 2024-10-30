@@ -10,9 +10,8 @@ services:
     entrypoint:
       - "/app/relayer"
       - "bridge"
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - "--config"
+      - "/app/config.yaml"
     ports:
       - 6060:6060
     environment:
@@ -26,6 +25,8 @@ services:
       AWS_REGION: "eu-central-1"
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    volumes:
+      - ./config.yaml:/app/config.yaml
     healthcheck:
       test: curl --fail http://localhost:6060/health || exit 1
       interval: 60s

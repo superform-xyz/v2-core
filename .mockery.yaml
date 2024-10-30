@@ -1,6 +1,13 @@
 with-expecter: true
-dir: "mock"
+dir: "./mocks"
 filename: "{{.InterfaceName | lower }}.generated.go"
 mockname: "{{.InterfaceName}}"
-outpkg: "mock"
-# TODO: Define interfaces to be mocked
+outpkg: "mocks"
+packages:
+  github.com/superform-xyz/v2-core/pkg/txmngr:
+    config:
+    interfaces:
+      EthClient:
+        config:
+          mockname: EthClient
+          filename: ethclient.generated.go
