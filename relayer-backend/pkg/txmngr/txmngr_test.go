@@ -17,8 +17,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	mock2 "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"github.com/superform-xyz/v2-core/mocks"
-	"github.com/superform-xyz/v2-core/pkg/txmngr/test"
+	"github.com/superform-xyz/v2-core/relayer-backend/mocks"
+	"github.com/superform-xyz/v2-core/relayer-backend/pkg/txmngr/test"
 )
 
 const chainId = int64(1337)

@@ -4,16 +4,23 @@
   auto_detect_solc = false
   block_timestamp = 1_680_220_800 # March 31, 2023 at 00:00 GMT
   bytecode_hash = "none"
-  evm_version = "shanghai"
+  evm_version = "Cancun"
   fuzz = { runs = 1_000 }
   gas_reports = ["*"]
   optimizer = true
   optimizer_runs = 10_000
   out = "out"
   script = "script"
-  solc = "0.8.25"
+  solc = "0.8.28"
   src = "src"
   test = "test"
+
+# remappings
+remappings = [
+    "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+    "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
+    "modulekit/=lib/modulekit/src/",
+]
 
 [profile.ci]
   fuzz = { runs = 10_000 }

@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/rs/zerolog/log"
-	"github.com/superform-xyz/v2-core/pkg/contracts"
-	"github.com/superform-xyz/v2-core/pkg/txmngr"
+	"github.com/superform-xyz/v2-core/relayer-backend/pkg/contracts"
+	"github.com/superform-xyz/v2-core/relayer-backend/pkg/txmngr"
 )
 
 /*

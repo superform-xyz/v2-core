@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity =0.8.28;
 
-import { Script } from "forge-std/src/Script.sol";
-import "forge-std/src/console.sol";
+import { Script } from "forge-std/Script.sol";
+import "forge-std/console.sol";
 import "../../src/PoC/ECR20.sol";
 import "../../src/PoC/SuperBridge.sol";
 import "../../src/PoC/SuperVault.sol";

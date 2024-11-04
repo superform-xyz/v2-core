@@ -1,7 +1,7 @@
 # CONTAINER FOR BUILDING BINARY
 FROM golang:1.22 AS build
 
-WORKDIR $GOPATH/src/github.com/superform-xyz/v2-core
+WORKDIR $GOPATH/src/github.com/superform-xyz/v2-core/relayer-backend
 
 # INSTALL DEPENDENCIES
 COPY go.mod go.sum ./

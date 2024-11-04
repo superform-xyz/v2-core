@@ -4,7 +4,7 @@ filename: "{{.InterfaceName | lower }}.generated.go"
 mockname: "{{.InterfaceName}}"
 outpkg: "mocks"
 packages:
-  github.com/superform-xyz/v2-core/pkg/txmngr:
+  github.com/superform-xyz/v2-core/relayer-backend/pkg/txmngr:
     config:
     interfaces:
       EthClient:
