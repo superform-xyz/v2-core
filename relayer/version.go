@@ -1,4 +1,4 @@
-package v2core
+package relayer
 
 import (
 	"runtime"

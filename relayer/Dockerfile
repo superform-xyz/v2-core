@@ -4,7 +4,7 @@ FROM golang:1.22 AS build
 WORKDIR $GOPATH/src/github.com/superform-xyz/v2-core/relayer
 
 # INSTALL DEPENDENCIES
-COPY go.mod go.sum ./
+COPY ../go.mod go.sum ./
 RUN go mod download
 
 # BUILD BINARY

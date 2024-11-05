@@ -27,6 +27,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
 
       - name: "Lint"
+        working-directory: "./relayer"
         uses: "golangci/golangci-lint-action@v6"
         with:
           version: v1.59.1
@@ -51,9 +52,11 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
 
       - name: "Test"
+        working-directory: "./relayer"
         run: "make test-unit"
 
       - name: "Archive code coverage results"
+        working-directory: "./relayer"
         uses: "actions/upload-artifact@v3"
         with:
           name: code-coverage-report
