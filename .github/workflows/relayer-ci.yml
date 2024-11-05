@@ -27,10 +27,10 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
 
       - name: "Lint"
-        working-directory: "./relayer"
         uses: "golangci/golangci-lint-action@v6"
         with:
           version: v1.59.1
+          working-directory: "./relayer"
 
   test-unit:
     needs: ["lint"]
