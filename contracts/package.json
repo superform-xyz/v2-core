@@ -1,6 +1,11 @@
 {
   "description": "Foundry-based template for developing Solidity smart contracts",
   "version": "1.0.0",
+  "dependencies": {},
+  "devDependencies": {
+    "prettier": "^3.0.0",
+    "solhint": "^3.6.2"
+  },
   "keywords": [
     "blockchain",
     "ethereum",
