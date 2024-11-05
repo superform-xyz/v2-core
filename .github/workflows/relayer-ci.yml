@@ -56,9 +56,8 @@ jobs:
         run: "make test-unit"
 
       - name: "Archive code coverage results"
-        working-directory: "./relayer"
         uses: "actions/upload-artifact@v3"
         with:
           name: code-coverage-report
-          path: coverage.out
+          path: ./relayer/coverage.out
 

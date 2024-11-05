@@ -109,7 +109,7 @@ lint: ## Runs the linter
 
 .PHONY: test-unit
 test-unit: ## Runs the unit tests
-	go test -v ./... -short -race -timeout=10m
+	go test -v ./... -short -race -timeout=10m -coverprofile=coverage.out
 
 ## Help display.
 ## Pulls comments from beside commands and prints a nicely formatted
