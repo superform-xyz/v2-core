@@ -4,7 +4,7 @@ pragma solidity =0.8.28;
 import { Test } from "forge-std/Test.sol";
 import { console2 } from "forge-std/console2.sol";
 
-import { Foo } from "../src/Foo.sol";
+import { Foo } from "src/relayer-contracts-poc/Foo.sol";
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);

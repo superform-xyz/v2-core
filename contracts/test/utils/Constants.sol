@@ -6,7 +6,7 @@ abstract contract Constants {
     uint256 public constant SMALL = 10 ether;
     uint256 public constant MEDIUM = 100 ether;
     uint256 public constant LARGE = 1000 ether;
-    uint256 public constant EXTRA_LARGE = 10000 ether;
+    uint256 public constant EXTRA_LARGE = 10_000 ether;
 
     // keys
     uint256 public constant USER1_KEY = 0x1;

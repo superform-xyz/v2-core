@@ -3,10 +3,10 @@ pragma solidity =0.8.28;
 
 import { Script } from "forge-std/Script.sol";
 import "forge-std/console.sol";
-import "../../src/PoC/ECR20.sol";
-import "../../src/PoC/SuperBridge.sol";
-import "../../src/PoC/SuperVault.sol";
-import "../../src/PoC/OriginalVault.sol";
+import "src/relayer-contracts-poc/PoC/ECR20.sol";
+import "src/relayer-contracts-poc/PoC/SuperBridge.sol";
+import "src/relayer-contracts-poc/PoC/SuperVault.sol";
+import "src/relayer-contracts-poc/PoC/OriginalVault.sol";
 
 /*
 == Logs ==
@@ -40,21 +40,16 @@ contract Deploy is Script {
         vm.startBroadcast(pk);
 
         // Deploy SuperBridge on Chain A
-        SuperBridge bridge = new SuperBridge(deployer);  // Replace with relayer address
+        SuperBridge bridge = new SuperBridge(deployer); // Replace with relayer address
 
         // Mock asset for ERC4626 vault
         ERC20 asset = new ECR20("SuperUSD", "SUSD");
 
         // Deploy OriginalVault on Chain A, passing in the SuperBridge address
-        OriginalVault vault = new OriginalVault(
-            IERC20(asset),
-            address(bridge),
-            11155111,
-            superform
-        );
+        OriginalVault vault = new OriginalVault(IERC20(asset), address(bridge), 11_155_111, superform);
 
         // 1000 SUSDs depositing to the deployer address
-        uint256 amountToDeposit = 1000 * 10**asset.decimals();
+        uint256 amountToDeposit = 1000 * 10 ** asset.decimals();
 
         // Approve the vault to spend the specified amount of the asset on behalf of the deployer
         asset.approve(deployer, amountToDeposit);
@@ -78,7 +73,7 @@ contract Deploy is Script {
         vm.startBroadcast(pk);
 
         // Deploy SuperBridge on Chain B
-        SuperBridge bridge = new SuperBridge(deployer);  // Replace with relayer address
+        SuperBridge bridge = new SuperBridge(deployer); // Replace with relayer address
 
         // Mock asset for ERC4626 vault
         ERC20 asset = new ECR20("SuperUSD", "SUSD");

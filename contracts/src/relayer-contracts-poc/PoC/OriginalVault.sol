@@ -15,8 +15,8 @@ contract OriginalVault is ERC4626 {
         uint256 _superformChainId,
         address _supervaultAddr
     )
-        ERC4626(asset)  // This is the underlying asset (ERC20 token) that the vault will hold
-        ERC20("SuperVaultPoC", "SVPOC")  // Pass name and symbol to ERC20 constructor
+        ERC4626(asset) // This is the underlying asset (ERC20 token) that the vault will hold
+        ERC20("SuperVaultPoC", "SVPOC") // Pass name and symbol to ERC20 constructor
     {
         bridge = SuperBridge(_bridge);
         superformChainId = _superformChainId;
