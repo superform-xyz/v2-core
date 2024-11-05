@@ -75,7 +75,7 @@ jobs:
 
       - name: "Build the contracts and print their size"
         working-directory: "./contracts"
-        run: "forge build --sizes"
+        run: "forge build"
 
       - name: "Add build summary"
         working-directory: "./contracts"
