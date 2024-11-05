@@ -90,15 +90,32 @@ jobs:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
 
+      - name: "Install node"
+        uses: "actions/setup-node@v3"
+        with:
+          node-version: 'latest'
+          working-directory: "./contracts" 
+
+      - name: Install Dependencies
+        run: yarn install
+        working-directory: "./contracts"
+
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
-      - name: "Install Bun"
-        uses: "oven-sh/setup-bun@v1"
-
-      - name: "Install the Node.js dependencies"
+      - name: "Install Foundry dependencies"
+        run: forge install
         working-directory: "./contracts"
-        run: "bun install"
+
+      - name: "Install pnpm"
+        run: npm install -g pnpm
+
+      - name: "Check pnpm version"
+        run: pnpm --version
+
+      - name: "Install ModuleKit"
+        run: pnpm install
+        working-directory: "./contracts/lib/modulekit"
 
       - name: "Show the Foundry config"
         working-directory: "./contracts"
