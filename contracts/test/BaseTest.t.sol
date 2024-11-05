@@ -9,7 +9,7 @@ import { Events } from "./utils/Events.sol";
 import { Helpers } from "./utils/Helpers.sol";
 import { ERC20Mock } from "./mocks/ERC20Mock.sol";
 
-abstract contract Base_Test is Types, Events, Helpers {
+abstract contract BaseTest is Types, Events, Helpers {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/

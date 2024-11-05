@@ -50,6 +50,10 @@ jobs:
           node-version: 'latest'
           working-directory: "./contracts" 
 
+      - name: Install Dependencies
+        run: yarn install
+        working-directory: "./contracts"
+
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
         with:
