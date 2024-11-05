@@ -59,9 +59,19 @@ jobs:
         with:
           working-directory: "./contracts"
 
-      - name: Install Foundry dependencies
+      - name: "Install Foundry dependencies"
         run: forge install
         working-directory: "./contracts"
+
+      - name: "Install pnpm"
+        run: npm install -g pnpm
+
+      - name: "Check pnpm version"
+        run: pnpm --version
+
+      - name: "Install ModuleKit"
+        run: pnpm install
+        working-directory: "./contracts/lib/modulekit"
 
       - name: "Build the contracts and print their size"
         working-directory: "./contracts"
