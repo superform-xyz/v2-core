@@ -43,8 +43,6 @@ jobs:
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
-        with:
-          submodules: true
 
       - name: "Install node"
         uses: "actions/setup-node@v3"
@@ -56,6 +54,10 @@ jobs:
         uses: "foundry-rs/foundry-toolchain@v1"
         with:
           working-directory: "./contracts"
+
+      - name: Install Foundry dependencies
+        run: forge install
+        working-directory: "./contracts"
 
       - name: "Build the contracts and print their size"
         working-directory: "./contracts"

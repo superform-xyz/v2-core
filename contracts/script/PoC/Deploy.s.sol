@@ -3,10 +3,10 @@ pragma solidity =0.8.28;
 
 import { Script } from "forge-std/Script.sol";
 import "forge-std/console.sol";
-import "src/relayer-contracts-poc/PoC/ECR20.sol";
-import "src/relayer-contracts-poc/PoC/SuperBridge.sol";
-import "src/relayer-contracts-poc/PoC/SuperVault.sol";
-import "src/relayer-contracts-poc/PoC/OriginalVault.sol";
+import "src/PoC/ECR20.sol";
+import "src/PoC/SuperBridge.sol";
+import "src/PoC/SuperVault.sol";
+import "src/PoC/OriginalVault.sol";
 
 /*
 == Logs ==
