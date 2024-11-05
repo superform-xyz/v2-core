@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: MIT
+pragma solidity =0.8.28;
+
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract ERC20Mock is ERC20 {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    uint8 private _decimals;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
+        _decimals = decimals_;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Get the number of decimals for the token
+    function decimals() public view override returns (uint8) {
+        return _decimals;
+    }
+    /*//////////////////////////////////////////////////////////////
+                                 PUBLIC METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Mint tokens to an address
+    /// @param to_ The address to mint tokens to
+    /// @param amount_ The amount of tokens to mint
+
+    function mint(address to_, uint256 amount_) public {
+        _mint(to_, amount_);
+    }
+
+    /// @notice Burn tokens from an address
+    /// @param from_ The address to burn tokens from
+    /// @param amount_ The amount of tokens to burn
+    function burn(address from_, uint256 amount_) public {
+        _burn(from_, amount_);
+    }
+}

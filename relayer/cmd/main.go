@@ -17,14 +17,14 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	v2core "github.com/superform-xyz/v2-core"
-	"github.com/superform-xyz/v2-core/config"
-	"github.com/superform-xyz/v2-core/pkg/ethawskmssigner"
-	"github.com/superform-xyz/v2-core/pkg/graceful"
-	"github.com/superform-xyz/v2-core/pkg/healthcheck"
-	"github.com/superform-xyz/v2-core/pkg/txmngr"
-	"github.com/superform-xyz/v2-core/pkg/zlogsentry"
-	"github.com/superform-xyz/v2-core/services/bridge"
+	"github.com/superform-xyz/v2-core/relayer"
+	"github.com/superform-xyz/v2-core/relayer/config"
+	"github.com/superform-xyz/v2-core/relayer/pkg/ethawskmssigner"
+	"github.com/superform-xyz/v2-core/relayer/pkg/graceful"
+	"github.com/superform-xyz/v2-core/relayer/pkg/healthcheck"
+	"github.com/superform-xyz/v2-core/relayer/pkg/txmngr"
+	"github.com/superform-xyz/v2-core/relayer/pkg/zlogsentry"
+	"github.com/superform-xyz/v2-core/relayer/services/bridge"
 	"github.com/urfave/cli/v3"
 )
 
@@ -66,7 +66,7 @@ func main() {
 				Action: startPricer,
 			},
 		},
-		Version: v2core.Version,
+		Version: relayer.Version,
 	}
 
 	if err := mainCmd.Run(context.Background(), os.Args); err != nil {
@@ -84,7 +84,7 @@ func startBridge(ctx context.Context, cmd *cli.Command) error {
 
 	// Print config and app details
 	conf.Print()
-	v2core.PrintVersion()
+	relayer.PrintVersion()
 
 	// Create clients
 	clients := make(map[uint64]*ethclient.Client)
@@ -141,7 +141,7 @@ func startAutomation(ctx context.Context, cmd *cli.Command) error {
 
 	// Print config and app details
 	conf.Print()
-	v2core.PrintVersion()
+	relayer.PrintVersion()
 
 	// TODO: Complete setup here
 
@@ -165,7 +165,7 @@ func startPricer(ctx context.Context, cmd *cli.Command) error {
 
 	// Print config and app details
 	conf.Print()
-	v2core.PrintVersion()
+	relayer.PrintVersion()
 
 	// TODO: Complete setup here
 
@@ -208,7 +208,7 @@ func setupLogger(conf *config.Config) {
 		w, err := zlogsentry.New(
 			conf.SentryDSN,
 			zlogsentry.WithEnvironment(conf.Env),
-			zlogsentry.WithRelease(v2core.Version),
+			zlogsentry.WithRelease(relayer.Version),
 		)
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to init zerolog Sentry plugin")

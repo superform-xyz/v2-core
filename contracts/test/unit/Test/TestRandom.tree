@@ -1,0 +1,3 @@
+TestRandom.t.sol
+└── when run  
+    └── it should not revert
