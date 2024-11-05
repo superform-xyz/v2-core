@@ -33,7 +33,7 @@ abstract contract IntentsShared is BaseTest, RhinestoneModuleKit {
 
     function setUp() public virtual override {
         // Create the fork
-        string memory mainnetUrl = vm.envString("MAINNET_RPC_URL");
+        string memory mainnetUrl = vm.envString("ETHEREUM_RPC_URL");
         mainnetFork = vm.createFork(mainnetUrl);
         vm.selectFork(mainnetFork);
         vm.rollFork(19_274_877);
