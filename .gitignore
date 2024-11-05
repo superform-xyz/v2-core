@@ -12,10 +12,6 @@
 go.work
 go.work.sum
 
-# env file
-.env
-config.yaml
-
 # Binaries for programs and plugins
 *.exe
 *.exe~
