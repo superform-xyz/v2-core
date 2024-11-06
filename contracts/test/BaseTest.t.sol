@@ -2,8 +2,19 @@
 pragma solidity =0.8.28;
 
 // external
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
+import { ISentinel } from "src/interfaces/ISentinel.sol";
+import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
+import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
+import { ISuperformVault } from "src/interfaces/ISuperformVault.sol";
+
+import { SuperRbac } from "src/utils/SuperRbac.sol";
+import { SuperformVault } from "src/vault/SuperformVault.sol";
+import { SuperRegistryMock } from "src/mocks/SuperRegistryMock.sol";
+import { SuperformSentinel } from "src/sentinels/SuperformSentinel.sol";
+
 import { Types } from "./utils/Types.sol";
 import { Events } from "./utils/Events.sol";
 import { Helpers } from "./utils/Helpers.sol";
@@ -18,6 +29,11 @@ abstract contract BaseTest is Types, Events, Helpers {
 
     ERC20Mock public wethMock;
 
+    ISuperRbac public roles;
+    ISentinel public sentinel;
+    ISuperformVault public wethVault;
+    ISuperRegistry public superRegistry;
+
     function setUp() public virtual {
         // deploy accounts
         user1 = _deployAccount(USER1_KEY, "USER1");
@@ -25,10 +41,45 @@ abstract contract BaseTest is Types, Events, Helpers {
 
         // deploy tokens
         wethMock = _deployToken("Wrapped Ether", "WETH", 18);
+
+        // deploy contracts
+        roles = ISuperRbac(new SuperRbac(address(this)));
+        sentinel = ISentinel(new SuperformSentinel(address(this)));
+        superRegistry = ISuperRegistry(new SuperRegistryMock(address(this)));
+        wethVault = ISuperformVault(new SuperformVault(IERC20(address(wethMock)), "WETH-Vault", "WETH-Vault"));
+
+        // labeling
+        vm.label(address(roles), "roles");
+        vm.label(address(sentinel), "sentinel");
+        vm.label(address(wethVault), "wethVault");
+        vm.label(address(superRegistry), "superRegistry");
+
+        // post-deployment configuration
+        _postDeploymentSetup();
+    }
+
+    function _postDeploymentSetup() private {
+        // - set roles for this address
+        SuperRbac(address(roles)).setRole(address(this), superRegistry.ADMIN_ROLE(), true);
+        SuperRbac(address(roles)).setRole(address(this), superRegistry.HOOK_REGISTRATION_ROLE(), true);
+        SuperRbac(address(roles)).setRole(address(this), superRegistry.HOOK_EXECUTOR_ROLE(), true);
+
+        // - register addresses to the registry
+        SuperRegistryMock(address(superRegistry)).setAddress(ROLES_ID, address(roles));
     }
 
     modifier calledBy(address from_) {
         _resetCaller(from_);
+        _;
+    }
+
+    modifier userWithRole(address user, bytes32 role_) {
+        SuperRbac(address(roles)).setRole(user, role_, true);
+        _;
+    }
+
+    modifier userWithoutRole(address user, bytes32 role_) {
+        SuperRbac(address(roles)).setRole(user, role_, false);
         _;
     }
 
