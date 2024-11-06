@@ -4,9 +4,9 @@ pragma solidity =0.8.28;
 /*
     SuperBridge represents a message bridge contract that forwards messages from one chain to another.
     The relayer (off-chain component) calls the release function to forward calldata to the destination contract.
-    The send function is called by the source chain to emit an event containing the destination chain ID, destination contract address, and data.
-    !!! ONLY FOR POC PURPOSES !!!
-*/
+The send function is called by the source chain to emit an event containing the destination chain ID, destination
+contract address, and data.
+    !!! ONLY FOR POC PURPOSES !!!*/
 contract SuperBridge {
     address public relayer;
 
