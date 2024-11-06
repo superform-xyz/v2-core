@@ -1,4 +1,4 @@
-module github.com/superform-xyz/v2-core
+module github.com/superform-xyz/v2-core/relayer
 
 go 1.22.5
 

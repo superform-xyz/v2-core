@@ -17,11 +17,11 @@ import (
 
 /*
 == Logs ==
-  Deploying on Destination Chain...
+  Deploying on Destination Chain (Sepolia)...
   SuperBridge deployed at: 0xc23e64FF756224a9f49C89A921dcE2F4da5b5146
   SuperVault deployed at: 0x8748F09Fd8E8D9C05aFce58c81E2E7dC8be29834
   SuperUSD deployed at: 0xc2c1ef95Cc34aCF24cDc5cD011f77F2bF1D5502c
-  Deploying on Source Chain...
+  Deploying on Source Chain (Base Testnet)...
   SuperBridge deployed at: 0x5Ceb39773d11e51a8Ec24BDA70d27629E87418E0
   SuperVault deployed at: 0xD323d24469810AF385Dfa97ec58f0787f1a234D1
   SuperUSD deployed at: 0xF4417Af5416A8Dc21fD92cCf6F2a49eCc80d043D
