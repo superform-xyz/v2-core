@@ -124,7 +124,7 @@ contract IntentsBasicExecution is IntentsShared {
 
     function test_WhenAllAreCalledTogether(uint256 amount) external whenAccountHasTokens {
         amount = bound(amount, SMALL, LARGE);
-        console.log("Executing the following Intent through the ModileKit Smart Account:");
+        console.log("Executing the following Intents through the Smart Account:");
         console.log("   - Deposit to the Superform Vault deployed at: %s", address(wethVault));
         console.log(
             "   - Add Collateral to the Mock Protocol deployed at: %s", address(lendingAndBorrowingProtocolMock)
@@ -150,7 +150,7 @@ contract IntentsBasicExecution is IntentsShared {
                 DepositToSuperformVaultIntent.execute.selector, abi.encode(address(instance.account), amount)
             )
         });
-        console.log("Added module with selector `IERC4626.deposit` to the Intent");
+        console.log("Added `DepositToSuperformVaultIntent`");
         console.log("   * deposit to Superform Vault");
         executions[1] = Execution({
             target: address(addCollateralToMockProtocolIntent),
@@ -159,7 +159,7 @@ contract IntentsBasicExecution is IntentsShared {
                 AddCollateralToMockProtocolIntent.execute.selector, abi.encode(address(instance.account), amount)
             )
         });
-        console.log("Added Hook with selector `ILendingAndBorrowMock.deposit` to the Intent");
+        console.log("Added `AddCollateralToMockProtocolIntent`");
         console.log("   * add collateral to the mock protocol");
         executions[2] = Execution({
             target: address(borrowFromMockProtocolIntent),
@@ -168,7 +168,7 @@ contract IntentsBasicExecution is IntentsShared {
                 BorrowFromMockProtocolIntent.execute.selector, abi.encode(address(instance.account), amount * 70 / 100)
             )
         });
-        console.log("Added Hook with selector `ILendingAndBorrowMock.borrow` to the Intent");
+        console.log("Added `BorrowFromMockProtocolIntent`");
         console.log("   * borrow from the mock protocol at 70% CR");
         executions[3] = Execution({
             target: address(depositToSuperformVaultIntent),
@@ -177,7 +177,7 @@ contract IntentsBasicExecution is IntentsShared {
                 DepositToSuperformVaultIntent.execute.selector, abi.encode(address(instance.account), amount * 70 / 100)
             )
         });
-        console.log("Added Hook with selector `IERC4626.deposit` to the Intent");
+        console.log("Added `DepositToSuperformVaultIntent`");
         console.log("   * deposit to Superform Vault");
 
         console.log("");
@@ -188,6 +188,8 @@ contract IntentsBasicExecution is IntentsShared {
 
         console.log("   [+] Total Superform vault shares obtained %s", wethVault.totalAssets());
         console.log("   [+] Initial amount deposited was          %s", amount);
+        console.log("Calls executed");
+
         console.log("");
         console.log("");
         console.log("");

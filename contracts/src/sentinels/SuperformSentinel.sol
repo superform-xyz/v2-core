@@ -5,7 +5,7 @@ pragma solidity =0.8.28;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 // Superform
-import { ISentinel } from "../interfaces/ISentinel.sol";
+import { ISentinel } from "../interfaces/sentinels/ISentinel.sol";
 
 contract SuperformSentinel is Ownable, ISentinel {
     /*//////////////////////////////////////////////////////////////
@@ -43,29 +43,42 @@ contract SuperformSentinel is Ownable, ISentinel {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISentinel
+    /// @notice Check if a hook is whitelisted.
+    /// @param hook_ The address of the hook.
+    /// @return Whether the hook is whitelisted.
 
-    function allowed(address hook_) external view override returns (bool) {
+    function allowed(address hook_) external view returns (bool) {
         return whitelistedHooks[hook_];
     }
 
-    /// @inheritdoc ISentinel
-    function entriesLength(address hook_) external view override returns (uint256) {
+    /// @notice Get the number of entries for a hook.
+    /// @param hook_ The address of the hook.
+    /// @return The number of entries.
+    function entriesLength(address hook_) external view returns (uint256) {
         return entries[hook_].length;
+    }
+
+    /// @notice Get an entry for a hook.
+    /// @param hook_ The address of the hook.
+    /// @param index_ The index of the entry.
+    /// @return The entry.
+    function entry(address hook_, uint256 index_) external view returns (ISentinel.Entry memory) {
+        return _entry[hook_][index_];
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISentinel
-    function notifyFromAccount(bytes calldata data_) external override {
+    /// @notice Notify the sentinel from an account.
+    /// @param data_ The data to notify.
+    function notifyFromAccount(bytes calldata data_) external {
         ISentinel.Entry memory newEntry = ISentinel.Entry(data_, "", true);
         entries[msg.sender].push(newEntry);
         _entry[msg.sender][entries[msg.sender].length - 1] = newEntry;
     }
 
     /// @inheritdoc ISentinel
-    function notify(bytes calldata data_, bytes calldata output_, bool success_) external override {
+    function notify(bytes calldata data_, bytes calldata output_, bool success_) external {
         _notify(data_, output_, success_);
     }
 
@@ -82,11 +95,6 @@ contract SuperformSentinel is Ownable, ISentinel {
         for (uint256 i; i < length; i++) {
             _notify(data_[i], output_[i], success_[i]);
         }
-    }
-
-    /// @inheritdoc ISentinel
-    function entry(address hook_, uint256 index_) external view override returns (ISentinel.Entry memory) {
-        return _entry[hook_][index_];
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -15,13 +15,16 @@ contract SuperRegistryMock is Ownable, ISuperRegistry {
 
     // roles
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant SENTINELS_MANAGER = keccak256("SENTINELS_MANAGER");
+    bytes32 public constant RELAYER_SENTINEL_MANAGER = keccak256("RELAYER_SENTINEL_MANAGER");
+
     bytes32 public constant HOOK_EXECUTOR_ROLE = keccak256("HOOK_EXECUTOR_ROLE");
     bytes32 public constant HOOK_REGISTRATION_ROLE = keccak256("HOOK_REGISTRATION_ROLE");
 
     // ids
-    bytes32 public constant HOOK_TYPE_ID = keccak256("HOOK_TYPE");
-    bytes32 public constant HOOK_MANAGER_ID = keccak256("HOOK_MANAGER");
     bytes32 public constant ROLES_ID = keccak256("ROLES");
+    bytes32 public constant RELAYER_ID = keccak256("RELAYER");
+    bytes32 public constant RELAYER_SENTINEL_ID = keccak256("RELAYER_SENTINEL");
 
     constructor(address owner) Ownable(owner) { }
 

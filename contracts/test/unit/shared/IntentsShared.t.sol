@@ -14,10 +14,11 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/external/ERC7579.sol";
 import { BaseTest } from "test/BaseTest.t.sol";
 import { BorrowFromMockProtocolIntent } from "src/intents/BorrowFromMockProtocolIntent.sol";
 import { DepositToSuperformVaultIntent } from "src/intents/DepositToSuperformVaultIntent.sol";
+import { LendingAndBorrowingProtocolMock } from "src/mocks/LendingAndBorrowingProtocolMock.sol";
 import { AddCollateralToMockProtocolIntent } from "src/intents/AddCollateralToMockProtocolIntent.sol";
 
+import { IRelayerSentinel } from "src/interfaces/sentinels/IRelayerSentinel.sol";
 import { ILendingAndBorrowMock } from "src/interfaces/mocks/ILendingAndBorrowMock.sol";
-import { LendingAndBorrowingProtocolMock } from "src/mocks/LendingAndBorrowingProtocolMock.sol";
 
 abstract contract IntentsShared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
@@ -50,10 +51,11 @@ abstract contract IntentsShared is BaseTest, RhinestoneModuleKit {
         vm.label(address(lendingAndBorrowingProtocolMock), "lendingAndBorrowingProtocolMock");
 
         // Initialize the modules
-        depositToSuperformVaultIntent = new DepositToSuperformVaultIntent(address(wethVault));
-        borrowFromMockProtocolIntent = new BorrowFromMockProtocolIntent(address(lendingAndBorrowingProtocolMock));
+        depositToSuperformVaultIntent = new DepositToSuperformVaultIntent(address(wethVault), address(superRegistry));
+        borrowFromMockProtocolIntent =
+            new BorrowFromMockProtocolIntent(address(lendingAndBorrowingProtocolMock), address(superRegistry));
         addCollateralToMockProtocolIntent =
-            new AddCollateralToMockProtocolIntent(address(lendingAndBorrowingProtocolMock));
+            new AddCollateralToMockProtocolIntent(address(lendingAndBorrowingProtocolMock), address(superRegistry));
 
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");
@@ -63,6 +65,12 @@ abstract contract IntentsShared is BaseTest, RhinestoneModuleKit {
         instance.installModule(MODULE_TYPE_EXECUTOR, address(borrowFromMockProtocolIntent), "");
         instance.installModule(MODULE_TYPE_EXECUTOR, address(depositToSuperformVaultIntent), "");
         instance.installModule(MODULE_TYPE_EXECUTOR, address(addCollateralToMockProtocolIntent), "");
+
+        // Set relayer sentinel & intents notification type
+        depositToSuperformVaultIntent.setRelayerSentinel(address(relayerSentinel));
+        relayerSentinel.setIntentNotificationType(
+            address(depositToSuperformVaultIntent), IRelayerSentinel.IntentNotificationType.Deposit4626
+        );
     }
 
     modifier whenAccountHasTokens() {

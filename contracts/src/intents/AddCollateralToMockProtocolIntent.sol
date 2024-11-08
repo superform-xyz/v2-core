@@ -2,25 +2,27 @@
 pragma solidity =0.8.28;
 
 // external
-import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // modulekit
 import { ModeLib } from "erc7579/lib/ModeLib.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { IERC7579Account, Execution } from "modulekit/Accounts.sol";
-import { ERC20Integration } from "modulekit/integrations/ERC20.sol";
 
 // Superform
+import { ERC20Hook } from "src/hooks/ERC20Hook.sol";
+import { IntentBase } from "src/intents/IntentBase.sol";
+import { LendingProtocolHook } from "src/hooks/LendingProtocolHook.sol";
 import { ILendingAndBorrowMock } from "src/interfaces/mocks/ILendingAndBorrowMock.sol";
 
 import "forge-std/console.sol";
 
-contract AddCollateralToMockProtocolIntent is ERC7579ExecutorBase {
+contract AddCollateralToMockProtocolIntent is ERC7579ExecutorBase, IntentBase {
     address private _mockProtocol;
 
     error AMOUNT_ZERO();
 
-    constructor(address mockProtocol_) {
+    constructor(address mockProtocol_, address registry_) IntentBase(registry_) {
         _mockProtocol = mockProtocol_;
     }
 
@@ -45,7 +47,7 @@ contract AddCollateralToMockProtocolIntent is ERC7579ExecutorBase {
         if (amount == 0) revert AMOUNT_ZERO();
 
         uint256 amountBefore = ILendingAndBorrowMock(_mockProtocol).balanceOf(account);
-        console.log("           |_");
+        console.log("           |____________");
         console.log("           execution started; collateral before %s", amountBefore);
 
         IERC20 asset = IERC20(address(ILendingAndBorrowMock(_mockProtocol).tokenIn()));
@@ -62,19 +64,12 @@ contract AddCollateralToMockProtocolIntent is ERC7579ExecutorBase {
     }
 
     function _approveAction(IERC20 asset, address account, uint256 amount) private {
-        Execution[] memory executions = new Execution[](2);
-        (executions[0], executions[1]) = ERC20Integration.safeApprove(asset, address(_mockProtocol), amount);
-
-        _execute(account, executions);
+        _execute(account, ERC20Hook.approveHook(asset, address(_mockProtocol), amount));
     }
 
     function _depositAction(address account, uint256 amount) private {
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({
-            target: address(_mockProtocol),
-            value: 0,
-            callData: abi.encodeCall(ILendingAndBorrowMock.deposit, (amount, account))
-        });
+        executions[0] = LendingProtocolHook.addCollateralHook(ILendingAndBorrowMock(_mockProtocol), account, amount);
 
         _execute(account, executions);
     }

@@ -5,19 +5,20 @@ pragma solidity =0.8.28;
 import { ModeLib } from "erc7579/lib/ModeLib.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { IERC7579Account, Execution } from "modulekit/Accounts.sol";
-import { ERC20Integration } from "modulekit/integrations/ERC20.sol";
 
 // Superform
+import { IntentBase } from "src/intents/IntentBase.sol";
+import { LendingProtocolHook } from "src/hooks/LendingProtocolHook.sol";
 import { ILendingAndBorrowMock } from "src/interfaces/mocks/ILendingAndBorrowMock.sol";
 
 import "forge-std/console.sol";
 
-contract BorrowFromMockProtocolIntent is ERC7579ExecutorBase {
+contract BorrowFromMockProtocolIntent is ERC7579ExecutorBase, IntentBase {
     address private _mockProtocol;
 
     error AMOUNT_ZERO();
 
-    constructor(address mockProtocol_) {
+    constructor(address mockProtocol_, address registry_) IntentBase(registry_) {
         _mockProtocol = mockProtocol_;
     }
 
@@ -42,7 +43,7 @@ contract BorrowFromMockProtocolIntent is ERC7579ExecutorBase {
         if (amount == 0) revert AMOUNT_ZERO();
 
         uint256 amountBefore = ILendingAndBorrowMock(_mockProtocol).borrowBalanceOf(account);
-        console.log("           |_");
+        console.log("           |____________");
         console.log("           execution started; borrow balance before %s", amountBefore);
 
         // execute the borrow action
@@ -56,11 +57,7 @@ contract BorrowFromMockProtocolIntent is ERC7579ExecutorBase {
 
     function _borrowAction(address account, uint256 amount) private {
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({
-            target: address(_mockProtocol),
-            value: 0,
-            callData: abi.encodeCall(ILendingAndBorrowMock.borrow, (amount, account))
-        });
+        executions[0] = LendingProtocolHook.borrowHook(ILendingAndBorrowMock(_mockProtocol), account, amount);
 
         _execute(account, executions);
     }
