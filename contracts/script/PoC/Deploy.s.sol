@@ -34,7 +34,7 @@ contract Deploy is Script {
         address superform = deployDstChain(deployerPrivateKey, relayer);
 
         // Deploy source chain
-        deploySourceChain(deployerPrivateKey, deployer, superform);
+        deploySourceChain(deployerPrivateKey, deployer, relayer, superform);
     }
 
     function deploySourceChain(uint256 pk, address deployer, address relayer, address superform) internal {
