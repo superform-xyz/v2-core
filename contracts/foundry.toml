@@ -30,6 +30,9 @@ remappings = [
 [etherscan.84532]
 key = "${API_KEY_BASESCAN}"
 
+[etherscan.11155111]
+key = "${API_KEY_ETHERSCAN}"
+
 [etherscan]
   arbitrum = { key = "${API_KEY_ARBISCAN}" }
   avalanche = { key = "${API_KEY_SNOWTRACE}" }
