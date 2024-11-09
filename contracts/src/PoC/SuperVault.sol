@@ -13,7 +13,7 @@ contract SuperVault is ERC4626 {
         address _bridge
     )
         ERC4626(asset) // This is the underlying asset (ERC20 token) that the vault will hold
-        ERC20("SuperVaultPoC", "SVPOC") // Pass name and symbol to ERC20 constructor
+        ERC20("SuperPosition", "SP") // Pass name and symbol to ERC20 constructor
     {
         bridge = _bridge;
     }

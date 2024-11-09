@@ -24,23 +24,27 @@ contract Deploy is Script {
     function run() external {
         // Load the private key from environment variable
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address relayer = vm.envAddress("RELAYER_ADDR");
         address deployer = vm.addr(deployerPrivateKey);
 
+        console.log("Deployer address:", deployer);
+        console.log("Relayer address:", relayer);
+
         // Deploy destination chain
-        address superform = deployDstChain(deployerPrivateKey, deployer);
+        address superform = deployDstChain(deployerPrivateKey, relayer);
 
         // Deploy source chain
         deploySourceChain(deployerPrivateKey, deployer, superform);
     }
 
-    function deploySourceChain(uint256 pk, address deployer, address superform) internal {
+    function deploySourceChain(uint256 pk, address deployer, address relayer, address superform) internal {
         console.log("Deploying on Source Chain...");
 
         vm.createSelectFork("base");
         vm.startBroadcast(pk);
 
         // Deploy SuperBridge on Chain A
-        SuperBridge bridge = new SuperBridge(deployer); // Replace with relayer address
+        SuperBridge bridge = new SuperBridge(relayer); // Replace with relayer address
 
         // Mock asset for ERC4626 vault
         ERC20 asset = new ECR20("SuperUSD", "SUSD");
@@ -55,8 +59,8 @@ contract Deploy is Script {
         asset.approve(deployer, amountToDeposit);
         asset.approve(address(vault), amountToDeposit);
 
-        // Approvals
-        vault.deposit(amountToDeposit, deployer);
+        // Sending to the deployer address
+        asset.transfer(deployer, amountToDeposit);
 
         vm.stopBroadcast();
 
@@ -65,7 +69,7 @@ contract Deploy is Script {
         console.log("SuperUSD deployed at:", address(asset));
     }
 
-    function deployDstChain(uint256 pk, address deployer) internal returns (address) {
+    function deployDstChain(uint256 pk, address relayer) internal returns (address) {
         console.log("Deploying on Destination Chain...");
 
         // Working with the destination chain
@@ -73,7 +77,7 @@ contract Deploy is Script {
         vm.startBroadcast(pk);
 
         // Deploy SuperBridge on Chain B
-        SuperBridge bridge = new SuperBridge(deployer); // Replace with relayer address
+        SuperBridge bridge = new SuperBridge(relayer); // Replace with relayer address
 
         // Mock asset for ERC4626 vault
         ERC20 asset = new ECR20("SuperUSD", "SUSD");
