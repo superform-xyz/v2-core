@@ -20,7 +20,9 @@ import { Deposit4626Module } from "src/modules/Deposit4626Module.sol";
 
 import "forge-std/console.sol";
 
-contract IntentsBasicExecution is ModulesShared {
+import { Vm } from "forge-std/Vm.sol";
+
+contract SuperTHAITests is ModulesShared {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
 
@@ -38,11 +40,37 @@ contract IntentsBasicExecution is ModulesShared {
             ),
             txValidator: address(instance.defaultValidator)
         });
-        userOpData.execUserOps();
+        // Get the last emitted event
+        Vm.Log[] memory entries = userOpData.execUserOps();
 
+        // module assertions
         uint256 totalAssetsAfter = wethVault.totalAssets();
         uint256 balanceVaultAfter = IERC20(address(wethVault)).balanceOf(address(instance.account));
         assertEq(totalAssetsAfter, totalAssetsBefore + amount);
         assertEq(balanceVaultAfter, balanceVaultBefore + amount);
+        // Find the Msg event
+        bytes32 msgEventSignature = keccak256("Msg(uint64,address,bytes)");
+
+        Vm.Log memory msgEvent;
+        bool foundMsgEvent = false;
+        uint256 msgEventIndex;
+        for (uint256 i = 0; i < entries.length; i++) {
+            if (entries[i].topics[0] == msgEventSignature) {
+                msgEvent = entries[i];
+                msgEventIndex = i;
+                foundMsgEvent = true;
+                break;
+            }
+        }
+
+        require(foundMsgEvent, "Msg event not found");
+
+        // Extract the relayer data from the event
+        bytes memory relayerData = abi.decode(entries[msgEventIndex].data, (bytes));
+        vm.stopPrank();
+        // Simulate relayer picking up the event and calling receiveRelayerData
+        vm.selectFork(arbitrumFork);
+        vm.prank(RELAYER);
+        relayerSentinelDst.receiveRelayerData(address(superPositions), relayerData);
     }
 }

@@ -93,6 +93,7 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
     /// @inheritdoc IRelayerSentinel
     function receiveRelayerData(address target, bytes memory data) external override onlyRelayer {
         (bool success,) = target.call(data);
+        console.log("received relayer data", success);
         if (!success) revert CALL_FAILED();
     }
 

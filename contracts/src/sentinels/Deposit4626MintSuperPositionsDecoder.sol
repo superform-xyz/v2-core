@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 import { ISentinelDecoder } from "../interfaces/sentinels/ISentinelDecoder.sol";
 import { IRelayerSentinel } from "../interfaces/sentinels/IRelayerSentinel.sol";
+import { ISuperPositions } from "../interfaces/ISuperPositions.sol";
 
 contract Deposit4626MintSuperPositionsDecoder is ISentinelDecoder {
     /*//////////////////////////////////////////////////////////////
@@ -10,8 +11,8 @@ contract Deposit4626MintSuperPositionsDecoder is ISentinelDecoder {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISentinelDecoder
     function extractSentinelData(bytes memory data) external pure override returns (bytes memory sentinelData) {
-        uint256 amountOut = abi.decode(data, (uint256));
+        (address account, uint256 amount) = abi.decode(data, (address, uint256));
 
-        return abi.encode(amountOut);
+        return abi.encodeWithSelector(ISuperPositions.mint.selector, account, amount);
     }
 }

@@ -32,7 +32,7 @@ abstract contract BaseModule is ERC7579ExecutorBase {
     /// @notice Set the relayer sentinel.
     /// @param sentinel_ The address of the sentinel.
     function setRelayerSentinel(address sentinel_) external {
-        ISuperRbac rbac = _getRbac();
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
         if (!rbac.hasRole(msg.sender, rbac.SENTINELS_MANAGER())) revert NOT_RELAYER_MANAGER();
         _setRelayerSentinel(sentinel_);
     }
@@ -50,9 +50,5 @@ abstract contract BaseModule is ERC7579ExecutorBase {
         if (address(relayerSentinel) == address(0)) revert ADDRESS_NOT_VALID();
 
         relayerSentinel.notify(decoder, data, success);
-    }
-
-    function _getRbac() internal view returns (ISuperRbac) {
-        return ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
     }
 }

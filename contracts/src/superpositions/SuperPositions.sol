@@ -7,6 +7,8 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 import { ISuperPositions } from "../interfaces/ISuperPositions.sol";
 
+import "forge-std/console.sol";
+
 contract SuperPositions is ISuperPositions, ERC20 {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE

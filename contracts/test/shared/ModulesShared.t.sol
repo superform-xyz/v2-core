@@ -31,9 +31,15 @@ abstract contract ModulesShared is BaseTest, RhinestoneModuleKit {
 
         // Initialize the modules
         deposit4626Module = new Deposit4626Module(
-            address(wethVault), address(deposit4626MintSuperPositionsDecoder), address(superRegistry)
+            address(wethVault), address(superRegistrySrc), address(deposit4626MintSuperPositionsDecoder)
         );
-        ISentinel(address(relayerSentinel)).addModuleToWhitelist(address(deposit4626Module));
+        vm.selectFork(mainnetFork);
+        ISentinel(address(relayerSentinelSrc)).addModuleToWhitelist(address(deposit4626Module));
+
+        vm.selectFork(arbitrumFork);
+        ISentinel(address(relayerSentinelDst)).addModuleToWhitelist(address(deposit4626Module));
+
+        vm.selectFork(mainnetFork);
 
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");
@@ -44,7 +50,7 @@ abstract contract ModulesShared is BaseTest, RhinestoneModuleKit {
 
         vm.startPrank(DEPLOYER);
         // Set relayer sentinel
-        deposit4626Module.setRelayerSentinel(address(relayerSentinel));
+        deposit4626Module.setRelayerSentinel(address(relayerSentinelSrc));
     }
 
     modifier whenAccountHasTokens() {

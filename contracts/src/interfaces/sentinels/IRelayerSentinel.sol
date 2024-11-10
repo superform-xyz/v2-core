@@ -33,7 +33,7 @@ interface IRelayerSentinel {
     /// @param destinationChainId The originating chain ID.
     /// @param destinationContract The sender contract address.
     /// @param data The data.
-    event Msg(uint256 indexed destinationChainId, address indexed destinationContract, bytes data);
+    event Msg(uint64 indexed destinationChainId, address indexed destinationContract, bytes data);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

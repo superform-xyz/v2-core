@@ -69,7 +69,7 @@ contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
         uint256 amountAfter = ISuperformVault(_superformVault).totalAssets();
         console.log("           execution ended; amount after %s", amountAfter);
         console.log("           relayer notified - example call");
-        _notifyRelayerSentinel(_decoder, abi.encode(amountAfter - amountBefore), true);
+        _notifyRelayerSentinel(_decoder, abi.encode(account, amountAfter - amountBefore), true);
         console.log("           _|");
     }
 
