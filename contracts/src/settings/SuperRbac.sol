@@ -13,6 +13,14 @@ contract SuperRbac is Ownable, ISuperRbac {
     //////////////////////////////////////////////////////////////*/
     mapping(address => mapping(bytes32 => bool)) private _roles;
 
+    // roles
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant SENTINELS_MANAGER = keccak256("SENTINELS_MANAGER");
+    bytes32 public constant RELAYER_SENTINEL_MANAGER = keccak256("RELAYER_SENTINEL_MANAGER");
+
+    bytes32 public constant HOOK_EXECUTOR_ROLE = keccak256("HOOK_EXECUTOR_ROLE");
+    bytes32 public constant HOOK_REGISTRATION_ROLE = keccak256("HOOK_REGISTRATION_ROLE");
+
     constructor(address owner) Ownable(owner) { }
 
     /*//////////////////////////////////////////////////////////////

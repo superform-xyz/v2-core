@@ -7,24 +7,16 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 // Superform
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 
-contract SuperRegistryMock is Ownable, ISuperRegistry {
+contract SuperRegistry is Ownable, ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
 
-    // roles
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant SENTINELS_MANAGER = keccak256("SENTINELS_MANAGER");
-    bytes32 public constant RELAYER_SENTINEL_MANAGER = keccak256("RELAYER_SENTINEL_MANAGER");
-
-    bytes32 public constant HOOK_EXECUTOR_ROLE = keccak256("HOOK_EXECUTOR_ROLE");
-    bytes32 public constant HOOK_REGISTRATION_ROLE = keccak256("HOOK_REGISTRATION_ROLE");
-
     // ids
-    bytes32 public constant ROLES_ID = keccak256("ROLES");
-    bytes32 public constant RELAYER_ID = keccak256("RELAYER");
-    bytes32 public constant RELAYER_SENTINEL_ID = keccak256("RELAYER_SENTINEL");
+    bytes32 public constant SUPER_RBAC_ID = keccak256("SUPER_RBAC_ID");
+    bytes32 public constant RELAYER_ID = keccak256("RELAYER_ID");
+    bytes32 public constant RELAYER_SENTINEL_ID = keccak256("RELAYER_SENTINEL_ID");
 
     constructor(address owner) Ownable(owner) { }
 

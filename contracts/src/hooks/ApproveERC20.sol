@@ -5,8 +5,8 @@ pragma solidity =0.8.28;
 import { Execution } from "modulekit/Accounts.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-library ERC20Hook {
-    function approveHook(
+library ApproveERC20 {
+    function hook(
         IERC20 token,
         address spender,
         uint256 amount

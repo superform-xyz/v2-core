@@ -3,7 +3,6 @@ pragma solidity =0.8.28;
 
 // Superform
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
-import { IRelayer } from "../interfaces/relayer/IRelayer.sol";
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 import { ISentinel } from "../interfaces/sentinels/ISentinel.sol";
 import { IRelayerDecoder } from "../interfaces/sentinels/IRelayerDecoder.sol";
@@ -18,36 +17,44 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
     address public decoder;
     address public superRegistry;
 
-    mapping(address => IntentNotificationType) public intentNotificationTypes;
+    uint64 public CHAIN_ID;
+
+    mapping(address => ModuleNotificationType) public moduleNotificationTypes;
 
     constructor(address registry_, address decoder_) {
         if (registry_ == address(0)) revert ADDRESS_NOT_VALID();
         if (decoder_ == address(0)) revert ADDRESS_NOT_VALID();
 
-        decoder = decoder_;
+        if (block.chainid > type(uint64).max) {
+            revert BLOCK_CHAIN_ID_OUT_OF_BOUNDS();
+        }
+
+        CHAIN_ID = uint64(block.chainid);
+
         superRegistry = registry_;
+        decoder = decoder_;
     }
 
     modifier onlyRelayerManager() {
-        ISuperRegistry _registry = ISuperRegistry(superRegistry);
-        ISuperRbac rbac = ISuperRbac(_registry.getAddress(_registry.ROLES_ID()));
-        if (!rbac.hasRole(msg.sender, _registry.RELAYER_SENTINEL_MANAGER())) revert NOT_RELAYER_MANAGER();
+        ISuperRegistry registry = ISuperRegistry(superRegistry);
+        ISuperRbac rbac = ISuperRbac(registry.getAddress(registry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.RELAYER_SENTINEL_MANAGER())) revert NOT_RELAYER_MANAGER();
         _;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
-    function setIntentNotificationType(
-        address intent_,
-        IntentNotificationType notificationType_
+    function setModuleNotificationType(
+        address module_,
+        ModuleNotificationType notificationType_
     )
         external
         override
         onlyRelayerManager
     {
-        intentNotificationTypes[intent_] = notificationType_;
-        emit IntentNotificationTypeSet(intent_, notificationType_);
+        moduleNotificationTypes[module_] = notificationType_;
+        emit ModuleNotificationTypeSet(module_, notificationType_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -79,36 +86,21 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
     // add chainId to the signature
     function _notify(bytes calldata data_, bytes calldata output_, bool success_) private {
         // don't allow forbidden or not configured intents to notify
-        if (intentNotificationTypes[msg.sender] == IntentNotificationType.Forbidden) return;
+        if (moduleNotificationTypes[msg.sender] == ModuleNotificationType.Forbidden) return;
 
         // @dev below is showing an example of transforming the data into the right format
         bytes memory relayerData =
-            IRelayerDecoder(decoder).extractRelayerMessage(data_, output_, intentNotificationTypes[msg.sender]);
+            IRelayerDecoder(decoder).extractRelayerMessage(data_, output_, moduleNotificationTypes[msg.sender]);
 
         console.log(
-            "               RelayerSentinel: notification received for type {%s}",
-            uint256(intentNotificationTypes[msg.sender])
+            "RelayerSentinel: notification received for type {%s}", uint256(moduleNotificationTypes[msg.sender])
         );
         console.log("               RelayerSentinel: triggering relayer");
 
-        ISuperRegistry _registry = ISuperRegistry(superRegistry);
-        IRelayer relayer = IRelayer(_registry.getAddress(_registry.RELAYER_ID()));
+        ISuperRegistry registry = ISuperRegistry(superRegistry);
 
-        relayer.send(block.chainid, msg.sender, relayerData);
+        emit Msg(CHAIN_ID, msg.sender, relayerData);
+
         console.log("               RelayerSentinel: triggered relayer");
-    }
-
-    function _extractDeposit4626Data(
-        bytes calldata data_,
-        bytes calldata output_
-    )
-        private
-        view
-        returns (bytes memory)
-    {
-        (address account, uint256 amountIn) = abi.decode(data_, (address, uint256));
-        uint256 amountOut = abi.decode(output_, (uint256));
-
-        return abi.encode(account, intentNotificationTypes[msg.sender], amountIn, amountOut);
     }
 }

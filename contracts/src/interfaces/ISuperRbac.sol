@@ -23,4 +23,20 @@ interface ISuperRbac {
      * @return Whether the account has the role.
      */
     function hasRole(address account, bytes32 role) external view returns (bool);
+
+    // roles
+    /// @dev Get the ID of the admin role.
+    function ADMIN_ROLE() external view returns (bytes32);
+
+    /// @dev Get the ID of the sentinels manager role.
+    function SENTINELS_MANAGER() external view returns (bytes32);
+
+    /// @dev Get the ID of the relayer sentinel manager role.
+    function RELAYER_SENTINEL_MANAGER() external view returns (bytes32);
+
+    /// @dev Get the ID of the hook registration role.
+    function HOOK_REGISTRATION_ROLE() external view returns (bytes32);
+
+    /// @dev Get the ID of the hook executor role.
+    function HOOK_EXECUTOR_ROLE() external view returns (bytes32);
 }

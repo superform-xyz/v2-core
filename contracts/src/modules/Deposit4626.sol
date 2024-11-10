@@ -11,14 +11,14 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { IERC7579Account, Execution } from "modulekit/Accounts.sol";
 
 // Superform
-import { ERC20Hook } from "src/hooks/ERC20Hook.sol";
-import { ERC4626Hook } from "src/hooks/ERC4626Hook.sol";
+import { ApproveERC20 } from "src/hooks/ApproveERC20.sol";
+import { Deposit4626 } from "src/hooks/Deposit4626.sol";
 import { IntentBase } from "src/intents/IntentBase.sol";
 import { ISuperformVault } from "src/interfaces/ISuperformVault.sol";
 
 import "forge-std/console.sol";
 
-contract DepositToSuperformVaultIntent is ERC7579ExecutorBase, IntentBase {
+contract Deposit4626 is ERC7579ExecutorBase, IntentBase {
     address private _superformVault;
 
     error AMOUNT_ZERO();
@@ -29,10 +29,13 @@ contract DepositToSuperformVaultIntent is ERC7579ExecutorBase, IntentBase {
 
     function onInstall(bytes calldata) external { }
     function onUninstall(bytes calldata) external { }
-    function isInitialized(address) external view returns (bool) { }
+
+    function isInitialized(address) external view returns (bool) {
+        return true;
+    }
 
     function name() external pure returns (string memory) {
-        return "DepositToSuperformVaultIntent";
+        return "Deposit4626";
     }
 
     function version() external pure returns (string memory) {
@@ -68,13 +71,10 @@ contract DepositToSuperformVaultIntent is ERC7579ExecutorBase, IntentBase {
     }
 
     function _approveAction(IERC20 asset, address account, uint256 amount) private {
-        _execute(account, ERC20Hook.approveHook(asset, address(_superformVault), amount));
+        _execute(account, ApproveERC20.hook(asset, address(_superformVault), amount));
     }
 
     function _depositAction(address account, uint256 amount) private {
-        Execution[] memory executions = new Execution[](1);
-        executions[0] = ERC4626Hook.depositHook(IERC4626(_superformVault), account, amount);
-
-        _execute(account, executions);
+        _execute(account, Deposit4626.hook(IERC4626(_superformVault), account, amount));
     }
 }

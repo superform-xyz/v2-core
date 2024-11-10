@@ -12,14 +12,14 @@ contract RelayerSentinelDecoder is IRelayerDecoder {
     function extractRelayerMessage(
         bytes memory input,
         bytes memory output,
-        IRelayerSentinel.IntentNotificationType sentinelType
+        IRelayerSentinel.ModuleNotificationType sentinelType
     )
         external
         pure
         override
         returns (bytes memory relayerData)
     {
-        if (sentinelType == IRelayerSentinel.IntentNotificationType.Deposit4626) {
+        if (sentinelType == IRelayerSentinel.ModuleNotificationType.Deposit4626) {
             relayerData = _extractDeposit4626Data(input, output, sentinelType);
         }
     }
@@ -30,7 +30,7 @@ contract RelayerSentinelDecoder is IRelayerDecoder {
     function _extractDeposit4626Data(
         bytes memory data_,
         bytes memory output_,
-        IRelayerSentinel.IntentNotificationType sentinelType
+        IRelayerSentinel.ModuleNotificationType sentinelType
     )
         private
         pure

@@ -5,9 +5,7 @@ interface ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event RolesSet(address indexed roles);
     event AddressSet(bytes32 indexed id, address indexed addr);
-    event SuperRbacSet(address indexed superRbac);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -24,27 +22,11 @@ interface ISuperRegistry {
 
     // ids
     /// @dev Get the ID of the SuperRbac.
-    function ROLES_ID() external view returns (bytes32);
+    function SUPER_RBAC_ID() external view returns (bytes32);
 
     /// @dev Get the ID of the relayer.
     function RELAYER_ID() external view returns (bytes32);
 
     /// @dev Get the ID of the relayer sentinel.
     function RELAYER_SENTINEL_ID() external view returns (bytes32);
-
-    // roles
-    /// @dev Get the ID of the admin role.
-    function ADMIN_ROLE() external view returns (bytes32);
-
-    /// @dev Get the ID of the sentinels manager role.
-    function SENTINELS_MANAGER() external view returns (bytes32);
-
-    /// @dev Get the ID of the relayer sentinel manager role.
-    function RELAYER_SENTINEL_MANAGER() external view returns (bytes32);
-
-    /// @dev Get the ID of the hook registration role.
-    function HOOK_REGISTRATION_ROLE() external view returns (bytes32);
-
-    /// @dev Get the ID of the hook executor role.
-    function HOOK_EXECUTOR_ROLE() external view returns (bytes32);
 }

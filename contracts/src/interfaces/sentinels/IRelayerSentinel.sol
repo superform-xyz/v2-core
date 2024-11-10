@@ -5,7 +5,7 @@ interface IRelayerSentinel {
     /*//////////////////////////////////////////////////////////////
                                  ENUMS
     //////////////////////////////////////////////////////////////*/
-    enum IntentNotificationType {
+    enum ModuleNotificationType {
         Forbidden, // can be used as a blacklist/default
         Deposit4626
     }
@@ -15,14 +15,15 @@ interface IRelayerSentinel {
     //////////////////////////////////////////////////////////////*/
     error ADDRESS_NOT_VALID();
     error NOT_RELAYER_MANAGER();
+    error BLOCK_CHAIN_ID_OUT_OF_BOUNDS()M
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Emitted when the notification type for an intent is set.
-    /// @param intent The address of the intent.
+    /// @notice Emitted when the notification type for an module is set.
+    /// @param module The address of the module.
     /// @param notificationType The notification type.
-    event IntentNotificationTypeSet(address indexed intent, IntentNotificationType notificationType);
+    event ModuleNotificationTypeSet(address indexed module, ModuleNotificationType notificationType);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -34,8 +35,8 @@ interface IRelayerSentinel {
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Set the notification type for an intent.
-    /// @param intent_ The address of the intent.
+    /// @notice Set the notification type for an module.
+    /// @param module_ The address of the module.
     /// @param notificationType_ The notification type.
-    function setIntentNotificationType(address intent_, IntentNotificationType notificationType_) external;
+    function setModuleNotificationType(address module_, ModuleNotificationType notificationType_) external;
 }
