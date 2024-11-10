@@ -17,15 +17,16 @@ import (
 
 /*
 == Logs ==
-  Deploying on Destination Chain (Sepolia)...
-  SuperBridge deployed at: 0xc23e64FF756224a9f49C89A921dcE2F4da5b5146
-  SuperVault deployed at: 0x8748F09Fd8E8D9C05aFce58c81E2E7dC8be29834
-  SuperUSD deployed at: 0xc2c1ef95Cc34aCF24cDc5cD011f77F2bF1D5502c
-  Deploying on Source Chain (Base Testnet)...
-  SuperBridge deployed at: 0x5Ceb39773d11e51a8Ec24BDA70d27629E87418E0
-  SuperVault deployed at: 0xD323d24469810AF385Dfa97ec58f0787f1a234D1
-  SuperUSD deployed at: 0xF4417Af5416A8Dc21fD92cCf6F2a49eCc80d043D
-
+  Deployer address: 0xFA9eEc9FBA16303eaE51EB0ef3F7e090035e3e1A
+  Relayer address: 0x8C91d7EADfFc9F9921092cA14C3e498cD8cDe0d3
+  Deploying on Destination Chain (sepolia)...
+  SuperBridge deployed at: 0x7549E4e79A9272878764B20357057613C0b8bbCa
+  SuperVault deployed at: 0xb8a62E3cf08647E98E8158b40fBFaB5D2a959A35
+  SuperUSD deployed at: 0x8e4E2828BB8bc831965eB7d5185Eef33a70f2561
+  Deploying on Source Chain (base)...
+  SuperBridge deployed at: 0x465f943A68ee2f9A986C4F12c41C8F13eaCa663B
+  SuperVault deployed at: 0xfc664A7393847cA7930CfDaD4Ef3EbC6aaA20307
+  SuperUSD deployed at: 0xE22262fb6Bb32FA88b4A7C3c0578D6464cAD03E3
 */
 
 var (

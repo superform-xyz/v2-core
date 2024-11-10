@@ -24,6 +24,10 @@ contract SuperBridge {
         relayer = _relayer;
     }
 
+    function setRelayer(address _relayer) public {
+        relayer = _relayer;
+    }
+
     // release forwards the calldata to the destination contract.
     // Can be executed only by the relayer.
     function release(address addr, bytes memory data) public onlyRelayer {
