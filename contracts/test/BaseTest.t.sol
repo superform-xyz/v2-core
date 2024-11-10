@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
-import { IRelayer } from "src/interfaces/relayer/IRelayer.sol";
 import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISuperformVault } from "src/interfaces/ISuperformVault.sol";
@@ -17,13 +16,13 @@ import { SuperBridge } from "src/PoC/SuperBridge.sol";
 import { SuperformVault } from "src/vault/SuperformVault.sol";
 import { SuperRegistry } from "src/settings/SuperRegistry.sol";
 import { RelayerSentinel } from "src/sentinels/RelayerSentinel.sol";
-import { SuperformSentinel } from "src/sentinels/SuperformSentinel.sol";
 import { RelayerSentinelDecoder } from "src/sentinels/RelayerSentinelDecoder.sol";
 
 import { Types } from "./utils/Types.sol";
 import { Events } from "./utils/Events.sol";
 import { Helpers } from "./utils/Helpers.sol";
 import { ERC20Mock } from "./mocks/ERC20Mock.sol";
+import { console } from "forge-std/console.sol";
 
 abstract contract BaseTest is Types, Events, Helpers {
     /*//////////////////////////////////////////////////////////////
@@ -34,7 +33,6 @@ abstract contract BaseTest is Types, Events, Helpers {
 
     ERC20Mock public wethMock;
 
-    IRelayer public relayer;
     ISuperformVault public wethVault;
     ISuperRegistry public superRegistry;
     ISuperRbac public superRbac;
@@ -44,7 +42,7 @@ abstract contract BaseTest is Types, Events, Helpers {
     uint256 public mainnetFork;
     string public mainnetUrl = vm.envString("ETHEREUM_RPC_URL");
     address public RELAYER = address(0x777);
-    address public DEPLOYER = address(0x999);
+    address public DEPLOYER = address(this);
 
     function setUp() public virtual {
         mainnetFork = vm.createSelectFork(mainnetUrl, 19_274_877);
@@ -58,14 +56,12 @@ abstract contract BaseTest is Types, Events, Helpers {
 
         // deploy contracts
         superRbac = ISuperRbac(new SuperRbac(DEPLOYER));
-        relayer = RELAYER;
         superRegistry = ISuperRegistry(new SuperRegistry(DEPLOYER));
         wethVault = ISuperformVault(new SuperformVault(IERC20(address(wethMock)), "WETH-Vault", "WETH-Vault"));
         relayerDecoder = IRelayerDecoder(new RelayerSentinelDecoder());
         relayerSentinel = IRelayerSentinel(new RelayerSentinel(address(superRegistry), address(relayerDecoder)));
 
         // labeling
-        vm.label(address(roles), "roles");
         vm.label(address(wethVault), "wethVault");
         vm.label(address(superRegistry), "superRegistry");
         vm.label(address(superRbac), "superRbac");
@@ -77,17 +73,18 @@ abstract contract BaseTest is Types, Events, Helpers {
     }
 
     function _postDeploymentSetup() private {
+        //vm.startPrank(DEPLOYER);
         // - set roles for this address
-        superRbac.setRole(DEPLOYER, superRegistry.ADMIN_ROLE(), true);
-        superRbac.setRole(DEPLOYER, superRegistry.HOOK_REGISTRATION_ROLE(), true);
-        superRbac.setRole(DEPLOYER, superRegistry.HOOK_EXECUTOR_ROLE(), true);
+        superRbac.setRole(DEPLOYER, superRbac.ADMIN_ROLE(), true);
+        superRbac.setRole(DEPLOYER, superRbac.HOOK_REGISTRATION_ROLE(), true);
+        superRbac.setRole(DEPLOYER, superRbac.HOOK_EXECUTOR_ROLE(), true);
 
-        superRbac.setRole(DEPLOYER, superRegistry.SENTINELS_MANAGER(), true);
-        superRbac.setRole(DEPLOYER, superRegistry.RELAYER_SENTINEL_MANAGER(), true);
+        superRbac.setRole(DEPLOYER, superRbac.SENTINELS_MANAGER(), true);
+        superRbac.setRole(DEPLOYER, superRbac.RELAYER_SENTINEL_MANAGER(), true);
 
         // - register addresses to the registry
-        superRegistry.setAddress(superRegistry.ROLES_ID(), address(superRbac));
-        superRegistry.setAddress(superRegistry.RELAYER_ID(), address(relayer));
+        superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), address(superRbac));
+        superRegistry.setAddress(superRegistry.RELAYER_ID(), RELAYER);
         superRegistry.setAddress(superRegistry.RELAYER_SENTINEL_ID(), address(relayerSentinel));
     }
 
@@ -97,12 +94,12 @@ abstract contract BaseTest is Types, Events, Helpers {
     }
 
     modifier userWithRole(address user, bytes32 role_) {
-        SuperRbac(address(roles)).setRole(user, role_, true);
+        superRbac.setRole(user, role_, true);
         _;
     }
 
     modifier userWithoutRole(address user, bytes32 role_) {
-        SuperRbac(address(roles)).setRole(user, role_, false);
+        superRbac.setRole(user, role_, false);
         _;
     }
 

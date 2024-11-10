@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 import { IRelayerDecoder } from "../interfaces/sentinels/IRelayerDecoder.sol";
 import { IRelayerSentinel } from "../interfaces/sentinels/IRelayerSentinel.sol";

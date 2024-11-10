@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 interface IRelayerSentinel {
     /*//////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@ interface IRelayerSentinel {
     //////////////////////////////////////////////////////////////*/
     error ADDRESS_NOT_VALID();
     error NOT_RELAYER_MANAGER();
-    error BLOCK_CHAIN_ID_OUT_OF_BOUNDS()M
+    error BLOCK_CHAIN_ID_OUT_OF_BOUNDS();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -24,6 +24,12 @@ interface IRelayerSentinel {
     /// @param module The address of the module.
     /// @param notificationType The notification type.
     event ModuleNotificationTypeSet(address indexed module, ModuleNotificationType notificationType);
+
+    /// @notice Emitted when a message is sent.
+    /// @param destinationChainId The originating chain ID.
+    /// @param destinationContract The sender contract address.
+    /// @param data The data.
+    event Msg(uint256 indexed destinationChainId, address indexed destinationContract, bytes data);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

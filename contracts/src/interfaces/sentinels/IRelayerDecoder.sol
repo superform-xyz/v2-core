@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 import { IRelayerSentinel } from "./IRelayerSentinel.sol";
 
@@ -15,7 +15,7 @@ interface IRelayerDecoder {
     function extractRelayerMessage(
         bytes memory input,
         bytes memory output,
-        IRelayerSentinel.IntentNotificationType sentinelType
+        IRelayerSentinel.ModuleNotificationType sentinelType
     )
         external
         view

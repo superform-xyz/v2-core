@@ -9,4 +9,4 @@ deploy-poc:
 
 build :; forge build
 ftest :; forge test
-test-vvv :; forge test -vvv
+test-vvv :; forge test -vvvvv

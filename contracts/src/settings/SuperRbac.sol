@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
@@ -26,11 +26,9 @@ contract SuperRbac is Ownable, ISuperRbac {
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @dev Add a role to an account.
-    /// @param account_ The address of the account.
-    /// @param role_ The role to add.
-    /// @param allowed_ Whether the role is allowed.
-    function setRole(address account_, bytes32 role_, bool allowed_) public onlyOwner {
+
+    /// @inheritdoc ISuperRbac
+    function setRole(address account_, bytes32 role_, bool allowed_) external override onlyOwner {
         if (account_ == address(0)) revert INVALID_ACCOUNT();
         if (role_ == bytes32(0)) revert INVALID_ROLE();
         _roles[account_][role_] = allowed_;
@@ -41,7 +39,7 @@ contract SuperRbac is Ownable, ISuperRbac {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperRbac
-    function hasRole(address account_, bytes32 role_) public view override returns (bool) {
+    function hasRole(address account_, bytes32 role_) external view override returns (bool) {
         return _roles[account_][role_];
     }
 }

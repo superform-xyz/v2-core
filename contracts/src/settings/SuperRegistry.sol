@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
@@ -23,10 +23,8 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  OWNER
     //////////////////////////////////////////////////////////////*/
-    /// @dev Set the address of an ID.
-    /// @param id_ The ID.
-    /// @param address_ The address.
-    function setAddress(bytes32 id_, address address_) external onlyOwner {
+    /// @inheritdoc ISuperRegistry
+    function setAddress(bytes32 id_, address address_) external override onlyOwner {
         if (address_ == address(0)) revert INVALID_ADDRESS();
         addresses[id_] = address_;
         emit AddressSet(id_, address_);

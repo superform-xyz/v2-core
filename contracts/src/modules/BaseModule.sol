@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 // modulekit
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
@@ -10,7 +10,7 @@ import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
 import { ISentinel } from "src/interfaces/sentinels/ISentinel.sol";
 import { IRelayerSentinel } from "src/interfaces/sentinels/IRelayerSentinel.sol";
 
-abstract contract IntentBase is ERC7579ExecutorBase {
+abstract contract BaseModule is ERC7579ExecutorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -33,7 +33,7 @@ abstract contract IntentBase is ERC7579ExecutorBase {
     /// @param sentinel_ The address of the sentinel.
     function setRelayerSentinel(address sentinel_) external {
         ISuperRbac rbac = _getRbac();
-        if (!rbac.hasRole(msg.sender, superRegistry.SENTINELS_MANAGER())) revert NOT_RELAYER_MANAGER();
+        if (!rbac.hasRole(msg.sender, rbac.SENTINELS_MANAGER())) revert NOT_RELAYER_MANAGER();
         _setRelayerSentinel(sentinel_);
     }
 
@@ -53,6 +53,6 @@ abstract contract IntentBase is ERC7579ExecutorBase {
     }
 
     function _getRbac() internal view returns (ISuperRbac) {
-        return ISuperRbac(superRegistry.getAddress(superRegistry.ROLES_ID()));
+        return ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
     }
 }

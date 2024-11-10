@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 // Superform
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";

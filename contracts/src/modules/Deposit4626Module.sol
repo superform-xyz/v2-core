@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
@@ -13,17 +13,17 @@ import { IERC7579Account, Execution } from "modulekit/Accounts.sol";
 // Superform
 import { ApproveERC20 } from "src/hooks/ApproveERC20.sol";
 import { Deposit4626 } from "src/hooks/Deposit4626.sol";
-import { IntentBase } from "src/intents/IntentBase.sol";
+import { BaseModule } from "src/modules/BaseModule.sol";
 import { ISuperformVault } from "src/interfaces/ISuperformVault.sol";
 
 import "forge-std/console.sol";
 
-contract Deposit4626 is ERC7579ExecutorBase, IntentBase {
+contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
     address private _superformVault;
 
     error AMOUNT_ZERO();
 
-    constructor(address superformVault_, address registry_) IntentBase(registry_) {
+    constructor(address superformVault_, address registry_) BaseModule(registry_) {
         _superformVault = superformVault_;
     }
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 interface ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
@@ -11,6 +11,14 @@ interface ISuperRegistry {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error INVALID_ADDRESS();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @dev Set the address of an ID.
+    /// @param id_ The ID.
+    /// @param address_ The address.
+    function setAddress(bytes32 id_, address address_) external;
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

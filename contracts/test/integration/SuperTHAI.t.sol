@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,14 +15,12 @@ import {
 
 import { Execution } from "modulekit/external/ERC7579.sol";
 
-import { IntentsShared } from "test/unit/shared/IntentsShared.t.sol";
-import { BorrowFromMockProtocolIntent } from "src/intents/BorrowFromMockProtocolIntent.sol";
-import { DepositToSuperformVaultIntent } from "src/intents/DepositToSuperformVaultIntent.sol";
-import { AddCollateralToMockProtocolIntent } from "src/intents/AddCollateralToMockProtocolIntent.sol";
+import { ModulesShared } from "test/shared/ModulesShared.t.sol";
+import { Deposit4626Module } from "src/modules/Deposit4626Module.sol";
 
 import "forge-std/console.sol";
 
-contract IntentsBasicExecution is IntentsShared {
+contract IntentsBasicExecution is ModulesShared {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
 
@@ -35,7 +33,9 @@ contract IntentsBasicExecution is IntentsShared {
         UserOpData memory userOpData = instance.getExecOps({
             target: address(deposit4626Module),
             value: 0,
-            callData: abi.encodeWithSelector(Deposit4626.execute.selector, abi.encode(address(instance.account), amount)),
+            callData: abi.encodeWithSelector(
+                Deposit4626Module.execute.selector, abi.encode(address(instance.account), amount)
+            ),
             txValidator: address(instance.defaultValidator)
         });
         userOpData.execUserOps();

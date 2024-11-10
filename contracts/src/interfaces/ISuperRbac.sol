@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 interface ISuperRbac {
     /*//////////////////////////////////////////////////////////////
@@ -12,6 +12,15 @@ interface ISuperRbac {
     //////////////////////////////////////////////////////////////*/
     error INVALID_ACCOUNT();
     error INVALID_ROLE();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @dev Add a role to an account.
+    /// @param account_ The address of the account.
+    /// @param role_ The role to add.
+    /// @param allowed_ Whether the role is allowed.
+    function setRole(address account_, bytes32 role_, bool allowed_) external;
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
