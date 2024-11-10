@@ -14,6 +14,7 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/external/ERC7579.sol";
 import { BaseTest } from "../BaseTest.t.sol";
 import { Deposit4626Module } from "src/modules/Deposit4626Module.sol";
 import { IRelayerSentinel } from "src/interfaces/sentinels/IRelayerSentinel.sol";
+import { ISentinel } from "src/interfaces/sentinels/ISentinel.sol";
 
 abstract contract ModulesShared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
@@ -29,7 +30,10 @@ abstract contract ModulesShared is BaseTest, RhinestoneModuleKit {
         init();
 
         // Initialize the modules
-        deposit4626Module = new Deposit4626Module(address(wethVault), address(superRegistry));
+        deposit4626Module = new Deposit4626Module(
+            address(wethVault), address(deposit4626MintSuperPositionsDecoder), address(superRegistry)
+        );
+        ISentinel(address(relayerSentinel)).addModuleToWhitelist(address(deposit4626Module));
 
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");
@@ -39,11 +43,8 @@ abstract contract ModulesShared is BaseTest, RhinestoneModuleKit {
         instance.installModule(MODULE_TYPE_EXECUTOR, address(deposit4626Module), "");
 
         vm.startPrank(DEPLOYER);
-        // Set relayer sentinel & intents notification type
+        // Set relayer sentinel
         deposit4626Module.setRelayerSentinel(address(relayerSentinel));
-        relayerSentinel.setModuleNotificationType(
-            address(deposit4626Module), IRelayerSentinel.ModuleNotificationType.Deposit4626
-        );
     }
 
     modifier whenAccountHasTokens() {

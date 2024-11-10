@@ -15,7 +15,11 @@ interface IRelayerSentinel {
     //////////////////////////////////////////////////////////////*/
     error ADDRESS_NOT_VALID();
     error NOT_RELAYER_MANAGER();
+    error NOT_WHITELISTED();
     error BLOCK_CHAIN_ID_OUT_OF_BOUNDS();
+    error CALL_FAILED();
+    error INVALID_LENGTH();
+    error NOT_RELAYER();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -34,15 +38,8 @@ interface IRelayerSentinel {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get the decoder address.
-    /// @return The decoder address.
-    function decoder() external view returns (address);
-
-    /*//////////////////////////////////////////////////////////////
-                                 PUBLIC METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Set the notification type for an module.
-    /// @param module_ The address of the module.
-    /// @param notificationType_ The notification type.
-    function setModuleNotificationType(address module_, ModuleNotificationType notificationType_) external;
+    /// @notice Receive relayer data.
+    /// @param target The target address.
+    /// @param data The data.
+    function receiveRelayerData(address target, bytes memory data) external;
 }

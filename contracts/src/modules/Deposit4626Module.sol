@@ -20,11 +20,13 @@ import "forge-std/console.sol";
 
 contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
     address private _superformVault;
+    address private _decoder;
 
     error AMOUNT_ZERO();
 
-    constructor(address superformVault_, address registry_) BaseModule(registry_) {
+    constructor(address superformVault_, address registry_, address decoder_) BaseModule(registry_) {
         _superformVault = superformVault_;
+        _decoder = decoder_;
     }
 
     function onInstall(bytes calldata) external { }
@@ -47,6 +49,7 @@ contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
     }
 
     function execute(bytes calldata data) external {
+        /// @dev TODO put TOKEN ADDRESS AS PARAM HERE
         (address account, uint256 amount) = abi.decode(data, (address, uint256));
         if (amount == 0) revert AMOUNT_ZERO();
 
@@ -66,7 +69,7 @@ contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
         uint256 amountAfter = ISuperformVault(_superformVault).totalAssets();
         console.log("           execution ended; amount after %s", amountAfter);
         console.log("           relayer notified - example call");
-        _notifyRelayerSentinel(data, abi.encode(amountAfter - amountBefore));
+        _notifyRelayerSentinel(_decoder, abi.encode(amountAfter - amountBefore), true);
         console.log("           _|");
     }
 
