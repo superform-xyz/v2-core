@@ -2,25 +2,28 @@
 pragma solidity =0.8.28;
 
 // external
-import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // modulekit
 import { ModeLib } from "erc7579/lib/ModeLib.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { IERC7579Account, Execution } from "modulekit/Accounts.sol";
-import { ERC20Integration } from "modulekit/integrations/ERC20.sol";
 
 // Superform
+import { ERC20Hook } from "src/hooks/ERC20Hook.sol";
+import { ERC4626Hook } from "src/hooks/ERC4626Hook.sol";
+import { IntentBase } from "src/intents/IntentBase.sol";
 import { ISuperformVault } from "src/interfaces/ISuperformVault.sol";
 
 import "forge-std/console.sol";
 
-contract DepositToSuperformVaultIntent is ERC7579ExecutorBase {
+contract DepositToSuperformVaultIntent is ERC7579ExecutorBase, IntentBase {
     address private _superformVault;
 
     error AMOUNT_ZERO();
 
-    constructor(address superformVault_) {
+    constructor(address superformVault_, address registry_) IntentBase(registry_) {
         _superformVault = superformVault_;
     }
 
@@ -45,7 +48,7 @@ contract DepositToSuperformVaultIntent is ERC7579ExecutorBase {
         if (amount == 0) revert AMOUNT_ZERO();
 
         uint256 amountBefore = ISuperformVault(_superformVault).totalAssets();
-        console.log("           |_");
+        console.log("           |____________");
         console.log("           execution started; amount before %s", amountBefore);
 
         IERC20 asset = IERC20(address(ISuperformVault(_superformVault).asset()));
@@ -57,25 +60,20 @@ contract DepositToSuperformVaultIntent is ERC7579ExecutorBase {
         _depositAction(account, amount);
 
         console.log("                deposit asset");
-        amountBefore = ISuperformVault(_superformVault).totalAssets();
-        console.log("           execution started; amount after %s", amountBefore);
+        uint256 amountAfter = ISuperformVault(_superformVault).totalAssets();
+        console.log("           execution ended; amount after %s", amountAfter);
+        console.log("           relayer notified - example call");
+        _notifyRelayerSentinel(data, abi.encode(amountAfter - amountBefore));
         console.log("           _|");
     }
 
     function _approveAction(IERC20 asset, address account, uint256 amount) private {
-        Execution[] memory executions = new Execution[](2);
-        (executions[0], executions[1]) = ERC20Integration.safeApprove(asset, address(_superformVault), amount);
-
-        _execute(account, executions);
+        _execute(account, ERC20Hook.approveHook(asset, address(_superformVault), amount));
     }
 
     function _depositAction(address account, uint256 amount) private {
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({
-            target: address(_superformVault),
-            value: 0,
-            callData: abi.encodeCall(ISuperformVault.deposit, (amount, account))
-        });
+        executions[0] = ERC4626Hook.depositHook(IERC4626(_superformVault), account, amount);
 
         _execute(account, executions);
     }

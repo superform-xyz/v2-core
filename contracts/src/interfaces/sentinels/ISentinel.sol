@@ -26,31 +26,8 @@ interface ISentinel {
     error INVALID_SUPER_REGISTRY();
 
     /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @dev Check if the hook is allowed to trigger the sentinel.
-    /// @param hook_ The address of the hook.
-    /// @return Whether the hook is allowed.
-    function allowed(address hook_) external view returns (bool);
-
-    /// @dev Get the length of the hook entries.
-    /// @param hook_ The address of the hook.
-    /// @return The length of the hook entries.
-    function entriesLength(address hook_) external view returns (uint256);
-
-    /// @dev Get the nonce of the hook.
-    /// @param hook_ The address of the hook.
-    /// @param index_ The index of the entry.
-    /// @return The entry of the hook.
-    function entry(address hook_, uint256 index_) external view returns (Entry memory);
-
-    /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @dev Notify the sentinel from an 7579 account.
-    /// @param data_ Additional data to pass.
-    function notifyFromAccount(bytes calldata data_) external;
-
     /// @dev Notify the sentinel. `msg.sender` is the hook.
     /// @param input_ Additional data to pass to the hook.
     /// @param output_ The return data from the hook.
