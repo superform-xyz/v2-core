@@ -8,7 +8,7 @@ import { ISentinel } from "../interfaces/sentinels/ISentinel.sol";
 import { ISentinelDecoder } from "../interfaces/sentinels/ISentinelDecoder.sol";
 import { IRelayerSentinel } from "../interfaces/sentinels/IRelayerSentinel.sol";
 
-// import "forge-std/console.sol";
+import "forge-std/console.sol";
 
 contract RelayerSentinel is ISentinel, IRelayerSentinel {
     /*//////////////////////////////////////////////////////////////
@@ -93,7 +93,7 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
     /// @inheritdoc IRelayerSentinel
     function receiveRelayerData(address target, bytes memory data) external override onlyRelayer {
         (bool success,) = target.call(data);
-        //console.log("received relayer data", success);
+        console.log("received relayer data", success);
         if (!success) revert CALL_FAILED();
     }
 
@@ -111,12 +111,12 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
         // @dev below is showing an example of transforming the data into the right format
         bytes memory relayerData = ISentinelDecoder(decoder_).extractSentinelData(data_);
 
-        //console.log("               RelayerSentinel: triggering relayer");
+        console.log("               RelayerSentinel: triggering relayer");
 
         ISuperRegistry registry = ISuperRegistry(superRegistry);
 
         emit Msg(CHAIN_ID, msg.sender, relayerData);
 
-        //console.log("               RelayerSentinel: triggered relayer");
+        console.log("               RelayerSentinel: triggered relayer");
     }
 }
