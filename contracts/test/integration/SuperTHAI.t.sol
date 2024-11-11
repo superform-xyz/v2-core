@@ -26,7 +26,7 @@ contract SuperTHAITests is ModulesShared {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
 
-    function test_GivenAssetsWereDepositedToTheSmartAccount(uint256 amount) external whenAccountHasTokens {
+    function test_deposit4626MintSuperPositions(uint256 amount) external whenAccountHasTokens {
         amount = bound(amount, SMALL, LARGE);
         uint256 totalAssetsBefore = wethVault.totalAssets();
         uint256 balanceVaultBefore = IERC20(address(wethVault)).balanceOf(address(instance.account));

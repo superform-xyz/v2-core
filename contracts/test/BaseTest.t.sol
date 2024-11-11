@@ -72,8 +72,8 @@ abstract contract BaseTest is Types, Events, Helpers {
         relayerSentinelSrc = IRelayerSentinel(new RelayerSentinel(address(superRegistrySrc)));
 
         vm.selectFork(arbitrumFork);
-        superRegistryDst = ISuperRegistry(new SuperRegistry(DEPLOYER));
         superRbacDst = ISuperRbac(new SuperRbac(DEPLOYER));
+        superRegistryDst = ISuperRegistry(new SuperRegistry(DEPLOYER));
         superPositions = ISuperPositions(new SuperPositions(address(superRegistryDst), 18));
         relayerSentinelDst = IRelayerSentinel(new RelayerSentinel(address(superRegistryDst)));
 
