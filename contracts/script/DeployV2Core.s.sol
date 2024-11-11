@@ -53,6 +53,7 @@ contract DeployV2Core is Script {
         superRegistryContract.setAddress(superRegistryContract.RELAYER_SENTINEL_ID(), address(relayerSentinel));
         address deposit4626MintSuperPositionsDecoder;
         address deposit4626Module;
+        address superPositions;
         // just for SuperTHAI
         if (chainId == 0) {
             deposit4626MintSuperPositionsDecoder = deployer.deploy(
@@ -68,6 +69,12 @@ contract DeployV2Core is Script {
             );
             ISentinel(relayerSentinel).addModuleToWhitelist(deposit4626Module);
             ISentinel(relayerSentinel).addDecoderToWhitelist(deposit4626MintSuperPositionsDecoder);
+        } else if (chainId == 1) {
+            // just for SuperChain
+            superPositions = deployer.deploy(
+                keccak256("SUPER_POSITIONS_V1"),
+                abi.encodePacked(type(SuperPositions).creationCode, abi.encode(superRegistry, 18))
+            );
         }
 
         // Log deployed addresses
@@ -76,7 +83,7 @@ contract DeployV2Core is Script {
         console2.log("Deposit4626MintSuperPositionsDecoder deployed to:", deposit4626MintSuperPositionsDecoder);
         console2.log("RelayerSentinel deployed to:", relayerSentinel);
         console2.log("Deposit4626Module deployed to:", deposit4626Module);
-
+        console2.log("SuperPositions deployed to:", superPositions);
         vm.stopBroadcast();
     }
 }
