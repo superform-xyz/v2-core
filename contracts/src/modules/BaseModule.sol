@@ -46,9 +46,9 @@ abstract contract BaseModule is ERC7579ExecutorBase {
         relayerSentinel = ISentinel(sentinel_);
     }
 
-    function _notifyRelayerSentinel(address decoder, bytes memory data, bool success) internal {
+    function _notifyRelayerSentinel(address decoder, address target, bytes memory data, bool success) internal {
         if (address(relayerSentinel) == address(0)) revert ADDRESS_NOT_VALID();
 
-        relayerSentinel.notify(decoder, data, success);
+        relayerSentinel.notify(decoder, target, data, success);
     }
 }

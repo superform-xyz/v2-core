@@ -8,27 +8,19 @@ import { ISentinel } from "../interfaces/sentinels/ISentinel.sol";
 import { ISentinelDecoder } from "../interfaces/sentinels/ISentinelDecoder.sol";
 import { IRelayerSentinel } from "../interfaces/sentinels/IRelayerSentinel.sol";
 
-import "forge-std/console.sol";
-
 contract RelayerSentinel is ISentinel, IRelayerSentinel {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     ISuperRegistry public superRegistry;
 
-    uint64 public CHAIN_ID;
+    uint64 public constant SUPER_CHAIN_ID = 98;
 
     mapping(address => bool) public decoderWhitelist;
     mapping(address => bool) public moduleWhitelist;
 
     constructor(address registry_) {
         if (registry_ == address(0)) revert ADDRESS_NOT_VALID();
-
-        if (block.chainid > type(uint64).max) {
-            revert BLOCK_CHAIN_ID_OUT_OF_BOUNDS();
-        }
-
-        CHAIN_ID = uint64(block.chainid);
 
         superRegistry = ISuperRegistry(registry_);
     }
@@ -86,14 +78,13 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISentinel
-    function notify(address decoder_, bytes calldata data_, bool success_) external override {
-        _notify(decoder_, data_, success_);
+    function notify(address decoder_, address target, bytes calldata data_, bool success_) external override {
+        _notify(decoder_, target, data_, success_);
     }
 
     /// @inheritdoc IRelayerSentinel
     function receiveRelayerData(address target, bytes memory data) external override onlyRelayer {
         (bool success,) = target.call(data);
-        console.log("received relayer data", success);
         if (!success) revert CALL_FAILED();
     }
 
@@ -101,7 +92,9 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     // add chainId to the signature
-    function _notify(address decoder_, bytes calldata data_, bool success_) private {
+    function _notify(address decoder_, address target, bytes calldata data_, bool success_) private {
+        if (decoder_ == address(0)) revert ADDRESS_NOT_VALID();
+
         if (!success_) revert CALL_FAILED();
         // don't allow forbidden or not configured intents to notify
         if (!moduleWhitelist[msg.sender]) revert NOT_WHITELISTED();
@@ -111,12 +104,6 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
         // @dev below is showing an example of transforming the data into the right format
         bytes memory relayerData = ISentinelDecoder(decoder_).extractSentinelData(data_);
 
-        console.log("               RelayerSentinel: triggering relayer");
-
-        ISuperRegistry registry = ISuperRegistry(superRegistry);
-
-        emit Msg(CHAIN_ID, msg.sender, relayerData);
-
-        console.log("               RelayerSentinel: triggered relayer");
+        emit Msg(SUPER_CHAIN_ID, target, relayerData);
     }
 }

@@ -29,15 +29,15 @@ contract DeployV2Core is Script {
         deployer = Create3Deployer(CREATE3);
 
         address superRbac = deployer.deploy(
-            keccak256("SUPER_RBAC_V1"), abi.encodePacked(type(SuperRbac).creationCode, abi.encode(DEPLOYER))
+            keccak256("SUPER_RBAC_V2"), abi.encodePacked(type(SuperRbac).creationCode, abi.encode(DEPLOYER))
         );
 
         address superRegistry = deployer.deploy(
-            keccak256("SUPER_REGISTRY_V1"), abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(DEPLOYER))
+            keccak256("SUPER_REGISTRY_V2"), abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(DEPLOYER))
         );
 
         address relayerSentinel = deployer.deploy(
-            keccak256("RELAYER_SENTINEL_V1"),
+            keccak256("RELAYER_SENTINEL_V2"),
             abi.encodePacked(type(RelayerSentinel).creationCode, abi.encode(superRegistry))
         );
 
@@ -54,6 +54,7 @@ contract DeployV2Core is Script {
         superRegistryContract.setAddress(superRegistryContract.SUPER_RBAC_ID(), address(superRbacContract));
         superRegistryContract.setAddress(superRegistryContract.RELAYER_ID(), RELAYER);
         superRegistryContract.setAddress(superRegistryContract.RELAYER_SENTINEL_ID(), address(relayerSentinel));
+
         address deposit4626MintSuperPositionsDecoder;
         address deposit4626Module;
         address weth;
@@ -62,20 +63,20 @@ contract DeployV2Core is Script {
         // just for SuperTHAI
         if (chainId == 0) {
             weth = deployer.deploy(
-                keccak256("WETH_V1"), abi.encodePacked(type(ERC20Mock).creationCode, abi.encode("WETH", "WETH", 18))
+                keccak256("WETH_V2"), abi.encodePacked(type(ERC20Mock).creationCode, abi.encode("WETH", "WETH", 18))
             );
 
             superformVault = deployer.deploy(
-                keccak256("SUPERFORM_VAULT_V1"),
+                keccak256("SUPERFORM_VAULT_V2"),
                 abi.encodePacked(type(SuperformVault).creationCode, abi.encode(IERC20(weth), "SuperWETHVault", "sWETH"))
             );
 
             deposit4626MintSuperPositionsDecoder = deployer.deploy(
-                keccak256("DEPOSIT_4626_MINT_SUPER_POSITIONS_DECODER_V1"),
+                keccak256("DEPOSIT_4626_MINT_SUPER_POSITIONS_DECODER_V2"),
                 abi.encodePacked(type(Deposit4626MintSuperPositionsDecoder).creationCode)
             );
             deposit4626Module = deployer.deploy(
-                keccak256("DEPOSIT_4626_MODULE_V1"),
+                keccak256("DEPOSIT_4626_MODULE_V2"),
                 abi.encodePacked(
                     type(Deposit4626Module).creationCode,
                     abi.encode(superRegistry, deposit4626MintSuperPositionsDecoder)
@@ -86,9 +87,10 @@ contract DeployV2Core is Script {
         } else if (chainId == 1) {
             // just for SuperChain
             superPositions = deployer.deploy(
-                keccak256("SUPER_POSITIONS_V1"),
+                keccak256("SUPER_POSITIONS_V2"),
                 abi.encodePacked(type(SuperPositions).creationCode, abi.encode(superRegistry, 18))
             );
+            superRegistryContract.setAddress(superRegistryContract.SUPER_POSITIONS_ID(), superPositions);
         }
 
         // Log deployed addresses

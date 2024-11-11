@@ -65,7 +65,8 @@ interface ISentinel {
     //////////////////////////////////////////////////////////////*/
     /// @dev Notify the sentinel. `msg.sender` is the module.
     /// @param decoder_ The address of the decoder.
+    /// @param target The target address.
     /// @param data_ The return data from the module.
     /// @param success_ Whether the module was successful.
-    function notify(address decoder_, bytes calldata data_, bool success_) external;
+    function notify(address decoder_, address target, bytes calldata data_, bool success_) external;
 }

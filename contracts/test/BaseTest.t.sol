@@ -104,6 +104,7 @@ abstract contract BaseTest is Types, Events, Helpers {
         superRegistrySrc.setAddress(superRegistrySrc.SUPER_RBAC_ID(), address(superRbacSrc));
         superRegistrySrc.setAddress(superRegistrySrc.RELAYER_ID(), RELAYER);
         superRegistrySrc.setAddress(superRegistrySrc.RELAYER_SENTINEL_ID(), address(relayerSentinelSrc));
+        superRegistrySrc.setAddress(superRegistrySrc.SUPER_POSITIONS_ID(), address(superPositions));
 
         ISentinel(address(relayerSentinelSrc)).addDecoderToWhitelist(address(deposit4626MintSuperPositionsDecoder));
 
@@ -119,7 +120,6 @@ abstract contract BaseTest is Types, Events, Helpers {
         superRegistryDst.setAddress(superRegistryDst.SUPER_RBAC_ID(), address(superRbacDst));
         superRegistryDst.setAddress(superRegistryDst.RELAYER_ID(), RELAYER);
         superRegistryDst.setAddress(superRegistryDst.RELAYER_SENTINEL_ID(), address(relayerSentinelDst));
-
         ISentinel(address(relayerSentinelDst)).addDecoderToWhitelist(address(deposit4626MintSuperPositionsDecoder));
 
         vm.selectFork(mainnetFork);

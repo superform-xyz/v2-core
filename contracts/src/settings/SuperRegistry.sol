@@ -17,6 +17,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     bytes32 public constant SUPER_RBAC_ID = keccak256("SUPER_RBAC_ID");
     bytes32 public constant RELAYER_ID = keccak256("RELAYER_ID");
     bytes32 public constant RELAYER_SENTINEL_ID = keccak256("RELAYER_SENTINEL_ID");
+    bytes32 public constant SUPER_POSITIONS_ID = keccak256("SUPER_POSITIONS_ID");
 
     constructor(address owner) Ownable(owner) { }
 
