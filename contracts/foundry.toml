@@ -20,6 +20,7 @@ remappings = [
   "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
   "modulekit/=lib/modulekit/src/",
   "@prb/math/=lib/modulekit/node_modules/@prb/math/src/",
+  "@solady/=lib/solady/",
 ]
 
 [profile.ci]

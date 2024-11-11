@@ -36,7 +36,7 @@ contract SuperTHAITests is ModulesShared {
             target: address(deposit4626Module),
             value: 0,
             callData: abi.encodeWithSelector(
-                Deposit4626Module.execute.selector, abi.encode(address(instance.account), amount)
+                Deposit4626Module.execute.selector, abi.encode(address(wethVault), address(instance.account), amount)
             ),
             txValidator: address(instance.defaultValidator)
         });

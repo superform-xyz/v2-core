@@ -19,13 +19,11 @@ import { ISuperformVault } from "src/interfaces/ISuperformVault.sol";
 import "forge-std/console.sol";
 
 contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
-    address private _superformVault;
     address private _decoder;
 
     error AMOUNT_ZERO();
 
-    constructor(address superformVault_, address registry_, address decoder_) BaseModule(registry_) {
-        _superformVault = superformVault_;
+    constructor(address registry_, address decoder_) BaseModule(registry_) {
         _decoder = decoder_;
     }
 
@@ -49,35 +47,34 @@ contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
     }
 
     function execute(bytes calldata data) external {
-        /// @dev TODO put TOKEN ADDRESS AS PARAM HERE
-        (address account, uint256 amount) = abi.decode(data, (address, uint256));
+        (address vault, address account, uint256 amount) = abi.decode(data, (address, address, uint256));
         if (amount == 0) revert AMOUNT_ZERO();
 
-        uint256 amountBefore = ISuperformVault(_superformVault).totalAssets();
+        uint256 amountBefore = ISuperformVault(vault).totalAssets();
         console.log("           |____________");
         console.log("           execution started; amount before %s", amountBefore);
 
-        IERC20 asset = IERC20(address(ISuperformVault(_superformVault).asset()));
+        IERC20 asset = IERC20(address(ISuperformVault(vault).asset()));
         // execute the approval
-        _approveAction(asset, account, amount);
+        _approveAction(asset, account, vault, amount);
         console.log("                approve asset");
 
         // execute the deposit
-        _depositAction(account, amount);
+        _depositAction(account, vault, amount);
 
         console.log("                deposit asset");
-        uint256 amountAfter = ISuperformVault(_superformVault).totalAssets();
+        uint256 amountAfter = ISuperformVault(vault).totalAssets();
         console.log("           execution ended; amount after %s", amountAfter);
         console.log("           relayer notified - example call");
         _notifyRelayerSentinel(_decoder, abi.encode(account, amountAfter - amountBefore), true);
         console.log("           _|");
     }
 
-    function _approveAction(IERC20 asset, address account, uint256 amount) private {
-        _execute(account, ApproveERC20.hook(asset, address(_superformVault), amount));
+    function _approveAction(IERC20 asset, address account, address vault, uint256 amount) private {
+        _execute(account, ApproveERC20.hook(asset, address(vault), amount));
     }
 
-    function _depositAction(address account, uint256 amount) private {
-        _execute(account, Deposit4626.hook(IERC4626(_superformVault), account, amount));
+    function _depositAction(address account, address vault, uint256 amount) private {
+        _execute(account, Deposit4626.hook(IERC4626(vault), account, amount));
     }
 }
