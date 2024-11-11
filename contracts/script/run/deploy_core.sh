@@ -7,11 +7,11 @@ export SUPER_CHAIN_RPC_URL=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/SUPER_CHAIN
 # Run the script
 
 echo Deploy create3 factory on Super Thai: ...
-FOUNDRY_PROFILE=production forge script script/DeployV2Core.s.sol:DeployV2Core --sig "deploy(uint64)" 0 --rpc-url $SUPER_THAI_RPC_URL --broadcast --account default --account default --sender 0x48aB8AdF869Ba9902Ad483FB1Ca2eFDAb6eabe92
+FOUNDRY_PROFILE=production forge script script/DeployV2Core.s.sol:DeployV2Core --sig "deploy(uint64)" 0 --rpc-url $SUPER_THAI_RPC_URL --broadcast --slow --account default --account default --sender 0x48aB8AdF869Ba9902Ad483FB1Ca2eFDAb6eabe92
 
 wait
 
 echo Deploy create3 factory on Super Chain: ...
-FOUNDRY_PROFILE=production forge script script/DeployV2Core.s.sol:DeployV2Core --sig "deploy(uint64)" 1 --rpc-url $SUPER_CHAIN_RPC_URL --broadcast --account default --account default --sender 0x48aB8AdF869Ba9902Ad483FB1Ca2eFDAb6eabe92
+FOUNDRY_PROFILE=production forge script script/DeployV2Core.s.sol:DeployV2Core --sig "deploy(uint64)" 1 --rpc-url $SUPER_CHAIN_RPC_URL --broadcast --slow --account default --account default --sender 0x48aB8AdF869Ba9902Ad483FB1Ca2eFDAb6eabe92
 
 wait
