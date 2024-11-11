@@ -11,6 +11,9 @@ import { SuperPositions } from "src/superpositions/SuperPositions.sol";
 import { RelayerSentinel } from "src/sentinels/RelayerSentinel.sol";
 import { Deposit4626MintSuperPositionsDecoder } from "src/sentinels/Deposit4626MintSuperPositionsDecoder.sol";
 import { Deposit4626Module } from "src/modules/Deposit4626Module.sol";
+import { SuperformVault } from "src/vault/SuperformVault.sol";
+import { ERC20Mock } from "test/mocks/ERC20Mock.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract DeployV2Core is Script {
     // Add storage variables
@@ -53,9 +56,20 @@ contract DeployV2Core is Script {
         superRegistryContract.setAddress(superRegistryContract.RELAYER_SENTINEL_ID(), address(relayerSentinel));
         address deposit4626MintSuperPositionsDecoder;
         address deposit4626Module;
+        address weth;
+        address superformVault;
         address superPositions;
         // just for SuperTHAI
         if (chainId == 0) {
+            weth = deployer.deploy(
+                keccak256("WETH_V1"), abi.encodePacked(type(ERC20Mock).creationCode, abi.encode("WETH", "WETH", 18))
+            );
+
+            superformVault = deployer.deploy(
+                keccak256("SUPERFORM_VAULT_V1"),
+                abi.encodePacked(type(SuperformVault).creationCode, abi.encode(IERC20(weth), "SuperWETHVault", "sWETH"))
+            );
+
             deposit4626MintSuperPositionsDecoder = deployer.deploy(
                 keccak256("DEPOSIT_4626_MINT_SUPER_POSITIONS_DECODER_V1"),
                 abi.encodePacked(type(Deposit4626MintSuperPositionsDecoder).creationCode)
@@ -80,10 +94,16 @@ contract DeployV2Core is Script {
         // Log deployed addresses
         console2.log("SuperRBAC deployed to:", superRbac);
         console2.log("SuperRegistry deployed to:", superRegistry);
-        console2.log("Deposit4626MintSuperPositionsDecoder deployed to:", deposit4626MintSuperPositionsDecoder);
         console2.log("RelayerSentinel deployed to:", relayerSentinel);
-        console2.log("Deposit4626Module deployed to:", deposit4626Module);
-        console2.log("SuperPositions deployed to:", superPositions);
+        if (chainId == 0) {
+            console2.log("WETH deployed to:", weth);
+            console2.log("SuperformVault deployed to:", superformVault);
+            console2.log("Deposit4626MintSuperPositionsDecoder deployed to:", deposit4626MintSuperPositionsDecoder);
+            console2.log("Deposit4626Module deployed to:", deposit4626Module);
+        } else if (chainId == 1) {
+            console2.log("SuperPositions deployed to:", superPositions);
+        }
+
         vm.stopBroadcast();
     }
 }
