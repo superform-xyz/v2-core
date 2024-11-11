@@ -77,8 +77,11 @@ contract DeployV2Core is Script {
                     abi.encode(superRegistry, deposit4626MintSuperPositionsDecoder)
                 )
             );
+
+            Deposit4626Module(deposit4626Module).setRelayerSentinel(relayerSentinel);
             ISentinel(relayerSentinel).addModuleToWhitelist(deposit4626Module);
             ISentinel(relayerSentinel).addDecoderToWhitelist(deposit4626MintSuperPositionsDecoder);
+            superRegistryContract.setAddress(superRegistryContract.SUPER_POSITIONS_ID(), superPositions);
         } else if (chainId == 1) {
             // just for SuperChain
             superPositions = deployer.deploy(
