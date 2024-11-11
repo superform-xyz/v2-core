@@ -15,7 +15,6 @@ import { ISentinel } from "src/interfaces/sentinels/ISentinel.sol";
 import { ISuperPositions } from "src/interfaces/ISuperPositions.sol";
 
 import { SuperRbac } from "src/settings/SuperRbac.sol";
-import { SuperBridge } from "src/PoC/SuperBridge.sol";
 import { SuperformVault } from "src/vault/SuperformVault.sol";
 import { SuperRegistry } from "src/settings/SuperRegistry.sol";
 import { SuperPositions } from "src/superpositions/SuperPositions.sol";
