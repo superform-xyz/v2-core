@@ -8,3 +8,6 @@
 	path = contracts/lib/modulekit
 	url = https://github.com/0xTimepunk/modulekit
 	branch = returnLogs
+[submodule "contracts/lib/solady"]
+	path = contracts/lib/solady
+	url = https://github.com/Vectorized/solady
