@@ -32,11 +32,13 @@ abstract contract ModulesShared is BaseTest, RhinestoneModuleKit {
         // Initialize the modules
         deposit4626Module =
             new Deposit4626Module(address(superRegistrySrc), address(deposit4626MintSuperPositionsDecoder));
-        vm.selectFork(mainnetFork);
-        ISentinel(address(relayerSentinelSrc)).addModuleToWhitelist(address(deposit4626Module));
+
+        superRbacSrc.setRole(address(deposit4626Module), superRbacSrc.RELAYER_SENTINEL_NOTIFIER(), true);
+
+        ISentinel(address(relayerSentinelSrc)).addDecoderToWhitelist(address(deposit4626MintSuperPositionsDecoder));
 
         vm.selectFork(arbitrumFork);
-        ISentinel(address(relayerSentinelDst)).addModuleToWhitelist(address(deposit4626Module));
+        superRbacDst.setRole(address(deposit4626Module), superRbacDst.RELAYER_SENTINEL_NOTIFIER(), true);
 
         vm.selectFork(mainnetFork);
 

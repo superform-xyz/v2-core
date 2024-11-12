@@ -14,19 +14,22 @@ contract SuperRbac is Ownable, ISuperRbac {
     mapping(address => mapping(bytes32 => bool)) private _roles;
 
     // roles
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant SENTINELS_MANAGER = keccak256("SENTINELS_MANAGER");
-    bytes32 public constant RELAYER_SENTINEL_MANAGER = keccak256("RELAYER_SENTINEL_MANAGER");
-
-    bytes32 public constant HOOK_EXECUTOR_ROLE = keccak256("HOOK_EXECUTOR_ROLE");
-    bytes32 public constant HOOK_REGISTRATION_ROLE = keccak256("HOOK_REGISTRATION_ROLE");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant SENTINELS_CONFIGURATOR = keccak256("SENTINELS_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant RELAYER_SENTINEL_CONFIGURATOR = keccak256("RELAYER_SENTINEL_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant SUPER_MODULE_CONFIGURATOR = keccak256("SUPER_MODULE_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant RELAYER_SENTINEL_NOTIFIER = keccak256("RELAYER_SENTINEL_NOTIFIER");
 
     constructor(address owner) Ownable(owner) { }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperRbac
     function setRole(address account_, bytes32 role_, bool allowed_) external override onlyOwner {
         if (account_ == address(0)) revert INVALID_ACCOUNT();

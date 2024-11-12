@@ -43,12 +43,10 @@ contract DeployV2Core is Script {
         );
 
         SuperRbac superRbacContract = SuperRbac(superRbac);
-        superRbacContract.setRole(DEPLOYER, superRbacContract.ADMIN_ROLE(), true);
-        superRbacContract.setRole(DEPLOYER, superRbacContract.HOOK_REGISTRATION_ROLE(), true);
-        superRbacContract.setRole(DEPLOYER, superRbacContract.HOOK_EXECUTOR_ROLE(), true);
+        superRbacContract.setRole(DEPLOYER, superRbacContract.SUPER_ADMIN_ROLE(), true);
 
-        superRbacContract.setRole(DEPLOYER, superRbacContract.SENTINELS_MANAGER(), true);
-        superRbacContract.setRole(DEPLOYER, superRbacContract.RELAYER_SENTINEL_MANAGER(), true);
+        superRbacContract.setRole(DEPLOYER, superRbacContract.SENTINELS_CONFIGURATOR(), true);
+        superRbacContract.setRole(DEPLOYER, superRbacContract.RELAYER_SENTINEL_CONFIGURATOR(), true);
 
         SuperRegistry superRegistryContract = SuperRegistry(superRegistry);
         superRegistryContract.setAddress(superRegistryContract.SUPER_RBAC_ID(), address(superRbacContract));
@@ -79,7 +77,7 @@ contract DeployV2Core is Script {
             );
 
             Deposit4626Module(deposit4626Module).setRelayerSentinel(relayerSentinel);
-            ISentinel(relayerSentinel).addModuleToWhitelist(deposit4626Module);
+            superRbacContract.setRole(address(deposit4626Module), superRbacContract.RELAYER_SENTINEL_NOTIFIER(), true);
             ISentinel(relayerSentinel).addDecoderToWhitelist(deposit4626MintSuperPositionsDecoder);
             superRegistryContract.setAddress(superRegistryContract.SUPER_POSITIONS_ID(), superPositions);
         } else if (chainId == 1) {

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+// external
+import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol";
+
 // Superform
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
@@ -9,15 +12,16 @@ import { ISentinelDecoder } from "../interfaces/sentinels/ISentinelDecoder.sol";
 import { IRelayerSentinel } from "../interfaces/sentinels/IRelayerSentinel.sol";
 
 contract RelayerSentinel is ISentinel, IRelayerSentinel {
+    using ExcessivelySafeCall for address;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+
     ISuperRegistry public superRegistry;
+    mapping(address => bool) public decoderWhitelist;
 
     uint64 public constant SUPER_CHAIN_ID = 98;
-
-    mapping(address => bool) public decoderWhitelist;
-    mapping(address => bool) public moduleWhitelist;
+    uint16 public constant MAX_COPY = 255;
 
     constructor(address registry_) {
         if (registry_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -25,6 +29,9 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
         superRegistry = ISuperRegistry(registry_);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        MODIFIERS
+    //////////////////////////////////////////////////////////////*/
     modifier onlyRelayer() {
         if (msg.sender != superRegistry.getAddress(superRegistry.RELAYER_ID())) {
             revert NOT_RELAYER();
@@ -34,7 +41,13 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
 
     modifier onlySentinelManager() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
-        if (!rbac.hasRole(msg.sender, rbac.RELAYER_SENTINEL_MANAGER())) revert NOT_RELAYER_MANAGER();
+        if (!rbac.hasRole(msg.sender, rbac.RELAYER_SENTINEL_CONFIGURATOR())) revert NOT_SENTINEL_CONFIGURATOR();
+        _;
+    }
+
+    modifier onlyRelayerSentinelNotifier() {
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.RELAYER_SENTINEL_NOTIFIER())) revert NOT_RELAYER_SENTINEL_NOTIFIER();
         _;
     }
 
@@ -57,34 +70,27 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
         emit DecoderRemovedFromWhitelist(decoder_);
     }
 
-    /// @inheritdoc ISentinel
-    function addModuleToWhitelist(address module_) external override onlySentinelManager {
-        if (module_ == address(0)) revert ADDRESS_NOT_VALID();
-
-        moduleWhitelist[module_] = true;
-        emit ModuleWhitelisted(module_);
-    }
-
-    /// @inheritdoc ISentinel
-    function removeModuleFromWhitelist(address module_) external override onlySentinelManager {
-        if (module_ == address(0)) revert ADDRESS_NOT_VALID();
-
-        moduleWhitelist[module_] = false;
-        emit ModuleRemovedFromWhitelist(module_);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISentinel
-    function notify(address decoder_, address target, bytes calldata data_, bool success_) external override {
+    function notify(
+        address decoder_,
+        address target,
+        bytes calldata data_,
+        bool success_
+    )
+        external
+        override
+        onlyRelayerSentinelNotifier
+    {
         _notify(decoder_, target, data_, success_);
     }
 
     /// @inheritdoc IRelayerSentinel
-    function receiveRelayerData(address target, bytes memory data) external override onlyRelayer {
-        (bool success,) = target.call(data);
+    function receiveRelayerData(address target, bytes memory data) external payable override onlyRelayer {
+        (bool success,) = target.excessivelySafeCall(gasleft(), msg.value, MAX_COPY, data);
         if (!success) revert CALL_FAILED();
     }
 
@@ -94,10 +100,7 @@ contract RelayerSentinel is ISentinel, IRelayerSentinel {
     // add chainId to the signature
     function _notify(address decoder_, address target, bytes calldata data_, bool success_) private {
         if (decoder_ == address(0)) revert ADDRESS_NOT_VALID();
-
         if (!success_) revert CALL_FAILED();
-        // don't allow forbidden or not configured intents to notify
-        if (!moduleWhitelist[msg.sender]) revert NOT_WHITELISTED();
         // don't allow forbidden or not configured decoders to decode the action
         if (!decoderWhitelist[decoder_]) revert NOT_WHITELISTED();
 

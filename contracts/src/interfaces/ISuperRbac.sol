@@ -35,17 +35,17 @@ interface ISuperRbac {
 
     // roles
     /// @dev Get the ID of the admin role.
-    function ADMIN_ROLE() external view returns (bytes32);
+    function SUPER_ADMIN_ROLE() external view returns (bytes32);
 
     /// @dev Get the ID of the sentinels manager role.
-    function SENTINELS_MANAGER() external view returns (bytes32);
+    function SENTINELS_CONFIGURATOR() external view returns (bytes32);
 
     /// @dev Get the ID of the relayer sentinel manager role.
-    function RELAYER_SENTINEL_MANAGER() external view returns (bytes32);
+    function RELAYER_SENTINEL_CONFIGURATOR() external view returns (bytes32);
 
-    /// @dev Get the ID of the hook registration role.
-    function HOOK_REGISTRATION_ROLE() external view returns (bytes32);
+    /// @dev Get the ID of the super module manager role.
+    function SUPER_MODULE_CONFIGURATOR() external view returns (bytes32);
 
-    /// @dev Get the ID of the hook executor role.
-    function HOOK_EXECUTOR_ROLE() external view returns (bytes32);
+    /// @dev Get the ID of the relayer sentinel notifier role.
+    function RELAYER_SENTINEL_NOTIFIER() external view returns (bytes32);
 }
