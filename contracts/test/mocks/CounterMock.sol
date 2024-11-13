@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { ICallProxy } from "src/interfaces/vendors/ICallProxy.sol";
-import { IDeBridgeGate } from "src/interfaces/vendors/IDeBridgeGate.sol";
+import { ICallProxy } from "src/interfaces/vendors/deBridge/ICallProxy.sol";
+import { IDeBridgeGate } from "src/interfaces/vendors/deBridge/IDeBridgeGate.sol";
 
 contract CounterMock {
     uint256 public counter;

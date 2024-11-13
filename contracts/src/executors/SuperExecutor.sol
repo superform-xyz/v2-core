@@ -9,23 +9,16 @@ import {
     AccountInstance,
     UserOpData
 } from "modulekit/ModuleKit.sol";
+import { Execution } from "modulekit/external/ERC7579.sol";
 
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISuperModules } from "src/interfaces/ISuperModules.sol";
 import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
+import { IBridgeValidator } from "src/interfaces/IBridgeValidator.sol";
+import { ISuperExecutor } from "src/interfaces/executors/ISuperExecutor.sol";
 
 import "forge-std/console.sol";
-
-interface ISuperExecutor {
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error INVALID_DATA();
-    error INVALID_MODULE();
-    error ADDRESS_NOT_VALID();
-    error NOT_RELAYER_SENTINEL();
-}
 
 contract SuperExecutor is ISuperExecutor {
     using ModuleKitHelpers for *;
@@ -35,6 +28,7 @@ contract SuperExecutor is ISuperExecutor {
     //////////////////////////////////////////////////////////////*/
 
     ISuperRegistry public superRegistry;
+    IBridgeValidator public bridgeValidator;
 
     constructor(address registry_) {
         if (registry_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -42,37 +36,50 @@ contract SuperExecutor is ISuperExecutor {
         superRegistry = ISuperRegistry(registry_);
     }
 
-    modifier onlyRelayerSentinel() {
-        if (msg.sender != superRegistry.getAddress(superRegistry.RELAYER_SENTINEL_ID())) {
-            revert NOT_RELAYER_SENTINEL();
-        }
+    /*//////////////////////////////////////////////////////////////
+                                 OWNER METHODS
+    //////////////////////////////////////////////////////////////*/
+    modifier onlyExecutorConfigurator() {
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.EXECUTOR_CONFIGURATOR())) revert NOT_EXECUTOR_CONFIGURATOR();
         _;
+    }
+
+    function setBridgeValidator(address bridgeValidator_) external override onlyExecutorConfigurator {
+        if (bridgeValidator_ == address(0)) revert ADDRESS_NOT_VALID();
+        bridgeValidator = IBridgeValidator(bridgeValidator_);
+        emit BridgeValidatorSet(bridgeValidator_);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function execute(bytes memory data) external onlyRelayerSentinel {
-        //TODO: add initiator validation
-        console.log("execute A");
-        (AccountInstance memory instance, address[] memory modules, bytes[] memory callDatas) =
-            abi.decode(data, (AccountInstance, address[], bytes[]));
-        console.log("execute B");
+
+    function execute(bytes memory data) external override {
+        console.log("--- executing through Super executor");
+
+        bridgeValidator.validateReceiver("", address(0));
+
+        (AccountInstance memory instance, address[] memory modules, bytes[] memory callDatas, uint256[] memory values) =
+            abi.decode(data, (AccountInstance, address[], bytes[], uint256[]));
 
         uint256 len = modules.length;
         if (len == 0) revert INVALID_DATA();
+        if (len != values.length) revert INVALID_DATA();
         if (len != callDatas.length) revert INVALID_DATA();
-        console.log("execute C");
 
+        Execution[] memory executions = new Execution[](len);
+        // validate modules & create executions
         for (uint256 i = 0; i < len; i++) {
-            console.log("execute D");
             address module = modules[i];
             if (!_isValidModule(module)) revert INVALID_MODULE();
-            console.log("execute E");
 
-            _executeModule(instance, module, callDatas[i]);
-            console.log("execute F");
+            executions[i] = Execution({ target: module, value: values[i], callData: callDatas[i] });
         }
+
+        // execute calls
+        UserOpData memory userOpData = instance.getExecOps(executions, address(instance.defaultValidator));
+        userOpData.execUserOps();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -81,16 +88,5 @@ contract SuperExecutor is ISuperExecutor {
     function _isValidModule(address module_) private view returns (bool) {
         ISuperModules superModules = ISuperModules(superRegistry.getAddress(superRegistry.SUPER_MODULES_ID()));
         return superModules.isActive(module_);
-    }
-
-    function _executeModule(AccountInstance memory instance_, address module_, bytes memory callData_) private {
-        UserOpData memory userOpData = instance_.getExecOps({
-            target: module_,
-            value: 0, //todo: receive value
-            callData: callData_,
-            txValidator: address(instance_.defaultValidator)
-        });
-
-        userOpData.execUserOps();
     }
 }

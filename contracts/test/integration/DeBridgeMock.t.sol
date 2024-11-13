@@ -3,7 +3,8 @@ pragma solidity >=0.8.28;
 
 import { CounterMock } from "test/mocks/CounterMock.sol";
 import { IncrementMock } from "test/mocks/IncrementMock.sol";
-import { IDeBridgeGate } from "src/interfaces/vendors/IDeBridgeGate.sol";
+import { IDeBridgeGate } from "src/interfaces/vendors/deBridge/IDeBridgeGate.sol";
+
 import { ModulesShared } from "test/shared/ModulesShared.t.sol";
 
 contract DeBridgeMockTests is ModulesShared {

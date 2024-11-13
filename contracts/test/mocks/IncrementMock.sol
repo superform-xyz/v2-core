@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { Flags } from "src/libraries/vendors/Flags.sol";
-import { IDeBridgeGate } from "src/interfaces/vendors/IDeBridgeGate.sol";
+import { Flags } from "src/libraries/vendors/deBridge/Flags.sol";
+import { IDeBridgeGate } from "src/interfaces/vendors/deBridge/IDeBridgeGate.sol";
 
 import { CounterMock } from "./CounterMock.sol";
 

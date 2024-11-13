@@ -48,4 +48,10 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the relayer sentinel notifier role.
     function RELAYER_SENTINEL_NOTIFIER() external view returns (bytes32);
+
+    /// @dev Get the ID of the bridge validator configurator role.
+    function BRIDGE_VALIDATOR_CONFIGURATOR() external view returns (bytes32);
+
+    /// @dev Get the ID of the executor configurator role.
+    function EXECUTOR_CONFIGURATOR() external view returns (bytes32);
 }

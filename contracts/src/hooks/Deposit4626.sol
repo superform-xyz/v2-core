@@ -15,7 +15,7 @@ library Deposit4626 {
         pure
         returns (Execution[] memory executions)
     {
-        executions = new Execution[](2);
+        executions = new Execution[](1);
         executions[0] = Execution({
             target: address(vault),
             value: 0,
