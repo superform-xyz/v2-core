@@ -58,7 +58,10 @@ contract SuperExecutor is ISuperExecutor {
     function execute(bytes memory data) external override {
         console.log("--- executing through Super executor");
 
-        bridgeValidator.validateReceiver("", address(0));
+        if (address(bridgeValidator) != address(0)) {
+            // TODO: add operation type to skip validation for unnecessary cases
+            bridgeValidator.validateReceiver("", address(0));
+        }
 
         (AccountInstance memory instance, address[] memory modules, bytes[] memory callDatas, uint256[] memory values) =
             abi.decode(data, (AccountInstance, address[], bytes[], uint256[]));
