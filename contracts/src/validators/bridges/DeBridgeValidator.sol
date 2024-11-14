@@ -13,8 +13,8 @@ import { BytesLib } from "src/libraries/BytesLib.sol";
 
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
-import { IBridgeValidator } from "src/interfaces/IBridgeValidator.sol";
 import { ISuperExecutor } from "src/interfaces/executors/ISuperExecutor.sol";
+import { IBridgeValidator } from "src/interfaces/executors/IBridgeValidator.sol";
 
 contract DeBridgeValidator is IBridgeValidator {
     using BytesLib for bytes;
@@ -55,17 +55,6 @@ contract DeBridgeValidator is IBridgeValidator {
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
-    /**
-     * function addChain(uint256 chain_, address callerAddress_) external onlyBridgesValidatorConfigurator {
-     *     if (callerAddress_ == address(0)) revert ADDRESS_NOT_VALID();
-     *     whitelistedSenders[chain_][callerAddress_] = true;
-     * }
-     *
-     * function removeChain(uint256 chain_, address callerAddress_) external onlyBridgesValidatorConfigurator {
-     *     if (callerAddress_ == address(0)) revert ADDRESS_NOT_VALID();
-     *     delete whitelistedSenders[chain_][callerAddress_];
-     * }
-     */
 
     function setSuperExecutor(address executor_) external onlyBridgesValidatorConfigurator {
         if (executor_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -105,33 +94,6 @@ contract DeBridgeValidator is IBridgeValidator {
         if (msg.sender != externalCallAdapter) revert INVALID_EXTERNAL_CALL();
     }
 
-    /**
-     * function createDispatchData(address receiver_, uint256 chainId_) external pure returns (bytes memory) {
-     *     DlnOrderLib.OrderCreation memory deBridgeQuote_ = DlnOrderLib.OrderCreation({
-     *         receiverDst: abi.encodePacked(receiver_),
-     *         giveChainId: chainId_,
-     *         takeChainId: block.chainid
-     *     });
-     *     return abi.encode(deBridgeQuote_);
-     * }
-     * function validateSender(bytes calldata txData_) external pure override {
-     *     DlnOrderLib.OrderCreation memory deBridgeQuote_ = _decodeTxData(txData_);
-     *     if (receiver != _bytesToAddress(deBridgeQuote_.receiverDst)) revert INVALID_RECEIVER();
-     * }
-     *
-     * function validateReceiver(bytes calldata txData_, address receiver) external pure override {
-     *     DlnOrderLib.Order memory receivedOrder_ = _decodeTxData(txData_);
-     *
-     *     // validate caller
-     *     if (!whitelistedSenders[receivedOrder_.giveChainId][receivedOrder_.makerSrc]) revert INVALID_CALLER();
-     *
-     *     // verify chainId
-     *     if (receivedOrder_.takeChainId != block.chainid) revert INVALID_DST_CHAIN();
-     *
-     *     // verify receiver
-     *     if (receiver != _bytesToAddress(receivedOrder_.receiverDst)) revert INVALID_RECEIVER();
-     * }
-     */
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/

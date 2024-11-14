@@ -14,6 +14,15 @@ contract SuperRbac is Ownable, ISuperRbac {
     mapping(address => mapping(bytes32 => bool)) private _roles;
 
     // roles
+    /**
+     * SUPER_ADMIN_ROLE - generic admin role; should have access for everything
+     *     SENTINELS_CONFIGURATOR - can configure sentinels
+     *     RELAYER_SENTINEL_CONFIGURATOR - can configure relayer sentinel
+     *     RELAYER_SENTINEL_NOTIFIER - can notify relayer sentinels
+     *     SUPER_MODULE_CONFIGURATOR - can configure super modules
+     *     BRIDGE_VALIDATOR_CONFIGURATOR - can configure bridge validators
+     *     EXECUTOR_CONFIGURATOR - can configure super executors
+     */
     /// @inheritdoc ISuperRbac
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
     /// @inheritdoc ISuperRbac

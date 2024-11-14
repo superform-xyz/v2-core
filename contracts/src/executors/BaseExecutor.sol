@@ -15,24 +15,19 @@ import { Execution } from "modulekit/external/ERC7579.sol";
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISuperModules } from "src/interfaces/ISuperModules.sol";
 import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
-import { IBridgeValidator } from "src/interfaces/IBridgeValidator.sol";
 import { ISuperExecutor } from "src/interfaces/executors/ISuperExecutor.sol";
 
-import "forge-std/console.sol";
-
-contract SuperExecutor is ISuperExecutor {
+abstract contract BaseExecutor is ISuperExecutor {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-
     ISuperRegistry public superRegistry;
-    IBridgeValidator public bridgeValidator;
 
     constructor(address registry_) {
         if (registry_ == address(0)) revert ADDRESS_NOT_VALID();
-
         superRegistry = ISuperRegistry(registry_);
     }
 
@@ -45,24 +40,10 @@ contract SuperExecutor is ISuperExecutor {
         _;
     }
 
-    function setBridgeValidator(address bridgeValidator_) external override onlyExecutorConfigurator {
-        if (bridgeValidator_ == address(0)) revert ADDRESS_NOT_VALID();
-        bridgeValidator = IBridgeValidator(bridgeValidator_);
-        emit BridgeValidatorSet(bridgeValidator_);
-    }
-
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function execute(bytes memory data) external override {
-        console.log("--- executing through Super executor");
-
-        if (address(bridgeValidator) != address(0)) {
-            // TODO: add operation type to skip validation for unnecessary cases
-            bridgeValidator.validateReceiver("", address(0));
-        }
-
+    function _executeAccountOp(bytes memory data) internal {
         (AccountInstance memory instance, address[] memory modules, bytes[] memory callDatas, uint256[] memory values) =
             abi.decode(data, (AccountInstance, address[], bytes[], uint256[]));
 
@@ -85,10 +66,7 @@ contract SuperExecutor is ISuperExecutor {
         userOpData.execUserOps();
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _isValidModule(address module_) private view returns (bool) {
+    function _isValidModule(address module_) internal view returns (bool) {
         ISuperModules superModules = ISuperModules(superRegistry.getAddress(superRegistry.SUPER_MODULES_ID()));
         return superModules.isActive(module_);
     }

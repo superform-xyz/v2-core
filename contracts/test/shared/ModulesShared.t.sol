@@ -14,9 +14,9 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/external/ERC7579.sol";
 import { BaseTest } from "../BaseTest.t.sol";
 import { DlnSourceMock } from "test/mocks/DlnSourceMock.sol";
 
-import { Deposit4626Module } from "src/modules/Deposit4626Module.sol";
-import { DeBridgeValidator } from "src/validators/DeBridgeValidator.sol";
-import { DeBridgeOrderModule } from "src/modules/DeBridgeOrderModule.sol";
+import { Deposit4626Module } from "src/modules/erc4626/Deposit4626Module.sol";
+import { DeBridgeValidator } from "src/validators/bridges/DeBridgeValidator.sol";
+import { DeBridgeOrderModule } from "src/modules/deBridge/DeBridgeOrderModule.sol";
 
 import { ISentinel } from "src/interfaces/sentinels/ISentinel.sol";
 import { IRelayerSentinel } from "src/interfaces/sentinels/IRelayerSentinel.sol";

@@ -6,9 +6,9 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Superform
 import { BaseModule } from "src/modules/BaseModule.sol";
-import { CreateDebridgeOrder } from "src/hooks/CreateDebridgeOrder.sol";
+import { CreateDebridgeOrder } from "src/hooks/deBridge/CreateDebridgeOrder.sol";
 
-import { IBridgeValidator } from "src/interfaces/IBridgeValidator.sol";
+import { IBridgeValidator } from "src/interfaces/executors/IBridgeValidator.sol";
 import { ISuperformExecutionModule } from "src/interfaces/ISuperformExecutionModule.sol";
 
 contract DeBridgeOrderModule is ERC7579ExecutorBase, BaseModule, ISuperformExecutionModule {

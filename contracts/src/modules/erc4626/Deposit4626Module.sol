@@ -12,8 +12,8 @@ import { IERC7579Account, Execution } from "modulekit/Accounts.sol";
 
 // Superform
 import { BaseModule } from "src/modules/BaseModule.sol";
-import { Deposit4626 } from "src/hooks/Deposit4626.sol";
-import { ApproveERC20 } from "src/hooks/ApproveERC20.sol";
+import { Deposit4626 } from "src/hooks/erc4626/Deposit4626.sol";
+import { ApproveERC20 } from "src/hooks/erc20/ApproveERC20.sol";
 import { ISuperformExecutionModule } from "src/interfaces/ISuperformExecutionModule.sol";
 
 contract Deposit4626Module is ERC7579ExecutorBase, BaseModule, ISuperformExecutionModule {

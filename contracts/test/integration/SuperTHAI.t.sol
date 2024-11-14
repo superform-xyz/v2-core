@@ -15,13 +15,15 @@ import {
 } from "modulekit/ModuleKit.sol";
 
 import { Execution } from "modulekit/external/ERC7579.sol";
-
 import { SuperModules } from "src/settings/SuperModules.sol";
-import { SuperExecutor } from "src/executors/SuperExecutor.sol";
 import { ModulesShared } from "test/shared/ModulesShared.t.sol";
-import { Deposit4626Module } from "src/modules/Deposit4626Module.sol";
-import { DeBridgeValidator } from "src/validators/DeBridgeValidator.sol";
-import { DeBridgeOrderModule } from "src/modules/DeBridgeOrderModule.sol";
+import { SuperBridgeExecutor } from "src/executors/SuperBridgeExecutor.sol";
+import { SuperAccountExecutor } from "src/executors/SuperAccountExecutor.sol";
+import { Deposit4626Module } from "src/modules/erc4626/Deposit4626Module.sol";
+import { DeBridgeValidator } from "src/validators/bridges/DeBridgeValidator.sol";
+import { DeBridgeOrderModule } from "src/modules/deBridge/DeBridgeOrderModule.sol";
+
+import { ISuperExecutor } from "src/interfaces/executors/ISuperExecutor.sol";
 import "forge-std/console.sol";
 
 import { Vm } from "forge-std/Vm.sol";
@@ -85,7 +87,7 @@ contract SuperTHAITests is ModulesShared {
         vm.selectFork(mainnetFork);
         SuperModules superModules = new SuperModules(address(superRegistrySrc));
         vm.label(address(superModules), "superModules");
-        SuperExecutor superExecutor = new SuperExecutor(address(superRegistrySrc));
+        SuperAccountExecutor superExecutor = new SuperAccountExecutor(address(superRegistrySrc));
         vm.label(address(superExecutor), "superExecutor");
         // simulate a relayer sentinel call
         superRegistrySrc.setAddress(superRegistrySrc.RELAYER_SENTINEL_ID(), address(this));
@@ -124,7 +126,7 @@ contract SuperTHAITests is ModulesShared {
         vm.selectFork(mainnetFork);
         SuperModules superModules = new SuperModules(address(superRegistrySrc));
         vm.label(address(superModules), "superModules");
-        SuperExecutor superExecutor = new SuperExecutor(address(superRegistrySrc));
+        SuperBridgeExecutor superExecutor = new SuperBridgeExecutor(address(superRegistrySrc));
         vm.label(address(superExecutor), "superExecutor");
 
         // set roles & registry
@@ -168,6 +170,7 @@ contract SuperTHAITests is ModulesShared {
         AccountInstance memory instance
     )
         internal
+        view
         returns (bytes memory)
     {
         DlnOrderLib.OrderCreation memory orderCreation = DlnOrderLib.OrderCreation({
