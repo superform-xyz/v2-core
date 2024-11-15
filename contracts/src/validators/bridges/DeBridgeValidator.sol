@@ -25,8 +25,6 @@ contract DeBridgeValidator is IBridgeValidator {
     ISuperRegistry public superRegistry;
     ISuperExecutor public superExecutor;
 
-    mapping(uint256 => mapping(address => bool)) public whitelistedSenders;
-
     address public constant DLN_DESTINATION = 0xE7351Fd770A37282b91D153Ee690B63579D6dd7f;
 
     /*//////////////////////////////////////////////////////////////
@@ -65,7 +63,7 @@ contract DeBridgeValidator is IBridgeValidator {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IBridgeValidator
-    function validateOrder(bytes memory txData_, address account_) external view override {
+    function validateBridgeOperation(bytes memory txData_, address account_) external view override {
         (DlnOrderLib.OrderCreation memory order_,,,) =
             abi.decode(txData_, (DlnOrderLib.OrderCreation, bytes, uint32, bytes));
 

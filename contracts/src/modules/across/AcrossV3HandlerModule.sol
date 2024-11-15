@@ -6,23 +6,24 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Superform
 import { BaseModule } from "src/modules/BaseModule.sol";
-import { CreateDebridgeOrder } from "src/hooks/deBridge/CreateDebridgeOrder.sol";
+import { HandleV3AcrossMessage } from "src/hooks/across/HandleV3AcrossMessage.sol";
 
 import { IBridgeValidator } from "src/interfaces/executors/IBridgeValidator.sol";
 import { ISuperformExecutionModule } from "src/interfaces/ISuperformExecutionModule.sol";
 
-contract DeBridgeOrderModule is ERC7579ExecutorBase, BaseModule, ISuperformExecutionModule {
+contract AcrossV3HandlerModule is ERC7579ExecutorBase, BaseModule, ISuperformExecutionModule {
     address public author;
     IBridgeValidator public validator;
 
-    address public immutable dlnSource;
+    address public immutable acrossHandler;
 
-    event DebridgeOrderCreated(address indexed account);
+    event AcrossInstructionCreated(address indexed account);
 
-    constructor(address registry_, address validator_, address dlnSource_) BaseModule(registry_) {
+    constructor(address registry_, address validator_, address acrossHandler_) BaseModule(registry_) {
         author = msg.sender;
         validator = IBridgeValidator(validator_);
-        dlnSource = dlnSource_;
+
+        acrossHandler = acrossHandler_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -30,7 +31,7 @@ contract DeBridgeOrderModule is ERC7579ExecutorBase, BaseModule, ISuperformExecu
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperformExecutionModule
     function name() external pure override returns (string memory) {
-        return "DeBridgeOrder";
+        return "AcrossV3Handler";
     }
 
     /// @inheritdoc ISuperformExecutionModule
@@ -53,10 +54,11 @@ contract DeBridgeOrderModule is ERC7579ExecutorBase, BaseModule, ISuperformExecu
     function onUninstall(bytes calldata) external { }
 
     function execute(bytes calldata data) external payable {
-        (address account, bytes memory orderData) = abi.decode(data, (address, bytes));
-        validator.validateBridgeOperation(orderData, account);
-        _execute(account, CreateDebridgeOrder.hook(orderData, dlnSource, msg.value));
+        (address account, address token, address fallbackRecipient, bytes memory calls) =
+            abi.decode(data, (address, address, address, bytes));
+        validator.validateBridgeOperation(calls, account);
+        _execute(account, HandleV3AcrossMessage.hook(token, acrossHandler, msg.value, calls, fallbackRecipient));
 
-        emit DebridgeOrderCreated(account);
+        emit AcrossInstructionCreated(account);
     }
 }
