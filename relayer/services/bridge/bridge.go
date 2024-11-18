@@ -30,14 +30,14 @@ import (
 */
 
 var (
-	// superBridgeABI is the ABI of the SuperBridge contract
-	superBridgeABI *abi.ABI
+	// relayerSentinelABI is the ABI of the RelayerSentinel contract
+	relayerSentinelABI *abi.ABI
 )
 
 func init() {
 	var err error
-	if superBridgeABI, err = contracts.SuperBridgeMetaData.GetAbi(); err != nil {
-		log.Fatal().Err(err).Msg("failed to get SuperBridge ABI")
+	if relayerSentinelABI, err = contracts.RelayerSentinelMetaData.GetAbi(); err != nil {
+		log.Fatal().Err(err).Msg("failed to get RelayerSentinel ABI")
 	}
 }
 
@@ -99,7 +99,7 @@ func (b *Bridge) startBridgesMonitor(ctx context.Context) {
 			sub, err := bridge.Client.SubscribeFilterLogs(ctx, ethereum.FilterQuery{
 				// FromBlock: new(big.Int).SetUint64(bridge.DeploymentBlock),
 				Addresses: []common.Address{bridge.Address},
-				Topics:    [][]common.Hash{{superBridgeABI.Events["Msg"].ID}},
+				Topics:    [][]common.Hash{{relayerSentinelABI.Events["Msg"].ID}},
 			}, events)
 			if err != nil {
 				log.Fatal().Err(err).Msg("failed to subscribe to logs")
@@ -116,7 +116,7 @@ func (b *Bridge) startBridgesMonitor(ctx context.Context) {
 					log.Error().Err(err).Msg("subscription error")
 					return
 				case event := <-events:
-					var msg contracts.SuperBridgeMsg
+					var msg contracts.RelayerSentinelMsg
 					if err = unpackLog(&msg, "Msg", event); err != nil {
 						log.Error().Err(err).Msg("failed to unpack log")
 						continue
@@ -133,21 +133,21 @@ func (b *Bridge) startBridgesMonitor(ctx context.Context) {
 	wg.Wait()
 }
 
-func (b *Bridge) handleMsg(ctx context.Context, msg *contracts.SuperBridgeMsg) {
+func (b *Bridge) handleMsg(ctx context.Context, msg *contracts.RelayerSentinelMsg) {
 	b.processes.Add(1)
 	defer b.processes.Done()
 
 	log.Info().Interface("msg", msg).Msg("handling msg")
 
 	// Get destination bridge address
-	dstBridge, ok := b.bridges[msg.DestinationChainId.Uint64()]
+	dstBridge, ok := b.bridges[msg.DestinationChainId]
 	if !ok {
-		log.Error().Uint64("chainId", msg.DestinationChainId.Uint64()).Msg("destination chain not found in config")
+		log.Error().Uint64("chainId", msg.DestinationChainId).Msg("destination chain not found in config")
 		return
 	}
 
 	// Prepare tx data
-	data, err := superBridgeABI.Pack("release", msg.DestinationContract, msg.Data)
+	data, err := relayerSentinelABI.Pack("receiveRelayerData", msg.DestinationContract, msg.Data)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to pack data")
 		return
@@ -156,7 +156,7 @@ func (b *Bridge) handleMsg(ctx context.Context, msg *contracts.SuperBridgeMsg) {
 	// Send tx to the tx manager
 	txId, err := b.tx.SendTxAsync(
 		ctx,
-		msg.DestinationChainId.Uint64(),
+		msg.DestinationChainId,
 		dstBridge.Address,
 		data,
 		900000, //nolint:mnd
@@ -192,18 +192,18 @@ func unpackLog(out interface{}, event string, log types.Log) error {
 		return errors.New("anonymous events are not supported")
 	}
 
-	if log.Topics[0] != superBridgeABI.Events[event].ID {
+	if log.Topics[0] != relayerSentinelABI.Events[event].ID {
 		return errors.New("event signature mismatch")
 	}
 
 	if len(log.Data) > 0 {
-		if err := superBridgeABI.UnpackIntoInterface(out, event, log.Data); err != nil {
+		if err := relayerSentinelABI.UnpackIntoInterface(out, event, log.Data); err != nil {
 			return err
 		}
 	}
 
 	var indexed abi.Arguments
-	for _, arg := range superBridgeABI.Events[event].Inputs {
+	for _, arg := range relayerSentinelABI.Events[event].Inputs {
 		if arg.Indexed {
 			indexed = append(indexed, arg)
 		}
