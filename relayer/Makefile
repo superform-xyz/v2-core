@@ -78,12 +78,12 @@ gobindings: ## Generates go bindings for smart contracts
 	mkdir -p ./pkg/contracts/build
 
 	# Generate go bindings for PoC
-	solc --abi ../contracts/src/PoC/SuperBridge.sol --bin ../contracts/src/PoC/SuperBridge.sol -o ./pkg/contracts/build --overwrite
-	abigen --abi ./pkg/contracts/build/SuperBridge.abi \
-		   --bin ./pkg/contracts/build/SuperBridge.bin \
+	solc --allow-paths "../" --abi ../contracts/src/sentinels/RelayerSentinel.sol --bin ../contracts/src/sentinels/RelayerSentinel.sol -o ./pkg/contracts/build --overwrite
+	abigen --abi ./pkg/contracts/build/RelayerSentinel.abi \
+		   --bin ./pkg/contracts/build/RelayerSentinel.bin \
 		   --pkg contracts \
-		   --type SuperBridge \
-		   --out ./pkg/contracts/SuperBridge.go
+		   --type RelayerSentinel \
+		   --out ./pkg/contracts/RelayerSentinel.go
 
 	rm -rf ./pkg/contracts/build
 

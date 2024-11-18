@@ -1,114 +1,112 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
+
+// external
+import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol";
 
 // Superform
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
-import { IRelayer } from "../interfaces/relayer/IRelayer.sol";
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 import { ISentinel } from "../interfaces/sentinels/ISentinel.sol";
-import { IRelayerDecoder } from "../interfaces/sentinels/IRelayerDecoder.sol";
+import { ISentinelDecoder } from "../interfaces/sentinels/ISentinelDecoder.sol";
 import { IRelayerSentinel } from "../interfaces/sentinels/IRelayerSentinel.sol";
 
-import "forge-std/console.sol";
-
 contract RelayerSentinel is ISentinel, IRelayerSentinel {
+    using ExcessivelySafeCall for address;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public decoder;
-    address public superRegistry;
 
-    mapping(address => IntentNotificationType) public intentNotificationTypes;
+    ISuperRegistry public superRegistry;
+    mapping(address => bool) public decoderWhitelist;
 
-    constructor(address registry_, address decoder_) {
+    uint64 public constant SUPER_CHAIN_ID = 98;
+    uint16 public constant MAX_COPY = 255;
+
+    constructor(address registry_) {
         if (registry_ == address(0)) revert ADDRESS_NOT_VALID();
-        if (decoder_ == address(0)) revert ADDRESS_NOT_VALID();
 
-        decoder = decoder_;
-        superRegistry = registry_;
+        superRegistry = ISuperRegistry(registry_);
     }
 
-    modifier onlyRelayerManager() {
-        ISuperRegistry _registry = ISuperRegistry(superRegistry);
-        ISuperRbac rbac = ISuperRbac(_registry.getAddress(_registry.ROLES_ID()));
-        if (!rbac.hasRole(msg.sender, _registry.RELAYER_SENTINEL_MANAGER())) revert NOT_RELAYER_MANAGER();
+    /*//////////////////////////////////////////////////////////////
+                        MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+    modifier onlyRelayer() {
+        if (msg.sender != superRegistry.getAddress(superRegistry.RELAYER_ID())) {
+            revert NOT_RELAYER();
+        }
+        _;
+    }
+
+    modifier onlySentinelManager() {
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.RELAYER_SENTINEL_CONFIGURATOR())) revert NOT_SENTINEL_CONFIGURATOR();
+        _;
+    }
+
+    modifier onlyRelayerSentinelNotifier() {
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.RELAYER_SENTINEL_NOTIFIER())) revert NOT_RELAYER_SENTINEL_NOTIFIER();
         _;
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 OWNER METHODS
+                        RELAYER MANAGER METHODS
     //////////////////////////////////////////////////////////////*/
-    function setIntentNotificationType(
-        address intent_,
-        IntentNotificationType notificationType_
-    )
-        external
-        override
-        onlyRelayerManager
-    {
-        intentNotificationTypes[intent_] = notificationType_;
-        emit IntentNotificationTypeSet(intent_, notificationType_);
+
+    /// @inheritdoc ISentinel
+    function addDecoderToWhitelist(address decoder_) external override onlySentinelManager {
+        if (decoder_ == address(0)) revert ADDRESS_NOT_VALID();
+        decoderWhitelist[decoder_] = true;
+        emit DecoderWhitelisted(decoder_);
+    }
+
+    /// @inheritdoc ISentinel
+    function removeDecoderFromWhitelist(address decoder_) external override onlySentinelManager {
+        if (decoder_ == address(0)) revert ADDRESS_NOT_VALID();
+
+        decoderWhitelist[decoder_] = false;
+        emit DecoderRemovedFromWhitelist(decoder_);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISentinel
-    function notify(bytes calldata data_, bytes calldata output_, bool success_) external override {
-        _notify(data_, output_, success_);
-    }
 
     /// @inheritdoc ISentinel
-    function batchNotify(
-        bytes[] calldata data_,
-        bytes[] calldata output_,
-        bool[] calldata success_
+    function notify(
+        address decoder_,
+        address target,
+        bytes calldata data_,
+        bool success_
     )
         external
         override
+        onlyRelayerSentinelNotifier
     {
-        uint256 length = data_.length;
-        for (uint256 i; i < length; i++) {
-            _notify(data_[i], output_[i], success_[i]);
-        }
+        _notify(decoder_, target, data_, success_);
+    }
+
+    /// @inheritdoc IRelayerSentinel
+    function receiveRelayerData(address target, bytes memory data) external payable override onlyRelayer {
+        (bool success,) = target.excessivelySafeCall(gasleft(), msg.value, MAX_COPY, data);
+        if (!success) revert CALL_FAILED();
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     // add chainId to the signature
-    function _notify(bytes calldata data_, bytes calldata output_, bool success_) private {
-        // don't allow forbidden or not configured intents to notify
-        if (intentNotificationTypes[msg.sender] == IntentNotificationType.Forbidden) return;
+    function _notify(address decoder_, address target, bytes calldata data_, bool success_) private {
+        if (decoder_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (!success_) revert CALL_FAILED();
+        // don't allow forbidden or not configured decoders to decode the action
+        if (!decoderWhitelist[decoder_]) revert NOT_WHITELISTED();
 
         // @dev below is showing an example of transforming the data into the right format
-        bytes memory relayerData =
-            IRelayerDecoder(decoder).extractRelayerMessage(data_, output_, intentNotificationTypes[msg.sender]);
+        bytes memory relayerData = ISentinelDecoder(decoder_).extractSentinelData(data_);
 
-        console.log(
-            "               RelayerSentinel: notification received for type {%s}",
-            uint256(intentNotificationTypes[msg.sender])
-        );
-        console.log("               RelayerSentinel: triggering relayer");
-
-        ISuperRegistry _registry = ISuperRegistry(superRegistry);
-        IRelayer relayer = IRelayer(_registry.getAddress(_registry.RELAYER_ID()));
-
-        relayer.send(block.chainid, msg.sender, relayerData);
-        console.log("               RelayerSentinel: triggered relayer");
-    }
-
-    function _extractDeposit4626Data(
-        bytes calldata data_,
-        bytes calldata output_
-    )
-        private
-        view
-        returns (bytes memory)
-    {
-        (address account, uint256 amountIn) = abi.decode(data_, (address, uint256));
-        uint256 amountOut = abi.decode(output_, (uint256));
-
-        return abi.encode(account, intentNotificationTypes[msg.sender], amountIn, amountOut);
+        emit Msg(SUPER_CHAIN_ID, target, relayerData);
     }
 }

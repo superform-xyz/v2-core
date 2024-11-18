@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+pragma solidity >=0.8.28;
 
 abstract contract Constants {
     // amounts
@@ -13,8 +13,7 @@ abstract contract Constants {
     uint256 public constant USER2_KEY = 0x2;
 
     // registry
-    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
-    bytes32 public constant SNAP_REGISTRATION_ROLE = keccak256("HOOK_REGISTRATION_ROLE");
+    bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
 
     // ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
