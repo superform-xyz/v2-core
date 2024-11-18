@@ -10,7 +10,7 @@ import { SuperRegistry } from "src/settings/SuperRegistry.sol";
 import { SuperPositions } from "src/superpositions/SuperPositions.sol";
 import { RelayerSentinel } from "src/sentinels/RelayerSentinel.sol";
 import { Deposit4626MintSuperPositionsDecoder } from "src/sentinels/Deposit4626MintSuperPositionsDecoder.sol";
-import { Deposit4626Module } from "src/modules/Deposit4626Module.sol";
+import { Deposit4626Module } from "src/modules/erc4626/Deposit4626Module.sol";
 import { SuperformVault } from "src/vault/SuperformVault.sol";
 import { ERC20Mock } from "test/mocks/ERC20Mock.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";

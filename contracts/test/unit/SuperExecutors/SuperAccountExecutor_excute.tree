@@ -1,0 +1,13 @@
+SuperAccountExecutor_execute.t.sol
+  given state is not valid
+    when provided data has the wrong format
+      it should revert with INVALID_DATA
+    when modules and calldatas are of different lenghts
+      it should revert with INVALID_DATA
+    when modules and values are of different lengths
+      it should revert with INVALID_DATA
+ given state is valid
+   when module is not registered
+     it should revert with INVALID_MODULE
+   when module is registered
+     it should execute it through the smart account

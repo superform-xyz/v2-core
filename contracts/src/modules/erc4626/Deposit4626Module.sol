@@ -11,34 +11,32 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { IERC7579Account, Execution } from "modulekit/Accounts.sol";
 
 // Superform
-import { ApproveERC20 } from "src/hooks/ApproveERC20.sol";
-import { Deposit4626 } from "src/hooks/Deposit4626.sol";
 import { BaseModule } from "src/modules/BaseModule.sol";
-import { ISuperformVault } from "src/interfaces/ISuperformVault.sol";
+import { Deposit4626 } from "src/hooks/erc4626/Deposit4626.sol";
+import { ApproveERC20 } from "src/hooks/erc20/ApproveERC20.sol";
+import { ISuperformExecutionModule } from "src/interfaces/ISuperformExecutionModule.sol";
 
-import "forge-std/console.sol";
-
-contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
+contract Deposit4626Module is ERC7579ExecutorBase, BaseModule, ISuperformExecutionModule {
     address private _decoder;
+    address public author;
 
     error AMOUNT_ZERO();
 
     constructor(address registry_, address decoder_) BaseModule(registry_) {
         _decoder = decoder_;
+        author = msg.sender;
     }
 
-    function onInstall(bytes calldata) external { }
-    function onUninstall(bytes calldata) external { }
-
-    function isInitialized(address) external view returns (bool) {
-        return true;
-    }
-
-    function name() external pure returns (string memory) {
+    /*//////////////////////////////////////////////////////////////
+                        VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperformExecutionModule
+    function name() external pure override returns (string memory) {
         return "Deposit4626";
     }
 
-    function version() external pure returns (string memory) {
+    /// @inheritdoc ISuperformExecutionModule
+    function version() external pure override returns (string memory) {
         return "0.0.1";
     }
 
@@ -46,35 +44,42 @@ contract Deposit4626Module is ERC7579ExecutorBase, BaseModule {
         return typeID == TYPE_EXECUTOR;
     }
 
+    function isInitialized(address) external pure returns (bool) {
+        return true;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function onInstall(bytes calldata) external { }
+    function onUninstall(bytes calldata) external { }
+
     function execute(bytes calldata data) external {
         (address vault, address account, uint256 amount) = abi.decode(data, (address, address, uint256));
         if (amount == 0) revert AMOUNT_ZERO();
 
-        uint256 amountBefore = ISuperformVault(vault).totalAssets();
-        console.log("           |____________");
-        console.log("           execution started; amount before %s", amountBefore);
+        uint256 amountBefore = IERC4626(vault).totalAssets();
 
-        IERC20 asset = IERC20(address(ISuperformVault(vault).asset()));
         // execute the approval
+        IERC20 asset = IERC20(address(IERC4626(vault).asset()));
         _approveAction(asset, account, vault, amount);
-        console.log("                approve asset");
 
         // execute the deposit
         _depositAction(account, vault, amount);
 
-        console.log("                deposit asset");
-        uint256 amountAfter = ISuperformVault(vault).totalAssets();
-        console.log("           execution ended; amount after %s", amountAfter);
-        console.log("           relayer notified - example call");
+        // notify the relayer sentinel
+        uint256 amountAfter = IERC4626(vault).totalAssets();
         _notifyRelayerSentinel(
             _decoder,
             superRegistry.getAddress(superRegistry.SUPER_POSITIONS_ID()),
             abi.encode(account, amountAfter - amountBefore),
             true
         );
-        console.log("           _|");
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
     function _approveAction(IERC20 asset, address account, address vault, uint256 amount) private {
         _execute(account, ApproveERC20.hook(asset, address(vault), amount));
     }

@@ -13,13 +13,14 @@ interface IRelayerSentinel {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ADDRESS_NOT_VALID();
-    error NOT_RELAYER_MANAGER();
-    error NOT_WHITELISTED();
-    error BLOCK_CHAIN_ID_OUT_OF_BOUNDS();
     error CALL_FAILED();
-    error INVALID_LENGTH();
     error NOT_RELAYER();
+    error INVALID_LENGTH();
+    error NOT_WHITELISTED();
+    error ADDRESS_NOT_VALID();
+    error NOT_SENTINEL_CONFIGURATOR();
+    error NOT_RELAYER_SENTINEL_NOTIFIER();
+    error BLOCK_CHAIN_ID_OUT_OF_BOUNDS();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -41,5 +42,5 @@ interface IRelayerSentinel {
     /// @notice Receive relayer data.
     /// @param target The target address.
     /// @param data The data.
-    function receiveRelayerData(address target, bytes memory data) external;
+    function receiveRelayerData(address target, bytes memory data) external payable;
 }
