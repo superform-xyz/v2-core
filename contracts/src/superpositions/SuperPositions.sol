@@ -43,12 +43,4 @@ contract SuperPositions is ISuperPositions, ERC20 {
     function mint(address to_, uint256 amount_) external override onlyRelayerSentinel {
         _mint(to_, amount_);
     }
-    /*
-    /// @notice Burn tokens from an address
-    /// @param from_ The address to burn tokens from
-    /// @param amount_ The amount of tokens to burn
-    function burn(address from_, uint256 amount_) external onlyRelayerSentinel {
-        _burn(from_, amount_);
-    }
-    */
 }

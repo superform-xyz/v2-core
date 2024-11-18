@@ -14,10 +14,16 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     mapping(bytes32 => address) public addresses;
 
     // ids
+    /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_RBAC_ID = keccak256("SUPER_RBAC_ID");
+    /// @inheritdoc ISuperRegistry
     bytes32 public constant RELAYER_ID = keccak256("RELAYER_ID");
+    /// @inheritdoc ISuperRegistry
     bytes32 public constant RELAYER_SENTINEL_ID = keccak256("RELAYER_SENTINEL_ID");
+    /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_POSITIONS_ID = keccak256("SUPER_POSITIONS_ID");
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant SUPER_MODULES_ID = keccak256("SUPER_MODULES_ID");
 
     constructor(address owner) Ownable(owner) { }
 
