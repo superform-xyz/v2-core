@@ -37,4 +37,10 @@ interface ISuperRegistry {
 
     /// @dev Get the ID of the relayer sentinel.
     function RELAYER_SENTINEL_ID() external view returns (bytes32);
+
+    /// @dev Get the ID of the super positions.
+    function SUPER_POSITIONS_ID() external view returns (bytes32);
+
+    /// @dev Get the ID of the super modules.
+    function SUPER_MODULES_ID() external view returns (bytes32);
 }

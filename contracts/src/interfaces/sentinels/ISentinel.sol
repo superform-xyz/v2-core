@@ -41,7 +41,7 @@ interface ISentinel {
     error INVALID_SUPER_REGISTRY();
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL VIEW METHODS
+                                 EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
     /// @dev Add a decoder to the whitelist
@@ -52,20 +52,10 @@ interface ISentinel {
     /// @param decoder_ The address of the decoder to remove from whitelist
     function removeDecoderFromWhitelist(address decoder_) external;
 
-    /// @dev Add a module to the whitelist
-    /// @param module_ The address of the module to whitelist
-    function addModuleToWhitelist(address module_) external;
-
-    /// @dev Remove a module from the whitelist
-    /// @param module_ The address of the module to remove from whitelist
-    function removeModuleFromWhitelist(address module_) external;
-
-    /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
     /// @dev Notify the sentinel. `msg.sender` is the module.
     /// @param decoder_ The address of the decoder.
+    /// @param target The target address.
     /// @param data_ The return data from the module.
     /// @param success_ Whether the module was successful.
-    function notify(address decoder_, bytes calldata data_, bool success_) external;
+    function notify(address decoder_, address target, bytes calldata data_, bool success_) external;
 }

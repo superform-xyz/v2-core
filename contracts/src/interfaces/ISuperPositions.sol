@@ -6,9 +6,9 @@ interface ISuperPositions {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Mint tokens to an address
     /// @param to_ The address to mint tokens to
     /// @param amount_ The amount of tokens to mint
+
     function mint(address to_, uint256 amount_) external;
 }

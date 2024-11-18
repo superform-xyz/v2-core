@@ -93,33 +93,29 @@ abstract contract BaseTest is Types, Events, Helpers {
 
     function _postDeploymentSetup() private {
         // - set roles for this address
-        superRbacSrc.setRole(DEPLOYER, superRbacSrc.ADMIN_ROLE(), true);
-        superRbacSrc.setRole(DEPLOYER, superRbacSrc.HOOK_REGISTRATION_ROLE(), true);
-        superRbacSrc.setRole(DEPLOYER, superRbacSrc.HOOK_EXECUTOR_ROLE(), true);
+        superRbacSrc.setRole(DEPLOYER, superRbacSrc.SUPER_ADMIN_ROLE(), true);
 
-        superRbacSrc.setRole(DEPLOYER, superRbacSrc.SENTINELS_MANAGER(), true);
-        superRbacSrc.setRole(DEPLOYER, superRbacSrc.RELAYER_SENTINEL_MANAGER(), true);
+        superRbacSrc.setRole(DEPLOYER, superRbacSrc.SENTINELS_CONFIGURATOR(), true);
+        superRbacSrc.setRole(DEPLOYER, superRbacSrc.RELAYER_SENTINEL_CONFIGURATOR(), true);
 
         // - register addresses to the registry
         superRegistrySrc.setAddress(superRegistrySrc.SUPER_RBAC_ID(), address(superRbacSrc));
         superRegistrySrc.setAddress(superRegistrySrc.RELAYER_ID(), RELAYER);
         superRegistrySrc.setAddress(superRegistrySrc.RELAYER_SENTINEL_ID(), address(relayerSentinelSrc));
+        superRegistrySrc.setAddress(superRegistrySrc.SUPER_POSITIONS_ID(), address(superPositions));
 
         ISentinel(address(relayerSentinelSrc)).addDecoderToWhitelist(address(deposit4626MintSuperPositionsDecoder));
 
         vm.selectFork(arbitrumFork);
 
-        superRbacDst.setRole(DEPLOYER, superRbacDst.ADMIN_ROLE(), true);
-        superRbacDst.setRole(DEPLOYER, superRbacDst.HOOK_REGISTRATION_ROLE(), true);
-        superRbacDst.setRole(DEPLOYER, superRbacDst.HOOK_EXECUTOR_ROLE(), true);
+        superRbacDst.setRole(DEPLOYER, superRbacDst.SUPER_ADMIN_ROLE(), true);
 
-        superRbacDst.setRole(DEPLOYER, superRbacDst.SENTINELS_MANAGER(), true);
-        superRbacDst.setRole(DEPLOYER, superRbacDst.RELAYER_SENTINEL_MANAGER(), true);
+        superRbacDst.setRole(DEPLOYER, superRbacDst.SENTINELS_CONFIGURATOR(), true);
+        superRbacDst.setRole(DEPLOYER, superRbacDst.RELAYER_SENTINEL_CONFIGURATOR(), true);
 
         superRegistryDst.setAddress(superRegistryDst.SUPER_RBAC_ID(), address(superRbacDst));
         superRegistryDst.setAddress(superRegistryDst.RELAYER_ID(), RELAYER);
         superRegistryDst.setAddress(superRegistryDst.RELAYER_SENTINEL_ID(), address(relayerSentinelDst));
-
         ISentinel(address(relayerSentinelDst)).addDecoderToWhitelist(address(deposit4626MintSuperPositionsDecoder));
 
         vm.selectFork(mainnetFork);

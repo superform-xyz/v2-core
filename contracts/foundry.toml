@@ -13,6 +13,7 @@ script = "script"
 solc = "0.8.28"
 src = "src"
 test = "test"
+cbor_metadata = true
 
 # remappings
 remappings = [
@@ -39,6 +40,7 @@ mainnet = { key = "${API_KEY_ETHERSCAN}" }
 optimism = { key = "${API_KEY_OPTIMISTIC_ETHERSCAN}" }
 polygon = { key = "${API_KEY_POLYGONSCAN}" }
 sepolia = { key = "${API_KEY_ETHERSCAN}" }
+unknown_chain = { key = "${TENDERLY_SUPER_THAI_PROJ_API_KEY}", chain = 98, url = "${SUPER_CHAIN_RPC_URL}/verify/etherscan" }
 
 [fmt]
 bracket_spacing = true
