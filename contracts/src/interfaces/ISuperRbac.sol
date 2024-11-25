@@ -5,13 +5,13 @@ interface ISuperRbac {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event RoleAdded(address indexed account, bytes32 indexed role, bool allowed);
+    event RoleUpdated(address indexed account, bytes32 indexed role, bool allowed);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INVALID_ACCOUNT();
     error INVALID_ROLE();
+    error INVALID_ACCOUNT();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -37,21 +37,9 @@ interface ISuperRbac {
     /// @dev Get the ID of the admin role.
     function SUPER_ADMIN_ROLE() external view returns (bytes32);
 
-    /// @dev Get the ID of the sentinels manager role.
-    function SENTINELS_CONFIGURATOR() external view returns (bytes32);
-
-    /// @dev Get the ID of the relayer sentinel manager role.
-    function RELAYER_SENTINEL_CONFIGURATOR() external view returns (bytes32);
-
-    /// @dev Get the ID of the super module manager role.
-    function SUPER_MODULE_CONFIGURATOR() external view returns (bytes32);
-
-    /// @dev Get the ID of the relayer sentinel notifier role.
-    function RELAYER_SENTINEL_NOTIFIER() external view returns (bytes32);
-
-    /// @dev Get the ID of the bridge validator configurator role.
-    function BRIDGE_VALIDATOR_CONFIGURATOR() external view returns (bytes32);
-
     /// @dev Get the ID of the executor configurator role.
     function EXECUTOR_CONFIGURATOR() external view returns (bytes32);
+
+    /// @dev Get the ID of the hook configurator role.
+    function HOOK_CONFIGURATOR() external view returns (bytes32);
 }

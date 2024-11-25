@@ -5,7 +5,7 @@ pragma solidity >=0.8.28;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 // Superform
-import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 
 contract SuperRbac is Ownable, ISuperRbac {
     /*//////////////////////////////////////////////////////////////
@@ -15,28 +15,16 @@ contract SuperRbac is Ownable, ISuperRbac {
 
     // roles
     /**
-     * SUPER_ADMIN_ROLE - generic admin role; should have access for everything
-     *     SENTINELS_CONFIGURATOR - can configure sentinels
-     *     RELAYER_SENTINEL_CONFIGURATOR - can configure relayer sentinel
-     *     RELAYER_SENTINEL_NOTIFIER - can notify relayer sentinels
-     *     SUPER_MODULE_CONFIGURATOR - can configure super modules
-     *     BRIDGE_VALIDATOR_CONFIGURATOR - can configure bridge validators
+     *     SUPER_ADMIN_ROLE - generic admin role; should have access for everything
      *     EXECUTOR_CONFIGURATOR - can configure super executors
+     *     HOOK_CONFIGURATOR - can configure hooks
      */
     /// @inheritdoc ISuperRbac
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
     /// @inheritdoc ISuperRbac
-    bytes32 public constant SENTINELS_CONFIGURATOR = keccak256("SENTINELS_CONFIGURATOR");
-    /// @inheritdoc ISuperRbac
-    bytes32 public constant RELAYER_SENTINEL_CONFIGURATOR = keccak256("RELAYER_SENTINEL_CONFIGURATOR");
-    /// @inheritdoc ISuperRbac
-    bytes32 public constant SUPER_MODULE_CONFIGURATOR = keccak256("SUPER_MODULE_CONFIGURATOR");
-    /// @inheritdoc ISuperRbac
-    bytes32 public constant RELAYER_SENTINEL_NOTIFIER = keccak256("RELAYER_SENTINEL_NOTIFIER");
-    /// @inheritdoc ISuperRbac
-    bytes32 public constant BRIDGE_VALIDATOR_CONFIGURATOR = keccak256("BRIDGE_VALIDATOR_CONFIGURATOR");
-    /// @inheritdoc ISuperRbac
     bytes32 public constant EXECUTOR_CONFIGURATOR = keccak256("EXECUTOR_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant HOOK_CONFIGURATOR = keccak256("HOOK_CONFIGURATOR");
 
     constructor(address owner) Ownable(owner) { }
 
@@ -48,7 +36,7 @@ contract SuperRbac is Ownable, ISuperRbac {
         if (account_ == address(0)) revert INVALID_ACCOUNT();
         if (role_ == bytes32(0)) revert INVALID_ROLE();
         _roles[account_][role_] = allowed_;
-        emit RoleAdded(account_, role_, allowed_);
+        emit RoleUpdated(account_, role_, allowed_);
     }
 
     /*//////////////////////////////////////////////////////////////
