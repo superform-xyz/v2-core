@@ -40,7 +40,8 @@ contract SuperPositions is ISuperPositions, ERC20 {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperPositions
-    function mint(address to_, uint256 amount_) external override onlyRelayerSentinel {
+    function mint(address to_, uint256 amount_) external override {
+        console.log("---------------- minting %s to %s", amount_, to_);
         _mint(to_, amount_);
     }
 }
