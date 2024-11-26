@@ -41,5 +41,5 @@ interface ISuperRbac {
     function EXECUTOR_CONFIGURATOR() external view returns (bytes32);
 
     /// @dev Get the ID of the hook configurator role.
-    function HOOK_CONFIGURATOR() external view returns (bytes32);
+    function HOOK_REGISTRY_CONFIGURATOR() external view returns (bytes32);
 }

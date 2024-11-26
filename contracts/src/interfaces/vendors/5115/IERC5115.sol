@@ -2,6 +2,13 @@
 pragma solidity >=0.8.28;
 
 interface IERC5115 {
+    /// @notice Deposit tokens into the vault
+    /// @param receiver The address to receive the shares
+    /// @param tokenIn The address of the token to deposit
+    /// @param amountTokenToDeposit The amount of tokens to deposit
+    /// @param minSharesOut The minimum amount of shares to receive
+    /// @param depositFromInternalBalance Whether to deposit from the internal balance
+    /// @return The amount of shares received
     function deposit(
         address receiver,
         address tokenIn,
@@ -12,6 +19,13 @@ interface IERC5115 {
         external
         returns (uint256 amountSharesOut);
 
+    /// @notice Redeem shares from the vault
+    /// @param receiver The address to receive the tokens
+    /// @param amountSharesToRedeem The amount of shares to redeem
+    /// @param tokenOut The address of the token to redeem
+    /// @param minTokenOut The minimum amount of tokens to receive
+    /// @param burnFromInternalBalance Whether to burn shares from the internal balance
+    /// @return The amount of tokens received
     function redeem(
         address receiver,
         uint256 amountSharesToRedeem,

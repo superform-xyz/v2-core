@@ -13,7 +13,7 @@ import { IHook } from "src/interfaces/IHook.sol";
 import { BaseHook } from "src/utils/BaseHook.sol";
 
 contract Deposit5115Vault is BaseHook, IHook {
-    constructor(address registry_) BaseHook(registry_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     function totalOps() external pure override returns (uint256) {
         return 1;
