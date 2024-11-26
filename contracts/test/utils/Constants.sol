@@ -17,11 +17,4 @@ abstract contract Constants {
 
     // ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
-    bytes32 public constant RELAYER_ID = keccak256("RELAYER");
-    bytes32 public constant RELAYER_SENTINEL_ID = keccak256("RELAYER_SENTINEL");
-
-    // smart accounts
-    uint256 public constant MODULE_TYPE_VALIDATOR = 1;
-    uint256 public constant MODULE_TYPE_EXECUTOR = 2;
-    uint256 public constant MODULE_TYPE_HOOK = 3;
 }

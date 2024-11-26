@@ -14,3 +14,9 @@
 [submodule "contracts/lib/ExcessivelySafeCall"]
 	path = contracts/lib/ExcessivelySafeCall
 	url = https://github.com/nomad-xyz/ExcessivelySafeCall
+[submodule "contracts/lib/devtools"]
+	path = contracts/lib/devtools
+	url = https://github.com/LayerZero-Labs/devtools
+[submodule "contracts/lib/layerzero-v2"]
+	path = contracts/lib/layerzero-v2
+	url = https://github.com/LayerZero-Labs/layerzero-v2

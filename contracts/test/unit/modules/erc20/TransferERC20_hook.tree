@@ -1,8 +1,0 @@
-TransferERC20_hook.t.sol
-├── given state is not valid
-│   ├── when token address is 0
-│   │   └── it should revert with ADDRESS_NOT_VALID
-│   └── when amount is 0
-│       └── it should revert with AMOUNT_NOT_VALID
-└── when state is valid
-    └── it should create the executions array 
