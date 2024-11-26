@@ -8,7 +8,7 @@ interface IERC5115 {
     /// @param amountTokenToDeposit The amount of tokens to deposit
     /// @param minSharesOut The minimum amount of shares to receive
     /// @param depositFromInternalBalance Whether to deposit from the internal balance
-    /// @return The amount of shares received
+    /// @return amountSharesOut The amount of shares received
     function deposit(
         address receiver,
         address tokenIn,
@@ -25,7 +25,7 @@ interface IERC5115 {
     /// @param tokenOut The address of the token to redeem
     /// @param minTokenOut The minimum amount of tokens to receive
     /// @param burnFromInternalBalance Whether to burn shares from the internal balance
-    /// @return The amount of tokens received
+    /// @return amountTokenOut The amount of tokens received
     function redeem(
         address receiver,
         uint256 amountSharesToRedeem,
