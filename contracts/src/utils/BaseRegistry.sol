@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { BaseHook } from "src/utils/BaseHook.sol";
-import { IRegistryBase } from "src/interfaces/IRegistry.sol";
+import { IRegistry } from "src/interfaces/registries/IRegistry.sol";
 
-abstract contract BaseRegistry is IRegistryBase {
+import { BaseHook } from "src/utils/BaseHook.sol";
+
+abstract contract BaseRegistry is IRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -23,32 +24,32 @@ abstract contract BaseRegistry is IRegistryBase {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc IRegistryBase
+    /// @inheritdoc IRegistry
     function isActive(address item_) external view returns (bool) {
         return registeredItems[item_].isActive;
     }
 
-    /// @inheritdoc IRegistryBase
+    /// @inheritdoc IRegistry
     function votes(address item_) external view returns (uint128) {
         return registeredItems[item_].votes;
     }
 
-    /// @inheritdoc IRegistryBase
+    /// @inheritdoc IRegistry
     function getItemCount() external view returns (uint256) {
         return items.length;
     }
 
-    /// @inheritdoc IRegistryBase
+    /// @inheritdoc IRegistry
     function getItemAtIndex(uint256 index_) external view returns (address) {
         return items[index_];
     }
 
-    /// @inheritdoc IRegistryBase
+    /// @inheritdoc IRegistry
     function getItemInfo(address item_) external view returns (ItemInfo memory) {
         return registeredItems[item_];
     }
 
-    /// @inheritdoc IRegistryBase
+    /// @inheritdoc IRegistry
     function generateItemId(address item_) public view returns (bytes32) {
         return keccak256(abi.encodePacked(item_, BaseHook(item_).author(), name));
     }

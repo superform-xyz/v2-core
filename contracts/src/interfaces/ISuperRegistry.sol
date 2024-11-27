@@ -34,4 +34,7 @@ interface ISuperRegistry {
 
     /// @dev Get the ID of the super positions.
     function SUPER_POSITIONS_ID() external view returns (bytes32);
+
+    /// @dev Get the ID of the strategies registry.
+    function STRATEGIES_REGISTRY_ID() external view returns (bytes32);
 }

@@ -6,7 +6,7 @@ import { BaseRegistry } from "src/utils/BaseRegistry.sol";
 import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
 
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
-import { IHooksRegistry } from "src/interfaces/IRegistry.sol";
+import { IHooksRegistry } from "src/interfaces/registries/IHooksRegistry.sol";
 
 contract HooksRegistry is SuperRegistryImplementer, BaseRegistry, IHooksRegistry {
     constructor(address registry_) SuperRegistryImplementer(registry_) BaseRegistry("HooksRegistry") { }

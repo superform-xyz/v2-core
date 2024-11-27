@@ -42,4 +42,7 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the hook configurator role.
     function HOOK_REGISTRY_CONFIGURATOR() external view returns (bytes32);
+
+    /// @dev Get the ID of the strategies registry configurator role.
+    function STRATEGIES_REGISTRY_CONFIGURATOR() external view returns (bytes32);
 }

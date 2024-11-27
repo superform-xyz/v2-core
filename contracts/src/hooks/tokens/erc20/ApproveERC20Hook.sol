@@ -6,10 +6,11 @@ import { Execution } from "modulekit/Accounts.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { IHook } from "src/interfaces/IHook.sol";
 import { BaseHook } from "src/utils/BaseHook.sol";
 
-contract ApproveERC20Hook is BaseHook, IHook {
+import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+
+contract ApproveERC20Hook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     function totalOps() external pure override returns (uint256) {
