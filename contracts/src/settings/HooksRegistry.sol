@@ -31,7 +31,7 @@ contract HooksRegistry is SuperRegistryImplementer, BaseRegistry, IHooksRegistry
     }
 
     /// @inheritdoc IHooksRegistry
-    function acceptHookRegistration(address hook_) external {
+    function acceptHookRegistration(address hook_) external onlyHookRegistryConfigurator {
         _acceptItemRegistration(hook_);
     }
 

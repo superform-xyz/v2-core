@@ -49,7 +49,7 @@ contract StrategiesRegistry is SuperRegistryImplementer, BaseRegistry, IStrategi
     }
 
     /// @inheritdoc IStrategiesRegistry
-    function acceptStrategyRegistration(address strategyId_) external {
+    function acceptStrategyRegistration(address strategyId_) external onlyStrategiesRegistryConfigurator {
         _acceptItemRegistration(strategyId_);
     }
 
