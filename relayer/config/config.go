@@ -1,13 +1,21 @@
 package config
 
 import (
+	"context"
+	"crypto/ecdsa"
 	"encoding/json"
-	"reflect"
-	"strings"
+	"math/big"
 	"sync"
+	"time"
 
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kms"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	"github.com/spf13/viper"
+	"github.com/superform-xyz/v2-core/relayer/pkg/ethawskmssigner"
 )
 
 var (
@@ -17,26 +25,21 @@ var (
 
 // Config contains app config
 type Config struct {
-	// LogLevel is the log level value
-	LogLevel string `mapstructure:"log_level" env:"LOG_LEVEL" default:"info"`
+	LogLevel              zerolog.Level     `mapstructure:"log_level" env:"LOG_LEVEL" default:"info" json:"log_level"`
+	Env                   string            `mapstructure:"environment" env:"ENVIRONMENT" default:"development" json:"environment"`
+	SentryDSN             string            `mapstructure:"sentry_dsn" env:"SENTRY_DSN" json:"sentry_dsn"`
+	PrivateKey            *ecdsa.PrivateKey `mapstructure:"private_key" env:"PRIVATE_KEY" json:"-"`
+	KMSPrivateKeyID       string            `mapstructure:"kms_private_key_id" env:"KMS_PRIVATE_KEY_ID" json:"-"`
+	HealthcheckServerPort int               `mapstructure:"healthcheck_server_port" env:"HEALTHCHECK_SERVER_PORT" default:"6060" json:"healthcheck_server_port"`
+	Chains                Chains            `mapstructure:"chains" json:"chains"`
+	DB                    Database          `mapstructure:"db" json:"db"`
+	Automation            Runner            `mapstructure:"automation" json:"automation"`
+	Listener              Runner            `mapstructure:"listener" json:"listener"`
+}
 
-	// Environment is the environment the app is running in
-	Env string `mapstructure:"environment" env:"ENVIRONMENT" default:"development"`
-
-	// SentryDSN is the DSN for Sentry
-	SentryDSN string `mapstructure:"sentry_dsn" env:"SENTRY_DSN"`
-
-	// PrivateKey is the private key of the address for updating an oracle
-	PrivateKey string `mapstructure:"private_key" env:"PRIVATE_KEY"`
-
-	// KMSPrivateKeyID is the private key ID stored in AWS KMS
-	KMSPrivateKeyID string `mapstructure:"kms_private_key_id" env:"KMS_PRIVATE_KEY_ID"`
-
-	// HealthcheckServerHost is the HTTP server port to serve a healthcheck
-	HealthcheckServerHost int `mapstructure:"healthcheck_server_port" env:"HEALTHCHECK_SERVER_PORT" default:"6060"`
-
-	// Chains is the list of chains configs
-	Chains []Chain `mapstructure:"chains"`
+type Runner struct {
+	Attempts uint          `mapstructure:"attempts" json:"attempts" default:"3"`
+	Timeout  time.Duration `mapstructure:"timeout" json:"timeout" default:"15s"`
 }
 
 // String returns the string representation of the config
@@ -51,58 +54,46 @@ func (c *Config) String() string {
 
 // Print prints the config to the console
 func (c *Config) Print() {
-	// TODO: Do not print secrets
-	log.Debug().Interface("config", c).Msg("config")
-}
-
-// Load loads configuration from envs
-func Load(config string) Config {
-	loadOnce.Do(func() {
-		viper.SetConfigFile(".env")
-		viper.SetConfigFile(config)
-
-		// Read configuration from environment
-		if err := viper.ReadInConfig(); err != nil {
-			log.Warn().Str("msg", err.Error()).Msg("unable to read config file")
-		}
-
-		if err := viper.Unmarshal(&conf); err != nil {
-			log.Fatal().Err(err).Msg("unable to unmarshal config")
-		}
-	})
-
-	return conf
-}
-
-func bindEnv(name string, defaultVal interface{}, envs ...string) {
-	inputs := append([]string{name}, envs...)
-	if err := viper.BindEnv(inputs...); err != nil {
-		log.Fatal().Err(err).Msgf("unable to bind envs %v to config field %s", envs, name)
+	raw, err := json.Marshal(c)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to marshal config to string")
 	}
 
-	viper.SetDefault(name, defaultVal)
+	log.Debug().RawJSON("config", raw).Msg("config")
 }
 
-func init() {
-	// Initializes configuration based on tags defined for each field
-	types := []interface{}{Config{}, Chain{}}
-	for _, obj := range types {
-		t := reflect.TypeOf(obj)
-		for i := 0; i < t.NumField(); i++ {
-			f := t.Field(i)
-			mapStructure, ok := f.Tag.Lookup("mapstructure")
-			if !ok {
-				log.Warn().Msgf("config field %s does not have mapstructure tag", f.Name)
-				continue
-			}
+func (c *Config) GetTxAuth(ctx context.Context) (addr common.Address, auth func(uint64) (*bind.TransactOpts, error)) {
+	if c.KMSPrivateKeyID != "" {
+		awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to load AWS config")
+		}
 
-			defaultVal := f.Tag.Get("default")
+		kmsSvc := kms.NewFromConfig(awsCfg)
 
-			if env := f.Tag.Get("env"); env == "" {
-				bindEnv(mapStructure, defaultVal, strings.ToUpper(mapStructure))
-			} else {
-				bindEnv(mapStructure, defaultVal, strings.Split(env, ",")...)
-			}
+		pubKey, err := ethawskmssigner.GetPubKey(ctx, kmsSvc, c.KMSPrivateKeyID)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to get public key")
+		}
+
+		addr = crypto.PubkeyToAddress(*pubKey)
+
+		log.Info().Str("address", addr.Hex()).Msg("Using public key from AWS KMS")
+
+		auth = func(chainId uint64) (*bind.TransactOpts, error) {
+			return ethawskmssigner.NewAwsKmsTransactorWithChainID(ctx, kmsSvc, c.KMSPrivateKeyID, new(big.Int).SetUint64(chainId))
+		}
+	} else {
+		publicKey, ok := c.PrivateKey.Public().(*ecdsa.PublicKey)
+		if !ok {
+			log.Fatal().Msg("failed to get public key")
+		}
+
+		addr = crypto.PubkeyToAddress(*publicKey)
+		auth = func(chainId uint64) (*bind.TransactOpts, error) {
+			return bind.NewKeyedTransactorWithChainID(c.PrivateKey, new(big.Int).SetUint64(chainId))
 		}
 	}
+
+	return
 }
