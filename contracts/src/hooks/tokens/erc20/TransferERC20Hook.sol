@@ -12,11 +12,16 @@ import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract TransferERC20Hook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
 
     function totalOps() external pure override returns (uint256) {
         return 1;
     }
 
+    /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
         (address token, address to, uint256 amount) = abi.decode(data, (address, address, uint256));
 

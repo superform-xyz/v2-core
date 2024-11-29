@@ -37,4 +37,10 @@ interface ISuperRegistry {
 
     /// @dev Get the ID of the strategies registry.
     function STRATEGIES_REGISTRY_ID() external view returns (bytes32);
+
+    /// @dev Get the ID of the Across bridge gateway.
+    function ACROSS_GATEWAY_ID() external view returns (bytes32);
+
+    /// @dev Get the ID of the super gateway executor.
+    function SUPER_GATEWAY_EXECUTOR_ID() external view returns (bytes32);
 }

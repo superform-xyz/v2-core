@@ -20,6 +20,10 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     bytes32 public constant SUPER_POSITIONS_ID = keccak256("SUPER_POSITIONS_ID");
     /// @inheritdoc ISuperRegistry
     bytes32 public constant STRATEGIES_REGISTRY_ID = keccak256("STRATEGIES_REGISTRY_ID");
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant ACROSS_GATEWAY_ID = keccak256("ACROSS_GATEWAY_ID");
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant SUPER_GATEWAY_EXECUTOR_ID = keccak256("SUPER_GATEWAY_EXECUTOR_ID");
 
     constructor(address owner) Ownable(owner) { }
 

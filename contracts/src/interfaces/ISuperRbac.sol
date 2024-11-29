@@ -11,8 +11,8 @@ interface ISuperRbac {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error INVALID_ROLE();
+    error NOT_AUTHORIZED();
     error INVALID_ACCOUNT();
-
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -20,6 +20,7 @@ interface ISuperRbac {
     /// @param account_ The address of the account.
     /// @param role_ The role to add.
     /// @param allowed_ Whether the role is allowed.
+
     function setRole(address account_, bytes32 role_, bool allowed_) external;
 
     /*//////////////////////////////////////////////////////////////
@@ -45,4 +46,7 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the strategies registry configurator role.
     function STRATEGIES_REGISTRY_CONFIGURATOR() external view returns (bytes32);
+
+    /// @dev Get the ID of the bridge gateway role.
+    function BRIDGE_GATEWAY() external view returns (bytes32);
 }

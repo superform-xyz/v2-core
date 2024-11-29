@@ -6,7 +6,7 @@ import { Execution } from "modulekit/Accounts.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
-import { IERC5115 } from "src/interfaces/vendors/5115/IERC5115.sol";
+import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
 import { BaseHook } from "src/utils/BaseHook.sol";
@@ -16,10 +16,15 @@ import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 contract Withdraw5115Vault is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
     function totalOps() external pure override returns (uint256) {
         return 1;
     }
 
+    /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
         (
             address vault,
