@@ -4,7 +4,7 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/Accounts.sol";
 
-interface IHook {
+interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

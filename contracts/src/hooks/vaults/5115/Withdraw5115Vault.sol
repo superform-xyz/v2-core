@@ -9,11 +9,12 @@ import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 import { IERC5115 } from "src/interfaces/vendors/5115/IERC5115.sol";
 
 // Superform
-import { IHook } from "src/interfaces/IHook.sol";
 import { BaseHook } from "src/utils/BaseHook.sol";
 
-contract Withdraw5115Vault is BaseHook, IHook {
-    constructor(address registry_) BaseHook(registry_) { }
+import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+
+contract Withdraw5115Vault is BaseHook, ISuperHook {
+    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     function totalOps() external pure override returns (uint256) {
         return 1;

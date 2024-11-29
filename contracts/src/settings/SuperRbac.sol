@@ -17,14 +17,16 @@ contract SuperRbac is Ownable, ISuperRbac {
     /**
      *     SUPER_ADMIN_ROLE - generic admin role; should have access for everything
      *     EXECUTOR_CONFIGURATOR - can configure super executors
-     *     HOOK_CONFIGURATOR - can configure hooks
+     *     HOOK_REGISTRY_CONFIGURATOR - can configure hooks registry
      */
     /// @inheritdoc ISuperRbac
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
     /// @inheritdoc ISuperRbac
     bytes32 public constant EXECUTOR_CONFIGURATOR = keccak256("EXECUTOR_CONFIGURATOR");
     /// @inheritdoc ISuperRbac
-    bytes32 public constant HOOK_CONFIGURATOR = keccak256("HOOK_CONFIGURATOR");
+    bytes32 public constant HOOK_REGISTRY_CONFIGURATOR = keccak256("HOOK_REGISTRY_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant STRATEGIES_REGISTRY_CONFIGURATOR = keccak256("STRATEGIES_REGISTRY_CONFIGURATOR");
 
     constructor(address owner) Ownable(owner) { }
 

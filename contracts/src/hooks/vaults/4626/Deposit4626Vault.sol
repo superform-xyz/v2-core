@@ -6,11 +6,12 @@ import { Execution } from "modulekit/Accounts.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
-import { IHook } from "src/interfaces/IHook.sol";
 import { BaseHook } from "src/utils/BaseHook.sol";
 
-contract Deposit4626Hook is BaseHook, IHook {
-    constructor(address registry_) BaseHook(registry_) { }
+import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+
+contract Deposit4626Hook is BaseHook, ISuperHook {
+    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     function totalOps() external pure override returns (uint256) {
         return 1;
