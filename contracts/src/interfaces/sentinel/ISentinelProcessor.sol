@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 import { ISentinelData } from "src/interfaces/sentinel/ISentinelData.sol";
 
-interface ISentinelDecoder {
+interface ISentinelProcessor {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -13,9 +13,9 @@ interface ISentinelDecoder {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @dev Decode the data
+    /// @dev Process the data
     /// @param target_ The target address of the function associated with the data
-    /// @param data_ The data to decode
-    function decode(address target_, bytes memory data_) external;
-    //TODO: should we add selector as a parameter? that way decoders are more generic and not so specific
+    /// @param selector_ The selector of the function associated with the data
+    /// @param data_ The data to process
+    function process(address target_, bytes4 selector_, bytes memory data_) external;
 }

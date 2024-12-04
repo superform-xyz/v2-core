@@ -7,8 +7,8 @@ interface ISentinelData {
         address target;
         bytes4 selector;
         bytes input;
-        address inputDecoder;
+        address inputProcessor;
         bytes output;
-        address outputDecoder;
+        address outputProcessor;
     }
 }
