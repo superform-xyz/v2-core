@@ -49,4 +49,7 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the bridge gateway role.
     function BRIDGE_GATEWAY() external view returns (bytes32);
+
+    /// @dev Get the ID of the sentinel configurator role.
+    function SENTINEL_CONFIGURATOR() external view returns (bytes32);
 }

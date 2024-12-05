@@ -4,15 +4,23 @@ pragma solidity >=0.8.28;
 import { ISentinelData } from "src/interfaces/sentinel/ISentinelData.sol";
 
 interface ISentinel {
+    enum ProcessType {
+        INPUT,
+        OUTPUT
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event ProcessorStatusUpdated(address indexed processor_, bool indexed status_);
-    event Notification(address indexed processor_, ISentinelData.Entry entry_);
+    event Processed(
+        ProcessType indexed processType_, address indexed target_, bytes4 indexed selector_, bytes eventOutput_
+    );
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error NOT_AUTHORIZED();
     error ADDRESS_NOT_VALID();
     error PROCESSOR_NOT_WHITELISTED();
 

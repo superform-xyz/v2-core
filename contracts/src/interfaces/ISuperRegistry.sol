@@ -5,6 +5,7 @@ interface ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+    event SharedStateNamespaceSet(string namespace_);
     event AddressSet(bytes32 indexed id, address indexed addr);
 
     /*//////////////////////////////////////////////////////////////
@@ -20,6 +21,10 @@ interface ISuperRegistry {
     /// @param address_ The address.
     function setAddress(bytes32 id_, address address_) external;
 
+    /// @dev Set the namespace of the shared state.
+    /// @param namespace_ The namespace.
+    function setSharedStateNamespace(string memory namespace_) external;
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -27,6 +32,10 @@ interface ISuperRegistry {
     /// @param id_ The ID.
     /// @return The address.
     function getAddress(bytes32 id_) external view returns (address);
+
+    /// @dev Get the namespace of the shared state.
+    /// @return The namespace.
+    function sharedStateNamespace() external view returns (string memory);
 
     // ids
     /// @dev Get the ID of the SuperRbac.
@@ -43,4 +52,7 @@ interface ISuperRegistry {
 
     /// @dev Get the ID of the super gateway executor.
     function SUPER_GATEWAY_EXECUTOR_ID() external view returns (bytes32);
+
+    /// @dev Get the ID of the shared state.
+    function SHARED_STATE_ID() external view returns (bytes32);
 }

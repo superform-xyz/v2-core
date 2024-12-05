@@ -38,15 +38,27 @@ contract SuperExecutor is ISuperExecutor, SuperRegistryImplementer {
 
         // create user ops
         uint256 totalOps;
-        for (uint256 i; i < hooksLength; i++) {
+        for (uint256 i; i < hooksLength;) {
             totalOps += ISuperHook(hooks[i]).totalOps();
+
+            unchecked {
+                ++i;
+            }
         }
 
         executions = new Execution[](totalOps);
-        for (uint256 i; i < hooksLength; i++) {
+        for (uint256 i; i < hooksLength;) {
             Execution[] memory hookExecutions = ISuperHook(hooks[i]).build(hooksData[i]);
-            for (uint256 j; j < hookExecutions.length; j++) {
+            for (uint256 j; j < hookExecutions.length;) {
                 executions[i] = hookExecutions[j];
+
+                unchecked {
+                    ++j;
+                }
+            }
+
+            unchecked {
+                ++i;
             }
         }
 

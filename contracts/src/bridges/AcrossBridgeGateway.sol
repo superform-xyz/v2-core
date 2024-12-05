@@ -66,12 +66,16 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
         returns (Execution[] memory executions)
     {
         executions = new Execution[](instructions.calls.length);
-        for (uint256 i = 0; i < instructions.calls.length; i++) {
+        for (uint256 i = 0; i < instructions.calls.length;) {
             executions[i] = Execution({
                 target: instructions.calls[i].target,
                 value: instructions.calls[i].value,
                 callData: instructions.calls[i].callData
             });
+
+            unchecked {
+                ++i;
+            }
         }
     }
 

@@ -13,7 +13,6 @@ import {
 import { Execution } from "modulekit/Accounts.sol";
 
 // Superform
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISuperGatewayExecutor } from "src/interfaces/ISuperGatewayExecutor.sol";
 import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
@@ -72,7 +71,7 @@ contract SuperGatewayExecutor is ISuperGatewayExecutor, SuperRegistryImplementer
 
         uint256 opsLength = executions.length;
         userOps = new IUserOperation.UserOperation[](opsLength);
-        for (uint256 i; i < opsLength; i++) {
+        for (uint256 i; i < opsLength;) {
             userOps[i] = IUserOperation.UserOperation({
                 sender: entryPointData.account,
                 nonce: nonce, // current nonce
@@ -88,9 +87,13 @@ contract SuperGatewayExecutor is ISuperGatewayExecutor, SuperRegistryImplementer
                 paymasterAndData: entryPointData.paymasterAndData,
                 signature: entryPointData.signature
             });
+            //TODO: add flag to wait for other userOps to be executed
 
             // increment nonce for next call
-            nonce++;
+            unchecked {
+                ++i;
+                nonce++;
+            }
         }
     }
 }

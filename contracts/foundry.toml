@@ -14,7 +14,6 @@ solc = "0.8.28"
 src = "src"
 test = "test"
 cbor_metadata = true
-ignored_warnings_from = ["node_modules", "lib"]
 
 # remappings
 remappings = [

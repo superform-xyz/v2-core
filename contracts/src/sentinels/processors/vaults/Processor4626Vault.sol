@@ -5,45 +5,74 @@ pragma solidity >=0.8.28;
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
+import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
 import { ISentinelProcessor } from "src/interfaces/sentinel/ISentinelProcessor.sol";
-import { IComposabilityStackReader } from "src/interfaces/composability/IComposabilityStackReader.sol";
 
-// The following decoder uses provided data or fetches it from the composability stack in case it's empty
+// The following decoder uses provided data or fetches it from the shared state in case it's empty
 contract Processor4626Deposit is ISentinelProcessor {
-    IComposabilityStackReader public immutable reader;
+    /*//////////////////////////////////////////////////////////////
+                                STORAGE
+    //////////////////////////////////////////////////////////////*/
+    ISharedStateReader public immutable reader;
+
+    /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error AMOUNT_EXCEEDS_BALANCE();
 
     constructor(address reader_) {
         if (reader_ == address(0)) revert ADDRESS_NOT_VALID();
-        reader = IComposabilityStackReader(reader_);
+        reader = ISharedStateReader(reader_);
     }
 
     /*//////////////////////////////////////////////////////////////
                                 EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISentinelProcessor
-    function process(address target_, bytes4 selector_, bytes memory data_) external view {
+    function process(
+        bytes32 key_,
+        address target_,
+        bytes4 selector_,
+        bytes memory data_
+    )
+        external
+        view
+        override
+        returns (bytes memory eventOutput_)
+    {
+        uint256 amount_;
+
         if (data_.length == 0) {
-            data_ = reader.get(target_, selector_);
+            // TODO: check if this is the correct sender
+            amount_ = reader.getUint(key_, msg.sender);
+        } else {
+            amount_ = abi.decode(data_, (uint256));
         }
-        if (data_.length == 0) revert NO_DATA_FOUND();
 
         if (selector_ == IERC4626.deposit.selector) {
-            _processDeposit(target_, data_);
+            _processDeposit(target_, amount_);
         } else if (selector_ == IERC4626.withdraw.selector) {
-            _processWithdraw(target_, data_);
+            _processWithdraw(target_, amount_);
         }
+
+        // valid for both cases
+        eventOutput_ = abi.encode(amount_);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    // target, data (to avoid warning)
-    function _processDeposit(address, bytes memory) private pure {
+    function _processDeposit(address target_, uint256 obtainedShares_) private view {
         //selector is IERC4626.deposit.selector
+        uint256 balanceOfAccount = IERC4626(target_).balanceOf(msg.sender);
+        if (obtainedShares_ > balanceOfAccount) revert AMOUNT_EXCEEDS_BALANCE();
+
+        //TODO: what else should be done here? Maybe pricing updates
     }
 
     // target, data (to avoid warning)
-    function _processWithdraw(address, bytes memory) private pure {
+    function _processWithdraw(address, uint256 amount_) private pure {
         //selector is IERC4626.withdraw.selector
+        //TODO: what else should be done here? Maybe pricing updates
     }
 }

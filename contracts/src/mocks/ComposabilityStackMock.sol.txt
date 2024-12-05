@@ -1,8 +1,7 @@
-
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import {IComposabilityStackWriter} from "src/interfaces/composability/IComposabilityStackWriter.sol";
+import { IComposabilityStackWriter } from "src/interfaces/composability/IComposabilityStackWriter.sol";
 
 contract ComposabilityStackMock is IComposabilityStackWriter {
     /*//////////////////////////////////////////////////////////////
@@ -28,4 +27,3 @@ contract ComposabilityStackMock is IComposabilityStackWriter {
         emit DataStored(key, data);
     }
 }
-
