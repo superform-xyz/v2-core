@@ -15,10 +15,14 @@ contract SuperRbac is Ownable, ISuperRbac {
 
     // roles
     /**
+     *     BRIDGE_GATEWAY - can execute calls on SuperGatewayExecutor
      *     SUPER_ADMIN_ROLE - generic admin role; should have access for everything
      *     EXECUTOR_CONFIGURATOR - can configure super executors
      *     HOOK_REGISTRY_CONFIGURATOR - can configure hooks registry
+     *     STRATEGIES_REGISTRY_CONFIGURATOR - can configure strategies registry
      */
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant BRIDGE_GATEWAY = keccak256("BRIDGE_GATEWAY");
     /// @inheritdoc ISuperRbac
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
     /// @inheritdoc ISuperRbac
@@ -27,6 +31,8 @@ contract SuperRbac is Ownable, ISuperRbac {
     bytes32 public constant HOOK_REGISTRY_CONFIGURATOR = keccak256("HOOK_REGISTRY_CONFIGURATOR");
     /// @inheritdoc ISuperRbac
     bytes32 public constant STRATEGIES_REGISTRY_CONFIGURATOR = keccak256("STRATEGIES_REGISTRY_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant SENTINEL_CONFIGURATOR = keccak256("SENTINEL_CONFIGURATOR");
 
     constructor(address owner) Ownable(owner) { }
 

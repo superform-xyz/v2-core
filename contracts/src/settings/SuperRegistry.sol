@@ -13,6 +13,8 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
 
+    string public sharedStateNamespace;
+
     // ids
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_RBAC_ID = keccak256("SUPER_RBAC_ID");
@@ -20,8 +22,16 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     bytes32 public constant SUPER_POSITIONS_ID = keccak256("SUPER_POSITIONS_ID");
     /// @inheritdoc ISuperRegistry
     bytes32 public constant STRATEGIES_REGISTRY_ID = keccak256("STRATEGIES_REGISTRY_ID");
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant ACROSS_GATEWAY_ID = keccak256("ACROSS_GATEWAY_ID");
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant SUPER_GATEWAY_EXECUTOR_ID = keccak256("SUPER_GATEWAY_EXECUTOR_ID");
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant SHARED_STATE_ID = keccak256("SHARED_STATE_ID");
 
-    constructor(address owner) Ownable(owner) { }
+    constructor(address owner) Ownable(owner) {
+        sharedStateNamespace = "Superform.SharedState.v1";
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER
@@ -31,6 +41,12 @@ contract SuperRegistry is Ownable, ISuperRegistry {
         if (address_ == address(0)) revert INVALID_ADDRESS();
         addresses[id_] = address_;
         emit AddressSet(id_, address_);
+    }
+
+    /// @inheritdoc ISuperRegistry
+    function setSharedStateNamespace(string memory namespace_) external onlyOwner {
+        sharedStateNamespace = namespace_;
+        emit SharedStateNamespaceSet(namespace_);
     }
 
     /*//////////////////////////////////////////////////////////////

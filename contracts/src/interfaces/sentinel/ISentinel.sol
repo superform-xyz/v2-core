@@ -4,25 +4,33 @@ pragma solidity >=0.8.28;
 import { ISentinelData } from "src/interfaces/sentinel/ISentinelData.sol";
 
 interface ISentinel {
+    enum ProcessType {
+        INPUT,
+        OUTPUT
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event DecoderStatusUpdated(address indexed decoder_, bool indexed status_);
-    event Notification(address indexed decoder_, ISentinelData.Entry entry_);
+    event ProcessorStatusUpdated(address indexed processor_, bool indexed status_);
+    event Processed(
+        ProcessType indexed processType_, address indexed target_, bytes4 indexed selector_, bytes eventOutput_
+    );
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error NOT_AUTHORIZED();
     error ADDRESS_NOT_VALID();
-    error DECODER_NOT_WHITELISTED();
+    error PROCESSOR_NOT_WHITELISTED();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @dev Add or remove a decoder to the whitelist
-    /// @param decoder_ The address of the decoder to whitelist
-    /// @param status_ The status of the decoder
-    function updateDecoderStatus(address decoder_, bool status_) external;
+    /// @dev Add or remove a processor to the whitelist
+    /// @param processor_ The address of the processor to whitelist
+    /// @param status_ The status of the processor
+    function updateProcessorStatus(address processor_, bool status_) external;
 
     /// @dev Notify the sentinel
     /// @param entry_ The entry.

@@ -6,9 +6,10 @@ interface ISentinelData {
     struct Entry {
         address target;
         bytes4 selector;
+        bool processInput;
         bytes input;
-        address inputDecoder;
+        address inputProcessor;
         bytes output;
-        address outputDecoder;
+        address outputProcessor;
     }
 }

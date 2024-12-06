@@ -9,26 +9,25 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { BaseHook } from "src/utils/BaseHook.sol";
 
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
+import { ISentinelData } from "src/interfaces/sentinel/ISentinelData.sol";
 
-contract TransferERC20Hook is BaseHook, ISuperHook {
+contract SuperSentinelHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-
     function totalOps() external pure override returns (uint256) {
         return 1;
     }
 
     /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address token, address to, uint256 amount) = abi.decode(data, (address, address, uint256));
-
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (token == address(0)) revert ADDRESS_NOT_VALID();
+        (address sentinel_, ISentinelData.Entry memory entry) = abi.decode(data, (address, ISentinelData.Entry));
 
         executions = new Execution[](1);
-        executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
+        executions[0] = Execution({ target: sentinel_, value: 0, callData: abi.encodeCall(ISentinel.notify, (entry)) });
     }
 }
