@@ -24,11 +24,11 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
     mapping(bytes32 key => mapping(address account => mapping(uint256 index => IntValue value))) public intValues;
 
     /// @dev Bytes storage data
-    mapping(address account => uint256) public lastByteValuesIndex;
+    mapping(address account => uint256) public lastBytesValuesIndex;
     mapping(bytes32 key => mapping(address account => mapping(uint256 index => bytes value))) public byteValues;
 
     /// @dev Bytes32 storage data
-    mapping(address account => uint256) public lastHashValuesIndex;
+    mapping(address account => uint256) public lastBytes32ValuesIndex;
     mapping(bytes32 key => mapping(address account => mapping(uint256 index => bytes32 value))) public hashValues;
 
     /// @dev Uint storage data
@@ -83,7 +83,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
     /// @inheritdoc ISharedStateReader
 
     function getBytes(bytes32 key_, address account_) external view returns (bytes memory) {
-        return byteValues[key_][account_][lastByteValuesIndex[account_]];
+        return byteValues[key_][account_][lastBytesValuesIndex[account_]];
     }
 
     /// @inheritdoc ISharedStateReader
@@ -113,7 +113,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
     /// @inheritdoc ISharedStateReader
 
     function getBytes32(bytes32 key_, address account_) external view returns (bytes32) {
-        return hashValues[key_][account_][lastHashValuesIndex[account_]];
+        return hashValues[key_][account_][lastBytes32ValuesIndex[account_]];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,6 +132,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @inheritdoc ISharedStateWriter
     function setUint(bytes32 key_, uint256 value_) external {
+        
         lastUintValuesIndex[msg.sender]++;
         _setUint(key_, value_, lastUintValuesIndex[msg.sender]);
     }
@@ -154,8 +155,8 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @inheritdoc ISharedStateWriter
     function setBytes(bytes32 key_, bytes calldata value_) external {
-        lastByteValuesIndex[msg.sender]++;
-        _setBytes(key_, value_, lastByteValuesIndex[msg.sender]);
+        lastBytesValuesIndex[msg.sender]++;
+        _setBytes(key_, value_, lastBytesValuesIndex[msg.sender]);
     }
     /// @inheritdoc ISharedStateWriter
 
@@ -187,8 +188,8 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @inheritdoc ISharedStateWriter
     function setBytes32(bytes32 key_, bytes32 value_) external {
-        lastHashValuesIndex[msg.sender]++;
-        _setBytes32(key_, value_, lastHashValuesIndex[msg.sender]);
+        lastBytes32ValuesIndex[msg.sender]++;
+        _setBytes32(key_, value_, lastBytes32ValuesIndex[msg.sender]);
     }
     /// @inheritdoc ISharedStateWriter
 

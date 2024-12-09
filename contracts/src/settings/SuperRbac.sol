@@ -20,6 +20,7 @@ contract SuperRbac is Ownable, ISuperRbac {
      *     EXECUTOR_CONFIGURATOR - can configure super executors
      *     HOOK_REGISTRY_CONFIGURATOR - can configure hooks registry
      *     STRATEGIES_REGISTRY_CONFIGURATOR - can configure strategies registry
+     *     SENTINEL_CONFIGURATOR - can configure super sentinel
      */
     /// @inheritdoc ISuperRbac
     bytes32 public constant BRIDGE_GATEWAY = keccak256("BRIDGE_GATEWAY");

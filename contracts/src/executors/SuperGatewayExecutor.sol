@@ -2,7 +2,6 @@
 pragma solidity >=0.8.28;
 
 // external
-// modulekit
 import {
     RhinestoneModuleKit,
     ModuleKitHelpers,
