@@ -5,7 +5,6 @@ import { BaseTest } from "test/BaseTest.t.sol";
 
 import { TransientStorageExecutor } from "test/mocks/TransientStorageExecutor.sol";
 
-
 contract Mocktsol is BaseTest {
     TransientStorageExecutor transientExecutor;
 
@@ -25,5 +24,5 @@ contract Mocktsol is BaseTest {
 
     function test_GasBenchmarkForTransientStorageExecutorNotTransient() external {
         transientExecutor.executeNotTransient(abi.encode(1e8));
-    }   
+    }
 }

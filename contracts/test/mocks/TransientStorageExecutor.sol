@@ -5,6 +5,7 @@ pragma solidity >=0.8.28;
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Testing transient storage vs non-transient storage for gas benchmarks
+// forgefmt: disable-start
 contract TransientStorageExecutor is ERC7579ExecutorBase {
     bool transient boolStorage;
     int256 transient intStorage;
@@ -57,3 +58,4 @@ contract TransientStorageExecutor is ERC7579ExecutorBase {
     }
 
 }  
+// forgefmt: disable-end

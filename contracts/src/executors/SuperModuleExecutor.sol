@@ -14,11 +14,13 @@ import { IStrategiesRegistry } from "src/interfaces/registries/IStrategiesRegist
 // Just a mock for the moment
 // Testing transient storage
 contract SuperModuleExecutor is ERC7579ExecutorBase, SuperRegistryImplementer {
+    // forgefmt: disable-start
     bool transient boolStorage;
     int256 transient intStorage;
     uint256 transient uintStorage;
     address transient addressStorage;
     bytes32 transient bytes32Storage;
+    // forgefmt: disable-end
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }  
 

@@ -10,7 +10,6 @@ import {
     UserOpData
 } from "modulekit/ModuleKit.sol";
 
-
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
@@ -27,7 +26,7 @@ import { ISharedStateOperations } from "src/interfaces/state/ISharedStateOperati
 import { SuperRbac } from "src/settings/SuperRbac.sol";
 import { SharedState } from "src/state/SharedState.sol";
 import { HooksRegistry } from "src/settings/HooksRegistry.sol";
-import { SuperRegistry } from "src/settings/SuperRegistry.sol";   
+import { SuperRegistry } from "src/settings/SuperRegistry.sol";
 import { SuperSentinel } from "src/sentinels/SuperSentinel.sol";
 import { SuperExecutor } from "src/executors/SuperExecutor.sol";
 import { StrategiesRegistry } from "src/settings/StrategiesRegistry.sol";
@@ -57,7 +56,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
 
     address public constant ENTRY_POINT = address(1);
 
-    function setUp() public override virtual {
+    function setUp() public virtual override {
         super.setUp();
 
         sharedState = new SharedState();
@@ -84,8 +83,9 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superExecutor = ISuperExecutor(address(new SuperExecutor(address(superRegistry))));
         vm.label(address(superExecutor), "superExecutor");
 
-        superGatewayExecutor = ISuperGatewayExecutor(address(new SuperGatewayExecutor(address(superRegistry), ENTRY_POINT)));
-        vm.label(address(superGatewayExecutor), "superGatewayExecutor");    
+        superGatewayExecutor =
+            ISuperGatewayExecutor(address(new SuperGatewayExecutor(address(superRegistry), ENTRY_POINT)));
+        vm.label(address(superGatewayExecutor), "superGatewayExecutor");
 
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");

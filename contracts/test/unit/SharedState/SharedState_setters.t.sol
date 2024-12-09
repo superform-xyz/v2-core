@@ -21,6 +21,7 @@ import { Unit_Shared } from "test/unit/Unit_Shared.t.sol";
 contract SharedState_setters is Unit_Shared {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
+
     bytes32 public constant KEY = "0x123";
 
     function test_WhenProvidedAnAddress() external {
@@ -114,7 +115,7 @@ contract SharedState_setters is Unit_Shared {
         // it should be allowed to perform math operations
         uint256 value = 1;
         sharedStateWriter.setUint(KEY, value);
-        
+
         uint256 index = sharedStateReader.lastUintValuesIndex(address(this));
 
         // add
@@ -122,7 +123,7 @@ contract SharedState_setters is Unit_Shared {
         sharedStateOperations.addUint(KEY, index, value);
         assertEq(sharedStateReader.getUint(KEY, address(this)), newValue);
 
-        // sub  
+        // sub
         newValue = newValue - value;
         sharedStateOperations.subUint(KEY, index, value);
         assertEq(sharedStateReader.getUint(KEY, address(this)), newValue);
@@ -135,14 +136,14 @@ contract SharedState_setters is Unit_Shared {
         // div
         newValue = newValue / value;
         sharedStateOperations.divUint(KEY, index, value);
-        assertEq(sharedStateReader.getUint(KEY, address(this)), newValue);  
+        assertEq(sharedStateReader.getUint(KEY, address(this)), newValue);
     }
 
     function test_WhenExistingInt() external {
-         // it should be allowed to perform math operations
+        // it should be allowed to perform math operations
         int256 value = 1;
         sharedStateWriter.setInt(KEY, value);
-        
+
         uint256 index = sharedStateReader.lastIntValuesIndex(address(this));
 
         // add
@@ -150,7 +151,7 @@ contract SharedState_setters is Unit_Shared {
         sharedStateOperations.addInt(KEY, index, value);
         assertEq(sharedStateReader.getInt(KEY, address(this)), newValue);
 
-        // sub  
+        // sub
         newValue = newValue - value;
         sharedStateOperations.subInt(KEY, index, value);
         assertEq(sharedStateReader.getInt(KEY, address(this)), newValue);
@@ -163,17 +164,24 @@ contract SharedState_setters is Unit_Shared {
         // div
         newValue = newValue / value;
         sharedStateOperations.divInt(KEY, index, value);
-        assertEq(sharedStateReader.getInt(KEY, address(this)), newValue);  
+        assertEq(sharedStateReader.getInt(KEY, address(this)), newValue);
     }
 
     function test_WhenExecutingABatchOfUserOperationsAndSetterIsCalled() external {
-        MockTarget target = new MockTarget();   
+        MockTarget target = new MockTarget();
 
         bytes4 selector = bytes4(keccak256("setUint(bytes32,uint256)"));
         Execution[] memory executions = new Execution[](2);
-        executions[0] = Execution({ target: address(sharedStateWriter), value: 0, callData: abi.encodeWithSelector(selector, KEY, 1) });
-        executions[1] = Execution({ target: address(sharedStateWriter), value: 0, callData: abi.encodeWithSelector(ISharedStateOperations.addUint.selector, KEY, 1, 1) });
-
+        executions[0] = Execution({
+            target: address(sharedStateWriter),
+            value: 0,
+            callData: abi.encodeWithSelector(selector, KEY, 1)
+        });
+        executions[1] = Execution({
+            target: address(sharedStateWriter),
+            value: 0,
+            callData: abi.encodeWithSelector(ISharedStateOperations.addUint.selector, KEY, 1, 1)
+        });
 
         UserOpData memory userOpData = instance.getExecOps(executions, address(instance.defaultValidator));
         userOpData.execUserOps();
