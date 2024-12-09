@@ -20,3 +20,6 @@
 [submodule "contracts/lib/layerzero-v2"]
 	path = contracts/lib/layerzero-v2
 	url = https://github.com/LayerZero-Labs/layerzero-v2
+[submodule "contracts/lib/synthetix"]
+	path = contracts/lib/synthetix
+	url = https://github.com/Synthetixio/synthetix
