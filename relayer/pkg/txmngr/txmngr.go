@@ -15,27 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-)
-
-const (
-	// TxStatusPending represents the pending status of a transaction
-	TxStatusPending = "PENDING"
-
-	// TxStatusProcessing represents the processing status of a transaction
-	TxStatusProcessing = "PROCESSING"
-
-	// TxStatusErrored represents the errored status of a transaction
-	TxStatusErrored = "ERRORED"
-
-	// TxStatusSucceed represents the success status of a transaction
-	TxStatusSucceed = "SUCCEED"
-
-	// TxStatusFailed represents the failed status of a transaction
-	TxStatusFailed = "FAILED"
+	"github.com/superform-xyz/v2-core/relayer/pkg/data"
 )
 
 const (
@@ -53,14 +38,6 @@ var (
 	// ErrNotConfirmed is the error returned when the tx is not confirmed after several attempts
 	ErrNotConfirmed = errors.New("tx not confirmed after several attempts")
 )
-
-// EthClient is the interface for the Ethereum client
-type EthClient interface {
-	ethereum.TransactionSender
-	ethereum.GasPricer
-	TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error)
-	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
-}
 
 // TxManager is the interface for the tx manager
 type TxManager interface {
@@ -80,16 +57,16 @@ type TxManager interface {
 	) (string, error)
 
 	// WaitTx waits for the tx to be broadcasted
-	WaitTx(ctx context.Context, id string) (*Tx, error)
+	WaitTx(ctx context.Context, id string) (*data.Transaction, error)
 
 	// WaitTxCompleted waits for the tx completion
-	WaitTxCompleted(ctx context.Context, id string) (*Tx, error)
+	WaitTxCompleted(ctx context.Context, id string) (*data.Transaction, error)
 }
 
 // txManager is the implementation of the TxManager interface
 type txManager struct {
-	db              DB
-	clients         map[uint64]EthClient
+	transactionsQ   data.TransactionsQ
+	clients         map[uint64]*ethclient.Client
 	sender          common.Address
 	bumpInterval    time.Duration
 	blockTime       time.Duration
@@ -100,15 +77,15 @@ type txManager struct {
 
 // New creates a new tx manager
 func New(
-	db DB,
-	clients map[uint64]EthClient,
+	transactionsQ data.TransactionsQ,
+	clients map[uint64]*ethclient.Client,
 	sender common.Address,
 	bumpInterval time.Duration,
 	blockTime time.Duration,
 	getTransactOpts func(chainId uint64) (*bind.TransactOpts, error),
 ) TxManager {
 	return &txManager{
-		db:              db,
+		transactionsQ:   transactionsQ,
 		clients:         clients,
 		sender:          sender,
 		bumpInterval:    bumpInterval,
@@ -129,12 +106,12 @@ func (m *txManager) Stop() {
 	m.wg.Wait()
 }
 
-// SendTxAsync stores TX in the db and returns its ID
+// SendTxAsync stores TX in the transactionsQ and returns its ID
 func (m *txManager) SendTxAsync(
 	ctx context.Context,
 	chainId uint64,
 	addr common.Address,
-	data []byte,
+	txData []byte,
 	gasLimit uint64,
 ) (string, error) {
 	// Make sure the given chain ID is supported
@@ -145,22 +122,24 @@ func (m *txManager) SendTxAsync(
 	id := uuid.New().String()
 
 	// Store tx in the database
-	if err := m.db.StoreTx(ctx, Tx{
-		ID:       id,
-		ChainID:  chainId,
-		Addr:     addr,
-		Data:     data,
-		GasLimit: gasLimit,
-		Status:   TxStatusPending,
+	if err := m.transactionsQ.Insert(data.Transaction{
+		ID:        id,
+		ChainID:   chainId,
+		Address:   addr,
+		Data:      txData,
+		GasLimit:  gasLimit,
+		Status:    data.PendingTxStatus,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
 	}); err != nil {
-		return "", errors.Wrap(err, "failed to store tx in the db")
+		return "", errors.Wrap(err, "failed to store tx in the transactionsQ")
 	}
 
 	return id, nil
 }
 
 // WaitTx waits for the tx to be broadcasted
-func (m *txManager) WaitTx(ctx context.Context, id string) (*Tx, error) {
+func (m *txManager) WaitTx(ctx context.Context, id string) (*data.Transaction, error) {
 	ticker := time.NewTicker(txCompletionWaitInterval)
 	defer ticker.Stop()
 
@@ -169,9 +148,9 @@ func (m *txManager) WaitTx(ctx context.Context, id string) (*Tx, error) {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			tx, err := m.db.GetTx(ctx, id)
+			tx, err := m.transactionsQ.FilterByIds(id).Get()
 			if err != nil {
-				if err == sql.ErrNoRows {
+				if errors.Is(err, sql.ErrNoRows) {
 					continue
 				}
 				return nil, err
@@ -185,7 +164,7 @@ func (m *txManager) WaitTx(ctx context.Context, id string) (*Tx, error) {
 }
 
 // WaitTxCompleted waits for the tx completion
-func (m *txManager) WaitTxCompleted(ctx context.Context, id string) (*Tx, error) {
+func (m *txManager) WaitTxCompleted(ctx context.Context, id string) (*data.Transaction, error) {
 	ticker := time.NewTicker(txCompletionWaitInterval)
 	defer ticker.Stop()
 
@@ -194,9 +173,9 @@ func (m *txManager) WaitTxCompleted(ctx context.Context, id string) (*Tx, error)
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			tx, err := m.db.GetTx(ctx, id)
+			tx, err := m.transactionsQ.FilterByIds(id).Get()
 			if err != nil {
-				if err == sql.ErrNoRows {
+				if errors.Is(err, sql.ErrNoRows) {
 					continue
 				}
 				return nil, err
@@ -231,9 +210,7 @@ func (m *txManager) startTxProcessor(ctx context.Context) {
 // The current implementation is not allowed to run within multiple instances.
 func (m *txManager) processTxs(ctx context.Context) {
 	// Here we fetch PENDING transactions from the DB to process them
-	pendingTxs, err := m.db.ListTxs(ctx, ListTxsFilter{
-		Status: TxStatusPending,
-	})
+	pendingTxs, err := m.transactionsQ.FilterByStatus(data.PendingTxStatus).Select()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to list PENDING txs")
 		return
@@ -252,12 +229,16 @@ func (m *txManager) processTxs(ctx context.Context) {
 		lgr := log.With().Str("txId", tx.ID).Logger()
 
 		// Change the tx status to PROCESSING
-		if err = m.db.UpdateTxStatus(ctx, tx.ID, TxStatusProcessing, "", nil); err != nil {
+		tx.Status = data.ProcessingTxStatus
+		tx.Msg = ""
+		tx.Receipt = nil
+		tx.UpdatedAt = time.Now()
+		if err = m.transactionsQ.FilterByIds(tx.ID).Update(tx); err != nil {
 			lgr.Error().Err(err).Msg("failed to update tx status")
 			continue
 		}
 
-		var status string
+		var status data.TxStatus
 		var msg string
 
 		// Process pending transaction
@@ -265,22 +246,26 @@ func (m *txManager) processTxs(ctx context.Context) {
 		if err != nil {
 			lgr.Error().Err(err).Msg("failed to process tx")
 
-			status = TxStatusErrored
+			status = data.ErroredTxStatus
 			msg = err.Error()
 		} else {
 			if receipt.Status == types.ReceiptStatusFailed {
 				lgr.Error().Msg("tx failed")
 
-				status = TxStatusFailed
+				status = data.FailedTxStatus
 			} else {
 				lgr.Info().Msg("tx succeed")
 
-				status = TxStatusSucceed
+				status = data.SucceedTxStatus
 			}
 		}
 
 		// Store processed tx
-		if err := m.db.UpdateTxStatus(ctx, tx.ID, status, msg, receipt); err != nil {
+		tx.Status = status
+		tx.Msg = msg
+		tx.Receipt = receipt
+		tx.UpdatedAt = time.Now()
+		if err = m.transactionsQ.FilterByIds(tx.ID).Update(tx); err != nil {
 			lgr.Error().Err(err).Msg("failed to update processed tx status")
 		}
 	}
@@ -288,7 +273,7 @@ func (m *txManager) processTxs(ctx context.Context) {
 
 // processTx processes the given tx.
 // PROCESS ONLY ONE TX AT TIME.
-func (m *txManager) processTx(ctx context.Context, txModel Tx) (*types.Receipt, error) {
+func (m *txManager) processTx(ctx context.Context, txModel data.Transaction) (*types.Receipt, error) {
 	m.wg.Add(1)
 	defer m.wg.Done()
 
@@ -317,7 +302,9 @@ func (m *txManager) processTx(ctx context.Context, txModel Tx) (*types.Receipt, 
 
 	// Here we wait 30 seconds for the tx to be mined and bumping the gas price if it's not.
 	// Repeating 5 times the process and then break
-	for i := int64(1); i <= 5; i++ { //nolint:mnd
+	// TODO: timout values should be configured
+	// TODO: txs sender/listener should be a separate components, each one does only one action (sends, listens, etc.)
+	for i := int64(1); i <= 1; i++ { //nolint:mnd
 		// Preparing an initial gas price for the given tx
 		currentGasPrice, err = m.suggestGasPrice(ctx, txModel.ChainID, currentGasPrice, priorityCoefficient*i)
 		if err != nil {
@@ -327,7 +314,7 @@ func (m *txManager) processTx(ctx context.Context, txModel Tx) (*types.Receipt, 
 
 		// Building a tx with the initially prepared gas price
 		signedTx, err := auth.Signer(auth.From, types.NewTx(&types.LegacyTx{
-			To:       &txModel.Addr,
+			To:       &txModel.Address,
 			Nonce:    nonce,
 			GasPrice: new(big.Int).Set(currentGasPrice),
 			Gas:      txModel.GasLimit,
@@ -339,7 +326,9 @@ func (m *txManager) processTx(ctx context.Context, txModel Tx) (*types.Receipt, 
 		}
 
 		// Store the tx in the DB
-		if err = m.db.UpdateRawTx(ctx, txModel.ID, signedTx); err != nil {
+		txModel.Tx = signedTx
+		txModel.UpdatedAt = time.Now()
+		if err = m.transactionsQ.FilterByIds(txModel.ID).Update(txModel); err != nil {
 			lgr.Error().Err(err).Msg("failed to update raw tx")
 			return nil, errors.Wrap(err, "failed to update raw tx")
 		}

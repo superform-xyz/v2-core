@@ -1,0 +1,21 @@
+chains:
+  - name: base
+    rpc: wss://...
+    chain_id:
+    bridge_contract:
+    bridge_block:
+  - name: sepolia
+    rpc: wss://...
+    chain_id:
+    bridge_block:
+    bridge_contract_deployment_block:
+
+db:
+  url: postgres://relayer-pg:relayer-pg@localhost:5432/relayer-pg?sslmode=disable
+
+automation:
+  timeout: 1s
+
+listener:
+  timeout: 20s
+  attempts: 1

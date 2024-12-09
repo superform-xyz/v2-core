@@ -29,6 +29,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @dev Bytes32 storage data
     mapping(address account => uint256) public lastBytes32ValuesIndex;
+
     mapping(bytes32 key => mapping(address account => mapping(uint256 index => bytes32 value))) public hashValues;
 
     /// @dev Uint storage data
@@ -132,7 +133,6 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @inheritdoc ISharedStateWriter
     function setUint(bytes32 key_, uint256 value_) external {
-        
         lastUintValuesIndex[msg.sender]++;
         _setUint(key_, value_, lastUintValuesIndex[msg.sender]);
     }
