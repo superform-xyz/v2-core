@@ -87,4 +87,33 @@ interface ISharedStateReader {
     /// @param index_ The index of the stored data
     /// @return The bytes32 data
     function getBytes32(bytes32 key_, address account_, uint256 index_) external view returns (bytes32);
+
+    /// @notice Get the last address values index
+    /// @param account_ The account of the stored data
+    /// @return The last address values index
+    function lastAddressValuesIndex(address account_) external view returns (uint256);
+    /// @notice Get the last uint values index
+    /// @param account_ The account of the stored data
+    /// @return The last uint values index
+    function lastUintValuesIndex(address account_) external view returns (uint256);
+    /// @notice Get the last int values index
+    /// @param account_ The account of the stored data
+    /// @return The last int values index
+    function lastIntValuesIndex(address account_) external view returns (uint256);
+    /// @notice Get the last bytes32 values index
+    /// @param account_ The account of the stored data
+    /// @return The last bytes32 values index
+    function lastBytes32ValuesIndex(address account_) external view returns (uint256);
+    /// @notice Get the last bytes values index
+    /// @param account_ The account of the stored data
+    /// @return The last bytes values index
+    function lastBytesValuesIndex(address account_) external view returns (uint256);
+    /// @notice Get the last string values index
+    /// @param account_ The account of the stored data
+    /// @return The last string values index
+    function lastStringValuesIndex(address account_) external view returns (uint256);
+    /// @notice Get the last bool values index
+    /// @param account_ The account of the stored data
+    /// @return The last bool values index
+    function lastBoolValuesIndex(address account_) external view returns (uint256);
 }

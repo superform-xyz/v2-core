@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
+// external
+import { AccountInstance } from "modulekit/ModuleKit.sol";
+
 import { Types } from "./utils/Types.sol";
 import { Events } from "./utils/Events.sol";
 import { Helpers } from "./utils/Helpers.sol";
-import { ERC20Mock } from "./mocks/ERC20Mock.sol";
-import { console } from "forge-std/console.sol";
 
 abstract contract BaseTest is Types, Events, Helpers {
     /*//////////////////////////////////////////////////////////////
@@ -26,5 +27,26 @@ abstract contract BaseTest is Types, Events, Helpers {
         // deploy accounts
         user1 = _deployAccount(USER1_KEY, "USER1");
         user2 = _deployAccount(USER2_KEY, "USER2");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 HELPERS
+    //////////////////////////////////////////////////////////////*/
+    function _bound(uint256 amount_) internal pure returns (uint256) {
+        amount_ = bound(amount_, SMALL, LARGE);
+        return amount_;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+    modifier inRange(uint256 amount_) {
+        vm.assume(amount_ > SMALL && amount_ <= LARGE);
+        _;
+    }
+
+    modifier whenAccountHasTokens(AccountInstance memory instance_, address token_) {
+        _getTokens(token_, instance_.account, EXTRA_LARGE);
+        _;
     }
 }

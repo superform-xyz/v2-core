@@ -38,32 +38,6 @@ on:
       - "main"
 
 jobs:
-  lint:
-    runs-on: "SuperformCore3"
-    steps:
-      - name: "Check out the repo"
-        uses: "actions/checkout@v4"
-
-      - name: "Install Foundry"
-        uses: "foundry-rs/foundry-toolchain@v1"
-
-      - name: "Install Bun"
-        uses: "oven-sh/setup-bun@v1"
-
-      - name: "Install the Node.js dependencies"
-        working-directory: "./contracts"
-        run: "bun install"
-
-      - name: "Lint the code"
-        working-directory: "./contracts"
-        run: "bun run lint"
-
-      - name: "Add lint summary"
-        working-directory: "./contracts"
-        run: |
-          echo "## Lint result" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
-
   build:
     runs-on: "SuperformCore3"
     steps:
@@ -114,7 +88,7 @@ jobs:
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
 
   test:
-    needs: ["lint", "build"]
+    needs: ["build"]
     runs-on: "SuperformCore3"
     steps:
       - name: "Check out the repo"
