@@ -168,8 +168,6 @@ contract SharedState_setters is Unit_Shared {
     }
 
     function test_WhenExecutingABatchOfUserOperationsAndSetterIsCalled() external {
-        MockTarget target = new MockTarget();
-
         bytes4 selector = bytes4(keccak256("setUint(bytes32,uint256)"));
         Execution[] memory executions = new Execution[](2);
         executions[0] = Execution({

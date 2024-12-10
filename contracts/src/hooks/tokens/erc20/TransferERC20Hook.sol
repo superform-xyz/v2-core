@@ -17,11 +17,6 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
 
-    function totalOps() external pure override returns (uint256) {
-        return 1;
-    }
-
-    /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
         (address token, address to, uint256 amount) = abi.decode(data, (address, address, uint256));
 
@@ -30,5 +25,34 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
 
         executions = new Execution[](1);
         executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function preExecute(bytes memory data)
+        external
+        view
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return (address(0), _getBalance(data), bytes32(0), false);
+    }
+
+    /// @inheritdoc ISuperHook
+    function postExecute(bytes memory data)
+        external
+        view
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return (address(0), _getBalance(data), bytes32(0), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getBalance(bytes memory data) private view returns (uint256) {
+        (address token, address to,) = abi.decode(data, (address, address, uint256));
+        return IERC20(token).balanceOf(to);
     }
 }

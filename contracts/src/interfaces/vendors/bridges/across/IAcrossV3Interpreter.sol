@@ -5,12 +5,7 @@ interface IAcrossV3Interpreter {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    struct Call {
-        address target;
-        bytes callData;
-        uint256 value;
-    }
-
+    // TODO: might remove after we test cross chain flow
     struct EntryPointData {
         address account;
         uint256 callGasLimit;
@@ -23,8 +18,10 @@ interface IAcrossV3Interpreter {
         address payable beneficiary;
     }
 
-    struct Instructions {
-        Call[] calls;
-        EntryPointData entryPointData;
+
+    struct Instruction {
+        bytes strategyData; // strategyId, hooksData
+        uint256 amount;
+        address account;
     }
 }

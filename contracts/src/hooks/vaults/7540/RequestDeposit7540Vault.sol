@@ -17,11 +17,6 @@ contract RequestDeposit7540Vault is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function totalOps() external pure override returns (uint256) {
-        return 1;
-    }
-
-    /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
         (address vault, address receiver, uint256 amount) = abi.decode(data, (address, address, uint256));
 
@@ -34,5 +29,26 @@ contract RequestDeposit7540Vault is BaseHook, ISuperHook {
             value: 0,
             callData: abi.encodeCall(IERC7540.requestDeposit, (amount, receiver))
         });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function preExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
+    }
+
+    /// @inheritdoc ISuperHook
+    function postExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
     }
 }

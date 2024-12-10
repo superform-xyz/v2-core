@@ -7,23 +7,28 @@ import { Execution } from "modulekit/Accounts.sol";
 // Superform
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
-interface ISuperGatewayExecutor {
+interface ISuperGatewayExecutorV2 {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error NO_EXECUTIONS();
+    error DATA_NOT_VALID();
     error NOT_AUTHORIZED();
     error ADDRESS_NOT_VALID();
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Get the strategies registry address
+    function strategiesRegistry() external view returns (address);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Execute a batch of calls
-    /// @param executions The executions to execute
-    /// @param entryPointData The entry point data
+    /// @param data The strategy data (strategyId, hooksData)
     function execute(
-        Execution[] memory executions,
-        IAcrossV3Interpreter.EntryPointData memory entryPointData
+        bytes memory data
+        //IAcrossV3Interpreter.EntryPointData memory entryPointData
     )
         external;
 }
