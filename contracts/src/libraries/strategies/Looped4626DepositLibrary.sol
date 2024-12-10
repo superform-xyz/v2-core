@@ -35,7 +35,7 @@ library Looped4626DepositLibrary {
   ) internal view returns (uint256[] memory rewards) {
     rewards = new uint256[](vaults.length);
     for (uint256 i = 0; i < vaults.length; ++i) {
-      if (IERC4626(vaults[i]).asset() != underlyingAsset) revert VaultsMustHaveSameUnderlyingAsset();
+      if (IERC4626(vaults[i]).asset() != underlyingAsset) revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
       rewards[i] = getEstimatedRewards(vaults[i], loops, amountPerLoop);
     }
   }
