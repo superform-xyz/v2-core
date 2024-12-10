@@ -52,7 +52,7 @@ contract Looped4626DepositLibraryTest is BaseTest {
     assertEq(rewards[1], 1000);
   }
 
-  function test_getEstimatedRewardsMultiVault_differentAssets() public view {
+  function test_getEstimatedRewardsMultiVault_differentAssets() public {
     address[] memory vaults = new address[](2);
     vaults[0] = address(vault);
     VaultMock vault2 = new VaultMock(
