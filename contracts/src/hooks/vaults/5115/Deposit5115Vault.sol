@@ -20,11 +20,6 @@ contract Deposit5115Vault is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function totalOps() external pure override returns (uint256) {
-        return 1;
-    }
-
-    /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
         (
             address vault,
@@ -44,5 +39,34 @@ contract Deposit5115Vault is BaseHook, ISuperHook {
             value: 0,
             callData: abi.encodeCall(IERC5115.redeem, (receiver, amount, tokenIn, minSharesOut, depositFromInternalBalance))
         });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function preExecute(bytes memory data)
+        external
+        view
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return (address(0), _getBalance(data), bytes32(0), false);
+    }
+
+    /// @inheritdoc ISuperHook
+    function postExecute(bytes memory data)
+        external
+        view
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return (address(0), _getBalance(data), bytes32(0), false);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getBalance(bytes memory data) private view returns (uint256) {
+        (address vault, address receiver,) = abi.decode(data, (address, address, uint256));
+        return IERC4626(vault).balanceOf(receiver);
     }
 }

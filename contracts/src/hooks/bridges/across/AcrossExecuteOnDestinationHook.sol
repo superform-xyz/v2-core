@@ -30,7 +30,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
         uint32 quoteTimestamp;
         uint32 fillDeadline;
         uint32 exclusivityDeadline;
-        IAcrossV3Interpreter.Instructions instructions;
+        IAcrossV3Interpreter.Instruction[] instructions;
     }
 
     constructor(address registry_, address author_, address spokePoolV3_) BaseHook(registry_, author_) {
@@ -42,21 +42,13 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function totalOps() external pure override returns (uint256) {
-        return 1;
-    }
-
-    /// @inheritdoc ISuperHook
     function build(bytes memory data) external view override returns (Execution[] memory executions) {
         AcrossV3DepositData memory acrossV3DepositData = abi.decode(data, (AcrossV3DepositData));
 
         // checks
         if (acrossV3DepositData.value == 0) revert AMOUNT_NOT_VALID();
         address _dstContract = _getAcrossGatewayExecutor();
-        if (
-            acrossV3DepositData.recipient == address(0) || _dstContract == address(0)
-                || acrossV3DepositData.instructions.entryPointData.account == address(0)
-        ) revert ADDRESS_NOT_VALID();
+        if (acrossV3DepositData.recipient == address(0) || _dstContract == address(0)) revert ADDRESS_NOT_VALID();
 
         // build execution
         executions = new Execution[](1);
@@ -81,6 +73,27 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                 )
             )
         });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function preExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
+    }
+
+    /// @inheritdoc ISuperHook
+    function postExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
     }
 
     /*//////////////////////////////////////////////////////////////

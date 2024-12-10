@@ -2,6 +2,8 @@
 pragma solidity >=0.8.28;
 
 interface IERC5115 {
+    function asset() external view returns (address assetTokenAddress);
+    
     /// @notice Deposit tokens into the vault
     /// @param receiver The address to receive the shares
     /// @param tokenIn The address of the token to deposit
