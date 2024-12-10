@@ -51,4 +51,17 @@ contract Looped4626DepositLibraryTest is BaseTest {
     assertEq(rewards[0], 1000);
     assertEq(rewards[1], 1000);
   }
+
+  function test_getEstimatedRewardsMultiVault_differentAssets() public view {
+    address[] memory vaults = new address[](2);
+    vaults[0] = address(vault);
+    VaultMock vault2 = new VaultMock(
+      IERC20(address(0)),
+      "Vault",
+      "VAULT"
+    );
+    vaults[1] = address(vault2);
+    vm.expectRevert(Looped4626DepositLibrary.VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET.selector);
+    Looped4626DepositLibrary.getEstimatedRewardsMultiVault(vaults, address(asset), 100, 10);
+  }
 }
