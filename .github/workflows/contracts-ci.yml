@@ -74,8 +74,8 @@ jobs:
         working-directory: "./contracts/lib/modulekit"
 
       - name: "Build the contracts and print their size"
-        working-directory: "./contracts"
         run: "forge build"
+        working-directory: "./contracts"
 
       - name: "Add build summary"
         working-directory: "./contracts"
