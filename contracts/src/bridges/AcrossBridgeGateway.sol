@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
 
-import { ISuperGatewayExecutor } from "src/interfaces/ISuperGatewayExecutor.sol";
+import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
 import { IAcrossV3Receiver } from "src/interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
@@ -18,16 +18,18 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
     address public immutable acrossSpokePool;
 
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event InstructionProcessed(address indexed account, uint256 amount);
+
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     constructor(address registry_, address acrossSpokePool_) SuperRegistryImplementer(registry_) {
         acrossSpokePool = acrossSpokePool_;
-    }
-
-    modifier onlyAcrossSpokePool() {
-        if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
-        _;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -41,42 +43,34 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
         bytes memory message
     )
         external
-        onlyAcrossSpokePool
     {
+        if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
+
         // decode instructions
-        IAcrossV3Interpreter.Instructions memory instructions = abi.decode(message, (IAcrossV3Interpreter.Instructions));
+        IAcrossV3Interpreter.Instruction[] memory instructions = decodeInstructions(message);
 
-        // transfer funds to the smart account
-        IERC20(tokenSent).transferFrom(address(this), instructions.entryPointData.account, amount);
+        uint256 len = instructions.length; 
+        if (len == 0) return;
 
-        // execute the instructions
-        ISuperGatewayExecutor(_getSuperGatewayExecutor()).execute(
-            _getExecution(instructions), instructions.entryPointData
-        );
-    }
+        for (uint256 i = 0; i < len;) {
+            IAcrossV3Interpreter.Instruction memory _instruction = instructions[i];
+            IERC20(tokenSent).transferFrom(address(this), _instruction.account, _instruction.amount);
 
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Get the execution
-    /// @param instructions The instructions
-    function _getExecution(IAcrossV3Interpreter.Instructions memory instructions)
-        internal
-        pure
-        returns (Execution[] memory executions)
-    {
-        executions = new Execution[](instructions.calls.length);
-        for (uint256 i = 0; i < instructions.calls.length;) {
-            executions[i] = Execution({
-                target: instructions.calls[i].target,
-                value: instructions.calls[i].value,
-                callData: instructions.calls[i].callData
-            });
+            ISuperGatewayExecutorV2(_getSuperGatewayExecutor()).execute(_instruction.strategyData);
 
+            emit InstructionProcessed(_instruction.account, _instruction.amount);
             unchecked {
                 ++i;
             }
         }
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function decodeInstructions(bytes memory message) private pure returns (IAcrossV3Interpreter.Instruction[] memory) {
+        return abi.decode(message, (IAcrossV3Interpreter.Instruction[]));
     }
 
     /// @notice Get the super gateway executor

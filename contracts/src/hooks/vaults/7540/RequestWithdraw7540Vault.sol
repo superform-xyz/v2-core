@@ -17,11 +17,6 @@ contract RequestWithdraw7540Vault is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function totalOps() external pure override returns (uint256) {
-        return 1;
-    }
-
-    /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
         (address vault, address receiver, address owner, uint256 shares) =
             abi.decode(data, (address, address, address, uint256));
@@ -35,5 +30,26 @@ contract RequestWithdraw7540Vault is BaseHook, ISuperHook {
             value: 0,
             callData: abi.encodeCall(IERC7540.requestRedeem, (shares, receiver, owner))
         });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function preExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
+    }
+
+    /// @inheritdoc ISuperHook
+    function postExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
     }
 }

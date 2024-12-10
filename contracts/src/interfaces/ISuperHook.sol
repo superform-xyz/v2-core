@@ -6,15 +6,20 @@ import { Execution } from "modulekit/Accounts.sol";
 
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Get the total number of operations in the hook
-    /// @return The total number of operations
-    function totalOps() external view returns (uint256);
-
-    /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Pre-hook operation
+    /// @param data The data to pre-hook
+    function preExecute(bytes memory data)
+        external
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag);
+
+    /// @notice Post-hook operation
+    /// @param data The data to post-hook
+    function postExecute(bytes memory data)
+        external
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag);
+
     /// @notice Build the execution array for the hook
     /// @param data The data to build the execution array from
     /// @return executions The execution array

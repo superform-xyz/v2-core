@@ -17,11 +17,6 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function totalOps() external pure override returns (uint256) {
-        return 2;
-    }
-
-    /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
         (address token, address spender, uint256 amount) = abi.decode(data, (address, address, uint256));
 
@@ -32,5 +27,26 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
         executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, 0)) });
         executions[1] =
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, amount)) });
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function preExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
+    }
+
+    /// @inheritdoc ISuperHook
+    function postExecute(bytes memory)
+        external
+        pure
+        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    {
+        return _returnDefaultTransientStorage();
     }
 }
