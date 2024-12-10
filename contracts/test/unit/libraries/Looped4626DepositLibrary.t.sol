@@ -56,7 +56,7 @@ contract Looped4626DepositLibraryTest is BaseTest {
     address[] memory vaults = new address[](2);
     vaults[0] = address(vault);
     VaultMock vault2 = new VaultMock(
-      IERC20(address(0)),
+      IERC20(address(1234)),
       "Vault",
       "VAULT"
     );
