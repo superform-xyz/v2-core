@@ -12,10 +12,12 @@ contract Looped4626DepositLibraryTest is BaseTest {
   VaultMock vault;
   VaultMock vault2;
   ERC20Mock asset;
+  ERC20Mock asset2;
 
   function setUp() public override {
     super.setUp();
     asset = new ERC20Mock("Asset", "ASSET", 18);
+    asset2 = new ERC20Mock("Asset2", "ASSET2", 18);
     vault = new VaultMock(
       IERC20(address(asset)),
       "Vault",
@@ -56,7 +58,7 @@ contract Looped4626DepositLibraryTest is BaseTest {
     address[] memory vaults = new address[](2);
     vaults[0] = address(vault);
     VaultMock vault2 = new VaultMock(
-      IERC20(address(1234)),
+      IERC20(address(asset2)),
       "Vault",
       "VAULT"
     );
