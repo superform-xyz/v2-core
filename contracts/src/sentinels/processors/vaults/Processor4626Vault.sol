@@ -30,7 +30,7 @@ contract Processor4626Deposit is ISentinelProcessor {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISentinelProcessor
     function process(
-        bytes32 key_,
+        bytes32 key_, //shared state key
         address target_,
         bytes4 selector_,
         bytes memory data_
@@ -50,9 +50,9 @@ contract Processor4626Deposit is ISentinelProcessor {
         }
 
         if (selector_ == IERC4626.deposit.selector) {
-            _processDeposit(target_, amount_);
+            _processDeposit(target_, data_, key_);
         } else if (selector_ == IERC4626.withdraw.selector) {
-            _processWithdraw(target_, amount_);
+            _processWithdraw(target_, data_, key_);
         }
 
         // valid for both cases
@@ -62,7 +62,12 @@ contract Processor4626Deposit is ISentinelProcessor {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _processDeposit(address target_, uint256 obtainedShares_) private view {
+    function _processDeposit(address target_, bytes memory data_, bytes32 key_) private view {
+        (uint256 obtainedShares_, bool readFromSharedState_) = abi.decode(data_, (uint256, bool));
+        if (readFromSharedState_) {
+            obtainedShares_ = reader.getUint(key_, msg.sender);
+        }
+        
         //selector is IERC4626.deposit.selector
         uint256 balanceOfAccount = IERC4626(target_).balanceOf(msg.sender);
         if (obtainedShares_ > balanceOfAccount) revert AMOUNT_EXCEEDS_BALANCE();
@@ -71,7 +76,7 @@ contract Processor4626Deposit is ISentinelProcessor {
     }
 
     // target, data (to avoid warning)
-    function _processWithdraw(address, uint256 amount_) private pure {
+    function _processWithdraw(address, bytes memory, bytes32) private pure {
         //selector is IERC4626.withdraw.selector
         //TODO: what else should be done here? Maybe pricing updates
     }

@@ -13,13 +13,13 @@ import {
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
-import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
 import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
 import { IRegistry } from "src/interfaces/registries/IRegistry.sol";
+import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
 import { IHooksRegistry } from "src/interfaces/registries/IHooksRegistry.sol";
 import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
 import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";
-import { ISuperGatewayExecutor } from "src/interfaces/ISuperGatewayExecutor.sol";
+import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
 import { IStrategiesRegistry } from "src/interfaces/registries/IStrategiesRegistry.sol";
 import { ISharedStateOperations } from "src/interfaces/state/ISharedStateOperations.sol";
 
@@ -28,9 +28,9 @@ import { SharedState } from "src/state/SharedState.sol";
 import { HooksRegistry } from "src/settings/HooksRegistry.sol";
 import { SuperRegistry } from "src/settings/SuperRegistry.sol";
 import { SuperSentinel } from "src/sentinels/SuperSentinel.sol";
-import { SuperExecutor } from "src/executors/SuperExecutor.sol";
+import { SuperExecutorV2 } from "src/executors/SuperExecutorV2.sol";
 import { StrategiesRegistry } from "src/settings/StrategiesRegistry.sol";
-import { SuperGatewayExecutor } from "src/executors/SuperGatewayExecutor.sol";
+import { SuperGatewayExecutorV2 } from "src/executors/SuperGatewayExecutorV2.sol";
 
 import { BaseTest } from "test/BaseTest.t.sol";
 
@@ -46,11 +46,11 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     IStrategiesRegistry public strategiesRegistry;
 
     ISentinel public superSentinel;
-    ISuperExecutor public superExecutor;
-    ISuperGatewayExecutor public superGatewayExecutor;
+    ISuperExecutorV2 public superExecutor;
     ISharedStateReader public sharedStateReader;
     ISharedStateWriter public sharedStateWriter;
     ISharedStateOperations public sharedStateOperations;
+    ISuperGatewayExecutorV2 public superGatewayExecutor;
 
     AccountInstance public instance;
 
@@ -80,11 +80,11 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superSentinel = ISentinel(address(new SuperSentinel(address(superRegistry))));
         vm.label(address(superSentinel), "superSentinel");
 
-        superExecutor = ISuperExecutor(address(new SuperExecutor(address(superRegistry))));
+        superExecutor = ISuperExecutorV2(address(new SuperExecutorV2(address(superRegistry))));
         vm.label(address(superExecutor), "superExecutor");
 
         superGatewayExecutor =
-            ISuperGatewayExecutor(address(new SuperGatewayExecutor(address(superRegistry), ENTRY_POINT)));
+            ISuperGatewayExecutorV2(address(new SuperGatewayExecutorV2(address(superRegistry))));
         vm.label(address(superGatewayExecutor), "superGatewayExecutor");
 
         // Initialize the account instance
