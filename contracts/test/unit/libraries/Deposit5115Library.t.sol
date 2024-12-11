@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { BaseTest } from "../../BaseTest.t.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 import { ERC20Mock } from "../../mocks/ERC20Mock.sol";
 import { Mock5115Vault } from "../../mocks/Mock5115Vault.sol";
 import { Deposit5115Library } from "../../../src/libraries/strategies/Deposit5115Library.sol";
@@ -24,6 +25,17 @@ contract Deposit5115LibraryTest is BaseTest {
 
   function test_getEstimated5115Rewards() public {
     uint256 amountToDeposit = 1000;
+    uint256 expectedRewards = amountToDeposit;
+    uint256 actualRewards = Deposit5115Library.getEstimatedRewards(
+      address(vault),
+      address(underlying),
+      amountToDeposit
+    );
+    assertEq(actualRewards, expectedRewards);
+  }
+
+  function test_getEstimated5115Rewards_fuzz(uint256 amountToDeposit) public {
+    amountToDeposit = _bound(amountToDeposit);
     uint256 expectedRewards = amountToDeposit;
     uint256 actualRewards = Deposit5115Library.getEstimatedRewards(
       address(vault),
