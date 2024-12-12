@@ -15,7 +15,8 @@ library Looped4626DepositLibrary {
     address finalTarget,
     uint256 loops
   ) internal view returns (uint256 rewards) {
-    rewards = IERC4626(finalTarget).previewRedeem(1);
+    uint256 decimals = IERC4626(finalTarget).decimals();
+    rewards = IERC4626(finalTarget).previewRedeem(10 ** decimals);
     rewards *= loops;
   }
 

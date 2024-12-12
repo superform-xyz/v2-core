@@ -13,7 +13,8 @@ library Deposit4626Library {
   function getEstimatedRewards(
     address finalTarget
   ) external view returns (uint256 reward) {
-    reward = IERC4626(finalTarget).previewRedeem(1);
+    uint256 decimals = IERC4626(finalTarget).decimals();
+    reward = IERC4626(finalTarget).previewRedeem(10 ** decimals);
   }
 
   /// @notice Get the estimated rewards for a deposit into multiple vaults

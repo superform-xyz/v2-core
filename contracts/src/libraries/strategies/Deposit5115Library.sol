@@ -12,6 +12,10 @@ library Deposit5115Library {
     address finalTarget,
     address tokenIn
   ) external view returns (uint256 reward) {
-    reward = IStandardizedYield(finalTarget).previewRedeem(tokenIn, 1);
+    (,, uint256 decimals) = IStandardizedYield(finalTarget).assetInfo();
+    reward = IStandardizedYield(finalTarget).previewRedeem(
+      tokenIn,
+      10 ** decimals
+    );
   }
 }
