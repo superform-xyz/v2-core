@@ -57,4 +57,8 @@ interface IStrategyOracle {
   /*//////////////////////////////////////////////////////////////
                           PERMISSIONED METHODS
   //////////////////////////////////////////////////////////////*/
+
+  /// @notice Sets the reward percentage
+  /// @param rewardPercentage_ The reward percentage to set
+  function setRewardPercentage(uint256 rewardPercentage_) external;
 }
