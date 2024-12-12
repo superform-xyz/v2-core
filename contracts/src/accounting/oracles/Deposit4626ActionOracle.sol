@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { SuperRbac } from "src/settings/SuperRbac.sol";
-import { IActionOracle } from "src/interfaces/accounting/IStrategyOracle.sol";
+import { IActionOracle } from "src/interfaces/accounting/IActionOracle.sol";
 import { Deposit4626Library } from "src/libraries/strategies/Deposit4626Library.sol";
 
 /// @title Deposit4626ActionOracle
@@ -24,35 +24,31 @@ contract Deposit4626ActionOracle is IActionOracle {
                             CONSTRUCTOR
   //////////////////////////////////////////////////////////////*/
 
-  constructor(uint256 _rewardPercentage) {
-    rewardPercentage = _rewardPercentage;
-  }
+  constructor() {}
 
   /*//////////////////////////////////////////////////////////////
                            VIEW METHODS
   //////////////////////////////////////////////////////////////*/
 
   /// @inheritdoc IStrategyOracle
-  function deriveVaultStrategyPrice(
-    address vault,
-    uint256 amount
+  function deriveVaultStrategyPricePerShare(
+    address finalTarget
   ) external view returns (uint256 price) {
-    uint256 estimatedRewards = Deposit4626Library.getEstimatedRewards(vault, amount);
+    uint256 estimatedRewards = Deposit4626Library.getEstimatedRewards(vault);
     price = (estimatedRewards * rewardPercentage) / 10_000;
   }
 
   /// @inheritdoc IStrategyOracle
-  function deriveVaultsStrategyPrice(
-    address[] memory vaults,
-    uint256[] memory amounts
+  function deriveVaultsStrategyPricePerShare(
+    address[] memory finalTargets
   ) external view returns (uint256[] memory prices) {
-    if (vaults.length != amounts.length) {
+    if (finalTargets.length != amounts.length) {
       revert INVALID_INPUT_LENGTH();
     }
 
-    prices = new uint256[](vaults.length);
-    for (uint256 i = 0; i < vaults.length; i++) {
-      uint256 reward = deriveVaultStrategyPrice(vaults[i], amounts[i]);
+    prices = new uint256[](finalTargets.length);
+    for (uint256 i = 0; i < finalTargets.length; i++) {
+      uint256 reward = deriveVaultStrategyPrice(finalTargets[i]);
       prices[i] = (reward * rewardPercentage) / 10_000;
     }
   }
@@ -60,7 +56,7 @@ contract Deposit4626ActionOracle is IActionOracle {
   // ToDo: Implement this with the metadata library
   /// @inheritdoc IStrategyOracle
   function getVaultStrategyMetadata(
-    address vault
+    address finalTarget
   ) external view returns (bytes memory metadata) {
     return "0x0";
   }
@@ -68,8 +64,8 @@ contract Deposit4626ActionOracle is IActionOracle {
   // ToDo: Implement this with the metadata library
   /// @inheritdoc IStrategyOracle
   function getVaultsStrategyMetadata(
-    address[] memory vaults
+    address[] memory finalTargets
   ) external view returns (bytes[] memory metadata) {
-    return new bytes[](vaults.length);
+    return new bytes[](finalTargets.length);
   }
 }
