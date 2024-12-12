@@ -84,10 +84,13 @@ contract Deposit4626StrategyOracle is IStrategyOracle {
                       PERMISSIONED METHODS
   //////////////////////////////////////////////////////////////*/
 
-  function setRewardPercentage(uint256 _rewardPercentage) external onlyStrategyOracleConfigurator {
-    if (_rewardPercentage > 10_000) {
+  /// @inheritdoc IStrategyOracle
+  function setRewardPercentage(
+    uint256 rewardPercentage_
+  ) external onlyStrategyOracleConfigurator {
+    if (rewardPercentage_ > 10_000) {
       revert INVALID_REWARD_PERCENTAGE();
     }
-    rewardPercentage = _rewardPercentage;
+    rewardPercentage = rewardPercentage_;
   }
 }
