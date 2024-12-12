@@ -3,14 +3,14 @@ pragma solidity >=0.8.28;
 
 import { BaseTest } from "../../BaseTest.t.sol";
 import { ERC20Mock } from "../../mocks/ERC20Mock.sol";
-import { VaultMock } from "../../mocks/VaultMock.sol";
+import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { Looped4626DepositLibrary } from "../../../src/libraries/strategies/Looped4626DepositLibrary.sol";
 
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 contract Looped4626DepositLibraryTest is BaseTest {
-  VaultMock vault;
-  VaultMock vault2;
+  Mock4626Vault vault;
+  Mock4626Vault vault2;
 
   ERC20Mock asset;
   ERC20Mock asset2;
@@ -21,12 +21,12 @@ contract Looped4626DepositLibraryTest is BaseTest {
     super.setUp();
     asset = new ERC20Mock("Asset", "ASSET", 18);
     asset2 = new ERC20Mock("Asset2", "ASSET2", 18);
-    vault = new VaultMock(
+    vault = new Mock4626Vault(
       IERC20(address(asset)),
       "Vault",
       "VAULT"
     );
-    vault2 = new VaultMock(
+    vault2 = new Mock4626Vault(
       IERC20(address(asset)),
       "Vault2",
       "VAULT2"
@@ -65,7 +65,7 @@ contract Looped4626DepositLibraryTest is BaseTest {
   function test_getEstimatedRewardsMultiVault_differentAssets() public {
     address[] memory vaults = new address[](2);
     vaults[0] = address(vault);
-    VaultMock vault3 = new VaultMock(
+    Mock4626Vault vault3 = new Mock4626Vault(
       IERC20(address(asset2)),
       "Vault3",
       "VAULT3"
