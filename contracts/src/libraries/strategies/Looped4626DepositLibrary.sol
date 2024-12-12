@@ -8,35 +8,31 @@ library Looped4626DepositLibrary {
   error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
 
   /// @notice Get the estimated rewards for a single vault over a number of loops
-  /// @param vault The address of the vault
+  /// @param finalTarget The address of the final target
   /// @param loops The number of loops
-  /// @param amountPerLoop The amount per loop
   /// @return rewards The estimated rewards
   function getEstimatedRewards(
-    address vault,
-    uint256 loops,
-    uint256 amountPerLoop
+    address finalTarget,
+    uint256 loops
   ) internal view returns (uint256 rewards) {
-    rewards = IERC4626(vault).previewDeposit(amountPerLoop);
+    rewards = IERC4626(finalTarget).previewRedeem(1);
     rewards *= loops;
   }
 
   /// @notice Get the estimated rewards for multiple vaults
-  /// @param vaults The addresses of the vaults
+  /// @param finalTargets The addresses of the final targets
   /// @param underlyingAsset The address of the underlying asset
-  /// @param amountPerLoop The amount per loop
   /// @param loops The number of loops
   /// @return rewards The estimated rewards per vault
   function getEstimatedRewardsMultiVault(
-    address[] memory vaults,
+    address[] memory finalTargets,
     address underlyingAsset,
-    uint256 amountPerLoop,
     uint256 loops
   ) internal view returns (uint256[] memory rewards) {
-    rewards = new uint256[](vaults.length);
-    for (uint256 i = 0; i < vaults.length; ++i) {
-      if (IERC4626(vaults[i]).asset() != underlyingAsset) revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
-      rewards[i] = getEstimatedRewards(vaults[i], loops, amountPerLoop);
+    rewards = new uint256[](finalTargets.length);
+    for (uint256 i = 0; i < finalTargets.length; ++i) {
+      if (IERC4626(finalTargets[i]).asset() != underlyingAsset) revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
+      rewards[i] = getEstimatedRewards(finalTargets[i], loops);
     }
   }
 }

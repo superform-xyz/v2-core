@@ -25,16 +25,8 @@ contract Deposit4626LibraryTest is BaseTest {
   }
 
   function test_getEstimated4626Rewards() public {
-    uint256 amountToDeposit = 1000;
-    uint256 expectedRewards = 1000;
-    uint256 actualRewards = Deposit4626Library.getEstimatedRewards(address(vault), amountToDeposit);
-    assertEq(actualRewards, expectedRewards);
-  }
-
-  function test_getEstimated4626Rewards_fuzz(uint256 amountToDeposit) public {
-    amountToDeposit = _bound(amountToDeposit);
-    uint256 expectedRewards = amountToDeposit;
-    uint256 actualRewards = Deposit4626Library.getEstimatedRewards(address(vault), amountToDeposit);
+    uint256 expectedRewards = 1;
+    uint256 actualRewards = Deposit4626Library.getEstimatedRewards(address(vault));
     assertEq(actualRewards, expectedRewards);
   }
 }

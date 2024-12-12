@@ -36,13 +36,11 @@ contract Looped4626DepositLibraryTest is BaseTest {
 
   function test_getEstimatedRewardsSingleVault() public view {
     uint256 loops = 10;
-    uint256 amountPerLoop = 100;
     uint256 rewards = Looped4626DepositLibrary.getEstimatedRewards(
       address(vault),
-      loops,
-      amountPerLoop
+      loops
     );
-    assertEq(rewards, 1000);
+    assertEq(rewards, 10);
   }
 
   function test_getEstimatedRewardsMultiVault() public view {
@@ -50,16 +48,14 @@ contract Looped4626DepositLibraryTest is BaseTest {
     vaults[0] = address(vault);
     vaults[1] = address(vault2);
     uint256 loops = 10;
-    uint256 amountPerLoop = 100;
     uint256[] memory rewards = Looped4626DepositLibrary.getEstimatedRewardsMultiVault(
       vaults,
       address(asset),
-      loops,
-      amountPerLoop
+      loops
     );
     assertEq(rewards.length, 2);
-    assertEq(rewards[0], 1000);
-    assertEq(rewards[1], 1000);
+    assertEq(rewards[0], 10);
+    assertEq(rewards[1], 10);
   }
 
   function test_getEstimatedRewardsMultiVault_differentAssets() public {
@@ -81,13 +77,14 @@ contract Looped4626DepositLibraryTest is BaseTest {
   }
 }
 
+/// @dev Wrapper for Looped4626DepositLibrary to test for errors
 contract Looped4626DepositLibraryWrapper {
-  function getEstimatedRewards(address vault, uint256 loops, uint256 amountPerLoop) external view returns (uint256) {
-    return Looped4626DepositLibrary.getEstimatedRewards(vault, loops, amountPerLoop);
+  function getEstimatedRewards(address vault, uint256 loops) external view returns (uint256) {
+    return Looped4626DepositLibrary.getEstimatedRewards(vault, loops);
   }
 
-  function getEstimatedRewardsMultiVault(address[] memory vaults, address underlyingAsset, uint256 loops, uint256 amountPerLoop) external view returns (uint256[] memory) {
-    return Looped4626DepositLibrary.getEstimatedRewardsMultiVault(vaults, underlyingAsset, loops, amountPerLoop);
+  function getEstimatedRewardsMultiVault(address[] memory vaults, address underlyingAsset, uint256 loops) external view returns (uint256[] memory) {
+    return Looped4626DepositLibrary.getEstimatedRewardsMultiVault(vaults, underlyingAsset, loops);
   }
 }
 

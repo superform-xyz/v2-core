@@ -15,4 +15,8 @@ contract Mock4626Vault is ERC4626 {
   function previewDeposit(uint256 amount) public pure override returns (uint256) {
     return amount;
   }
+
+  function previewRedeem(uint256 amount) public pure override returns (uint256) {
+    return amount;
+  }
 }

@@ -16,5 +16,9 @@ contract Mock5115Vault {
   function previewDeposit(address tokenIn, uint256 amountTokenToDeposit) external view returns (uint256 amountSharesOut) {
     amountSharesOut = amountTokenToDeposit;
   }
+
+  function previewRedeem(address tokenOut, uint256 amountSharesToRedeem) external view returns (uint256 amountTokenOut) {
+    amountTokenOut = amountSharesToRedeem;
+  }
 }
 
