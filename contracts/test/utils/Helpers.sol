@@ -27,11 +27,6 @@ abstract contract Helpers is Test, Constants {
         MockERC20(token_).mint(to_, amount_);
     }
 
-    function _boundAmount(uint256 amount_) internal pure returns (uint256) {
-        amount_ = bound(amount_, SMALL, LARGE);
-        return amount_;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  DEPLOYERS
     //////////////////////////////////////////////////////////////*/

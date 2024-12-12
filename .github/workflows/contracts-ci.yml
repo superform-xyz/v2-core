@@ -63,10 +63,6 @@ jobs:
         run: forge install
         working-directory: "./contracts"
 
-      - name: "Update modulekit to our own version"
-        run: forge install https://github.com/0xTimepunk/modulekit@0d5f11e
-        working-directory: "./contracts"
-
       - name: "Install pnpm"
         run: npm install -g pnpm
 

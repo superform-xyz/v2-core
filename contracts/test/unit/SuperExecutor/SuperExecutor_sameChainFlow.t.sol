@@ -6,7 +6,7 @@ import { Unit_Shared } from "test/unit/Unit_Shared.t.sol";
 
 contract SuperExecutor_sameChainFlow is Unit_Shared {
     function test_GivenAStrategyDoesNotExist(uint256 amount) external {
-        amount = _boundAmount(amount);
+        amount = _bound(amount);
         // it should retrieve an empty array of hooks
         // it should revert wityh DATA_NOT_VALID
 
@@ -69,7 +69,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         givenAStrategyExist
         givenSentinelCallIsNotPerformed
     {
-        amount = _boundAmount(amount);
+        amount = _bound(amount);
         bytes[] memory hooksData = _createStrategy0(amount);
         
         // assure account has tokens
@@ -95,7 +95,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         givenAStrategyExist
         givenSentinelCallIsNotPerformed
     {
-        amount = _boundAmount(amount);
+        amount = _bound(amount);
         bytes[] memory hooksData = _createStrategy2(amount);
         
         // assure account has tokens

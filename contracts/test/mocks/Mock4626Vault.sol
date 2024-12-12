@@ -51,5 +51,4 @@ contract Mock4626Vault {
         IERC20(asset).transfer(receiver, assets);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
-
 }
