@@ -27,7 +27,7 @@ contract HooksRegistry is SuperRegistryImplementer, BaseRegistry, IHooksRegistry
 
     /// @inheritdoc IHooksRegistry
     function registerHook(address hook_) external {
-        _registerItem(hook_);
+        _registerItem(hook_, msg.sender);
     }
 
     /// @inheritdoc IHooksRegistry

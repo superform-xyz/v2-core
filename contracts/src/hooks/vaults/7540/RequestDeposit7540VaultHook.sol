@@ -5,12 +5,12 @@ pragma solidity >=0.8.28;
 import { Execution } from "modulekit/Accounts.sol";
 
 // Superform
-import { BaseHook } from "src/utils/BaseHook.sol";
+import { BaseHook } from "src/hooks/BaseHook.sol";
 
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 
-contract RequestWithdraw7540Vault is BaseHook, ISuperHook {
+contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -18,17 +18,16 @@ contract RequestWithdraw7540Vault is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address vault, address receiver, address owner, uint256 shares) =
-            abi.decode(data, (address, address, address, uint256));
+        (address vault, address receiver, uint256 amount) = abi.decode(data, (address, address, uint256));
 
-        if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        if (vault == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: vault,
             value: 0,
-            callData: abi.encodeCall(IERC7540.requestRedeem, (shares, receiver, owner))
+            callData: abi.encodeCall(IERC7540.requestDeposit, (amount, receiver))
         });
     }
 

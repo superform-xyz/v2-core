@@ -4,14 +4,8 @@ pragma solidity >=0.8.28;
 // Superform
 import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";
 import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
-import { ISharedStateOperations } from "src/interfaces/state/ISharedStateOperations.sol";
 
-import { SuperformValueOperations, IntValue, UintValue } from "src/libraries/SuperformValueOperations.sol";
-
-contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOperations {
-    using SuperformValueOperations for IntValue;
-    using SuperformValueOperations for UintValue;
-
+contract SharedState is ISharedStateWriter, ISharedStateReader {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -21,7 +15,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @dev Int storage data
     mapping(address account => uint256) public lastIntValuesIndex;
-    mapping(bytes32 key => mapping(address account => mapping(uint256 index => IntValue value))) public intValues;
+    mapping(bytes32 key => mapping(address account => mapping(uint256 index => int256 value))) public intValues;
 
     /// @dev Bytes storage data
     mapping(address account => uint256) public lastBytesValuesIndex;
@@ -29,12 +23,11 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @dev Bytes32 storage data
     mapping(address account => uint256) public lastBytes32ValuesIndex;
-
     mapping(bytes32 key => mapping(address account => mapping(uint256 index => bytes32 value))) public hashValues;
 
     /// @dev Uint storage data
     mapping(address account => uint256) public lastUintValuesIndex;
-    mapping(bytes32 key => mapping(address account => mapping(uint256 index => UintValue value))) public uintValues;
+    mapping(bytes32 key => mapping(address account => mapping(uint256 index => uint256 value))) public uintValues;
 
     /// @dev String storage data
     mapping(address account => uint256) public lastStringValuesIndex;
@@ -59,12 +52,12 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @inheritdoc ISharedStateReader
     function getUint(bytes32 key_, address account_, uint256 index_) external view returns (uint256) {
-        return UintValue.unwrap(uintValues[key_][account_][index_]);
+        return uintValues[key_][account_][index_];
     }
     /// @inheritdoc ISharedStateReader
 
     function getUint(bytes32 key_, address account_) external view returns (uint256) {
-        return UintValue.unwrap(uintValues[key_][account_][lastUintValuesIndex[account_]]);
+        return uintValues[key_][account_][lastUintValuesIndex[account_]];
     }
 
     /// @inheritdoc ISharedStateReader
@@ -99,12 +92,12 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
 
     /// @inheritdoc ISharedStateReader
     function getInt(bytes32 key_, address account_, uint256 index_) external view returns (int256) {
-        return IntValue.unwrap(intValues[key_][account_][index_]);
+        return intValues[key_][account_][index_];
     }
     /// @inheritdoc ISharedStateReader
 
     function getInt(bytes32 key_, address account_) external view returns (int256) {
-        return IntValue.unwrap(intValues[key_][account_][lastIntValuesIndex[account_]]);
+        return intValues[key_][account_][lastIntValuesIndex[account_]];
     }
 
     /// @inheritdoc ISharedStateReader
@@ -197,54 +190,6 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
         _setBytes32(key_, value_, index_);
     }
 
-    /// @inheritdoc ISharedStateOperations
-    function addUint(bytes32 key_, uint256 index_, uint256 value_) external {
-        UintValue currentValue = uintValues[key_][msg.sender][index_];
-        uintValues[key_][msg.sender][index_] = currentValue.add(UintValue.wrap(value_));
-    }
-    /// @inheritdoc ISharedStateOperations
-
-    function subUint(bytes32 key_, uint256 index_, uint256 value_) external {
-        UintValue currentValue = uintValues[key_][msg.sender][index_];
-        uintValues[key_][msg.sender][index_] = currentValue.sub(UintValue.wrap(value_));
-    }
-    /// @inheritdoc ISharedStateOperations
-
-    function mulUint(bytes32 key_, uint256 index_, uint256 value_) external {
-        UintValue currentValue = uintValues[key_][msg.sender][index_];
-        uintValues[key_][msg.sender][index_] = currentValue.mul(UintValue.wrap(value_));
-    }
-    /// @inheritdoc ISharedStateOperations
-
-    function divUint(bytes32 key_, uint256 index_, uint256 value_) external {
-        UintValue currentValue = uintValues[key_][msg.sender][index_];
-        uintValues[key_][msg.sender][index_] = currentValue.div(UintValue.wrap(value_));
-    }
-
-    /// @inheritdoc ISharedStateOperations
-    function addInt(bytes32 key_, uint256 index_, int256 value_) external {
-        IntValue currentValue = intValues[key_][msg.sender][index_];
-        intValues[key_][msg.sender][index_] = currentValue.add(IntValue.wrap(value_));
-    }
-    /// @inheritdoc ISharedStateOperations
-
-    function subInt(bytes32 key_, uint256 index_, int256 value_) external {
-        IntValue currentValue = intValues[key_][msg.sender][index_];
-        intValues[key_][msg.sender][index_] = currentValue.sub(IntValue.wrap(value_));
-    }
-    /// @inheritdoc ISharedStateOperations
-
-    function mulInt(bytes32 key_, uint256 index_, int256 value_) external {
-        IntValue currentValue = intValues[key_][msg.sender][index_];
-        intValues[key_][msg.sender][index_] = currentValue.mul(IntValue.wrap(value_));
-    }
-    /// @inheritdoc ISharedStateOperations
-
-    function divInt(bytes32 key_, uint256 index_, int256 value_) external {
-        IntValue currentValue = intValues[key_][msg.sender][index_];
-        intValues[key_][msg.sender][index_] = currentValue.div(IntValue.wrap(value_));
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
@@ -253,7 +198,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
     }
 
     function _setUint(bytes32 key_, uint256 value_, uint256 index_) private {
-        uintValues[key_][msg.sender][index_] = UintValue.wrap(value_);
+        uintValues[key_][msg.sender][index_] =value_;
     }
 
     function _setString(bytes32 key_, string calldata value_, uint256 index_) private {
@@ -269,7 +214,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader, ISharedStateOper
     }
 
     function _setInt(bytes32 key_, int256 value_, uint256 index_) private {
-        intValues[key_][msg.sender][index_] = IntValue.wrap(value_);
+        intValues[key_][msg.sender][index_] = value_;
     }
 
     function _setBytes32(bytes32 key_, bytes32 value_, uint256 index_) private {

@@ -6,7 +6,7 @@ import { Execution } from "modulekit/Accounts.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "src/utils/BaseHook.sol";
+import { BaseHook } from "src/hooks/BaseHook.sol";
 
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 

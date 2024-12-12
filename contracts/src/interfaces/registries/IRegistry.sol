@@ -51,5 +51,6 @@ interface IRegistry {
 
     /// @notice Generate the id of an item
     /// @param item_ The address of the item to generate the id for
-    function generateItemId(address item_) external view returns (bytes32);
+    /// @param sender_ The address of the sender
+    function generateItemId(address item_, address sender_) external view returns (bytes32);
 }

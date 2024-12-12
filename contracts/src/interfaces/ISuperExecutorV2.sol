@@ -2,10 +2,16 @@
 pragma solidity >=0.8.28;
 
 interface ISuperExecutorV2 {
+    struct ExecutorEntry {
+        address strategyId;
+        bytes[] hooksData;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error DATA_NOT_VALID();
+    error NOT_AUTHORIZED();
     error AMOUNT_NOT_VALID();
     error ADDRESS_NOT_VALID();
 
@@ -20,5 +26,5 @@ interface ISuperExecutorV2 {
     //////////////////////////////////////////////////////////////*/
     /// @notice Execute a batch of calls
     /// @param data The data to execute
-    function execute(bytes memory data) external;
+    function execute(address account, bytes memory data) external;
 }
