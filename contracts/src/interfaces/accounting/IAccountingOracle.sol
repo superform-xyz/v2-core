@@ -26,7 +26,7 @@ interface IActionOracle {
   /// @param vault The vault to derive the price for
   /// @param amount The amount of the vault to derive the price for
   /// @return The price of the action
-  function deriveVaultStrategyPrice(
+  function deriveVaultStrategyPricePerShare(
     address vault,
     uint256 amount
   ) external view returns (uint256 price);
@@ -35,7 +35,7 @@ interface IActionOracle {
   /// @param vaults The vaults to derive the price for
   /// @param amounts The amounts of the vaults to derive the price for
   /// @return The prices of the actions
-  function deriveVaultsStrategyPrice(
+  function deriveVaultsStrategyPricePerShare(
     address[] memory vaults,
     uint256[] memory amounts
   ) external view returns (uint256[] memory prices);
