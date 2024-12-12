@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-/// @title IStrategyOracle
+/// @title IActionOracle
 /// @author Superform Labs
-/// @notice Interface for Strategy Oracles
-interface IStrategyOracle {
+/// @notice Interface for Action Oracles
+interface IActionOracle {
   /*//////////////////////////////////////////////////////////////
                             ERRORS
   //////////////////////////////////////////////////////////////*/
@@ -22,19 +22,19 @@ interface IStrategyOracle {
                             VIEW METHODS
   //////////////////////////////////////////////////////////////*/
 
-  /// @notice Derives the price of a strategy
+  /// @notice Derives the price of an action
   /// @param vault The vault to derive the price for
   /// @param amount The amount of the vault to derive the price for
-  /// @return The price of the strategy
+  /// @return The price of the action
   function deriveVaultStrategyPrice(
     address vault,
     uint256 amount
   ) external view returns (uint256 price);
 
-  /// @notice Derives the price of a strategy for multiple vaults
+  /// @notice Derives the price of an action for multiple vaults
   /// @param vaults The vaults to derive the price for
   /// @param amounts The amounts of the vaults to derive the price for
-  /// @return The prices of the strategies
+  /// @return The prices of the actions
   function deriveVaultsStrategyPrice(
     address[] memory vaults,
     uint256[] memory amounts
@@ -53,12 +53,4 @@ interface IStrategyOracle {
   function getVaultsStrategyMetadata(
     address[] memory vaults
   ) external view returns (bytes[] memory metadata);
-
-  /*//////////////////////////////////////////////////////////////
-                          PERMISSIONED METHODS
-  //////////////////////////////////////////////////////////////*/
-
-  /// @notice Sets the reward percentage
-  /// @param rewardPercentage_ The reward percentage to set
-  function setRewardPercentage(uint256 rewardPercentage_) external;
 }

@@ -2,20 +2,13 @@
 pragma solidity >=0.8.28;
 
 import { SuperRbac } from "src/settings/SuperRbac.sol";
-import { IStrategyOracle } from "src/interfaces/accounting/IStrategyOracle.sol";
+import { IActionOracle } from "src/interfaces/accounting/IStrategyOracle.sol";
 import { Deposit4626Library } from "src/libraries/strategies/Deposit4626Library.sol";
 
-/// @title Deposit4626StrategyOracle
+/// @title Deposit4626ActionOracle
 /// @author Superform Labs
-/// @notice Oracle for the Deposit4626 Strategy
-contract Deposit4626StrategyOracle is IStrategyOracle {
-  /*//////////////////////////////////////////////////////////////
-                              STORAGE
-  //////////////////////////////////////////////////////////////*/
-
-  /// @notice The percentage of rewards to add to the price
-  uint256 rewardPercentage;
-
+/// @notice Oracle for the Deposit4626 Action
+contract Deposit4626ActionOracle is IActionOracle {
   /*//////////////////////////////////////////////////////////////
                              MODIFIERS
   //////////////////////////////////////////////////////////////*/
@@ -78,19 +71,5 @@ contract Deposit4626StrategyOracle is IStrategyOracle {
     address[] memory vaults
   ) external view returns (bytes[] memory metadata) {
     return new bytes[](vaults.length);
-  }
-
-  /*//////////////////////////////////////////////////////////////
-                      PERMISSIONED METHODS
-  //////////////////////////////////////////////////////////////*/
-
-  /// @inheritdoc IStrategyOracle
-  function setRewardPercentage(
-    uint256 rewardPercentage_
-  ) external onlyStrategyOracleConfigurator {
-    if (rewardPercentage_ > 10_000) {
-      revert INVALID_REWARD_PERCENTAGE();
-    }
-    rewardPercentage = rewardPercentage_;
   }
 }
