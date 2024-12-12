@@ -16,13 +16,13 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     string public sharedStateNamespace;
 
     // ids
-     // -- executors
+    // -- executors
     /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID"); 
+    bytes32 public constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID");
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_GATEWAY_EXECUTOR_ID = keccak256("SUPER_GATEWAY_EXECUTOR_ID");
 
-    // -- RBAC      
+    // -- RBAC
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_RBAC_ID = keccak256("SUPER_RBAC_ID");
     // -- SuperPositions
@@ -31,9 +31,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
 
     // -- registries
     /// @inheritdoc ISuperRegistry
-    bytes32 public constant STRATEGIES_REGISTRY_ID = keccak256("STRATEGIES_REGISTRY_ID");
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant HOOKS_REGISTRY_ID = keccak256("HOOKS_REGISTRY_ID");
+    bytes32 public constant SUPER_ACTIONS_ID = keccak256("SUPER_ACTIONS_ID");
 
     // -- sentinels
     /// @inheritdoc ISuperRegistry
@@ -41,7 +39,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     // -- bridges
     /// @inheritdoc ISuperRegistry
     bytes32 public constant ACROSS_GATEWAY_ID = keccak256("ACROSS_GATEWAY_ID");
-   
+
     // -- storage
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SHARED_STATE_ID = keccak256("SHARED_STATE_ID");

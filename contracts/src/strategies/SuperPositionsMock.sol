@@ -5,7 +5,7 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // superform
 import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
-import { ISuperPositions } from "src/interfaces/ISuperPositions.sol";
+import { ISuperPositions } from "src/interfaces/strategies/ISuperPositions.sol";
 import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
 
 contract SuperPositionsMock is ISuperPositions, ERC20, SuperRegistryImplementer {

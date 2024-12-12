@@ -4,8 +4,6 @@ pragma solidity >=0.8.28;
 // external
 import { AccountInstance } from "modulekit/ModuleKit.sol";
 
-import { Types } from "./utils/Types.sol";
-import { Events } from "./utils/Events.sol";
 import { Helpers } from "./utils/Helpers.sol";
 
 import { SpokePoolV3Mock } from "test/mocks/SpokePoolV3Mock.sol";
@@ -20,7 +18,7 @@ import { TransferERC20Hook } from "src/hooks/tokens/erc20/TransferERC20Hook.sol"
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "src/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import { Withdraw5115VaultHook } from "src/hooks/vaults/5115/Withdraw5115VaultHook.sol"; 
+import { Withdraw5115VaultHook } from "src/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 // --- erc4626
 import { Deposit4626VaultHook } from "src/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Withdraw4626VaultHook } from "src/hooks/vaults/4626/Withdraw4626VaultHook.sol";
@@ -30,10 +28,11 @@ import { RequestWithdraw7540VaultHook } from "src/hooks/vaults/7540/RequestWithd
 // bridges hooks
 import { AcrossExecuteOnDestinationHook } from "src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
 
-abstract contract BaseTest is Types, Events, Helpers {
+abstract contract BaseTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    address public SUPER_ACTIONS_CONFIGURATOR;
     address public user1;
     address public user2;
 
@@ -47,6 +46,7 @@ abstract contract BaseTest is Types, Events, Helpers {
     SpokePoolV3Mock public spokePoolV3Mock;
 
     // hooks
+    address public ACTION_ORACLE_TEMP = address(0x111112);
     ApproveERC20Hook public approveErc20Hook;
     TransferERC20Hook public transferErc20Hook;
     Deposit4626VaultHook public deposit4626VaultHook;
@@ -64,6 +64,7 @@ abstract contract BaseTest is Types, Events, Helpers {
         // deploy accounts
         user1 = _deployAccount(USER1_KEY, "USER1");
         user2 = _deployAccount(USER2_KEY, "USER2");
+        SUPER_ACTIONS_CONFIGURATOR = _deployAccount(SUPER_ACTIONS_CONFIGURATOR_KEY, "SUPER_ACTIONS_CONFIGURATOR");
 
         superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
         vm.label(address(superRegistry), "superRegistry");
@@ -89,7 +90,8 @@ abstract contract BaseTest is Types, Events, Helpers {
         vm.label(address(requestDeposit7540VaultHook), "RequestDeposit7540VaultHook");
         requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(address(superRegistry), address(this));
         vm.label(address(requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
-        acrossExecuteOnDestinationHook = new AcrossExecuteOnDestinationHook(address(superRegistry), address(this), address(spokePoolV3Mock)); 
+        acrossExecuteOnDestinationHook =
+            new AcrossExecuteOnDestinationHook(address(superRegistry), address(this), address(spokePoolV3Mock));
         vm.label(address(acrossExecuteOnDestinationHook), "AcrossExecuteOnDestinationHook");
     }
 
@@ -100,7 +102,6 @@ abstract contract BaseTest is Types, Events, Helpers {
         amount_ = bound(amount_, SMALL, LARGE);
         return amount_;
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
