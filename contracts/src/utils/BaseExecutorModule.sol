@@ -7,11 +7,11 @@ import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol
 contract BaseExecutorModule is SuperRegistryImplementer {
     // forgefmt: disable-start
     /// @dev Transient storage for hooks execution
-    bool transient boolStorage;
-    int256 transient intStorage;
-    uint256 transient uintStorage;
-    address transient addressStorage;
-    bytes32 transient bytes32Storage;
+    bool internal transient boolStorage;
+    int256 internal transient intStorage;
+    uint256 internal transient uintStorage;
+    address internal transient addressStorage;
+    bytes32 internal transient bytes32Storage;
     // forgefmt: disable-end
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }  

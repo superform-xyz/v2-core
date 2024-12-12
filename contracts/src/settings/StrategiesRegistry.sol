@@ -41,7 +41,7 @@ contract StrategiesRegistry is SuperRegistryImplementer, BaseRegistry, IStrategi
     /// @inheritdoc IStrategiesRegistry
     function registerStrategy(address[] memory hooks_) external returns (address) {
         address strategyId = _getNextAddress();
-        _registerItem(strategyId);
+        _registerItem(strategyId, msg.sender);
 
         hooksForStrategy[strategyId] = hooks_;
         lastRegisteredStrategy = strategyId;

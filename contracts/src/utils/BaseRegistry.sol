@@ -3,8 +3,6 @@ pragma solidity >=0.8.28;
 
 import { IRegistry } from "src/interfaces/registries/IRegistry.sol";
 
-import { BaseHook } from "src/utils/BaseHook.sol";
-
 abstract contract BaseRegistry is IRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -50,8 +48,8 @@ abstract contract BaseRegistry is IRegistry {
     }
 
     /// @inheritdoc IRegistry
-    function generateItemId(address item_) public view returns (bytes32) {
-        return keccak256(abi.encodePacked(item_, BaseHook(item_).author(), name));
+    function generateItemId(address item_, address sender_) public view returns (bytes32) {
+        return keccak256(abi.encodePacked(item_, sender_, name));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -69,12 +67,12 @@ abstract contract BaseRegistry is IRegistry {
 
     /// @notice Register an item
     /// @param item_ The address of the item to register
-    function _registerItem(address item_) internal {
+    function _registerItem(address item_, address sender_) internal {
         if (item_ == address(0)) revert ADDRESS_NOT_VALID();
         if (registeredItems[item_].isActive) revert ALREADY_REGISTERED();
         if (pendingItems[item_].id != bytes32(0)) revert REGISTRATION_PENDING();
 
-        bytes32 id = generateItemId(item_);
+        bytes32 id = generateItemId(item_, sender_);
         if (id == bytes32(0)) revert ID_NOT_VALID();
 
         pendingItems[item_] = ItemInfo({ id: id, isActive: false, index: 0, votes: 0 });

@@ -3,17 +3,17 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/Accounts.sol";
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
-import { BaseHook } from "src/utils/BaseHook.sol";
+import { BaseHook } from "src/hooks/BaseHook.sol";
 
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
-contract Deposit5115Vault is BaseHook, ISuperHook {
+contract Withdraw5115VaultHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -24,20 +24,20 @@ contract Deposit5115Vault is BaseHook, ISuperHook {
         (
             address vault,
             address receiver,
-            address tokenIn,
-            uint256 amount,
-            uint256 minSharesOut,
-            bool depositFromInternalBalance
+            address tokenOut,
+            uint256 shares,
+            uint256 minTokenOut,
+            bool burnFromInternalBalance
         ) = abi.decode(data, (address, address, address, uint256, uint256, bool));
 
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || receiver == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
+        if (shares == 0) revert AMOUNT_NOT_VALID();
+        if (vault == address(0) || tokenOut == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: vault,
             value: 0,
-            callData: abi.encodeCall(IERC5115.redeem, (receiver, amount, tokenIn, minSharesOut, depositFromInternalBalance))
+            callData: abi.encodeCall(IERC5115.redeem, (receiver, shares, tokenOut, minTokenOut, burnFromInternalBalance))
         });
     }
 
@@ -67,6 +67,7 @@ contract Deposit5115Vault is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         (address vault, address receiver,) = abi.decode(data, (address, address, uint256));
-        return IERC4626(vault).balanceOf(receiver);
+        address asset = IERC5115(vault).asset();
+        return IERC20(asset).balanceOf(receiver);
     }
 }
