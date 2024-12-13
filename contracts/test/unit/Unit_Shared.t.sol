@@ -56,7 +56,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     MockERC20 public mockERC20;
     Mock4626Vault public mock4626Vault;
 
-    uint32[] public actionIds;
+    uint256[] public actionIds;
 
     address public constant ENTRY_POINT = address(1);
 
@@ -122,9 +122,9 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
     }
 
-    function _registerSameChainActions() internal returns (uint32[] memory) {
+    function _registerSameChainActions() internal returns (uint256[] memory) {
         vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
-        uint32[] memory _actionIds = new uint32[](3);
+        uint256[] memory _actionIds = new uint256[](3);
 
         address[] memory hooks = new address[](2);
         // approve + 4626 deposit

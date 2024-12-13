@@ -5,7 +5,7 @@ interface ISentinel {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event Processed(uint32 actionId, address finalTarget);
+    event Processed(uint256 actionId, address finalTarget);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -20,5 +20,5 @@ interface ISentinel {
     /// @param actionId_ The action id
     /// @param finalTarget_ The final target
     /// @param entry_ The entry
-    function notify(uint32 actionId_, address finalTarget_, bytes memory entry_) external;
+    function notify(uint256 actionId_, address finalTarget_, bytes memory entry_) external;
 }

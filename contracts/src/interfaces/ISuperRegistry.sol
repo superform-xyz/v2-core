@@ -68,4 +68,8 @@ interface ISuperRegistry {
     // -- storage
     /// @dev Get the ID of the shared state.
     function SHARED_STATE_ID() external view returns (bytes32);
+
+    // -- paymaster
+    /// @dev Get the ID of the paymaster.
+    function PAYMASTER_ID() external view returns (bytes32);
 }
