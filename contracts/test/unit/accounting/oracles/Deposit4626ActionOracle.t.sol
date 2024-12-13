@@ -2,19 +2,20 @@
 pragma solidity >=0.8.28;
 
 import { BaseTest } from "test/BaseTest.t.sol";
-import { ERC20Mock } from "test/mocks/ERC20Mock.sol";
+import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
 import { Deposit4626ActionOracle } from "src/accounting/oracles/Deposit4626ActionOracle.sol";
 
 contract Deposit4626ActionOracleTest is BaseTest {
   Deposit4626ActionOracle oracle;
+  MockERC20 underlying;
   Mock4626Vault vault;
 
   function setUp() public override {
     super.setUp();
 
     oracle = new Deposit4626ActionOracle();
-    underlying = new ERC20Mock("Underlying", "UND", 18);
+    underlying = new MockERC20("Underlying", "UND", 18);
     vault = new Mock4626Vault(IERC20(address(underlying)), "Vault", "VAULT");
   }
 
