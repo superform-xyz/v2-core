@@ -2,23 +2,30 @@
 pragma solidity >=0.8.28;
 
 interface ISuperExecutorV2 {
+    struct ExecutorEntry {
+        uint32 actionId;
+        address finalTarget;
+        bytes[] hooksData;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error DATA_NOT_VALID();
+    error NOT_AUTHORIZED();
     error AMOUNT_NOT_VALID();
     error ADDRESS_NOT_VALID();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get the strategies registry address
-    function strategiesRegistry() external view returns (address);
+    /// @notice Get the actions registry address
+    function superActions() external view returns (address);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Execute a batch of calls
     /// @param data The data to execute
-    function execute(bytes memory data) external;
+    function execute(address account, bytes memory data) external;
 }

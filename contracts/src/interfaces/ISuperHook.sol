@@ -8,6 +8,7 @@ interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
+    //TODO: we might not need return values for `preExecute`
     /// @notice Pre-hook operation
     /// @param data The data to pre-hook
     function preExecute(bytes memory data)

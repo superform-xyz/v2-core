@@ -18,17 +18,15 @@ interface ISuperGatewayExecutorV2 {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get the strategies registry address
-    function strategiesRegistry() external view returns (address);
+    /// @notice Get the actions registry address
+    function superActions() external view returns (address);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Execute a batch of calls
     /// @param data The strategy data (strategyId, hooksData)
-    function execute(
-        bytes memory data
+    function execute(bytes memory data)
         //IAcrossV3Interpreter.EntryPointData memory entryPointData
-    )
         external;
 }

@@ -4,87 +4,29 @@ pragma solidity >=0.8.28;
 import { BaseTest } from "test/BaseTest.t.sol";
 import { ERC20Mock } from "test/mocks/ERC20Mock.sol";
 import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
-import { Looped4626DepositLibrary } from "src/libraries/strategies/Looped4626DepositLibrary.sol";
+import { Deposit4626Library } from "src/libraries/strategies/Deposit4626Library.sol";
 
-import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract Looped4626DepositLibraryTest is BaseTest {
+contract Deposit4626LibraryTest is BaseTest {
   Mock4626Vault vault;
-  Mock4626Vault vault2;
-
-  ERC20Mock asset;
-  ERC20Mock asset2;
-
-  Looped4626DepositLibraryWrapper wrapper;
+  ERC20Mock underlying;
 
   function setUp() public override {
     super.setUp();
-    asset = new ERC20Mock("Asset", "ASSET", 18);
-    asset2 = new ERC20Mock("Asset2", "ASSET2", 18);
+
+    underlying = new ERC20Mock("Underlying", "UND", 18);
+
     vault = new Mock4626Vault(
-      IERC20(address(asset)),
+      IERC20(address(underlying)),
       "Vault",
       "VAULT"
     );
-    vault2 = new Mock4626Vault(
-      IERC20(address(asset)),
-      "Vault2",
-      "VAULT2"
-    );
-    wrapper = new Looped4626DepositLibraryWrapper();
   }
 
-  function test_getEstimatedRewardsSingleVault() public view {
-    uint256 loops = 10;
-    uint256 rewards = Looped4626DepositLibrary.getEstimatedRewards(
-      address(vault),
-      loops
-    );
-    assertEq(rewards, 10);
-  }
-
-  function test_getEstimatedRewardsMultiVault() public view {
-    address[] memory vaults = new address[](2);
-    vaults[0] = address(vault);
-    vaults[1] = address(vault2);
-    uint256 loops = 10;
-    uint256[] memory rewards = Looped4626DepositLibrary.getEstimatedRewardsMultiVault(
-      vaults,
-      address(asset),
-      loops
-    );
-    assertEq(rewards.length, 2);
-    assertEq(rewards[0], 10);
-    assertEq(rewards[1], 10);
-  }
-
-  function test_getEstimatedRewardsMultiVault_differentAssets() public {
-    address[] memory vaults = new address[](2);
-    vaults[0] = address(vault);
-    Mock4626Vault vault3 = new Mock4626Vault(
-      IERC20(address(asset2)),
-      "Vault3",
-      "VAULT3"
-    );
-    vaults[1] = address(vault3);
-    vm.expectRevert(Looped4626DepositLibrary.VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET.selector);
-    wrapper.getEstimatedRewardsMultiVault(
-      vaults,
-      address(asset2),
-      100,
-      10
-    );
+  function test_getEstimated4626Rewards() public {
+    uint256 expectedRewards = 1;
+    uint256 actualRewards = Deposit4626Library.getEstimatedRewards(address(vault));
+    assertEq(actualRewards, expectedRewards);
   }
 }
-
-/// @dev Wrapper for Looped4626DepositLibrary to test for errors
-contract Looped4626DepositLibraryWrapper {
-  function getEstimatedRewards(address vault, uint256 loops) external view returns (uint256) {
-    return Looped4626DepositLibrary.getEstimatedRewards(vault, loops);
-  }
-
-  function getEstimatedRewardsMultiVault(address[] memory vaults, address underlyingAsset, uint256 loops) external view returns (uint256[] memory) {
-    return Looped4626DepositLibrary.getEstimatedRewardsMultiVault(vaults, underlyingAsset, loops);
-  }
-}
-

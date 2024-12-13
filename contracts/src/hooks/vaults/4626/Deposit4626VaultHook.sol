@@ -3,14 +3,16 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/Accounts.sol";
+import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
-import { BaseHook } from "src/utils/BaseHook.sol";
+import { BaseHook } from "src/hooks/BaseHook.sol";
 
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
-import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 
-contract RequestDeposit7540Vault is BaseHook, ISuperHook {
+contract Deposit4626VaultHook is BaseHook, ISuperHook {
+    uint256 public transient obtainedShares;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -24,31 +26,37 @@ contract RequestDeposit7540Vault is BaseHook, ISuperHook {
         if (vault == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[0] = Execution({
-            target: vault,
-            value: 0,
-            callData: abi.encodeCall(IERC7540.requestDeposit, (amount, receiver))
-        });
+        executions[0] =
+            Execution({ target: vault, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, receiver)) });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory)
+    function preExecute(bytes memory data)
         external
-        pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
+    {   
+        // store current balance
+        obtainedShares = _getBalance(data);
         return _returnDefaultTransientStorage();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory)
+    function postExecute(bytes memory data)
         external
-        pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
-        return _returnDefaultTransientStorage();
+        obtainedShares = _getBalance(data) - obtainedShares;
+        return (address(0), obtainedShares, bytes32(0), true);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getBalance(bytes memory data) private view returns (uint256) {
+        (address vault, address receiver,) = abi.decode(data, (address, address, uint256));
+        return IERC4626(vault).balanceOf(receiver);
     }
 }

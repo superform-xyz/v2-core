@@ -18,7 +18,6 @@ interface IAcrossV3Interpreter {
         address payable beneficiary;
     }
 
-
     struct Instruction {
         bytes strategyData; // strategyId, hooksData
         uint256 amount;

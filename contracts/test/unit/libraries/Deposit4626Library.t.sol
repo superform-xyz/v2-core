@@ -15,7 +15,7 @@ contract Deposit4626LibraryTest is BaseTest {
   function setUp() public override {
     super.setUp();
 
-    underlying = new ERC20Mock("Underlying", "UND", 18);
+    underlying = new MockERC20("Underlying", "UND", 18);
 
     vault = new Mock4626Vault(
       IERC20(address(underlying)),

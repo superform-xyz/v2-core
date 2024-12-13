@@ -4,8 +4,8 @@ pragma solidity >=0.8.28;
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 library Looped4626DepositLibrary {
-  /// @notice Error thrown when the asset of the vaults is not the same
-  error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
+    /// @notice Error thrown when the asset of the vaults is not the same
+    error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
 
   /// @notice Get the estimated rewards for a single vault over a number of loops
   /// @param finalTarget The address of the final target
