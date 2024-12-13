@@ -9,25 +9,23 @@ import {
     AccountInstance,
     UserOpData
 } from "modulekit/ModuleKit.sol";
-import {MODULE_TYPE_EXECUTOR} from "modulekit/external/ERC7579.sol";    
+import { MODULE_TYPE_EXECUTOR } from "modulekit/external/ERC7579.sol";
 
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
-import { IHooksRegistry } from "src/interfaces/registries/IHooksRegistry.sol";
 import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
 import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";
 import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
-import { IStrategiesRegistry } from "src/interfaces/registries/IStrategiesRegistry.sol";
+import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 
 import { SuperRbac } from "src/settings/SuperRbac.sol";
 import { SharedState } from "src/state/SharedState.sol";
 import { SuperRegistry } from "src/settings/SuperRegistry.sol";
-import { HooksRegistry } from "src/settings/HooksRegistry.sol";
 import { SuperExecutorV2 } from "src/executors/SuperExecutorV2.sol";
-import { StrategiesRegistry } from "src/settings/StrategiesRegistry.sol";
+import { SuperActions } from "src/strategies/SuperActions.sol";
 import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
 import { SuperGatewayExecutorV2 } from "src/executors/SuperGatewayExecutorV2.sol";
 import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
@@ -44,9 +42,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     // core
     ISuperRbac public superRbac;
     SharedState public sharedState;
-    IHooksRegistry public hooksRegistry;
-    IStrategiesRegistry public strategiesRegistry;
-
+    ISuperActions public superActions;
     ISuperExecutorV2 public superExecutor;
     ISentinel public superPositionSentinel;
     ISharedStateReader public sharedStateReader;
@@ -58,7 +54,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     MockERC20 public mockERC20;
     Mock4626Vault public mock4626Vault;
 
-    address[] public stratIds;
+    uint32[] public actionIds;
 
     address public constant ENTRY_POINT = address(1);
 
@@ -73,11 +69,8 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superRbac = ISuperRbac(address(new SuperRbac(address(this))));
         vm.label(address(superRbac), "superRbac");
 
-        hooksRegistry = IHooksRegistry(address(new HooksRegistry(address(superRegistry))));
-        vm.label(address(hooksRegistry), "hooksRegistry");
-
-        strategiesRegistry = IStrategiesRegistry(address(new StrategiesRegistry(address(superRegistry))));
-        vm.label(address(strategiesRegistry), "strategiesRegistry");
+        superActions = ISuperActions(address(new SuperActions(address(superRegistry))));
+        vm.label(address(superActions), "superActions");
 
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
         vm.label(address(superPositionSentinel), "superPositionSentinel");
@@ -85,8 +78,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superExecutor = ISuperExecutorV2(address(new SuperExecutorV2(address(superRegistry))));
         vm.label(address(superExecutor), "superExecutor");
 
-        superGatewayExecutor =
-            ISuperGatewayExecutorV2(address(new SuperGatewayExecutorV2(address(superRegistry))));
+        superGatewayExecutor = ISuperGatewayExecutorV2(address(new SuperGatewayExecutorV2(address(superRegistry))));
         vm.label(address(superGatewayExecutor), "superGatewayExecutor");
 
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
@@ -105,39 +97,48 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         // register on SuperRegistry
         _setSuperRegistryAddresses();
 
-        // register strategies
-        stratIds = _registerSameChainStrategies();
+        // set roles
+        _setRoles();
 
+        // register strategies
+        actionIds = _registerSameChainActions();
     }
 
     function _setSuperRegistryAddresses() internal {
-        SuperRegistry(address(superRegistry)).setAddress(superRegistry.HOOKS_REGISTRY_ID(), address(hooksRegistry));
-        SuperRegistry(address(superRegistry)).setAddress(superRegistry.STRATEGIES_REGISTRY_ID(), address(strategiesRegistry));
-        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_POSITION_SENTINEL_ID(), address(superPositionSentinel));
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), address(superActions));
+        SuperRegistry(address(superRegistry)).setAddress(
+            superRegistry.SUPER_POSITION_SENTINEL_ID(), address(superPositionSentinel)
+        );
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_RBAC_ID(), address(superRbac));
     }
 
-    function _registerSameChainStrategies() internal returns (address[] memory) {
-        address[] memory _stratIds = new address[](3);
+    function _setRoles() internal {
+        superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
+    }
+
+    function _registerSameChainActions() internal returns (uint32[] memory) {
+        vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
+        uint32[] memory _actionIds = new uint32[](3);
 
         address[] memory hooks = new address[](2);
         // approve + 4626 deposit
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
-        _stratIds[0] = strategiesRegistry.registerStrategy(hooks);
+        _actionIds[0] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
 
-        // 4626 withdraw  
+        // 4626 withdraw
         hooks = new address[](1);
         hooks[0] = address(withdraw4626VaultHook);
-        _stratIds[1] = strategiesRegistry.registerStrategy(hooks);
+        _actionIds[1] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
 
         // approve + 4626 deposit + 4626 withdraw
         hooks = new address[](3);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
         hooks[2] = address(withdraw4626VaultHook);
-        _stratIds[2] = strategiesRegistry.registerStrategy(hooks);
+        _actionIds[2] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
 
-        return _stratIds;
+        vm.stopPrank();
+        return _actionIds;
     }
 }
-

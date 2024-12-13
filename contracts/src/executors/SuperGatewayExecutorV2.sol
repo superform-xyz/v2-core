@@ -1,21 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-
-// external
-import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
-
-// Superform
-import { BaseExecutorModule } from "src/utils/BaseExecutorModule.sol";
-
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
-import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
-import { IStrategiesRegistry } from "src/interfaces/registries/IStrategiesRegistry.sol";
-import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
-
-
-
 // external
 import {
     RhinestoneModuleKit,
@@ -24,20 +9,22 @@ import {
     AccountInstance,
     UserOpData
 } from "modulekit/ModuleKit.sol";
-import { Execution } from "modulekit/Accounts.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Superform
-import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
+import { BaseExecutorModule } from "./BaseExecutorModule.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
+import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
+import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
-import { IStrategiesRegistry } from "src/interfaces/registries/IStrategiesRegistry.sol";
 
-import {BaseExecutorModule} from "src/utils/BaseExecutorModule.sol";
-
-// TODO: test cross-chain execution; This contract might be merged with SuperExecutorV2 once we have an execution flow tested 
+// TODO: test cross-chain execution; This contract might be merged with SuperExecutorV2 once we have an execution flow
+// tested
 contract SuperGatewayExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperGatewayExecutorV2 {
-    constructor(address registry_) BaseExecutorModule(registry_) {}
+    constructor(address registry_) BaseExecutorModule(registry_) { }
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
@@ -45,13 +32,13 @@ contract SuperGatewayExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISup
         if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
         _;
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGatewayExecutorV2
-    function strategiesRegistry() public view returns (address) {
-        return _strategiesRegistry();
+    function superActions() public view returns (address) {
+        return _superActions();
     }
 
     function isInitialized(address) external pure returns (bool) {
@@ -68,7 +55,7 @@ contract SuperGatewayExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISup
 
     function isModuleType(uint256 typeID) external pure override returns (bool) {
         return typeID == TYPE_EXECUTOR;
-    }   
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -79,19 +66,19 @@ contract SuperGatewayExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISup
     /// @inheritdoc ISuperGatewayExecutorV2
     function execute(
         bytes memory data // strategyId, hooksData
-        //IAcrossV3Interpreter.EntryPointData memory
+            //IAcrossV3Interpreter.EntryPointData memory
     )
         external
         onlyBridgeGateway
     {
-        (address strategyId, bytes[] memory hooksData) = abi.decode(data, (address, bytes[]));
+        (uint32 actionId, bytes[] memory hooksData) = abi.decode(data, (uint32, bytes[]));
 
         // retrieve hooks for this strategy
-        address[] memory hooks = IStrategiesRegistry(strategiesRegistry()).getHooksForStrategy(strategyId);
-        
+        address[] memory hooks = ISuperActions(superActions()).getHooksForAction(actionId);
+
         // checks
         uint256 hooksLength = hooks.length;
-        if (hooksLength == 0 || hooksLength != hooksData.length) revert DATA_NOT_VALID();   
+        if (hooksLength == 0 || hooksLength != hooksData.length) revert DATA_NOT_VALID();
 
         // execute each hook
         for (uint256 i; i < hooksLength;) {

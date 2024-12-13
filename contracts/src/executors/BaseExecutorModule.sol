@@ -19,8 +19,8 @@ contract BaseExecutorModule is SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _strategiesRegistry() internal view returns (address) {
-        return superRegistry.getAddress(superRegistry.STRATEGIES_REGISTRY_ID());
+    function _superActions() internal view returns (address) {
+        return superRegistry.getAddress(superRegistry.SUPER_ACTIONS_ID());
     }
 
     function _isInitialized() internal pure returns (bool) {
