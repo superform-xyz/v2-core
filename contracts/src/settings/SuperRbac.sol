@@ -5,7 +5,7 @@ pragma solidity >=0.8.28;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 // Superform
-import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 
 contract SuperRbac is Ownable, ISuperRbac {
     /*//////////////////////////////////////////////////////////////

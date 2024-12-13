@@ -21,19 +21,19 @@ import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.
 import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 
-import { SuperRbac } from "src/settings/SuperRbac.sol";
-import { SharedState } from "src/state/SharedState.sol";
-import { SuperRegistry } from "src/settings/SuperRegistry.sol";
-import { SuperExecutorV2 } from "src/executors/SuperExecutorV2.sol";
-import { SuperActions } from "src/strategies/SuperActions.sol";
-import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
-import { SuperGatewayExecutorV2 } from "src/executors/SuperGatewayExecutorV2.sol";
-import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
+import { SuperRbac } from "../../src/settings/SuperRbac.sol";
+import { SharedState } from "../../src/state/SharedState.sol";
+import { SuperRegistry } from "../../src/settings/SuperRegistry.sol";
+import { SuperExecutorV2 } from "../../src/executors/SuperExecutorV2.sol";
+import { SuperActions } from "../../src/strategies/SuperActions.sol";
+import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
+import { SuperGatewayExecutorV2 } from "../../src/executors/SuperGatewayExecutorV2.sol";
+import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 
-import { MockERC20 } from "test/mocks/MockERC20.sol";
-import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
+import { Mock4626Vault } from "../mocks/Mock4626Vault.sol";
 
-import { BaseTest } from "test/BaseTest.t.sol";
+import { BaseTest } from "../BaseTest.t.sol";
 
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
