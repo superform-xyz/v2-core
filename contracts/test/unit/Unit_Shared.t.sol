@@ -32,6 +32,8 @@ import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
 import { SuperGatewayExecutorV2 } from "src/executors/SuperGatewayExecutorV2.sol";
 import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
 
+import { AcrossBridgeGateway } from "src/bridges/AcrossBridgeGateway.sol";
+
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
 
@@ -52,6 +54,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     ISharedStateReader public sharedStateReader;
     ISharedStateWriter public sharedStateWriter;
     ISuperGatewayExecutorV2 public superGatewayExecutor;
+    AcrossBridgeGateway public acrossBridgeGateway;
 
     AccountInstance public instance;
 
@@ -96,6 +99,9 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         mock4626Vault = new Mock4626Vault(address(mockERC20));
         vm.label(address(mock4626Vault), "mock4626Vault");
 
+        acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
+        vm.label(address(acrossBridgeGateway), "acrossBridgeGateway");
+
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
@@ -110,14 +116,31 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
 
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+    modifier addRole(bytes32 role_) {
+        superRbac.setRole(address(this), role_, true);
+        _;
+    }
+    
+    modifier addRoleTo(bytes32 role_, address addr_) {
+        superRbac.setRole(addr_, role_, true);
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL
+    //////////////////////////////////////////////////////////////*/
     function _setSuperRegistryAddresses() internal {
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_RBAC_ID(), address(superRbac));
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.HOOKS_REGISTRY_ID(), address(hooksRegistry));
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.STRATEGIES_REGISTRY_ID(), address(strategiesRegistry));
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_POSITION_SENTINEL_ID(), address(superPositionSentinel));
     }
 
     function _registerSameChainStrategies() internal returns (address[] memory) {
-        address[] memory _stratIds = new address[](3);
+        address[] memory _stratIds = new address[](4);
 
         address[] memory hooks = new address[](2);
         // approve + 4626 deposit
@@ -136,6 +159,13 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         hooks[1] = address(deposit4626VaultHook);
         hooks[2] = address(withdraw4626VaultHook);
         _stratIds[2] = strategiesRegistry.registerStrategy(hooks);
+
+        // approve + 4626 deposit + across 
+        hooks = new address[](3);
+        hooks[0] = address(approveErc20Hook);
+        hooks[1] = address(deposit4626VaultHook);
+        hooks[2] = address(acrossExecuteOnDestinationHook);
+        _stratIds[3] = strategiesRegistry.registerStrategy(hooks);
 
         return _stratIds;
     }

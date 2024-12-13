@@ -20,11 +20,11 @@ contract Mock4626Vault {
     
     error AMOUNT_NOT_VALID();
 
-    function previewDeposit(uint256 assets) external view returns (uint256 shares) {
+    function previewDeposit(uint256 assets) external pure returns (uint256 shares) {
         return assets;
     }
 
-    function previewWithdraw(uint256 shares) external view returns (uint256 assets) {
+    function previewWithdraw(uint256 shares) external pure returns (uint256 assets) {
         return shares;
     }
 

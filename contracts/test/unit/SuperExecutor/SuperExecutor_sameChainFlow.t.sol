@@ -83,7 +83,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit SuperPositionMint(stratIds[0], amount);
+        emit SuperPositionMint(stratIds[0], address(0), amount);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
@@ -109,7 +109,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         });
 
         vm.expectEmit(true, true, true, true);
-        emit SuperPositionMint(stratIds[2], amount-100);
+        emit SuperPositionMint(stratIds[2], address(0), amount-100);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);

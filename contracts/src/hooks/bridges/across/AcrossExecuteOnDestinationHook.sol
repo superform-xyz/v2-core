@@ -3,7 +3,6 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/Accounts.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
@@ -11,6 +10,8 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 import { IAcrossSpokePoolV3 } from "src/interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+
+import "forge-std/console.sol";
 
 contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
@@ -30,7 +31,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
         uint32 quoteTimestamp;
         uint32 fillDeadline;
         uint32 exclusivityDeadline;
-        IAcrossV3Interpreter.Instruction[] instructions;
+        IAcrossV3Interpreter.Instruction instruction;
     }
 
     constructor(address registry_, address author_, address spokePoolV3_) BaseHook(registry_, author_) {
@@ -43,12 +44,17 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(bytes memory data) external view override returns (Execution[] memory executions) {
+        console.log("--------A");
         AcrossV3DepositData memory acrossV3DepositData = abi.decode(data, (AcrossV3DepositData));
 
+        console.log("--------B");
         // checks
         if (acrossV3DepositData.value == 0) revert AMOUNT_NOT_VALID();
+        console.log("--------C");
         address _dstContract = _getAcrossGatewayExecutor();
+        console.log("--------D");
         if (acrossV3DepositData.recipient == address(0) || _dstContract == address(0)) revert ADDRESS_NOT_VALID();
+        console.log("--------E");
 
         // build execution
         executions = new Execution[](1);
@@ -69,10 +75,11 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                     acrossV3DepositData.quoteTimestamp,
                     acrossV3DepositData.fillDeadline,
                     acrossV3DepositData.exclusivityDeadline,
-                    abi.encode(acrossV3DepositData.instructions)
+                    abi.encode(acrossV3DepositData.instruction)
                 )
             )
         });
+        console.log("--------F");
     }
 
     /*//////////////////////////////////////////////////////////////

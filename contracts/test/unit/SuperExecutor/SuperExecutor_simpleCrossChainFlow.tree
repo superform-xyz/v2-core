@@ -1,0 +1,19 @@
+SuperExecutor_simpleCrossChainFlow.t.sol
+├── given a strategy does not exist
+│   ├── it should retrieve an empty array of hooks
+│   └── it should revert wityh DATA_NOT_VALID.
+└── given a strategy exist
+    ├── when no hooks are defined
+    │   └── it should revert
+    ├── when hooks are defined by execution data is not valid
+    │   └── it should revert
+    ├── given strategy has a cross hook and no same chain hooks
+    │   └── when hooks are defined and execution data is valid and sentinel is configured
+    │       ├── it should execute all hooks
+    │       └── it should trigger sentinel call 
+    └── given strategy has both cross and same chain hooks
+        ├── when one is not valid
+        │   └── it should revert
+        └── when both are valid
+            ├── it should execute all hooks
+            └── it should trigger sentinel call 
