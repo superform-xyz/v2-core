@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // Superform    
-import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 contract BaseExecutorModule is SuperRegistryImplementer {
     // forgefmt: disable-start

@@ -7,11 +7,11 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 // Superform
 import { BaseExecutorModule } from "./BaseExecutorModule.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
-import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
-import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
+import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { ISentinel } from "../interfaces/sentinel/ISentinel.sol";
+import { ISuperExecutorV2 } from "../interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 
 contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecutorV2 {
     constructor(address registry_) BaseExecutorModule(registry_) { }

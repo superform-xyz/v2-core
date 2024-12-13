@@ -13,13 +13,13 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Superform
 import { BaseExecutorModule } from "./BaseExecutorModule.sol";
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
-import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
-import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
-import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
-import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
+import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISentinel } from "../interfaces/sentinel/ISentinel.sol";
+import { ISuperExecutorV2 } from "../interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
+import { IAcrossV3Interpreter } from "../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { ISuperGatewayExecutorV2 } from "../interfaces/ISuperGatewayExecutorV2.sol";
 
 // TODO: test cross-chain execution; This contract might be merged with SuperExecutorV2 once we have an execution flow
 // tested
