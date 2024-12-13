@@ -2,8 +2,8 @@
 pragma solidity >=0.8.28;
 
 import { SuperRbac } from "src/settings/SuperRbac.sol";
-import { IActionOracle } from "src/interfaces/strategies/IActionOracle.sol";
-import { Deposit4626Library } from "src/libraries/strategies/Deposit4626Library.sol";
+import { IActionOracle } from "interfaces/strategies/IActionOracle.sol";
+import { Deposit4626Library } from "libraries/strategies/Deposit4626Library.sol";
 
 /// @title Deposit4626ActionOracle
 /// @author Superform Labs

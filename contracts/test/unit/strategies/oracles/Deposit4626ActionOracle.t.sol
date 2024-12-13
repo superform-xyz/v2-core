@@ -6,7 +6,7 @@ import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
 import { Deposit4626ActionOracle } from "src/strategies/oracles/Deposit4626ActionOracle.sol";
 
-import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Deposit4626ActionOracleTest is BaseTest {
   Deposit4626ActionOracle oracle;
