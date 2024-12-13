@@ -25,7 +25,7 @@ contract Deposit5115LibraryTest is BaseTest {
 
   function test_getEstimated5115Rewards() public {
     uint256 expectedRewards = 1;
-    uint256 actualRewards = Deposit5115Library.getEstimatedRewards(
+    uint256 actualRewards = Deposit5115Library.getPricePerShare(
       address(vault),
       address(underlying)
     );
