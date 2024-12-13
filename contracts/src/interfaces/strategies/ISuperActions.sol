@@ -38,18 +38,18 @@ interface ISuperActions {
     );
     event BatchAccountingUpdated(
         address indexed user_,
-        uint32[] actionIds_,
+        uint256[] actionIds_,
         address[] finalTargets_,
         bool[] isDeposits_,
         uint256[] amountsShares_,
         uint256[] pps_
     );
-    event ActionDelisted(uint32 indexed actionId_);
-    event ActionRegistered(uint32 indexed actionId_, address[] hooks_, address metadataOracle_);
-    event ActionOracleUpdated(uint32 indexed actionId_, address metadataOracle_);
-    event ActionHooksUpdated(uint32 indexed actionId_, address[] hooks_);
-    event ActionBatchRegistered(uint32[] actionIds_);
-    event ActionBatchDelisted(uint32[] actionIds_);
+    event ActionDelisted(uint256 indexed actionId_);
+    event ActionRegistered(uint256 indexed actionId_, address[] hooks_, address metadataOracle_);
+    event ActionOracleUpdated(uint256 indexed actionId_, address metadataOracle_);
+    event ActionHooksUpdated(uint256 indexed actionId_, address[] hooks_);
+    event ActionBatchRegistered(uint256[] actionIds_);
+    event ActionBatchDelisted(uint256[] actionIds_);
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL WRITE FUNCTIONS
@@ -81,7 +81,7 @@ interface ISuperActions {
     /// @return pps_ Array of prices per share at which the accounting was updated
     function batchUpdateAccounting(
         address user_,
-        uint32[] memory actionIds_,
+        uint256[] memory actionIds_,
         address[] memory finalTargets_,
         bool[] memory isDeposits_,
         uint256[] memory amountsShares_
@@ -92,7 +92,7 @@ interface ISuperActions {
     /// @notice Registers a new action
     /// @param hooks_ Array of hook addresses
     /// @param metadataOracle_ The oracle address for the action
-    function registerAction(address[] memory hooks_, address metadataOracle_) external returns (uint32 actionId_);
+    function registerAction(address[] memory hooks_, address metadataOracle_) external returns (uint256 actionId_);
 
     /// @notice Registers multiple actions in a batch
     /// @param hooks_ Array of hook address arrays for each action
@@ -102,20 +102,20 @@ interface ISuperActions {
         address[] memory metadataOracles_
     )
         external
-        returns (uint32[] memory actionIds_);
+        returns (uint256[] memory actionIds_);
 
     /// @notice Updates both the oracle and hooks for an existing action
     /// @param actionId_ The ID of the action
     /// @param metadataOracle_ The new oracle address
     /// @param newHooks_ The new array of hook addresses
-    function updateAction(uint32 actionId_, address metadataOracle_, address[] memory newHooks_) external;
+    function updateAction(uint256 actionId_, address metadataOracle_, address[] memory newHooks_) external;
 
     /// @notice Updates both oracle and hooks for multiple actions in a batch
     /// @param actionIds_ Array of action IDs
     /// @param metadataOracles_ Array of new oracle addresses
     /// @param newHooks_ Array of arrays containing new hook addresses
     function batchUpdateAction(
-        uint32[] memory actionIds_,
+        uint256[] memory actionIds_,
         address[] memory metadataOracles_,
         address[][] memory newHooks_
     )
@@ -123,11 +123,11 @@ interface ISuperActions {
 
     /// @notice Delists an action
     /// @param actionId_ The ID of the action to delist
-    function delistAction(uint32 actionId_) external;
+    function delistAction(uint256 actionId_) external;
 
     /// @notice Delists multiple actions in a batch
     /// @param actionIds_ Array of action IDs to delist
-    function batchDelistActions(uint32[] memory actionIds_) external;
+    function batchDelistActions(uint256[] memory actionIds_) external;
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL VIEW FUNCTIONS
@@ -136,17 +136,17 @@ interface ISuperActions {
     /// @notice Retrieves hooks for a specific action
     /// @param actionId_ The ID of the action
     /// @return hooks_ Array of hook addresses
-    function getHooksForAction(uint32 actionId_) external view returns (address[] memory hooks_);
+    function getHooksForAction(uint256 actionId_) external view returns (address[] memory hooks_);
 
     /// @notice Retrieves logic for a specific action
     /// @param actionId_ The ID of the action
     /// @return logic_ The action logic
-    function getActionLogic(uint32 actionId_) external view returns (ActionLogic memory logic_);
+    function getActionLogic(uint256 actionId_) external view returns (ActionLogic memory logic_);
 
     /// @notice Retrieves hooks for multiple actions
     /// @param actionIds_ Array of action IDs
     /// @return hooksForActions_ Array of arrays containing hook addresses
-    function getHooksForActions(uint32[] memory actionIds_)
+    function getHooksForActions(uint256[] memory actionIds_)
         external
         view
         returns (address[][] memory hooksForActions_);
@@ -154,14 +154,14 @@ interface ISuperActions {
     /// @notice Gets the oracle address for a specific action
     /// @param actionId_ The ID of the action
     /// @return oracle_ The oracle address
-    function getOracleForAction(uint32 actionId_) external view returns (address oracle_);
+    function getOracleForAction(uint256 actionId_) external view returns (address oracle_);
 
     /// @notice Gets metadata for multiple strategies
     /// @param actionIds_ Array of action IDs
     /// @param finalTargets_ Array of target addresses
     /// @return result_ Array of metadata bytes
     function getStrategiesMetadata(
-        uint32[] memory actionIds_,
+        uint256[] memory actionIds_,
         address[] memory finalTargets_
     )
         external
@@ -171,7 +171,7 @@ interface ISuperActions {
     /// @notice Checks if an action is active
     /// @param actionId_ The ID of the action to check
     /// @return bool indicating if the action is active
-    function isActionActive(uint32 actionId_) external view returns (bool);
+    function isActionActive(uint256 actionId_) external view returns (bool);
 
     /// @notice Gets accounting information for a user
     /// @param user_ The user address
@@ -180,7 +180,7 @@ interface ISuperActions {
     /// @return Array of ledger entries
     function getUserAccounting(
         address user_,
-        uint32 actionId_,
+        uint256 actionId_,
         address finalTarget_
     )
         external
@@ -194,7 +194,7 @@ interface ISuperActions {
     /// @return The number of unconsumed entries
     function getUnconsumedEntries(
         address user_,
-        uint32 actionId_,
+        uint256 actionId_,
         address finalTarget_
     )
         external
@@ -205,5 +205,5 @@ interface ISuperActions {
     /// @param actionId_ The ID of the action
     /// @param finalTarget_ The target contract address
     /// @return The fee percentage
-    function getFeePercentForStrategy(uint32 actionId_, address finalTarget_) external view returns (uint256);
+    function getFeePercentForStrategy(uint256 actionId_, address finalTarget_) external view returns (uint256);
 }
