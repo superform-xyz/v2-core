@@ -25,7 +25,7 @@ contract Deposit4626LibraryTest is BaseTest {
   }
 
   function test_getEstimated4626Rewards() public {
-    uint256 expectedRewards = 1;
+    uint256 expectedRewards = 1e18;
     uint256 actualRewards = Deposit4626Library.getPricePerShare(address(vault));
     assertEq(actualRewards, expectedRewards);
   }
