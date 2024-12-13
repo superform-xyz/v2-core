@@ -44,6 +44,10 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SHARED_STATE_ID = keccak256("SHARED_STATE_ID");
 
+    // -- paymaster
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant PAYMASTER_ID = keccak256("PAYMASTER_ID");
+
     constructor(address owner) Ownable(owner) {
         sharedStateNamespace = "Superform.SharedState.v1";
     }
