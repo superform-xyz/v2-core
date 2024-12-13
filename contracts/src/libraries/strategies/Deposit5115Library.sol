@@ -8,10 +8,10 @@ library Deposit5115Library {
   /// @param finalTarget The address of the final target vault
   /// @param tokenIn The address of the token to receive after redeeming
   /// @return reward The estimated rewards
-  function getEstimatedRewards(
+  function getPricePerShare(
     address finalTarget,
     address tokenIn
-  ) external view returns (uint256 reward) {
+  ) internal view returns (uint256 reward) {
     (,, uint256 decimals) = IStandardizedYield(finalTarget).assetInfo();
     reward = IStandardizedYield(finalTarget).previewRedeem(
       tokenIn,

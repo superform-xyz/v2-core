@@ -10,9 +10,9 @@ library Deposit4626Library {
   /// @notice Gets the estimated rewards for a deposit
   /// @param finalTarget The final target vault to deposit into
   /// @return reward The estimated rewards
-  function getEstimatedRewards(
+  function getPricePerShare(
     address finalTarget
-  ) external view returns (uint256 reward) {
+  ) internal view returns (uint256 reward) {
     uint256 decimals = IERC4626(finalTarget).decimals();
     reward = IERC4626(finalTarget).previewRedeem(10 ** decimals);
   }
@@ -20,16 +20,16 @@ library Deposit4626Library {
   /// @notice Get the estimated rewards for a deposit into multiple vaults
   /// @param finalTargets The addresses of the final targets
   /// @return rewards The estimated rewards
-  function getEstimatedRewardsMultiVault(
+  function getPricePerShareMultiVault(
     address[] memory finalTargets,
     address underlyingAsset
-  ) external view returns (uint256[] memory rewards) {
+  ) internal view returns (uint256[] memory rewards) {
     rewards = new uint256[](finalTargets.length);
     for (uint256 i = 0; i < finalTargets.length; ++i) {
       if (IERC4626(finalTargets[i]).asset() != underlyingAsset) {
         revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
       }
-      rewards[i] = getEstimatedRewards(finalTargets[i]);
+      rewards[i] = getPricePerShare(finalTargets[i]);
     }
   }
 }

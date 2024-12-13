@@ -11,7 +11,7 @@ library Looped4626DepositLibrary {
   /// @param finalTarget The address of the final target
   /// @param loops The number of loops
   /// @return rewards The estimated rewards
-  function getEstimatedRewards(
+  function getPricePerShare(
     address finalTarget,
     uint256 loops
   ) internal view returns (uint256 rewards) {
@@ -25,7 +25,7 @@ library Looped4626DepositLibrary {
   /// @param underlyingAsset The address of the underlying asset
   /// @param loops The number of loops
   /// @return rewards The estimated rewards per vault
-  function getEstimatedRewardsMultiVault(
+  function getPricePerShareMultiVault(
     address[] memory finalTargets,
     address underlyingAsset,
     uint256 loops
@@ -33,7 +33,7 @@ library Looped4626DepositLibrary {
     rewards = new uint256[](finalTargets.length);
     for (uint256 i = 0; i < finalTargets.length; ++i) {
       if (IERC4626(finalTargets[i]).asset() != underlyingAsset) revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
-      rewards[i] = getEstimatedRewards(finalTargets[i], loops);
+      rewards[i] = getPricePerShare(finalTargets[i], loops);
     }
   }
 }
