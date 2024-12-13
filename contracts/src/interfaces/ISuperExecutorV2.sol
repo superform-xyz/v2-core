@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 interface ISuperExecutorV2 {
     struct ExecutorEntry {
-        uint32 actionId;
+        uint256 actionId;
         address finalTarget;
         bytes[] hooksData;
     }

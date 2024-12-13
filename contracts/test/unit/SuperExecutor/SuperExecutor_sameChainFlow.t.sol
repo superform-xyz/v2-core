@@ -14,7 +14,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         amount = _bound(amount);
         // it should revert with ACTION_NOT_FOUND
 
-        uint32 actionId = uint32(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
+        uint256 actionId = uint256(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
         bytes[] memory hooksData = new bytes[](0);
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
@@ -36,7 +36,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         address[] memory hooks = new address[](0);
         vm.prank(SUPER_ACTIONS_CONFIGURATOR);
         vm.expectRevert(ISuperActions.INVALID_HOOKS_LENGTH.selector);
-        uint32 actionId = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        uint256 actionId = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
     }
 
     function test_RevertWhen_HooksAreDefinedByExecutionDataIsNotValid() external givenAnActionExist {

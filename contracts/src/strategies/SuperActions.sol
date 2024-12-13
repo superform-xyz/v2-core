@@ -9,12 +9,12 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    mapping(uint32 actionId => ActionLogic logic) private actionLogic;
-    mapping(address user => mapping(uint32 actionId => mapping(address finalTarget => LedgerEntry[]))) private
+    mapping(uint256 actionId => ActionLogic logic) private actionLogic;
+    mapping(address user => mapping(uint256 actionId => mapping(address finalTarget => LedgerEntry[]))) private
         userLedgerEntries;
-    mapping(address user => mapping(uint32 actionId => mapping(address finalTarget => uint256))) private
+    mapping(address user => mapping(uint256 actionId => mapping(address finalTarget => uint256))) private
         unconsumedEntries;
-    mapping(uint32 actionId => mapping(address finalTarget => uint256 feePercent)) private feePercentPerStrategy;
+    mapping(uint256 actionId => mapping(address finalTarget => uint256 feePercent)) private feePercentPerStrategy;
 
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
@@ -56,7 +56,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @inheritdoc ISuperActions
     function batchUpdateAccounting(
         address user_,
-        uint32[] memory actionIds_,
+        uint256[] memory actionIds_,
         address[] memory finalTargets_,
         bool[] memory isDeposits_,
         uint256[] memory amountsShares_
@@ -81,7 +81,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     )
         external
         onlyActionsConfigurator
-        returns (uint32 actionId_)
+        returns (uint256 actionId_)
     {
         actionId_ = _validateHooks(hooks_);
         ActionLogic memory logic = actionLogic[actionId_];
@@ -103,12 +103,12 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     )
         external
         onlyActionsConfigurator
-        returns (uint32[] memory actionIds_)
+        returns (uint256[] memory actionIds_)
     {
         uint256 len = hooks_.length;
         if (len != metadataOracles_.length) revert INVALID_ARRAY_LENGTH();
 
-        actionIds_ = new uint32[](len);
+        actionIds_ = new uint256[](len);
         for (uint256 i = 0; i < len; i++) {
             actionIds_[i] = _validateHooks(hooks_[i]);
 
@@ -124,15 +124,14 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
 
     /// @inheritdoc ISuperActions
     function updateAction(
-        uint32 actionId_,
+        uint256 actionId_,
         address metadataOracle_,
         address[] memory newHooks_
     )
         external
         onlyActionsConfigurator
     {
-        ActionLogic storage logic = actionLogic[actionId_];
-        if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
+        ActionLogic storage logic = _getActionLogicOrRevert(actionId_);
         if (metadataOracle_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
 
         _validateHooks(newHooks_);
@@ -146,7 +145,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
 
     /// @inheritdoc ISuperActions
     function batchUpdateAction(
-        uint32[] memory actionIds_,
+        uint256[] memory actionIds_,
         address[] memory metadataOracles_,
         address[][] memory newHooks_
     )
@@ -157,8 +156,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         if (len != metadataOracles_.length || len != newHooks_.length) revert INVALID_ARRAY_LENGTH();
 
         for (uint256 i = 0; i < len; i++) {
-            ActionLogic storage logic = actionLogic[actionIds_[i]];
-            if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
+            ActionLogic storage logic = _getActionLogicOrRevert(actionIds_[i]);
             if (metadataOracles_[i] == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
 
             _validateHooks(newHooks_[i]);
@@ -172,13 +170,13 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     }
     /// @inheritdoc ISuperActions
 
-    function delistAction(uint32 actionId_) external onlyActionsConfigurator {
+    function delistAction(uint256 actionId_) external onlyActionsConfigurator {
         delete actionLogic[actionId_];
         emit ActionDelisted(actionId_);
     }
 
     /// @inheritdoc ISuperActions
-    function batchDelistActions(uint32[] memory actionIds_) external onlyActionsConfigurator {
+    function batchDelistActions(uint256[] memory actionIds_) external onlyActionsConfigurator {
         for (uint256 i = 0; i < actionIds_.length; i++) {
             delete actionLogic[actionIds_[i]];
         }
@@ -190,19 +188,19 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperActions
-    function getHooksForAction(uint32 actionId_) external view returns (address[] memory hooks_) {
+    function getHooksForAction(uint256 actionId_) external view returns (address[] memory hooks_) {
         return getActionLogic(actionId_).hooks;
     }
 
     /// @inheritdoc ISuperActions
-    function getActionLogic(uint32 actionId_) public view returns (ActionLogic memory) {
+    function getActionLogic(uint256 actionId_) public view returns (ActionLogic memory) {
         ActionLogic memory logic = actionLogic[actionId_];
         if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
         return logic;
     }
 
     /// @inheritdoc ISuperActions
-    function getHooksForActions(uint32[] memory actionIds_)
+    function getHooksForActions(uint256[] memory actionIds_)
         external
         view
         returns (address[][] memory hooksForActions_)
@@ -218,20 +216,20 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     }
 
     /// @inheritdoc ISuperActions
-    function getOracleForAction(uint32 actionId_) external view returns (address oracle_) {
+    function getOracleForAction(uint256 actionId_) external view returns (address oracle_) {
         ActionLogic memory logic = actionLogic[actionId_];
         if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
         return logic.metadataOracle;
     }
 
     /// @inheritdoc ISuperActions
-    function isActionActive(uint32 actionId_) external view returns (bool) {
+    function isActionActive(uint256 actionId_) external view returns (bool) {
         return actionLogic[actionId_].metadataOracle != address(0);
     }
 
     /// @inheritdoc ISuperActions
     function getStrategiesMetadata(
-        uint32[] memory actionIds_,
+        uint256[] memory actionIds_,
         address[] memory finalTargets_
     )
         external
@@ -244,7 +242,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @inheritdoc ISuperActions
     function getUserAccounting(
         address user_,
-        uint32 actionId_,
+        uint256 actionId_,
         address finalTarget_
     )
         external
@@ -257,7 +255,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @inheritdoc ISuperActions
     function getUnconsumedEntries(
         address user_,
-        uint32 actionId_,
+        uint256 actionId_,
         address finalTarget_
     )
         external
@@ -268,7 +266,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     }
 
     /// @inheritdoc ISuperActions
-    function getFeePercentForStrategy(uint32 actionId_, address finalTarget_) external view returns (uint256) {
+    function getFeePercentForStrategy(uint256 actionId_, address finalTarget_) external view returns (uint256) {
         return feePercentPerStrategy[actionId_][finalTarget_];
     }
 
@@ -276,7 +274,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _validateHooks(address[] memory hooks_) internal pure returns (uint32) {
+    function _validateHooks(address[] memory hooks_) internal pure returns (uint256 actionId_) {
         uint256 len = hooks_.length;
         if (len == 0) revert INVALID_HOOKS_LENGTH();
 
@@ -285,10 +283,16 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         }
 
         // Hash the hooks addresses to generate actionId
-        return uint32(uint256(keccak256(abi.encodePacked(hooks_))) & 0xFFFFFFFF);
+        actionId_ = uint256(keccak256(abi.encode(hooks_)));
     }
 
     function _transferToPaymaster() internal {
         // Implementation needed
+    }
+
+    function _getActionLogicOrRevert(uint256 actionId_) internal view returns (ActionLogic storage) {
+        ActionLogic storage logic = actionLogic[actionId_];
+        if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
+        return logic;
     }
 }

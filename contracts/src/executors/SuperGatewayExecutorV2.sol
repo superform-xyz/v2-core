@@ -71,7 +71,7 @@ contract SuperGatewayExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISup
         external
         onlyBridgeGateway
     {
-        (uint32 actionId, bytes[] memory hooksData) = abi.decode(data, (uint32, bytes[]));
+        (uint256 actionId, bytes[] memory hooksData) = abi.decode(data, (uint256, bytes[]));
 
         // retrieve hooks for this strategy
         address[] memory hooks = ISuperActions(superActions()).getHooksForAction(actionId);
