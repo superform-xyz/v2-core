@@ -3,7 +3,8 @@ pragma solidity >=0.8.28;
 
 interface ISuperExecutorV2 {
     struct ExecutorEntry {
-        address strategyId;
+        uint256 actionId;
+        address finalTarget;
         bytes[] hooksData;
     }
 
@@ -18,8 +19,8 @@ interface ISuperExecutorV2 {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get the strategies registry address
-    function strategiesRegistry() external view returns (address);
+    /// @notice Get the actions registry address
+    function superActions() external view returns (address);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS

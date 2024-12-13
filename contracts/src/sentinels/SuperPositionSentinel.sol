@@ -15,19 +15,20 @@ contract SuperPositionSentinel is ISentinel, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event SuperPositionMint(address indexed strategyId_, address indexed spAddress_, uint256 amount_);
-    event SuperPositionBurn(address indexed strategyId_, address indexed spAddress_, uint256 amount_);
-    
+    event SuperPositionMint(uint256 indexed actionId_, address indexed finalTarget_, uint256 amount_);
+    event SuperPositionBurn(uint256 indexed actionId_, address indexed finalTarget_, uint256 amount_);
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISentinel
-    function notify(address strategyId_, bytes memory entry_) external {
-        (uint256 amount, bool mint, address spAddress) = abi.decode(entry_, (uint256, bool, address));
+
+    function notify(uint256 actionId_, address finalTarget_, bytes memory entry_) external {
+        (uint256 amount, bool mint) = abi.decode(entry_, (uint256, bool));
         if (mint) {
-            emit SuperPositionMint(strategyId_, spAddress, amount);
+            emit SuperPositionMint(actionId_, finalTarget_, amount);
         } else {
-            emit SuperPositionBurn(strategyId_, spAddress, amount);
+            emit SuperPositionBurn(actionId_, finalTarget_, amount);
         }
     }
 

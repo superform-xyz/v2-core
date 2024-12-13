@@ -18,7 +18,6 @@ interface IAcrossV3Interpreter {
         address payable beneficiary;
     }
 
-
     struct Instruction {
         bytes strategyData; // ISuperExecutorV2.ExecutorEntry[]
         uint256 amount;

@@ -53,12 +53,9 @@ interface ISuperRegistry {
     /// @dev Get the ID of the super positions.
     function SUPER_POSITIONS_ID() external view returns (bytes32);
 
-    // -- registries
-    /// @dev Get the ID of the strategies registry.
-    function STRATEGIES_REGISTRY_ID() external view returns (bytes32);
-
-    /// @dev Get the ID of the hooks registry.
-    function HOOKS_REGISTRY_ID() external view returns (bytes32);
+    // -- actions
+    /// @dev Get the ID of the super actions.
+    function SUPER_ACTIONS_ID() external view returns (bytes32);
 
     // -- sentinels
     /// @dev Get the ID of the super position sentinel.
@@ -67,7 +64,6 @@ interface ISuperRegistry {
     // -- bridges
     /// @dev Get the ID of the Across bridge gateway.
     function ACROSS_GATEWAY_ID() external view returns (bytes32);
-
 
     // -- storage
     /// @dev Get the ID of the shared state.

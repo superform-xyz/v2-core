@@ -198,7 +198,7 @@ contract SharedState is ISharedStateWriter, ISharedStateReader {
     }
 
     function _setUint(bytes32 key_, uint256 value_, uint256 index_) private {
-        uintValues[key_][msg.sender][index_] =value_;
+        uintValues[key_][msg.sender][index_] = value_;
     }
 
     function _setString(bytes32 key_, string calldata value_, uint256 index_) private {

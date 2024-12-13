@@ -1,3 +1,1 @@
-# Superfor V2
-
-Superform V2 components
+# Superform v2-Core
