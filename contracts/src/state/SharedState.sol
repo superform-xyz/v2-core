@@ -2,8 +2,8 @@
 pragma solidity >=0.8.28;
 
 // Superform
-import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";
-import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
+import { ISharedStateWriter } from "../interfaces/state/ISharedStateWriter.sol";
+import { ISharedStateReader } from "../interfaces/state/ISharedStateReader.sol";
 
 contract SharedState is ISharedStateWriter, ISharedStateReader {
     /*//////////////////////////////////////////////////////////////

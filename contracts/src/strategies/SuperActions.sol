@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
-import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
-import { IERC20 } from "lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @dev delete this later
 interface IActionOracle {

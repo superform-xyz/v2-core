@@ -5,11 +5,11 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
-import { IAcrossV3Receiver } from "src/interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
-import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+import { ISuperGatewayExecutorV2 } from "../interfaces/ISuperGatewayExecutorV2.sol";
+import { IAcrossV3Receiver } from "../interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
+import { IAcrossV3Interpreter } from "../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
 contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
