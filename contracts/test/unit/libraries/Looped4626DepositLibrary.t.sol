@@ -1,39 +1,39 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { BaseTest } from "../../BaseTest.t.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
+import { Looped4626DepositLibrary } from "../../../src/libraries/strategies/Looped4626DepositLibrary.sol";
 
-library Looped4626DepositLibrary {
-    /// @notice Error thrown when the asset of the vaults is not the same
-    error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-  /// @notice Get the estimated rewards for a single vault over a number of loops
-  /// @param finalTarget The address of the final target
-  /// @param loops The number of loops
-  /// @return rewards The estimated rewards
-  function getPricePerShare(
-    address finalTarget,
-    uint256 loops
-  ) internal view returns (uint256 rewards) {
-    uint256 decimals = IERC4626(finalTarget).decimals();
-    rewards = IERC4626(finalTarget).previewRedeem(10 ** decimals);
-    rewards *= loops;
+contract Looped4626DepositLibraryTest is BaseTest {
+  Mock4626Vault vault;
+  Mock4626Vault vault2;
+
+  MockERC20 asset;
+  MockERC20 asset2;
+
+  Looped4626DepositLibraryWrapper wrapper;
+
+  function setUp() public override {
+    super.setUp();
+    asset = new MockERC20("Asset", "ASSET", 18);
+    asset2 = new MockERC20("Asset2", "ASSET2", 18);
+    vault = new Mock4626Vault(address(asset));
+    vault2 = new Mock4626Vault(address(asset));
+    wrapper = new Looped4626DepositLibraryWrapper();
   }
 
-  /// @notice Get the estimated rewards for multiple vaults
-  /// @param finalTargets The addresses of the final targets
-  /// @param underlyingAsset The address of the underlying asset
-  /// @param loops The number of loops
-  /// @return rewards The estimated rewards per vault
-  function getPricePerShareMultiVault(
-    address[] memory finalTargets,
-    address underlyingAsset,
-    uint256 loops
-  ) internal view returns (uint256[] memory rewards) {
-    rewards = new uint256[](finalTargets.length);
-    for (uint256 i = 0; i < finalTargets.length; ++i) {
-      if (IERC4626(finalTargets[i]).asset() != underlyingAsset) revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
-      rewards[i] = getPricePerShare(finalTargets[i], loops);
-    }
+  function test_getEstimatedRewardsSingleVault() public view {
+    uint256 loops = 10;
+    uint256 amountPerLoop = 100;
+    uint256 rewards = Looped4626DepositLibrary.getEstimatedRewards(
+      address(vault),
+      loops,
+      amountPerLoop
+    );
+    assertEq(rewards, 1000);
   }
 }
