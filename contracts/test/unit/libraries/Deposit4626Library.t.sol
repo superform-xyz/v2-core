@@ -6,6 +6,8 @@ import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { Deposit4626Library } from "../../../src/libraries/strategies/Deposit4626Library.sol";
 
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+
 contract Deposit4626LibraryTest is BaseTest {
   Mock4626Vault vault;
   MockERC20 underlying;
