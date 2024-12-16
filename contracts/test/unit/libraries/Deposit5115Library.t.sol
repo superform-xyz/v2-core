@@ -22,4 +22,13 @@ contract Deposit5115LibraryTest is BaseTest {
       "VAULT"
     );
   }
+
+  function test_get5115PricePerShare() public {
+    uint256 expectedPricePerShare = 1e18;
+    uint256 actualPricePerShare = Deposit5115Library.getPricePerShare(
+      address(vault),
+      address(underlying)
+    );
+    assertEq(actualPricePerShare, expectedPricePerShare);
+  }
 }
