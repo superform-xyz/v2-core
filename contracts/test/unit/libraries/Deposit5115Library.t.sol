@@ -11,7 +11,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Deposit5115LibraryTest is BaseTest {
     Mock5115Vault vault;
-  MockERC20 underlying;
+    MockERC20 underlying;
 
     function setUp() public override {
         super.setUp();
