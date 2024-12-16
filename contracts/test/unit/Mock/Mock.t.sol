@@ -31,7 +31,7 @@ contract Mocktsol is BaseTest {
         MockSignature mock = new MockSignature();
 
         // create signer
-        uint256 signerPrivateKey = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;  
+        uint256 signerPrivateKey = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
         address signer = vm.addr(signerPrivateKey);
 
         // simulate signature fields
@@ -43,37 +43,22 @@ contract Mocktsol is BaseTest {
 
         // simulate parameters
         MockSignature.Execution[] memory executions = new MockSignature.Execution[](1);
-        executions[0] = MockSignature.Execution({
-            to: address(0xdead),
-            value: 1 ether,
-            data: "0x"
-        });
+        executions[0] = MockSignature.Execution({ to: address(0xdead), value: 1 ether, data: "0x" });
 
         // test a valid signature
-        bytes32 messageHash = keccak256(
-            abi.encode(
-                mock.DOMAIN_NAMESPACE(),
-                mock.merkleRoot(),
-                proofs,
-                signer,
-                mock.nonce(),
-                executions
-            )
-        );
-        bytes32 ethSignedMessageHash = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash)
-        );
+        bytes32 messageHash =
+            keccak256(abi.encode(mock.DOMAIN_NAMESPACE(), mock.merkleRoot(), proofs, signer, mock.nonce(), executions));
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, ethSignedMessageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         bool isValid = mock.validateSignature(signer, executions, signature);
         assertTrue(isValid);
 
-
         // test an invalid signature
-        bytes memory invalidSignature = hex"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        bytes memory invalidSignature =
+            hex"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         isValid = mock.validateSignature(signer, executions, invalidSignature);
         assertFalse(isValid);
     }
 }
-

@@ -7,13 +7,8 @@ SuperExecutor_simpleCrossChainFlow.t.sol
     │   └── it should revert
     ├── when hooks are defined by execution data is not valid
     │   └── it should revert
-    ├── given strategy has a cross hook and no same chain hooks
-    │   └── when hooks are defined and execution data is valid and sentinel is configured
-    │       ├── it should execute all hooks
-    │       └── it should trigger sentinel call 
-    └── given strategy has both cross and same chain hooks
-        ├── when one is not valid
-        │   └── it should revert
-        └── when both are valid
+    └── given strategy has a cross hook and no same chain hooks
+        └── when hooks are defined and execution data is valid and sentinel is configured
             ├── it should execute all hooks
             └── it should trigger sentinel call 
+    

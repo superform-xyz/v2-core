@@ -7,7 +7,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
 
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
 import { IAcrossV3Receiver } from "src/interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
@@ -21,7 +20,7 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event InstructionProcessed(address indexed account, uint256 amount);
+    event InstructionProcessed(address indexed account, bytes strategyData);
 
 
     /*//////////////////////////////////////////////////////////////
@@ -49,12 +48,10 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
         IAcrossV3Interpreter.Instruction memory instruction = abi.decode(message, (IAcrossV3Interpreter.Instruction));
 
         // send tokens to the smart account
-        IERC20(tokenSent).transferFrom(address(this), instruction.account, instruction.amount);
+        IERC20(tokenSent).transfer(instruction.account, instruction.amount);
 
-        // execute the strategy
-        ISuperExecutorV2(_getSuperExecutor()).executeFromGateway(instruction.account, instruction.strategyData);
-
-        emit InstructionProcessed(instruction.account, instruction.amount);
+        // emit an event that should be picked up by the orchestrator
+        emit InstructionProcessed(instruction.account, instruction.strategyData);
     }
 
 

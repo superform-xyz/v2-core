@@ -115,6 +115,4 @@ abstract contract BaseTest is Helpers {
         _getTokens(token_, instance_.account, EXTRA_LARGE);
         _;
     }
-
-
 }

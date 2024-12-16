@@ -11,8 +11,6 @@ import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 import { IAcrossSpokePoolV3 } from "src/interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
-import "forge-std/console.sol";
-
 contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -28,7 +26,6 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
         uint256 outputAmount;
         uint256 destinationChainId;
         address exclusiveRelayer;
-        uint32 quoteTimestamp;
         uint32 fillDeadline;
         uint32 exclusivityDeadline;
         IAcrossV3Interpreter.Instruction instruction;
@@ -44,17 +41,12 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(bytes memory data) external view override returns (Execution[] memory executions) {
-        console.log("--------A");
         AcrossV3DepositData memory acrossV3DepositData = abi.decode(data, (AcrossV3DepositData));
 
-        console.log("--------B");
         // checks
         if (acrossV3DepositData.value == 0) revert AMOUNT_NOT_VALID();
-        console.log("--------C");
         address _dstContract = _getAcrossGatewayExecutor();
-        console.log("--------D");
         if (acrossV3DepositData.recipient == address(0) || _dstContract == address(0)) revert ADDRESS_NOT_VALID();
-        console.log("--------E");
 
         // build execution
         executions = new Execution[](1);
@@ -62,7 +54,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
             target: spokePoolV3,
             value: acrossV3DepositData.value,
             callData: abi.encodeCall(
-                IAcrossSpokePoolV3.depositV3,
+                IAcrossSpokePoolV3.depositV3Now,
                 (
                     _dstContract, // TODO: assume it has the same address on all chains
                     acrossV3DepositData.recipient,
@@ -72,14 +64,12 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                     acrossV3DepositData.outputAmount,
                     acrossV3DepositData.destinationChainId,
                     acrossV3DepositData.exclusiveRelayer,
-                    acrossV3DepositData.quoteTimestamp,
                     acrossV3DepositData.fillDeadline,
                     acrossV3DepositData.exclusivityDeadline,
                     abi.encode(acrossV3DepositData.instruction)
                 )
             )
         });
-        console.log("--------F");
     }
 
     /*//////////////////////////////////////////////////////////////

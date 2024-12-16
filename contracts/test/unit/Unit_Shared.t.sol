@@ -93,6 +93,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
 
         acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
         vm.label(address(acrossBridgeGateway), "acrossBridgeGateway");
+        spokePoolV3Mock.setAcrossBridgeGateway(address(acrossBridgeGateway));
 
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");
@@ -117,7 +118,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superRbac.setRole(address(this), role_, true);
         _;
     }
-    
+
     modifier addRoleTo(bytes32 role_, address addr_) {
         superRbac.setRole(addr_, role_, true);
         _;
@@ -132,6 +133,9 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
             superRegistry.SUPER_POSITION_SENTINEL_ID(), address(superPositionSentinel)
         );
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_RBAC_ID(), address(superRbac));
+        SuperRegistry(address(superRegistry)).setAddress(
+            superRegistry.ACROSS_GATEWAY_ID(), address(acrossBridgeGateway)
+        );
     }
 
     function _setRoles() internal {
@@ -160,11 +164,12 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         hooks[2] = address(withdraw4626VaultHook);
         _actionIds[2] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
 
-        // approve + 4626 deposit + across 
-        hooks = new address[](3);
+        // approve + 4626 deposit + across
+        hooks = new address[](4);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
-        hooks[2] = address(acrossExecuteOnDestinationHook);
+        hooks[2] = address(approveErc20Hook);
+        hooks[3] = address(acrossExecuteOnDestinationHook);
         _actionIds[3] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
 
         vm.stopPrank();
