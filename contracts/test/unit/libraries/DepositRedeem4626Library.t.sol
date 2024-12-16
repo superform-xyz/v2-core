@@ -22,7 +22,7 @@ contract DepositRedeem4626LibraryTest is BaseTest {
 
     function test_getPricePerShare() public {
         uint256 expectedPricePerShare = 1e18;
-        uint256 actualPricePerShare = depositRedeem4626Library.getPricePerShare(address(vault));
+        uint256 actualPricePerShare = DepositRedeem4626Library.getPricePerShare(address(vault));
         assertEq(actualPricePerShare, expectedPricePerShare);
     }
 }
