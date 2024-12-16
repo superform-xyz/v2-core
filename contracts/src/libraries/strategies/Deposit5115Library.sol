@@ -12,10 +12,12 @@ library Deposit5115Library {
     address finalTarget,
     address tokenIn
   ) internal view returns (uint256 pricePerShare) {
-    (,, uint256 decimals) = IStandardizedYield(finalTarget).assetInfo();
+    (,, uint8 decimals) = IStandardizedYield(finalTarget).assetInfo();
     pricePerShare = IStandardizedYield(finalTarget).previewRedeem(
       tokenIn,
       10 ** decimals
     );
   }
+
+  // TODO: Add multiple 5115 vaults
 }
