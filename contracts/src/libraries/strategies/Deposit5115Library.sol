@@ -13,5 +13,17 @@ library Deposit5115Library {
         pricePerShare = IStandardizedYield(finalTarget).previewRedeem(tokenIn, 10 ** decimals);
     }
 
-    // TODO: Add multiple 5115 vaults
+    /// @notice Get the price per share for a deposit into multiple 5115 vaults
+    /// @param finalTargets The addresses of the final target vaults
+    /// @param tokenIns The addresses of the tokens to receive after redeeming
+    /// @return pricePerShares The price per share for each vault
+    function getPricePerShareMultiple(
+        address[] memory finalTargets,
+        address[] memory tokenIns
+    ) internal view returns (uint256[] memory pricePerShares) {
+        pricePerShares = new uint256[](finalTargets.length);
+        for (uint256 i = 0; i < finalTargets.length; i++) {
+            pricePerShares[i] = getPricePerShare(finalTargets[i], tokenIns[i]);
+        }
+    }
 }
