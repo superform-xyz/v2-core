@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "test/BaseTest.t.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
-import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
-import { Deposit4626Library } from "src/libraries/strategies/Deposit4626Library.sol";
+import { BaseTest } from "../../BaseTest.t.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
+import { Deposit4626Library } from "../../../src/libraries/strategies/Deposit4626Library.sol";
 
 contract Deposit4626LibraryTest is BaseTest {
     Mock4626Vault vault;

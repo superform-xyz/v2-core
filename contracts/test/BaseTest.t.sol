@@ -6,27 +6,27 @@ import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 import { Helpers } from "./utils/Helpers.sol";
 
-import { SpokePoolV3Mock } from "test/mocks/SpokePoolV3Mock.sol";
+import { SpokePoolV3Mock } from "./mocks/SpokePoolV3Mock.sol";
 
-import { SuperRegistry } from "src/settings/SuperRegistry.sol";
-import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
+import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
+import { ISuperRegistry } from "../src/interfaces/ISuperRegistry.sol";
 
 // tokens hooks
 // --- erc20
-import { ApproveERC20Hook } from "src/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { TransferERC20Hook } from "src/hooks/tokens/erc20/TransferERC20Hook.sol";
+import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { TransferERC20Hook } from "../src/hooks/tokens/erc20/TransferERC20Hook.sol";
 // vault hooks
 // --- erc5115
-import { Deposit5115VaultHook } from "src/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import { Withdraw5115VaultHook } from "src/hooks/vaults/5115/Withdraw5115VaultHook.sol";
+import { Deposit5115VaultHook } from "../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { Withdraw5115VaultHook } from "../src/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 // --- erc4626
-import { Deposit4626VaultHook } from "src/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { Withdraw4626VaultHook } from "src/hooks/vaults/4626/Withdraw4626VaultHook.sol";
+import { Deposit4626VaultHook } from "../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Withdraw4626VaultHook } from "../src/hooks/vaults/4626/Withdraw4626VaultHook.sol";
 // -- erc7540
-import { RequestDeposit7540VaultHook } from "src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
-import { RequestWithdraw7540VaultHook } from "src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 // bridges hooks
-import { AcrossExecuteOnDestinationHook } from "src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
+import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
 
 abstract contract BaseTest is Helpers {
     /*//////////////////////////////////////////////////////////////

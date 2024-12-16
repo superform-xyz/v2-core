@@ -5,11 +5,11 @@ pragma solidity >=0.8.28;
 import { Execution } from "modulekit/Accounts.sol";
 
 // Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
-import { IAcrossSpokePoolV3 } from "src/interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
-import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { IAcrossSpokePoolV3 } from "../../../interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
+import { IAcrossV3Interpreter } from "../../../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
 contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////

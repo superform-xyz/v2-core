@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { IUserOperation } from "src/interfaces/vendors/standards/erc4337/IUserOperation.sol";
+import { IUserOperation } from "./IUserOperation.sol";
 
 interface IEntryPoint {
     /**

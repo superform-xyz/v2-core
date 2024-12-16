@@ -21,21 +21,20 @@ import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.
 import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 
-import { SuperRbac } from "src/settings/SuperRbac.sol";
-import { SharedState } from "src/state/SharedState.sol";
-import { SuperRegistry } from "src/settings/SuperRegistry.sol";
-import { SuperExecutorV2 } from "src/executors/SuperExecutorV2.sol";
-import { SuperActions } from "src/strategies/SuperActions.sol";
-import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
-import { SuperGatewayExecutorV2 } from "src/executors/SuperGatewayExecutorV2.sol";
-import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
+import { SuperRbac } from "../../src/settings/SuperRbac.sol";
+import { SharedState } from "../../src/state/SharedState.sol";
+import { SuperRegistry } from "../../src/settings/SuperRegistry.sol";
+import { SuperExecutorV2 } from "../../src/executors/SuperExecutorV2.sol";
+import { SuperActions } from "../../src/strategies/SuperActions.sol";
+import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
+import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 
-import { AcrossBridgeGateway } from "src/bridges/AcrossBridgeGateway.sol";
+import { AcrossBridgeGateway } from "../../src/bridges/AcrossBridgeGateway.sol";
 
-import { MockERC20 } from "test/mocks/MockERC20.sol";
-import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
+import { Mock4626Vault } from "../mocks/Mock4626Vault.sol";
 
-import { BaseTest } from "test/BaseTest.t.sol";
+import { BaseTest } from "../BaseTest.t.sol";
 
 abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
@@ -49,7 +48,6 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     ISentinel public superPositionSentinel;
     ISharedStateReader public sharedStateReader;
     ISharedStateWriter public sharedStateWriter;
-    ISuperGatewayExecutorV2 public superGatewayExecutor;
     AcrossBridgeGateway public acrossBridgeGateway;
 
     AccountInstance public instance;
@@ -80,9 +78,6 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
 
         superExecutor = ISuperExecutorV2(address(new SuperExecutorV2(address(superRegistry))));
         vm.label(address(superExecutor), "superExecutor");
-
-        superGatewayExecutor = ISuperGatewayExecutorV2(address(new SuperGatewayExecutorV2(address(superRegistry))));
-        vm.label(address(superGatewayExecutor), "superGatewayExecutor");
 
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
         vm.label(address(superPositionSentinel), "superPositionSentinel");

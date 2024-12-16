@@ -7,7 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { Constants } from "./Constants.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
 
 abstract contract Helpers is Test, Constants {
     /*//////////////////////////////////////////////////////////////

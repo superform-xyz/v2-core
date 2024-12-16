@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "test/BaseTest.t.sol";
+import { BaseTest } from "../../BaseTest.t.sol";
 
-import { MockSignature } from "test/mocks/MockSignature.sol";
-import { TransientStorageExecutor } from "test/mocks/TransientStorageExecutor.sol";
+import { MockSignature } from "../../mocks/MockSignature.sol";
+import { TransientStorageExecutor } from "../../mocks/TransientStorageExecutor.sol";
 
 contract Mocktsol is BaseTest {
     TransientStorageExecutor transientExecutor;
