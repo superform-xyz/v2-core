@@ -10,25 +10,18 @@ import { Deposit5115Library } from "../../../src/libraries/strategies/Deposit511
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Deposit5115LibraryTest is BaseTest {
-  MockERC20 underlying;
-  Mock5115Vault vault;
+    MockERC20 underlying;
+    Mock5115Vault vault;
 
-  function setUp() public override {
-    super.setUp();
-    underlying = new MockERC20("Underlying", "UND", 18);
-    vault = new Mock5115Vault(
-      IERC20(address(underlying)),
-      "Vault",
-      "VAULT"
-    );
-  }
+    function setUp() public override {
+        super.setUp();
+        underlying = new MockERC20("Underlying", "UND", 18);
+        vault = new Mock5115Vault(IERC20(address(underlying)), "Vault", "VAULT");
+    }
 
-  function test_get5115PricePerShare() public {
-    uint256 expectedPricePerShare = 1e18;
-    uint256 actualPricePerShare = Deposit5115Library.getPricePerShare(
-      address(vault),
-      address(underlying)
-    );
-    assertEq(actualPricePerShare, expectedPricePerShare);
-  }
+    function test_get5115PricePerShare() public {
+        uint256 expectedPricePerShare = 1e18;
+        uint256 actualPricePerShare = Deposit5115Library.getPricePerShare(address(vault), address(underlying));
+        assertEq(actualPricePerShare, expectedPricePerShare);
+    }
 }

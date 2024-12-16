@@ -7,64 +7,55 @@ import { Deposit5115Library } from "../../libraries/strategies/Deposit5115Librar
 /// @author Superform Labs
 /// @notice Oracle for the Deposit Action in 5115 Vaults
 contract Deposit5115ActionOracle {
-  /*//////////////////////////////////////////////////////////////
+    /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
-  //////////////////////////////////////////////////////////////*/
+    //////////////////////////////////////////////////////////////*/
 
-  constructor() {}
+    constructor() { }
 
-  /*//////////////////////////////////////////////////////////////
+    /*//////////////////////////////////////////////////////////////
                            VIEW METHODS
-  //////////////////////////////////////////////////////////////*/
+    //////////////////////////////////////////////////////////////*/
 
-  /// @notice Get the price per share for a deposit into a 5115 vault
-  /// @param asset The address of the asset
-  /// @param finalTarget The address of the final target
-  /// @return price The price per share
-  function getPricePerShare(
-    address asset,
-    address finalTarget
-  ) public view returns (uint256 price) {
-    price = Deposit5115Library.getPricePerShare(
-      asset,
-      finalTarget
-    );
-  }
-
-  /// @notice Get the price per share for a deposit into multiple 5115 vaults
-  /// @param assets The addresses of the assets
-  /// @param finalTargets The addresses of the final targets
-  /// @return prices The price per share per final target
-  function getStrategyPrices(
-    address[] memory assets,
-    address[] memory finalTargets
-  ) external view returns (uint256[] memory prices) {
-    prices = new uint256[](finalTargets.length);
-    for (uint256 i = 0; i < finalTargets.length; i++) {
-      prices[i] = getPricePerShare(
-        assets[i],
-        finalTargets[i]
-      );
+    /// @notice Get the price per share for a deposit into a 5115 vault
+    /// @param asset The address of the asset
+    /// @param finalTarget The address of the final target
+    /// @return price The price per share
+    function getPricePerShare(address asset, address finalTarget) public view returns (uint256 price) {
+        price = Deposit5115Library.getPricePerShare(asset, finalTarget);
     }
-  }
 
-  // ToDo: Implement this with the metadata library
-  /// @notice Get the metadata for a 5115 vault
-  /// @param finalTarget The address of the final target
-  /// @return metadata The metadata
-  function getVaultStrategyMetadata(
-    address finalTarget
-  ) external view returns (bytes memory metadata) {
-    return "0x0";
-  }
+    /// @notice Get the price per share for a deposit into multiple 5115 vaults
+    /// @param assets The addresses of the assets
+    /// @param finalTargets The addresses of the final targets
+    /// @return prices The price per share per final target
+    function getStrategyPrices(
+        address[] memory assets,
+        address[] memory finalTargets
+    )
+        external
+        view
+        returns (uint256[] memory prices)
+    {
+        prices = new uint256[](finalTargets.length);
+        for (uint256 i = 0; i < finalTargets.length; i++) {
+            prices[i] = getPricePerShare(assets[i], finalTargets[i]);
+        }
+    }
 
-  // ToDo: Implement this with the metadata library
-  /// @notice Get the metadata for multiple 5115 vaults
-  /// @param finalTargets The addresses of the final targets
-  /// @return metadata The metadata per final target
-  function getVaultsStrategyMetadata(
-    address[] memory finalTargets
-  ) external view returns (bytes[] memory metadata) {
-    return new bytes[](finalTargets.length);
-  }
+    // ToDo: Implement this with the metadata library
+    /// @notice Get the metadata for a 5115 vault
+    /// @param finalTarget The address of the final target
+    /// @return metadata The metadata
+    function getVaultStrategyMetadata(address finalTarget) external view returns (bytes memory metadata) {
+        return "0x0";
+    }
+
+    // ToDo: Implement this with the metadata library
+    /// @notice Get the metadata for multiple 5115 vaults
+    /// @param finalTargets The addresses of the final targets
+    /// @return metadata The metadata per final target
+    function getVaultsStrategyMetadata(address[] memory finalTargets) external view returns (bytes[] memory metadata) {
+        return new bytes[](finalTargets.length);
+    }
 }

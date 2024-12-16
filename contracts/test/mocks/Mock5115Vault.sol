@@ -5,43 +5,43 @@ import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Mock5115Vault {
-  enum AssetType {
-    ERC20,
-    AMM_LIQUIDITY_TOKEN,
-    BRIDGED_YIELD_BEARING_TOKEN
-  }
+    enum AssetType {
+        ERC20,
+        AMM_LIQUIDITY_TOKEN,
+        BRIDGED_YIELD_BEARING_TOKEN
+    }
 
-  MockERC20 asset;
+    MockERC20 asset;
 
-  constructor(
-    IERC20 asset_,
-    string memory name_,
-    string memory symbol_
-  ) {
-    asset = new MockERC20(name_, symbol_, 18);
-  }
+    constructor(IERC20 asset_, string memory name_, string memory symbol_) {
+        asset = new MockERC20(name_, symbol_, 18);
+    }
 
-  function assetInfo() external view returns (
-    AssetType assetType,
-    address asset_,
-    uint8 decimals
-  ) {
-    assetType = AssetType.ERC20;
-    asset_ = address(asset);
-    decimals = uint8(asset.decimals());
-  }
+    function assetInfo() external view returns (AssetType assetType, address asset_, uint8 decimals) {
+        assetType = AssetType.ERC20;
+        asset_ = address(asset);
+        decimals = uint8(asset.decimals());
+    }
 
-  function previewDeposit(
-    address tokenIn,
-    uint256 amountTokenToDeposit
-  ) external view returns (uint256 amountSharesOut) {
-    amountSharesOut = amountTokenToDeposit;
-  }
+    function previewDeposit(
+        address tokenIn,
+        uint256 amountTokenToDeposit
+    )
+        external
+        view
+        returns (uint256 amountSharesOut)
+    {
+        amountSharesOut = amountTokenToDeposit;
+    }
 
-  function previewRedeem(
-    address tokenIn,
-    uint256 amountSharesToRedeem
-  ) external view returns (uint256 amountTokenOut) {
-    amountTokenOut = amountSharesToRedeem;
-  }
+    function previewRedeem(
+        address tokenIn,
+        uint256 amountSharesToRedeem
+    )
+        external
+        view
+        returns (uint256 amountTokenOut)
+    {
+        amountTokenOut = amountSharesToRedeem;
+    }
 }
