@@ -100,6 +100,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[2], finalTarget: RANDOM_TARGET, hooksData: hooksData });
 
         vm.expectEmit(true, true, true, true);
+
         emit SuperPositionSentinel.SuperPositionMint(actionIds[2], RANDOM_TARGET, amount - 100);
         superExecutor.execute(instance.account, abi.encode(entries));
 

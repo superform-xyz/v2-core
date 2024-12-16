@@ -9,13 +9,13 @@ import { Looped4626DepositLibrary } from "../../../src/libraries/strategies/Loop
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Looped4626DepositLibraryTest is BaseTest {
-  Mock4626Vault vault;
-  Mock4626Vault vault2;
+    Mock4626Vault vault;
+    Mock4626Vault vault2;
 
-  MockERC20 asset;
-  MockERC20 asset2;
+    MockERC20 asset;
+    MockERC20 asset2;
 
-  Looped4626DepositLibraryWrapper wrapper;
+    Looped4626DepositLibraryWrapper wrapper;
 
   function setUp() public override {
     super.setUp();

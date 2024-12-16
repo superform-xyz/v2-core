@@ -49,7 +49,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
         obtainedShares = _getBalance(data) - obtainedShares;
-        return (address(0), obtainedShares, bytes32(0), true);
+        return (address(0), obtainedShares, bytes32(keccak256("DEPOSIT")), true);
     }
 
     /*//////////////////////////////////////////////////////////////

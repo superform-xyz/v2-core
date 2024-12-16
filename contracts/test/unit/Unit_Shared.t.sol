@@ -27,8 +27,9 @@ import { SuperRegistry } from "../../src/settings/SuperRegistry.sol";
 import { SuperExecutorV2 } from "../../src/executors/SuperExecutorV2.sol";
 import { SuperActions } from "../../src/strategies/SuperActions.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
-import { SuperGatewayExecutorV2 } from "../../src/executors/SuperGatewayExecutorV2.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
+
+import { AcrossBridgeGateway } from "../../src/bridges/AcrossBridgeGateway.sol";
 
 import { MockERC20 } from "../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../mocks/Mock4626Vault.sol";
@@ -50,7 +51,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     ISentinel public superPositionSentinel;
     ISharedStateReader public sharedStateReader;
     ISharedStateWriter public sharedStateWriter;
-    ISuperGatewayExecutorV2 public superGatewayExecutor;
+    AcrossBridgeGateway public acrossBridgeGateway;
 
     AccountInstance public instance;
 
@@ -81,9 +82,6 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superExecutor = ISuperExecutorV2(address(new SuperExecutorV2(address(superRegistry))));
         vm.label(address(superExecutor), "superExecutor");
 
-        superGatewayExecutor = ISuperGatewayExecutorV2(address(new SuperGatewayExecutorV2(address(superRegistry))));
-        vm.label(address(superGatewayExecutor), "superGatewayExecutor");
-
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
         vm.label(address(superPositionSentinel), "superPositionSentinel");
 
@@ -94,6 +92,10 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
             "MRC4626"
         );
         vm.label(address(mock4626Vault), "mock4626Vault");
+
+        acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
+        vm.label(address(acrossBridgeGateway), "acrossBridgeGateway");
+        spokePoolV3Mock.setAcrossBridgeGateway(address(acrossBridgeGateway));
 
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");
@@ -111,12 +113,31 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         actionIds = _registerSameChainActions();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+    modifier addRole(bytes32 role_) {
+        superRbac.setRole(address(this), role_, true);
+        _;
+    }
+
+    modifier addRoleTo(bytes32 role_, address addr_) {
+        superRbac.setRole(addr_, role_, true);
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL
+    //////////////////////////////////////////////////////////////*/
     function _setSuperRegistryAddresses() internal {
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), address(superActions));
         SuperRegistry(address(superRegistry)).setAddress(
             superRegistry.SUPER_POSITION_SENTINEL_ID(), address(superPositionSentinel)
         );
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_RBAC_ID(), address(superRbac));
+        SuperRegistry(address(superRegistry)).setAddress(
+            superRegistry.ACROSS_GATEWAY_ID(), address(acrossBridgeGateway)
+        );
     }
 
     function _setRoles() internal {
@@ -125,7 +146,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
 
     function _registerSameChainActions() internal returns (uint256[] memory) {
         vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
-        uint256[] memory _actionIds = new uint256[](3);
+        uint256[] memory _actionIds = new uint256[](4);
 
         address[] memory hooks = new address[](2);
         // approve + 4626 deposit
@@ -144,6 +165,14 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         hooks[1] = address(deposit4626VaultHook);
         hooks[2] = address(withdraw4626VaultHook);
         _actionIds[2] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+
+        // approve + 4626 deposit + across
+        hooks = new address[](4);
+        hooks[0] = address(approveErc20Hook);
+        hooks[1] = address(deposit4626VaultHook);
+        hooks[2] = address(approveErc20Hook);
+        hooks[3] = address(acrossExecuteOnDestinationHook);
+        _actionIds[3] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
 
         vm.stopPrank();
         return _actionIds;
