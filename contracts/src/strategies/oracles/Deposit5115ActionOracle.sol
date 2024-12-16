@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { IActionOracle } from "../../interfaces/strategies/IActionOracle.sol";
 import { Deposit5115Library } from "../../libraries/strategies/Deposit5115Library.sol";
 
 /// @title Deposit5115ActionOracle
 /// @author Superform Labs
 /// @notice Oracle for the Deposit Action in 5115 Vaults
-contract Deposit5115ActionOracle is IActionOracle {
+contract Deposit5115ActionOracle {
   /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
   //////////////////////////////////////////////////////////////*/
@@ -18,25 +17,41 @@ contract Deposit5115ActionOracle is IActionOracle {
                            VIEW METHODS
   //////////////////////////////////////////////////////////////*/
 
-  /// @inheritdoc IActionOracle
-  function getStrategyPrice(
+  /// @notice Get the price per share for a deposit into a 5115 vault
+  /// @param asset The address of the asset
+  /// @param finalTarget The address of the final target
+  /// @return price The price per share
+  function getPricePerShare(
+    address asset,
     address finalTarget
   ) public view returns (uint256 price) {
-    price = Deposit5115Library.getPricePerShare(finalTarget);
+    price = Deposit5115Library.getPricePerShare(
+      asset,
+      finalTarget
+    );
   }
 
-  /// @inheritdoc IActionOracle
+  /// @notice Get the price per share for a deposit into multiple 5115 vaults
+  /// @param assets The addresses of the assets
+  /// @param finalTargets The addresses of the final targets
+  /// @return prices The price per share per final target
   function getStrategyPrices(
+    address[] memory assets,
     address[] memory finalTargets
   ) external view returns (uint256[] memory prices) {
     prices = new uint256[](finalTargets.length);
     for (uint256 i = 0; i < finalTargets.length; i++) {
-      prices[i] = getStrategyPrice(finalTargets[i]);
+      prices[i] = getPricePerShare(
+        assets[i],
+        finalTargets[i]
+      );
     }
   }
 
   // ToDo: Implement this with the metadata library
-  /// @inheritdoc IActionOracle
+  /// @notice Get the metadata for a 5115 vault
+  /// @param finalTarget The address of the final target
+  /// @return metadata The metadata
   function getVaultStrategyMetadata(
     address finalTarget
   ) external view returns (bytes memory metadata) {
@@ -44,7 +59,9 @@ contract Deposit5115ActionOracle is IActionOracle {
   }
 
   // ToDo: Implement this with the metadata library
-  /// @inheritdoc IActionOracle
+  /// @notice Get the metadata for multiple 5115 vaults
+  /// @param finalTargets The addresses of the final targets
+  /// @return metadata The metadata per final target
   function getVaultsStrategyMetadata(
     address[] memory finalTargets
   ) external view returns (bytes[] memory metadata) {
