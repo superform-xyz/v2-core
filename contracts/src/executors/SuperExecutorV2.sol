@@ -54,11 +54,9 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     function onUninstall(bytes calldata) external { }
 
     function execute(address account, bytes calldata data) external {
-
         ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
         _execute(account, entries);
     }
-
 
     /// @inheritdoc ISuperExecutorV2
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
@@ -81,6 +79,7 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         // execute each strategy
         for (uint256 i; i < actionLen;) {
             _executeAction(account, entries[i]);
+
             unchecked {
                 ++i;
             }
