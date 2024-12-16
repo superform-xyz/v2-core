@@ -20,7 +20,7 @@ library Deposit4626Library {
 
   /// @notice Get the price per share for a deposit into multiple vaults
   /// @param finalTargets The addresses of the final targets
-  /// @return pricePerShare The price per share
+  /// @return pricePerShares The price per share per final target
   function getPricePerShareMultiVault(
     address[] memory finalTargets,
     address underlyingAsset
