@@ -29,4 +29,15 @@ contract Deposit4626LibraryTest is BaseTest {
     uint256 actualPricePerShare = Deposit4626Library.getPricePerShare(address(vault));
     assertEq(actualPricePerShare, expectedPricePerShare);
   }
+
+  function test_getPricePerShareMultiVault() public {
+    address[] memory finalTargets = new address[](1);
+    finalTargets[0] = address(vault);
+
+    uint256[] memory expectedPricePerShares = new uint256[](1);
+    expectedPricePerShares[0] = 1e18;
+    
+    uint256[] memory actualPricePerShares = Deposit4626Library.getPricePerShareMultiVault(finalTargets, address(underlying));
+    assertEq(actualPricePerShares[0], expectedPricePerShares[0]);
+  }
 }
