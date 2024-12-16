@@ -31,7 +31,7 @@ contract Mock4626Vault is ERC4626 {
     function previewWithdraw(uint256 shares) public pure override returns (uint256 assets) {
         return shares;
     }
-    
+
     function previewRedeem(uint256 shares) public pure override returns (uint256 assets) {
         return shares;
     }

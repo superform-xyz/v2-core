@@ -54,11 +54,9 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     function onUninstall(bytes calldata) external { }
 
     function execute(address account, bytes calldata data) external {
-
         ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
         _execute(account, entries);
     }
-
 
     /// @inheritdoc ISuperExecutorV2
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
@@ -82,13 +80,12 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         for (uint256 i; i < stratLen;) {
             ExecutorEntry memory entry = entries[i];
 
-
             // retrieve hooks for this action
             address[] memory hooks = ISuperActions(superActions()).getHooksForAction(entry.actionId);
 
             uint256 hooksLength = hooks.length;
 
-            uint256 _spSharesMint; // SuperPosition shares to be minted for this strategy   
+            uint256 _spSharesMint; // SuperPosition shares to be minted for this strategy
             uint256 _spSharesBurn; // SuperPosition shares to be burned for this strategy
 
             // execute each hook from this strategy
@@ -97,14 +94,14 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
 
                 // update any hook's internal transient storage
                 hook.preExecute(entry.hooksData[j]);
-                
+
                 // execute the hook in the context of the SCAL
                 _execute(account, hook.build(entry.hooksData[j]));
 
                 // get updated transient values
                 // for deposit or withdraw hooks, uintStorage represents the amount of shares to mint or burn
                 //                                bytes32Storage is the keccak256 of the hook type (keccak256("DEPOSIT")
-                (,uintStorage, bytes32Storage,) = hook.postExecute(entry.hooksData[j]);
+                (, uintStorage, bytes32Storage,) = hook.postExecute(entry.hooksData[j]);
 
                 // update the total mint and burn values
                 if (bytes32Storage == keccak256("DEPOSIT")) {
@@ -120,7 +117,6 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
 
             // TODO: call updateAccounting for this strategy
 
-
             // all hooks have been executed; act on SuperPositions changes for current strategy
             if (_spSharesMint > _spSharesBurn) {
                 ISentinel(_getSuperPositionSentinel()).notify(
@@ -129,7 +125,6 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
             } else if (_spSharesBurn > _spSharesMint) {
                 ISentinel(_getSuperPositionSentinel()).notify(
                     entry.actionId, entry.finalTarget, abi.encode(_spSharesBurn - _spSharesMint, false)
-
                 );
             }
 
