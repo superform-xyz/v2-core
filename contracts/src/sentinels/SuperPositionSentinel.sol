@@ -2,9 +2,9 @@
 pragma solidity >=0.8.28;
 
 // Superform
-import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
+import { ISentinel } from "../interfaces/sentinel/ISentinel.sol";
 
-import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 contract SuperPositionSentinel is ISentinel, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
@@ -22,6 +22,7 @@ contract SuperPositionSentinel is ISentinel, SuperRegistryImplementer {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISentinel
+
     function notify(uint256 actionId_, address finalTarget_, bytes memory entry_) external {
         (uint256 amount, bool mint) = abi.decode(entry_, (uint256, bool));
         if (mint) {

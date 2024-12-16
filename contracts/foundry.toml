@@ -13,6 +13,7 @@ solc = "0.8.28"
 src = "src"
 test = "test"
 cbor_metadata = true
+libs = ['lib']
 
 # remappings
 remappings = [

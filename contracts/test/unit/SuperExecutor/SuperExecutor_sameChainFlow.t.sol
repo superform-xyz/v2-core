@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
-import { Unit_Shared } from "test/unit/Unit_Shared.t.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
-import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
+import { ISuperExecutorV2 } from "../../../src/interfaces/ISuperExecutorV2.sol";
+import { Unit_Shared } from "../Unit_Shared.t.sol";
+import { ISuperActions } from "../../../src/interfaces/strategies/ISuperActions.sol";
+import { SuperPositionSentinel } from "../../../src/sentinels/SuperPositionSentinel.sol";
 
 contract SuperExecutor_sameChainFlow is Unit_Shared {
     address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
@@ -100,6 +100,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[2], finalTarget: RANDOM_TARGET, hooksData: hooksData });
 
         vm.expectEmit(true, true, true, true);
+
         emit SuperPositionSentinel.SuperPositionMint(actionIds[2], RANDOM_TARGET, amount - 100);
         superExecutor.execute(instance.account, abi.encode(entries));
 

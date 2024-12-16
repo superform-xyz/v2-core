@@ -21,18 +21,14 @@ contract Mock5115Vault {
     asset = new MockERC20(name_, symbol_, 18);
   }
 
-  function previewDeposit(address tokenIn, uint256 amountTokenToDeposit) external view returns (uint256 amountSharesOut) {
-    amountSharesOut = amountTokenToDeposit;
-  }
-
-  function previewRedeem(address tokenOut, uint256 amountSharesToRedeem) external view returns (uint256 amountTokenOut) {
-    amountTokenOut = amountSharesToRedeem;
-  }
-
-  function assetInfo() external view returns (AssetType assetType, address assetAddress, uint8 assetDecimals) {
-    assetType = AssetType.ERC20;
-    assetAddress = address(asset);
-    assetDecimals = asset.decimals();
-  }
+    function previewDeposit(
+        address tokenIn,
+        uint256 amountTokenToDeposit
+    )
+        external
+        view
+        returns (uint256 amountSharesOut)
+    {
+        amountSharesOut = amountTokenToDeposit;
+    }
 }
-

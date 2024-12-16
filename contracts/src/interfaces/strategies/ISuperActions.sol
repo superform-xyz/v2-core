@@ -15,6 +15,11 @@ interface ISuperActions {
         address[] hooks;
     }
 
+    struct StrategyConfig {
+        uint256 feePercent;
+        address vaultShareToken;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -24,10 +29,14 @@ interface ISuperActions {
     error INVALID_HOOKS_LENGTH();
     error ZERO_ADDRESS_NOT_ALLOWED();
     error ACTION_ALREADY_EXISTS();
-
+    error FEE_NOT_SET();
+    error INVALID_VAULT_SHARE_TOKEN();
+    error INSUFFICIENT_SHARES();
+    error INVALID_PRICE();
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+
     event AccountingUpdated(
         address indexed user_,
         uint256 indexed actionId_,
@@ -50,7 +59,9 @@ interface ISuperActions {
     event ActionHooksUpdated(uint256 indexed actionId_, address[] hooks_);
     event ActionBatchRegistered(uint256[] actionIds_);
     event ActionBatchDelisted(uint256[] actionIds_);
-
+    event StrategyConfigSet(
+        uint256 indexed actionId, address indexed finalTarget, uint256 feePercent, address vaultShareToken
+    );
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL WRITE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -129,6 +140,31 @@ interface ISuperActions {
     /// @param actionIds_ Array of action IDs to delist
     function batchDelistActions(uint256[] memory actionIds_) external;
 
+    /// @notice Sets the strategy config for a single action and target pair
+    /// @param actionId_ The ID of the action
+    /// @param finalTarget_ The target contract address
+    /// @param feePercent_ The fee percentage
+    /// @param vaultShareToken_ The vault share token address
+    function setStrategyConfig(
+        uint256 actionId_,
+        address finalTarget_,
+        uint256 feePercent_,
+        address vaultShareToken_
+    )
+        external;
+
+    /// @notice Sets the strategy config for multiple actions and target pairs in a batch
+    /// @param actionIds_ Array of action IDs
+    /// @param finalTargets_ Array of target contract addresses
+    /// @param feePercents_ Array of fee percentages
+    /// @param vaultShareTokens_ Array of vault share token addresses
+    function batchSetStrategyConfig(
+        uint256[] memory actionIds_,
+        address[] memory finalTargets_,
+        uint256[] memory feePercents_,
+        address[] memory vaultShareTokens_
+    )
+        external;
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -204,6 +240,6 @@ interface ISuperActions {
     /// @notice Get the fee percentage for a specific action and target
     /// @param actionId_ The ID of the action
     /// @param finalTarget_ The target contract address
-    /// @return The fee percentage
-    function getFeePercentForStrategy(uint256 actionId_, address finalTarget_) external view returns (uint256);
+    /// @return The strategy config
+    function getStrategyConfig(uint256 actionId_, address finalTarget_) external view returns (StrategyConfig memory);
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { ISuperRegistry } from "src/interfaces/ISuperRegistry.sol";
+import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 
 abstract contract SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////

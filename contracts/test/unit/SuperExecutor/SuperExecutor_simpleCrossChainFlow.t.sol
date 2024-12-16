@@ -1,0 +1,131 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
+
+import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
+import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+
+import { AcrossBridgeGateway } from "src/bridges/AcrossBridgeGateway.sol";
+import { AcrossExecuteOnDestinationHook } from "src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
+import { SuperPositionSentinel } from "src/sentinels/SuperPositionSentinel.sol";
+
+import { Unit_Shared } from "test/unit/Unit_Shared.t.sol";
+
+contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
+    address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
+    uint256 constant DEFAULT_AMOUNT = 100;
+
+    function test_GivenAStrategyDoesNotExist(uint256 amount) external addRole(superRbac.BRIDGE_GATEWAY()) {
+        amount = _bound(amount);
+        // it should retrieve an empty array of hooks
+        // it should revert wityh DATA_NOT_VALID
+        uint256 actionId = uint256(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
+        bytes[] memory hooksData = new bytes[](0);
+
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        entries[0] =
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData });
+
+        vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
+        superExecutor.executeFromGateway(instance.account, abi.encode(entries));
+    }
+
+    modifier givenAStrategyExist() {
+        _;
+    }
+
+    function test_RevertWhen_HooksAreDefinedByExecutionDataIsNotValid()
+        external
+        givenAStrategyExist
+        addRole(superRbac.BRIDGE_GATEWAY())
+    {
+        // it should revert
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = abi.encode(uint256(1));
+        hooksData[1] = abi.encode(uint256(1));
+
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        entries[0] =
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData });
+
+        vm.expectRevert();
+        superExecutor.executeFromGateway(instance.account, abi.encode(entries));
+    }
+
+    modifier givenStrategyHasACrossHookAndNoSameChainHooks() {
+        _;
+    }
+
+    function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured(uint256 amount)
+        external
+        givenAStrategyExist
+        givenStrategyHasACrossHookAndNoSameChainHooks
+        addRole(superRbac.BRIDGE_GATEWAY())
+    {
+        amount = _bound(amount);
+        bytes[] memory hooksData = _createStrategy3(amount);
+
+        // assure account has tokens
+        _getTokens(address(mockERC20), instance.account, amount);
+
+        // it should execute all hooks
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        entries[0] =
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[3], finalTarget: RANDOM_TARGET, hooksData: hooksData });
+
+        // check bridge emitted event; assume Orchestrator picks it up
+        ISuperExecutorV2.ExecutorEntry[] memory subEntries = new ISuperExecutorV2.ExecutorEntry[](1);
+        subEntries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: actionIds[1],
+            finalTarget: RANDOM_TARGET,
+            hooksData: _createStrategy1(amount)
+        });
+        vm.expectEmit(true, true, true, true);
+        emit AcrossBridgeGateway.InstructionProcessed(instance.account, abi.encode(subEntries));
+        superExecutor.execute(instance.account, abi.encode(entries));
+
+        //  simulate Orchestrator call for the remaning data
+        vm.expectEmit(true, true, true, true);
+        emit SuperPositionSentinel.SuperPositionBurn(actionIds[1], RANDOM_TARGET, DEFAULT_AMOUNT);
+        superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
+    }
+
+    function _createStrategy1(uint256 amount) internal view returns (bytes[] memory hooksData) {
+        hooksData = new bytes[](1);
+        hooksData[0] = abi.encode(address(mock4626Vault), user2, instance.account, DEFAULT_AMOUNT);
+    }
+
+    function _createStrategy3(uint256 amount) internal view returns (bytes[] memory hooksData) {
+        hooksData = new bytes[](4);
+        hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
+        hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);
+        hooksData[2] = abi.encode(address(mock4626Vault), address(spokePoolV3Mock), amount);
+
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: actionIds[1],
+            finalTarget: RANDOM_TARGET,
+            hooksData: _createStrategy1(amount)
+        });
+
+        AcrossExecuteOnDestinationHook.AcrossV3DepositData memory acrossV3DepositData = AcrossExecuteOnDestinationHook
+            .AcrossV3DepositData({
+            value: SMALL,
+            recipient: instance.account,
+            inputToken: address(mock4626Vault),
+            outputToken: address(mock4626Vault),
+            inputAmount: amount,
+            outputAmount: amount,
+            destinationChainId: 1,
+            exclusiveRelayer: address(0),
+            fillDeadline: 0,
+            exclusivityDeadline: 0,
+            instruction: IAcrossV3Interpreter.Instruction({
+                account: instance.account,
+                amount: amount,
+                strategyData: abi.encode(entries)
+            })
+        });
+        hooksData[3] = abi.encode(acrossV3DepositData);
+    }
+}

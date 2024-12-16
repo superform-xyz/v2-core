@@ -1,11 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
-import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+/// @dev delete this later
+interface IActionOracle {
+    function getPrice() external view returns (uint256);
+}
 
 contract SuperActions is ISuperActions, SuperRegistryImplementer {
+    using SafeERC20 for IERC20;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -14,19 +23,20 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         userLedgerEntries;
     mapping(address user => mapping(uint256 actionId => mapping(address finalTarget => uint256))) private
         unconsumedEntries;
-    mapping(uint256 actionId => mapping(address finalTarget => uint256 feePercent)) private feePercentPerStrategy;
-
+    mapping(uint256 actionId => mapping(address finalTarget => StrategyConfig strategyConfig)) private
+        strategyConfiguration;
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
     //////////////////////////////////////////////////////////////*/
+
     modifier onlyActionsConfigurator() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        ISuperRbac rbac = ISuperRbac(_getAddress(superRegistry.SUPER_RBAC_ID()));
         if (!rbac.hasRole(msg.sender, rbac.SUPER_ACTIONS_CONFIGURATOR())) revert NOT_AUTHORIZED();
         _;
     }
 
     modifier onlyExecutor() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        ISuperRbac rbac = ISuperRbac(_getAddress(superRegistry.SUPER_RBAC_ID()));
         if (!rbac.hasRole(msg.sender, rbac.EXECUTOR())) revert NOT_AUTHORIZED();
         _;
     }
@@ -49,7 +59,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         onlyExecutor
         returns (uint256 pps_)
     {
-        // Implementation needed
+        pps_ = _processAccounting(user_, actionId_, finalTarget_, isDeposit_, amountShares_);
         emit AccountingUpdated(user_, actionId_, finalTarget_, isDeposit_, amountShares_, pps_);
     }
 
@@ -70,7 +80,11 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
             revert INVALID_ARRAY_LENGTH();
         }
 
-        // Implementation needed
+        pps_ = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            pps_[i] = _processAccounting(user_, actionIds_[i], finalTargets_[i], isDeposits_[i], amountsShares_[i]);
+        }
+
         emit BatchAccountingUpdated(user_, actionIds_, finalTargets_, isDeposits_, amountsShares_, pps_);
     }
 
@@ -183,6 +197,38 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         emit ActionBatchDelisted(actionIds_);
     }
 
+    /// @inheritdoc ISuperActions
+    function setStrategyConfig(
+        uint256 actionId_,
+        address finalTarget_,
+        uint256 feePercent_,
+        address vaultShareToken_
+    )
+        external
+        onlyActionsConfigurator
+    {
+        _setStrategyConfig(actionId_, finalTarget_, feePercent_, vaultShareToken_);
+    }
+
+    /// @inheritdoc ISuperActions
+    function batchSetStrategyConfig(
+        uint256[] memory actionIds_,
+        address[] memory finalTargets_,
+        uint256[] memory feePercents_,
+        address[] memory vaultShareTokens_
+    )
+        external
+        onlyActionsConfigurator
+    {
+        uint256 len = actionIds_.length;
+        if (len != finalTargets_.length || len != feePercents_.length || len != vaultShareTokens_.length) {
+            revert INVALID_ARRAY_LENGTH();
+        }
+
+        for (uint256 i = 0; i < len; i++) {
+            _setStrategyConfig(actionIds_[i], finalTargets_[i], feePercents_[i], vaultShareTokens_[i]);
+        }
+    }
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -266,14 +312,17 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     }
 
     /// @inheritdoc ISuperActions
-    function getFeePercentForStrategy(uint256 actionId_, address finalTarget_) external view returns (uint256) {
-        return feePercentPerStrategy[actionId_][finalTarget_];
+    function getStrategyConfig(uint256 actionId_, address finalTarget_) external view returns (StrategyConfig memory) {
+        return strategyConfiguration[actionId_][finalTarget_];
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @dev Internal function to validate hooks and return an action id
+    /// @param hooks_ The hooks to validate
+    /// @return actionId_ The ID of the action
     function _validateHooks(address[] memory hooks_) internal pure returns (uint256 actionId_) {
         uint256 len = hooks_.length;
         if (len == 0) revert INVALID_HOOKS_LENGTH();
@@ -286,13 +335,130 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         actionId_ = uint256(keccak256(abi.encode(hooks_)));
     }
 
-    function _transferToPaymaster() internal {
-        // Implementation needed
+    /// @dev Internal function to process accounting
+    /// @param user_ The user address
+    /// @param actionId_ The ID of the action
+    /// @param finalTarget_ The target contract address
+    /// @param isDeposit_ Whether this is a deposit operation
+    /// @param amountShares_ The amount of shares to process
+    /// @return pps_ The price per share at which the accounting was updated
+    function _processAccounting(
+        address user_,
+        uint256 actionId_,
+        address finalTarget_,
+        bool isDeposit_,
+        uint256 amountShares_
+    )
+        internal
+        returns (uint256 pps_)
+    {
+        // Get current price from oracle
+        pps_ = IActionOracle(getActionLogic(actionId_).metadataOracle).getPrice();
+        if (pps_ == 0) revert INVALID_PRICE();
+
+        if (isDeposit_) {
+            // For deposits, create new ledger entry
+            userLedgerEntries[user_][actionId_][finalTarget_].push(
+                LedgerEntry({ amountSharesAvailableToConsume: amountShares_, price: pps_ })
+            );
+        } else {
+            // For withdrawals, process FIFO accounting
+            uint256 remainingShares = amountShares_;
+            uint256 totalValue = amountShares_ * pps_;
+            uint256 costBasis;
+
+            LedgerEntry[] storage entries = userLedgerEntries[user_][actionId_][finalTarget_];
+            uint256 currentIndex = unconsumedEntries[user_][actionId_][finalTarget_];
+
+            while (remainingShares > 0) {
+                if (currentIndex >= entries.length) revert INSUFFICIENT_SHARES();
+
+                LedgerEntry storage entry = entries[currentIndex];
+                uint256 availableShares = entry.amountSharesAvailableToConsume;
+
+                if (availableShares == 0) {
+                    unchecked {
+                        ++currentIndex;
+                    }
+                    continue;
+                }
+                uint256 sharesConsumed = remainingShares > availableShares ? availableShares : remainingShares;
+
+                // Update cost basis and remaining shares
+                costBasis += sharesConsumed * entry.price;
+                remainingShares -= sharesConsumed;
+
+                // Update entry's available shares
+                entry.amountSharesAvailableToConsume -= sharesConsumed;
+
+                // Only increment index if entry was fully consumed
+                if (sharesConsumed == availableShares) {
+                    unchecked {
+                        ++currentIndex;
+                    }
+                }
+            }
+
+            // Update the unconsumed entries index
+            unconsumedEntries[user_][actionId_][finalTarget_] = currentIndex;
+
+            // Calculate and transfer fee if profit was made
+            uint256 profit = totalValue > costBasis ? totalValue - costBasis : 0;
+            if (profit > 0) {
+                StrategyConfig memory config = strategyConfiguration[actionId_][finalTarget_];
+                if (config.feePercent == 0) revert FEE_NOT_SET();
+
+                uint256 feeAmount = (profit * config.feePercent) / 10_000; // Assuming fee is in basis points
+                address vaultShareToken = config.vaultShareToken != address(0) ? config.vaultShareToken : finalTarget_;
+                _transferToPaymaster(feeAmount, vaultShareToken);
+            }
+        }
     }
 
+    /// @dev Internal function to transfer fee to paymaster
+    /// @param feeAmount The amount of fee to transfer
+    /// @param vaultShareToken The vault share token address
+    function _transferToPaymaster(uint256 feeAmount, address vaultShareToken) internal {
+        IERC20(vaultShareToken).safeTransfer(_getAddress(superRegistry.PAYMASTER_ID()), feeAmount);
+    }
+
+    /// @dev Internal function to get action logic or revert if not found
+    /// @param actionId_ The ID of the action
+    /// @return The action logic
     function _getActionLogicOrRevert(uint256 actionId_) internal view returns (ActionLogic storage) {
         ActionLogic storage logic = actionLogic[actionId_];
         if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
         return logic;
+    }
+
+    /// @dev Internal function to set strategy configuration
+    /// @param actionId_ The ID of the action
+    /// @param finalTarget_ The target contract address
+    /// @param feePercent_ The fee percentage for the strategy
+    /// @param vaultShareToken_ The vault share token address
+    function _setStrategyConfig(
+        uint256 actionId_,
+        address finalTarget_,
+        uint256 feePercent_,
+        address vaultShareToken_
+    )
+        internal
+    {
+        if (finalTarget_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+        // note: vaultShareToken_ being 0 is allowed for cases where the share is finalTarget itself
+        // when not 0 it can't be the same as finalTarget_
+        if (vaultShareToken_ != address(0) && vaultShareToken_ == finalTarget_) revert INVALID_VAULT_SHARE_TOKEN();
+
+        StrategyConfig memory config = StrategyConfig({ feePercent: feePercent_, vaultShareToken: vaultShareToken_ });
+
+        strategyConfiguration[actionId_][finalTarget_] = config;
+        emit StrategyConfigSet(actionId_, finalTarget_, feePercent_, vaultShareToken_);
+    }
+
+    /// @dev Internal function to get address from super registry
+    /// @param id_ The ID of the address
+    /// @return The address
+    function _getAddress(bytes32 id_) internal view returns (address) {
+        return superRegistry.getAddress(id_);
     }
 }
