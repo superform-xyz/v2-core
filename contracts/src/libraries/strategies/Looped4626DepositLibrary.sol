@@ -22,7 +22,7 @@ library Looped4626DepositLibrary {
     /// @param underlyingAsset The address of the underlying asset
     /// @param loops The number of loops
     /// @return pricePerShares The price per share per vault
-    function getPricePerShareMultiVault(
+    function getPricePerShares(
         address[] memory finalTargets,
         address underlyingAsset,
         uint256 loops
