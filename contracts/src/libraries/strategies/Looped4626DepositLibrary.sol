@@ -7,33 +7,33 @@ library Looped4626DepositLibrary {
     /// @notice Error thrown when the asset of the vaults is not the same
     error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
 
-  /// @notice Get the estimated rewards for a single vault over a number of loops
+  /// @notice Get the price per share for a single vault over a number of loops
   /// @param finalTarget The address of the final target
   /// @param loops The number of loops
-  /// @return rewards The estimated rewards
+  /// @return pricePerShare The price per share
   function getPricePerShare(
     address finalTarget,
     uint256 loops
-  ) internal view returns (uint256 rewards) {
+  ) internal view returns (uint256 pricePerShare) {
     uint256 decimals = IERC4626(finalTarget).decimals();
-    rewards = IERC4626(finalTarget).previewRedeem(10 ** decimals);
-    rewards *= loops;
+    pricePerShare = IERC4626(finalTarget).previewRedeem(10 ** decimals);
+    pricePerShare *= loops;
   }
 
-  /// @notice Get the estimated rewards for multiple vaults
+  /// @notice Get the price per share for multiple vaults
   /// @param finalTargets The addresses of the final targets
   /// @param underlyingAsset The address of the underlying asset
   /// @param loops The number of loops
-  /// @return rewards The estimated rewards per vault
+  /// @return pricePerShares The price per share per vault
   function getPricePerShareMultiVault(
     address[] memory finalTargets,
     address underlyingAsset,
     uint256 loops
-  ) internal view returns (uint256[] memory rewards) {
-    rewards = new uint256[](finalTargets.length);
+  ) internal view returns (uint256[] memory pricePerShares) {
+    pricePerShares = new uint256[](finalTargets.length);
     for (uint256 i = 0; i < finalTargets.length; ++i) {
       if (IERC4626(finalTargets[i]).asset() != underlyingAsset) revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
-      rewards[i] = getPricePerShare(finalTargets[i], loops);
+      pricePerShares[i] = getPricePerShare(finalTargets[i], loops);
     }
   }
 }
