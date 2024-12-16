@@ -21,7 +21,7 @@ contract Deposit5115ActionOracle {
     /// @param asset The address of the asset
     /// @param finalTarget The address of the final target
     /// @return price The price per share
-    function getPricePerShare(address asset, address finalTarget) public view returns (uint256 price) {
+    function getStrategyPrice(address asset, address finalTarget) external view returns (uint256 price) {
         price = Deposit5115Library.getPricePerShare(asset, finalTarget);
     }
 
@@ -37,10 +37,7 @@ contract Deposit5115ActionOracle {
         view
         returns (uint256[] memory prices)
     {
-        prices = new uint256[](finalTargets.length);
-        for (uint256 i = 0; i < finalTargets.length; i++) {
-            prices[i] = getPricePerShare(assets[i], finalTargets[i]);
-        }
+        prices = Deposit5115Library.getPricePerShareMultiple(finalTargets, assets);
     }
 
     // ToDo: Implement this with the metadata library

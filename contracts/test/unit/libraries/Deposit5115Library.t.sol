@@ -19,13 +19,13 @@ contract Deposit5115LibraryTest is BaseTest {
         vault = new Mock5115Vault(IERC20(address(underlying)), "Vault", "VAULT");
     }
 
-    function test_get5115PricePerShare() public {
+    function test_get5115PricePerShare() public view {
         uint256 expectedPricePerShare = 1e18;
         uint256 actualPricePerShare = Deposit5115Library.getPricePerShare(address(vault), address(underlying));
         assertEq(actualPricePerShare, expectedPricePerShare);
     }
 
-    function test_get5115PricePerShareMultiple() public {
+    function test_get5115PricePerShareMultiple() public view {
         uint256[] memory expectedPricePerShares = new uint256[](1);
         expectedPricePerShares[0] = 1e18;
 
@@ -34,7 +34,7 @@ contract Deposit5115LibraryTest is BaseTest {
 
         address[] memory tokenIns = new address[](1);
         tokenIns[0] = address(underlying);
-        
+
         uint256[] memory actualPricePerShares = Deposit5115Library.getPricePerShareMultiple(finalTargets, tokenIns);
         assertEq(actualPricePerShares[0], expectedPricePerShares[0]);
     }

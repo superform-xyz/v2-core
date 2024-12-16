@@ -25,4 +25,14 @@ contract Deposit4626ActionOracleTest is BaseTest {
     uint256 pricePerShare = oracle.getStrategyPrice(address(vault));
     assertEq(pricePerShare, 1e18);
   }
+
+  function test_getStrategyPrices() public {
+    address[] memory finalTargets = new address[](1);
+    finalTargets[0] = address(vault);
+    uint256[] memory prices = oracle.getStrategyPrices(
+      finalTargets,
+      address(underlying)
+    );
+    assertEq(prices[0], 1e18);
+  }
 }

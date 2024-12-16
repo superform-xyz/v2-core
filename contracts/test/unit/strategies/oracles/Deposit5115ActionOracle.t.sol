@@ -1,0 +1,38 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.28;
+
+import { BaseTest } from "../../../BaseTest.t.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { Mock5115Vault } from "../../../mocks/Mock5115Vault.sol";
+import { Deposit5115ActionOracle } from "../../../../src/strategies/oracles/Deposit5115ActionOracle.sol";
+
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+
+contract Deposit5115ActionOracleTest is BaseTest {
+  Deposit5115ActionOracle oracle;
+  MockERC20 underlying;
+  Mock5115Vault vault;
+
+  function setUp() public override {
+    super.setUp();
+    oracle = new Deposit5115ActionOracle();
+    underlying = new MockERC20("Underlying", "UND", 18);
+    vault = new Mock5115Vault(IERC20(address(underlying)), "Vault", "VAULT");
+  }
+
+  function test_getStrategyPrice() public view {
+    uint256 pricePerShare = oracle.getStrategyPrice(address(vault), address(underlying));
+    assertEq(pricePerShare, 1e18);
+  }
+
+  function test_getStrategyPrices() public {
+    address[] memory finalTargets = new address[](1);
+    finalTargets[0] = address(vault);
+
+    address[] memory assets = new address[](1);
+    assets[0] = address(underlying);
+
+    uint256[] memory prices = oracle.getStrategyPrices(finalTargets, assets);
+    assertEq(prices[0], 1e18);
+  }
+}

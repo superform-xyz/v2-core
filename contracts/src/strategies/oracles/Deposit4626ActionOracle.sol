@@ -24,11 +24,11 @@ contract Deposit4626ActionOracle is IActionOracle {
     }
 
     /// @inheritdoc IActionOracle
-    function getStrategyPrices(address[] memory finalTargets) external view returns (uint256[] memory prices) {
-        prices = new uint256[](finalTargets.length);
-        for (uint256 i = 0; i < finalTargets.length; i++) {
-            prices[i] = getStrategyPrice(finalTargets[i]);
-        }
+    function getStrategyPrices(
+        address[] memory finalTargets,
+        address underlyingAsset
+    ) external view returns (uint256[] memory prices) {
+        prices = Deposit4626Library.getPricePerShareMultiple(finalTargets, underlyingAsset);
     }
 
     // ToDo: Implement this with the metadata library

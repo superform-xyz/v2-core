@@ -28,7 +28,7 @@ contract Mock5115Vault {
         uint256 amountTokenToDeposit
     )
         external
-        view
+        pure
         returns (uint256 amountSharesOut)
     {
         amountSharesOut = amountTokenToDeposit;
@@ -39,7 +39,7 @@ contract Mock5115Vault {
         uint256 amountSharesToRedeem
     )
         external
-        view
+        pure
         returns (uint256 amountTokenOut)
     {
         amountTokenOut = amountSharesToRedeem;
