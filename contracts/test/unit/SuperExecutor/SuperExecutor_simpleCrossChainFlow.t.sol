@@ -24,7 +24,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData });
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
 
         vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
         superExecutor.executeFromGateway(instance.account, abi.encode(entries));
@@ -46,7 +46,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData });
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
 
         vm.expectRevert();
         superExecutor.executeFromGateway(instance.account, abi.encode(entries));
@@ -71,14 +71,15 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         // it should execute all hooks
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[3], finalTarget: RANDOM_TARGET, hooksData: hooksData });
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[3], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
 
         // check bridge emitted event; assume Orchestrator picks it up
         ISuperExecutorV2.ExecutorEntry[] memory subEntries = new ISuperExecutorV2.ExecutorEntry[](1);
         subEntries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: actionIds[1],
             finalTarget: RANDOM_TARGET,
-            hooksData: _createStrategy1(amount)
+            hooksData: _createStrategy1(amount), 
+            hooks: new address[](0)
         });
         vm.expectEmit(true, true, true, true);
         emit AcrossBridgeGateway.InstructionProcessed(instance.account, abi.encode(subEntries));
@@ -105,7 +106,8 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         entries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: actionIds[1],
             finalTarget: RANDOM_TARGET,
-            hooksData: _createStrategy1(amount)
+            hooksData: _createStrategy1(amount),
+            hooks: new address[](0)
         });
 
         AcrossExecuteOnDestinationHook.AcrossV3DepositData memory acrossV3DepositData = AcrossExecuteOnDestinationHook
