@@ -16,12 +16,10 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
     address public immutable acrossSpokePool;
 
-
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event InstructionProcessed(address indexed account, bytes strategyData);
-
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -53,7 +51,6 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
         // emit an event that should be picked up by the orchestrator
         emit InstructionProcessed(instruction.account, instruction.strategyData);
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
