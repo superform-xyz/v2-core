@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 import { IStandardizedYield } from "../../interfaces/vendors/pendle/IStandardizedYield.sol";
 
-library Deposit5115Library {
+library DepositRedeem5115Library {
     /// @notice Get the price per share for a deposit into a 5115 vault
     /// @param finalTarget The address of the final target vault
     /// @param tokenIn The address of the token to receive after redeeming

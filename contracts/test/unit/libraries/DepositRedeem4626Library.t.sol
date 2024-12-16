@@ -4,11 +4,11 @@ pragma solidity >=0.8.28;
 import { BaseTest } from "../../BaseTest.t.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
-import { Deposit4626Library } from "../../../src/libraries/strategies/Deposit4626Library.sol";
+import { DepositRedeem4626Library } from "../../../src/libraries/strategies/DepositRedeem4626Library.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract Deposit4626LibraryTest is BaseTest {
+contract DepositRedeem4626LibraryTest is BaseTest {
     Mock4626Vault vault;
     MockERC20 underlying;
 
@@ -22,7 +22,7 @@ contract Deposit4626LibraryTest is BaseTest {
 
     function test_getPricePerShare() public {
         uint256 expectedPricePerShare = 1e18;
-        uint256 actualPricePerShare = Deposit4626Library.getPricePerShare(address(vault));
+        uint256 actualPricePerShare = depositRedeem4626Library.getPricePerShare(address(vault));
         assertEq(actualPricePerShare, expectedPricePerShare);
     }
 }

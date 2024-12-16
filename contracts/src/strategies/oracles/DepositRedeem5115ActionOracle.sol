@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { Deposit5115Library } from "../../libraries/strategies/Deposit5115Library.sol";
+import { DepositRedeem5115Library } from "../../libraries/strategies/DepositRedeem5115Library.sol";
 
-/// @title Deposit5115ActionOracle
+/// @title DepositRedeem5115ActionOracle
 /// @author Superform Labs
-/// @notice Oracle for the Deposit Action in 5115 Vaults
-contract Deposit5115ActionOracle {
+/// @notice Oracle for the Deposit and Redeem Action in 5115 Vaults
+contract DepositRedeem5115ActionOracle {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -22,7 +22,7 @@ contract Deposit5115ActionOracle {
     /// @param finalTarget The address of the final target
     /// @return price The price per share
     function getStrategyPrice(address asset, address finalTarget) external view returns (uint256 price) {
-        price = Deposit5115Library.getPricePerShare(asset, finalTarget);
+        price = DepositRedeem5115Library.getPricePerShare(asset, finalTarget);
     }
 
     /// @notice Get the price per share for a deposit into multiple 5115 vaults
@@ -37,7 +37,7 @@ contract Deposit5115ActionOracle {
         view
         returns (uint256[] memory prices)
     {
-        prices = Deposit5115Library.getPricePerShareMultiple(finalTargets, assets);
+        prices = DepositRedeem5115Library.getPricePerShareMultiple(finalTargets, assets);
     }
 
     // ToDo: Implement this with the metadata library

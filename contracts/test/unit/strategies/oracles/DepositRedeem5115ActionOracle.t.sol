@@ -4,18 +4,18 @@ pragma solidity >=0.8.28;
 import { BaseTest } from "../../../BaseTest.t.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { Mock5115Vault } from "../../../mocks/Mock5115Vault.sol";
-import { Deposit5115ActionOracle } from "../../../../src/strategies/oracles/Deposit5115ActionOracle.sol";
+import { DepositRedeem5115ActionOracle } from "../../../../src/strategies/oracles/DepositRedeem5115ActionOracle.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract Deposit5115ActionOracleTest is BaseTest {
-  Deposit5115ActionOracle oracle;
+contract DepositRedeem5115ActionOracleTest is BaseTest {
+  DepositRedeem5115ActionOracle oracle;
   MockERC20 underlying;
   Mock5115Vault vault;
 
   function setUp() public override {
     super.setUp();
-    oracle = new Deposit5115ActionOracle();
+    oracle = new DepositRedeem5115ActionOracle();
     underlying = new MockERC20("Underlying", "UND", 18);
     vault = new Mock5115Vault(IERC20(address(underlying)), "Vault", "VAULT");
   }
