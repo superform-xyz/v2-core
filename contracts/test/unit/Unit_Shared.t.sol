@@ -36,6 +36,9 @@ import { Mock4626Vault } from "../mocks/Mock4626Vault.sol";
 
 import { BaseTest } from "../BaseTest.t.sol";
 
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+
+
 abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
@@ -83,7 +86,11 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         vm.label(address(superPositionSentinel), "superPositionSentinel");
 
         mockERC20 = _deployToken("MockERC20", "MRC20", 18);
-        mock4626Vault = new Mock4626Vault(address(mockERC20));
+        mock4626Vault = new Mock4626Vault(
+            IERC20(address(mockERC20)),
+            "Mock4626Vault",
+            "MRC4626"
+        );
         vm.label(address(mock4626Vault), "mock4626Vault");
 
         acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
