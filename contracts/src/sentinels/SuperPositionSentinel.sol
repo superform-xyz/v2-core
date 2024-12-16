@@ -22,6 +22,7 @@ contract SuperPositionSentinel is ISentinel, SuperRegistryImplementer {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISentinel
+
     function notify(uint256 actionId_, address finalTarget_, bytes memory entry_) external {
         (uint256 amount, bool mint) = abi.decode(entry_, (uint256, bool));
         if (mint) {

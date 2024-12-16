@@ -50,7 +50,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
         obtainedAmount = _getBalance(data) - obtainedAmount;
-        return (address(0), _getBalance(data), bytes32(0), false);
+        return (address(0), _getBalance(data), bytes32(keccak256("WITHDRAW")), false);
     }
 
     /*//////////////////////////////////////////////////////////////
