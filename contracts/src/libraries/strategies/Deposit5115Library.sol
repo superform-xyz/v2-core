@@ -21,8 +21,9 @@ library Deposit5115Library {
         address[] memory finalTargets,
         address[] memory tokenIns
     ) internal view returns (uint256[] memory pricePerShares) {
-        pricePerShares = new uint256[](finalTargets.length);
-        for (uint256 i = 0; i < finalTargets.length; i++) {
+        uint256 length = finalTargets.length;
+        pricePerShares = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
             pricePerShares[i] = getPricePerShare(finalTargets[i], tokenIns[i]);
         }
     }
