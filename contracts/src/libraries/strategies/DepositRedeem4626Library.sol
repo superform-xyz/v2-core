@@ -4,7 +4,7 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-library Deposit4626Library {
+library DepositRedeem4626Library {
     /// @notice Error thrown when the asset of the vaults is not the same
     error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
 
@@ -18,8 +18,9 @@ library Deposit4626Library {
 
     /// @notice Get the price per share for a deposit into multiple vaults
     /// @param finalTargets The addresses of the final targets
+    /// @param underlyingAsset The address of the underlying asset
     /// @return pricePerShares The price per share per final target
-    function getPricePerShareMultiVault(
+    function getPricePerShareMultiple(
         address[] memory finalTargets,
         address underlyingAsset
     )

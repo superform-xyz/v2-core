@@ -2,12 +2,12 @@
 pragma solidity >=0.8.28;
 
 import { IActionOracle } from "../../interfaces/strategies/IActionOracle.sol";
-import { Deposit4626Library } from "../../libraries/strategies/Deposit4626Library.sol";
+import { DepositRedeem4626Library } from "../../libraries/strategies/DepositRedeem4626Library.sol";
 
-/// @title Deposit4626ActionOracle
+/// @title DepositRedeem4626ActionOracle
 /// @author Superform Labs
-/// @notice Oracle for the Deposit Action in 4626 Vaults
-contract Deposit4626ActionOracle is IActionOracle {
+/// @notice Oracle for the Deposit and Redeem Action in 4626 Vaults
+contract DepositRedeem4626ActionOracle is IActionOracle {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -20,15 +20,15 @@ contract Deposit4626ActionOracle is IActionOracle {
 
     /// @inheritdoc IActionOracle
     function getStrategyPrice(address finalTarget) public view returns (uint256 price) {
-        price = Deposit4626Library.getPricePerShare(finalTarget);
+        price = DepositRedeem4626Library.getPricePerShare(finalTarget);
     }
 
     /// @inheritdoc IActionOracle
-    function getStrategyPrices(address[] memory finalTargets) external view returns (uint256[] memory prices) {
-        prices = new uint256[](finalTargets.length);
-        for (uint256 i = 0; i < finalTargets.length; i++) {
-            prices[i] = getStrategyPrice(finalTargets[i]);
-        }
+    function getStrategyPrices(
+        address[] memory finalTargets,
+        address underlyingAsset
+    ) external view returns (uint256[] memory prices) {
+        prices = DepositRedeem4626Library.getPricePerShareMultiple(finalTargets, underlyingAsset);
     }
 
     // ToDo: Implement this with the metadata library

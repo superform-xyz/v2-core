@@ -19,7 +19,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData });
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
 
         vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
         superExecutor.execute(instance.account, abi.encode(entries));
@@ -47,7 +47,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData });
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
 
         vm.expectRevert();
         superExecutor.execute(instance.account, abi.encode(entries));
@@ -55,6 +55,33 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
     modifier givenSentinelCallIsNotPerformed() {
         _;
+    }
+
+    function test_WhenHooksHasNonActionHooks_ShouldExecuteAll(uint256 amount) 
+        external 
+        givenAnActionExist 
+    {
+        amount = _bound(amount);
+
+        // assure account has tokens
+        _getTokens(address(mockERC20), instance.account, amount);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
+        hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);    
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = address(approveErc20Hook);
+        hooks[1] = address(deposit4626VaultHook);
+
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        entries[0] =
+            ISuperExecutorV2.ExecutorEntry({ actionId: type(uint256).max, finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: hooks });
+
+        superExecutor.execute(instance.account, abi.encode(entries));
+
+        uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
+        assertEq(accSharesAfter, amount);
     }
 
     function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured(uint256 amount)
@@ -68,10 +95,19 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 
+        // extra non-action set of hooks
+        bytes[] memory nonActionHooksData = new bytes[](1);
+        nonActionHooksData[0] = abi.encode(address(mockERC20), address(user2), amount);
+        address[] memory nonActionHooks = new address[](1);
+        nonActionHooks[0] = address(approveErc20Hook);
+
+
         // it should execute all hooks
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](2);
         entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData });
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[1] =
+            ISuperExecutorV2.ExecutorEntry({ actionId: type(uint256).max, finalTarget: RANDOM_TARGET, hooksData: nonActionHooksData, hooks: nonActionHooks });
 
         vm.expectEmit(true, true, true, true);
         emit SuperPositionSentinel.SuperPositionMint(actionIds[0], RANDOM_TARGET, amount);
@@ -79,6 +115,9 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, amount);
+        
+        uint256 allowanceForUser2 = mockERC20.allowance(instance.account, user2);
+        assertEq(allowanceForUser2, amount);
     }
 
     function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured_Deposit_And_Withdraw_In_The_Same_Strategy(
@@ -97,7 +136,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         // it should execute all hooks
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[2], finalTarget: RANDOM_TARGET, hooksData: hooksData });
+            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[2], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
 
         vm.expectEmit(true, true, true, true);
 

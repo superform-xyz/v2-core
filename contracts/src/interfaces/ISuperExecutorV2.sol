@@ -6,6 +6,7 @@ interface ISuperExecutorV2 {
         uint256 actionId;
         address finalTarget;
         bytes[] hooksData;
+        address[] hooks;
     }
 
     /*//////////////////////////////////////////////////////////////
