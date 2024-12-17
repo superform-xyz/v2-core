@@ -60,7 +60,7 @@ contract Looped4626DepositLibraryTest is BaseTest {
     );
     vaults[1] = address(vault3);
     vm.expectRevert(Looped4626DepositLibrary.VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET.selector);
-    wrapper.getPricePerShareMultiVault(vaults, address(asset2), 10);
+    wrapper.getPricePerShares(vaults, address(asset2), 10);
   }
 }
 
