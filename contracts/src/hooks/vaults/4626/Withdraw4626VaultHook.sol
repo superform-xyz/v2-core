@@ -12,7 +12,9 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
+    // forgefmt: disable-start
     uint256 public transient shareDifference;
+    // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
