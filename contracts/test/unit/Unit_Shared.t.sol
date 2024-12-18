@@ -38,6 +38,8 @@ import { BaseTest } from "../BaseTest.t.sol";
 
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
+import { console } from "forge-std/console.sol";
+
 abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
@@ -107,7 +109,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         _setRoles();
 
         // register action
-        _registerActions();
+        _performRegistrations();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -136,6 +138,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         SuperRegistry(address(superRegistry)).setAddress(
             superRegistry.ACROSS_GATEWAY_ID(), address(acrossBridgeGateway)
         );
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_EXECUTOR_ID(), address(superExecutor));
     }
 
     function _setRoles() internal {
@@ -146,36 +149,40 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         return ACTION[bytes32(bytes(_name))];
     }
 
-    function _registerActions() internal returns (uint256[] memory) {
+    function _performRegistrations() internal {
         vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
+        /// register yieldSources
+        superActions.registerYieldSource("ERC4626", address(depositRedeem4626ActionOracle));
+        superActions.registerYieldSource("ERC5115", address(depositRedeem5115ActionOracle));
+
+        /// register actions
         mapping(bytes32 name => uint256 actionId) storage actionIds = ACTION;
         address[] memory hooks = new address[](2);
         // approve + 4626 deposit
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
-        actionIds["4626_DEPOSIT"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        actionIds["4626_DEPOSIT"] = superActions.registerAction(hooks, "ERC4626");
         allActions.push(actionIds["4626_DEPOSIT"]);
+        console.log("4626_DEPOSIT", actionIds["4626_DEPOSIT"]);
+
         // 4626 withdraw
         hooks = new address[](1);
         hooks[0] = address(withdraw4626VaultHook);
-        actionIds["4626_WITHDRAW"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        actionIds["4626_WITHDRAW"] = superActions.registerAction(hooks, "ERC4626");
         allActions.push(actionIds["4626_WITHDRAW"]);
+        console.log("4626_WITHDRAW", actionIds["4626_WITHDRAW"]);
 
-        // approve + 4626 deposit + 4626 withdraw
-        hooks = new address[](3);
-        hooks[0] = address(approveErc20Hook);
-        hooks[1] = address(deposit4626VaultHook);
-        hooks[2] = address(withdraw4626VaultHook);
-        actionIds["4626_DEPOSIT_WITHDRAW"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
-        allActions.push(actionIds["4626_DEPOSIT_WITHDRAW"]);
         // approve + 4626 deposit + across
+        /// @dev WARNING: the last 2 hooks here should not be part of this main action (which is really just
+        /// 4626_DEPOSIT) TODO
         hooks = new address[](4);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
         hooks[2] = address(approveErc20Hook);
         hooks[3] = address(acrossExecuteOnDestinationHook);
-        actionIds["4626_DEPOSIT_ACROSS"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        actionIds["4626_DEPOSIT_ACROSS"] = superActions.registerAction(hooks, "ERC4626");
         allActions.push(actionIds["4626_DEPOSIT_ACROSS"]);
+        console.log("4626_DEPOSIT_ACROSS", actionIds["4626_DEPOSIT_ACROSS"]);
         vm.stopPrank();
     }
 }

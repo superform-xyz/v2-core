@@ -71,7 +71,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         addRole(superRbac.BRIDGE_GATEWAY())
     {
         amount = _bound(amount);
-        bytes[] memory hooksData = _createStrategy3(amount);
+        bytes[] memory hooksData = _createDepositAndBridgeAction(amount);
 
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
@@ -108,7 +108,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         hooksData[0] = abi.encode(address(mock4626Vault), user2, instance.account, DEFAULT_AMOUNT);
     }
 
-    function _createStrategy3(uint256 amount) internal view returns (bytes[] memory hooksData) {
+    function _createDepositAndBridgeAction(uint256 amount) internal view returns (bytes[] memory hooksData) {
         hooksData = new bytes[](4);
         hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
         hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);

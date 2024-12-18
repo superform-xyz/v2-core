@@ -49,7 +49,4 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the sentinel configurator role.
     function SENTINEL_CONFIGURATOR() external view returns (bytes32);
-
-    /// @dev Get the ID of the executor role.
-    function EXECUTOR() external view returns (bytes32);
 }

@@ -12,7 +12,7 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
-    uint256 public transient obtainedAmount;
+    uint256 public transient shareDifference;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -40,7 +40,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
-        obtainedAmount = _getBalance(data);
+        shareDifference = _getShareBalance(data);
         return _returnDefaultTransientStorage();
     }
 
@@ -49,16 +49,15 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
-        obtainedAmount = _getBalance(data) - obtainedAmount;
-        return (address(0), _getBalance(data), bytes32(keccak256("WITHDRAW")), false);
+        shareDifference = shareDifference - _getShareBalance(data);
+        return (address(0), shareDifference, bytes32(keccak256("WITHDRAW")), false);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
+    function _getShareBalance(bytes memory data) private view returns (uint256) {
         (address vault, address receiver,) = abi.decode(data, (address, address, uint256));
-        address asset = IERC4626(vault).asset();
-        return IERC20(asset).balanceOf(receiver);
+        return IERC4626(vault).balanceOf(receiver);
     }
 }

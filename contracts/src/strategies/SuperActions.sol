@@ -6,11 +6,7 @@ import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-
-/// @dev delete this later
-interface IActionOracle {
-    function getPrice() external view returns (uint256);
-}
+import { IActionOracle } from "../interfaces/strategies/IActionOracle.sol";
 
 contract SuperActions is ISuperActions, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
@@ -18,12 +14,13 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    mapping(uint256 actionId => ActionLogic logic) private actionLogic;
-    mapping(address user => mapping(uint256 actionId => mapping(address finalTarget => LedgerEntry[]))) private
+    mapping(uint256 actionId => ActionLogic) private actionLogic;
+    mapping(bytes32 yieldSourceId => address oracle) private yieldSourceToOracle;
+    mapping(address user => mapping(bytes32 yieldSourceId => mapping(address finalTarget => LedgerEntry[]))) private
         userLedgerEntries;
-    mapping(address user => mapping(uint256 actionId => mapping(address finalTarget => uint256))) private
+    mapping(address user => mapping(bytes32 yieldSourceId => mapping(address finalTarget => uint256))) private
         unconsumedEntries;
-    mapping(uint256 actionId => mapping(address finalTarget => StrategyConfig strategyConfig)) private
+    mapping(bytes32 yieldSourceId => mapping(address finalTarget => StrategyConfig strategyConfig)) private
         strategyConfiguration;
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
@@ -36,8 +33,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     }
 
     modifier onlyExecutor() {
-        ISuperRbac rbac = ISuperRbac(_getAddress(superRegistry.SUPER_RBAC_ID()));
-        if (!rbac.hasRole(msg.sender, rbac.EXECUTOR())) revert NOT_AUTHORIZED();
+        if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -91,99 +87,85 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @inheritdoc ISuperActions
     function registerAction(
         address[] memory hooks_,
-        address metadataOracle_
+        string calldata yieldSourceId_
     )
         external
         onlyActionsConfigurator
         returns (uint256 actionId_)
     {
-        actionId_ = _validateHooks(hooks_);
-        ActionLogic memory logic = actionLogic[actionId_];
-        // Check if action already exists
-        if (logic.metadataOracle != address(0)) revert ACTION_ALREADY_EXISTS();
-
-        // Validate inputs
-        if (metadataOracle_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-        _validateHooks(hooks_);
-
-        actionLogic[actionId_] = ActionLogic({ metadataOracle: metadataOracle_, hooks: hooks_ });
-        emit ActionRegistered(actionId_, hooks_, metadataOracle_);
+        actionId_ = _registerSingleAction(hooks_, yieldSourceId_);
+        emit ActionRegistered(actionId_, hooks_, yieldSourceId_);
     }
 
-    /// @inheritdoc ISuperActions
+    // Update batch register to use string IDs
     function batchRegisterActions(
         address[][] memory hooks_,
-        address[] memory metadataOracles_
+        string[] calldata yieldSourceIds_
     )
         external
         onlyActionsConfigurator
         returns (uint256[] memory actionIds_)
     {
         uint256 len = hooks_.length;
-        if (len != metadataOracles_.length) revert INVALID_ARRAY_LENGTH();
+        if (len != yieldSourceIds_.length) revert INVALID_ARRAY_LENGTH();
 
         actionIds_ = new uint256[](len);
-        for (uint256 i = 0; i < len; i++) {
-            actionIds_[i] = _validateHooks(hooks_[i]);
-
-            ActionLogic memory logic = actionLogic[actionIds_[i]];
-            if (logic.metadataOracle != address(0)) revert ACTION_ALREADY_EXISTS();
-            if (metadataOracles_[i] == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-
-            actionLogic[actionIds_[i]] = ActionLogic({ metadataOracle: metadataOracles_[i], hooks: hooks_[i] });
+        for (uint256 i; i < len;) {
+            actionIds_[i] = _registerSingleAction(hooks_[i], yieldSourceIds_[i]);
+            unchecked {
+                ++i;
+            }
         }
 
-        emit ActionBatchRegistered(actionIds_);
+        emit ActionBatchRegistered(actionIds_, yieldSourceIds_);
     }
 
     /// @inheritdoc ISuperActions
     function updateAction(
         uint256 actionId_,
-        address metadataOracle_,
+        string calldata yieldSourceId_,
         address[] memory newHooks_
     )
         external
         onlyActionsConfigurator
     {
         ActionLogic storage logic = _getActionLogicOrRevert(actionId_);
-        if (metadataOracle_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+        bytes32 yieldSourceId = keccak256(abi.encode(yieldSourceId_));
+        if (yieldSourceToOracle[yieldSourceId] == address(0)) revert YIELD_SOURCE_NOT_FOUND();
 
         _validateHooks(newHooks_);
 
-        logic.metadataOracle = metadataOracle_;
+        logic.yieldSourceId = yieldSourceId;
         logic.hooks = newHooks_;
 
-        emit ActionOracleUpdated(actionId_, metadataOracle_);
-        emit ActionHooksUpdated(actionId_, newHooks_);
+        emit ActionUpdated(actionId_, newHooks_, yieldSourceId_);
     }
 
     /// @inheritdoc ISuperActions
     function batchUpdateAction(
         uint256[] memory actionIds_,
-        address[] memory metadataOracles_,
+        string[] calldata yieldSourceIds_,
         address[][] memory newHooks_
     )
         external
         onlyActionsConfigurator
     {
         uint256 len = actionIds_.length;
-        if (len != metadataOracles_.length || len != newHooks_.length) revert INVALID_ARRAY_LENGTH();
+        if (len != yieldSourceIds_.length || len != newHooks_.length) revert INVALID_ARRAY_LENGTH();
 
         for (uint256 i = 0; i < len; i++) {
             ActionLogic storage logic = _getActionLogicOrRevert(actionIds_[i]);
-            if (metadataOracles_[i] == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+            if (bytes(yieldSourceIds_[i]).length == 0) revert EMPTY_YIELD_SOURCE_ID();
 
             _validateHooks(newHooks_[i]);
 
-            logic.metadataOracle = metadataOracles_[i];
+            logic.yieldSourceId = keccak256(abi.encode(yieldSourceIds_[i]));
             logic.hooks = newHooks_[i];
-
-            emit ActionOracleUpdated(actionIds_[i], metadataOracles_[i]);
-            emit ActionHooksUpdated(actionIds_[i], newHooks_[i]);
         }
+        emit ActionBatchUpdated(actionIds_, newHooks_, yieldSourceIds_);
     }
-    /// @inheritdoc ISuperActions
 
+    /// @inheritdoc ISuperActions
     function delistAction(uint256 actionId_) external onlyActionsConfigurator {
         delete actionLogic[actionId_];
         emit ActionDelisted(actionId_);
@@ -198,8 +180,38 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     }
 
     /// @inheritdoc ISuperActions
+    function registerYieldSource(
+        string calldata yieldSourceId_,
+        address metadataOracle_
+    )
+        external
+        onlyActionsConfigurator
+    {
+        _registerSingleYieldSource(yieldSourceId_, metadataOracle_);
+    }
+
+    /// @inheritdoc ISuperActions
+    function batchRegisterYieldSources(
+        string[] calldata yieldSourceIds_,
+        address[] calldata metadataOracles_
+    )
+        external
+        onlyActionsConfigurator
+    {
+        uint256 len = yieldSourceIds_.length;
+        if (len != metadataOracles_.length) revert INVALID_ARRAY_LENGTH();
+
+        for (uint256 i; i < len;) {
+            _registerSingleYieldSource(yieldSourceIds_[i], metadataOracles_[i]);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc ISuperActions
     function setStrategyConfig(
-        uint256 actionId_,
+        string calldata yieldSourceId_,
         address finalTarget_,
         uint256 feePercent_,
         address vaultShareToken_
@@ -207,12 +219,12 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         external
         onlyActionsConfigurator
     {
-        _setStrategyConfig(actionId_, finalTarget_, feePercent_, vaultShareToken_);
+        _setStrategyConfig(yieldSourceId_, finalTarget_, feePercent_, vaultShareToken_);
     }
 
     /// @inheritdoc ISuperActions
     function batchSetStrategyConfig(
-        uint256[] memory actionIds_,
+        string[] calldata yieldSourceIds_,
         address[] memory finalTargets_,
         uint256[] memory feePercents_,
         address[] memory vaultShareTokens_
@@ -220,13 +232,13 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         external
         onlyActionsConfigurator
     {
-        uint256 len = actionIds_.length;
+        uint256 len = yieldSourceIds_.length;
         if (len != finalTargets_.length || len != feePercents_.length || len != vaultShareTokens_.length) {
             revert INVALID_ARRAY_LENGTH();
         }
 
         for (uint256 i = 0; i < len; i++) {
-            _setStrategyConfig(actionIds_[i], finalTargets_[i], feePercents_[i], vaultShareTokens_[i]);
+            _setStrategyConfig(yieldSourceIds_[i], finalTargets_[i], feePercents_[i], vaultShareTokens_[i]);
         }
     }
     /*//////////////////////////////////////////////////////////////
@@ -234,43 +246,26 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperActions
-    function getHooksForAction(uint256 actionId_) external view returns (address[] memory hooks_) {
-        return getActionLogic(actionId_).hooks;
-    }
-
-    /// @inheritdoc ISuperActions
     function getActionLogic(uint256 actionId_) public view returns (ActionLogic memory) {
         ActionLogic memory logic = actionLogic[actionId_];
-        if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
+        if (logic.yieldSourceId == bytes32(0)) revert ACTION_NOT_FOUND();
         return logic;
     }
 
     /// @inheritdoc ISuperActions
-    function getHooksForActions(uint256[] memory actionIds_)
-        external
-        view
-        returns (address[][] memory hooksForActions_)
-    {
-        uint256 len = actionIds_.length;
-        hooksForActions_ = new address[][](len);
-        for (uint256 i = 0; i < len; i++) {
-            ActionLogic memory logic = actionLogic[actionIds_[i]];
-            if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
-            hooksForActions_[i] = logic.hooks;
-        }
-        return hooksForActions_;
+    function getHooksForAction(uint256 actionId_) external view returns (address[] memory) {
+        return _getActionLogicOrRevert(actionId_).hooks;
     }
 
     /// @inheritdoc ISuperActions
     function getOracleForAction(uint256 actionId_) external view returns (address oracle_) {
-        ActionLogic memory logic = actionLogic[actionId_];
-        if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
-        return logic.metadataOracle;
+        ActionLogic memory logic = _getActionLogicOrRevert(actionId_);
+        return yieldSourceToOracle[logic.yieldSourceId];
     }
 
     /// @inheritdoc ISuperActions
     function isActionActive(uint256 actionId_) external view returns (bool) {
-        return actionLogic[actionId_].metadataOracle != address(0);
+        return actionLogic[actionId_].hooks.length != 0;
     }
 
     /// @inheritdoc ISuperActions
@@ -284,36 +279,46 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     {
         // Implementation needed
     }
-
     /// @inheritdoc ISuperActions
+
     function getUserAccounting(
         address user_,
-        uint256 actionId_,
+        string calldata yieldSourceId_,
         address finalTarget_
     )
         external
         view
         returns (LedgerEntry[] memory)
     {
-        return userLedgerEntries[user_][actionId_][finalTarget_];
+        bytes32 yieldSourceId = keccak256(abi.encode(yieldSourceId_));
+        return userLedgerEntries[user_][yieldSourceId][finalTarget_];
     }
 
     /// @inheritdoc ISuperActions
     function getUnconsumedEntries(
         address user_,
-        uint256 actionId_,
+        string calldata yieldSourceId_,
         address finalTarget_
     )
         external
         view
         returns (uint256)
     {
-        return unconsumedEntries[user_][actionId_][finalTarget_];
+        bytes32 yieldSourceId = keccak256(abi.encode(yieldSourceId_));
+        return unconsumedEntries[user_][yieldSourceId][finalTarget_];
     }
 
     /// @inheritdoc ISuperActions
-    function getStrategyConfig(uint256 actionId_, address finalTarget_) external view returns (StrategyConfig memory) {
-        return strategyConfiguration[actionId_][finalTarget_];
+    function getStrategyConfig(
+        string calldata yieldSourceId_,
+        address finalTarget_
+    )
+        external
+        view
+        returns (StrategyConfig memory)
+    {
+        bytes32 yieldSourceId = keccak256(abi.encode(yieldSourceId_));
+        return strategyConfiguration[yieldSourceId][finalTarget_];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -335,6 +340,39 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         actionId_ = uint256(keccak256(abi.encode(hooks_)));
     }
 
+    /// @dev Internal function to register a single action
+    /// @param hooks_ Array of hook addresses
+    /// @param yieldSourceId_ Yield source identifier
+    /// @return actionId_ The generated action ID
+    function _registerSingleAction(
+        address[] memory hooks_,
+        string calldata yieldSourceId_
+    )
+        internal
+        returns (uint256 actionId_)
+    {
+        actionId_ = _validateHooks(hooks_);
+        bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
+
+        if (actionLogic[actionId_].hooks.length != 0) revert ACTION_ALREADY_EXISTS();
+        if (yieldSourceToOracle[yieldSourceIdBytes] == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+
+        actionLogic[actionId_] = ActionLogic({ yieldSourceId: yieldSourceIdBytes, hooks: hooks_ });
+    }
+
+    /// @dev Internal function to register a single yield source
+    /// @param yieldSourceId_ The yield source identifier
+    /// @param metadataOracle_ The oracle address
+    function _registerSingleYieldSource(string calldata yieldSourceId_, address metadataOracle_) internal {
+        if (metadataOracle_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+
+        bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
+        if (yieldSourceToOracle[yieldSourceIdBytes] != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
+
+        yieldSourceToOracle[yieldSourceIdBytes] = metadataOracle_;
+        emit YieldSourceRegistered(yieldSourceId_, metadataOracle_);
+    }
+
     /// @dev Internal function to process accounting
     /// @param user_ The user address
     /// @param actionId_ The ID of the action
@@ -352,13 +390,14 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         internal
         returns (uint256 pps_)
     {
+        ActionLogic memory logic = _getActionLogicOrRevert(actionId_);
+
         // Get current price from oracle
-        pps_ = IActionOracle(getActionLogic(actionId_).metadataOracle).getPrice();
+        pps_ = IActionOracle(yieldSourceToOracle[logic.yieldSourceId]).getStrategyPrice(finalTarget_);
         if (pps_ == 0) revert INVALID_PRICE();
 
         if (isDeposit_) {
-            // For deposits, create new ledger entry
-            userLedgerEntries[user_][actionId_][finalTarget_].push(
+            userLedgerEntries[user_][logic.yieldSourceId][finalTarget_].push(
                 LedgerEntry({ amountSharesAvailableToConsume: amountShares_, price: pps_ })
             );
         } else {
@@ -367,8 +406,8 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
             uint256 totalValue = amountShares_ * pps_;
             uint256 costBasis;
 
-            LedgerEntry[] storage entries = userLedgerEntries[user_][actionId_][finalTarget_];
-            uint256 currentIndex = unconsumedEntries[user_][actionId_][finalTarget_];
+            LedgerEntry[] storage entries = userLedgerEntries[user_][logic.yieldSourceId][finalTarget_];
+            uint256 currentIndex = unconsumedEntries[user_][logic.yieldSourceId][finalTarget_];
 
             while (remainingShares > 0) {
                 if (currentIndex >= entries.length) revert INSUFFICIENT_SHARES();
@@ -384,14 +423,11 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
                 }
                 uint256 sharesConsumed = remainingShares > availableShares ? availableShares : remainingShares;
 
-                // Update cost basis and remaining shares
                 costBasis += sharesConsumed * entry.price;
                 remainingShares -= sharesConsumed;
 
-                // Update entry's available shares
                 entry.amountSharesAvailableToConsume -= sharesConsumed;
 
-                // Only increment index if entry was fully consumed
                 if (sharesConsumed == availableShares) {
                     unchecked {
                         ++currentIndex;
@@ -399,16 +435,14 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
                 }
             }
 
-            // Update the unconsumed entries index
-            unconsumedEntries[user_][actionId_][finalTarget_] = currentIndex;
+            unconsumedEntries[user_][logic.yieldSourceId][finalTarget_] = currentIndex;
 
-            // Calculate and transfer fee if profit was made
             uint256 profit = totalValue > costBasis ? totalValue - costBasis : 0;
             if (profit > 0) {
-                StrategyConfig memory config = strategyConfiguration[actionId_][finalTarget_];
+                StrategyConfig memory config = strategyConfiguration[logic.yieldSourceId][finalTarget_];
                 if (config.feePercent == 0) revert FEE_NOT_SET();
 
-                uint256 feeAmount = (profit * config.feePercent) / 10_000; // Assuming fee is in basis points
+                uint256 feeAmount = (profit * config.feePercent) / 10_000;
                 address vaultShareToken = config.vaultShareToken != address(0) ? config.vaultShareToken : finalTarget_;
                 _transferToPaymaster(feeAmount, vaultShareToken);
             }
@@ -427,17 +461,17 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @return The action logic
     function _getActionLogicOrRevert(uint256 actionId_) internal view returns (ActionLogic storage) {
         ActionLogic storage logic = actionLogic[actionId_];
-        if (logic.metadataOracle == address(0)) revert ACTION_NOT_FOUND();
+        if (logic.hooks.length == 0) revert ACTION_NOT_FOUND();
         return logic;
     }
 
     /// @dev Internal function to set strategy configuration
-    /// @param actionId_ The ID of the action
+    /// @param yieldSourceId_ The yield source identifier
     /// @param finalTarget_ The target contract address
     /// @param feePercent_ The fee percentage for the strategy
     /// @param vaultShareToken_ The vault share token address
     function _setStrategyConfig(
-        uint256 actionId_,
+        string calldata yieldSourceId_,
         address finalTarget_,
         uint256 feePercent_,
         address vaultShareToken_
@@ -445,14 +479,14 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         internal
     {
         if (finalTarget_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-        // note: vaultShareToken_ being 0 is allowed for cases where the share is finalTarget itself
-        // when not 0 it can't be the same as finalTarget_
         if (vaultShareToken_ != address(0) && vaultShareToken_ == finalTarget_) revert INVALID_VAULT_SHARE_TOKEN();
 
-        StrategyConfig memory config = StrategyConfig({ feePercent: feePercent_, vaultShareToken: vaultShareToken_ });
+        bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
+        if (yieldSourceToOracle[yieldSourceIdBytes] == address(0)) revert YIELD_SOURCE_NOT_FOUND();
 
-        strategyConfiguration[actionId_][finalTarget_] = config;
-        emit StrategyConfigSet(actionId_, finalTarget_, feePercent_, vaultShareToken_);
+        StrategyConfig memory config = StrategyConfig({ feePercent: feePercent_, vaultShareToken: vaultShareToken_ });
+        strategyConfiguration[yieldSourceIdBytes][finalTarget_] = config;
+        emit StrategyConfigSet(yieldSourceId_, finalTarget_, feePercent_, vaultShareToken_);
     }
 
     /// @dev Internal function to get address from super registry

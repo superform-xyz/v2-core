@@ -37,4 +37,4 @@ deploy-poc:
 
 build :; forge build
 ftest :; forge test
-test-vvv :; forge test --match-test test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured -vvvv
+test-vvv :; forge test --match-test test_WhenHooksAreDefinedAndExecutionDataIsValid_Deposit_And_Withdraw_In_The_Same_Intent -vvv

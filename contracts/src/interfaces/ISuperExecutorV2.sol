@@ -18,6 +18,7 @@ interface ISuperExecutorV2 {
     error ADDRESS_NOT_VALID();
     error MAIN_ACTION_WITH_NON_MAIN_ACTION_HOOKS();
     error FINAL_TARGET_NOT_ZERO();
+    error ACTION_TYPE_MISMATCH();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

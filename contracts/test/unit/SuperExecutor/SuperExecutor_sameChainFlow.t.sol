@@ -6,6 +6,8 @@ import { Unit_Shared } from "../Unit_Shared.t.sol";
 import { ISuperActions } from "../../../src/interfaces/strategies/ISuperActions.sol";
 import { SuperPositionSentinel } from "../../../src/sentinels/SuperPositionSentinel.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract SuperExecutor_sameChainFlow is Unit_Shared {
     address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
 
@@ -31,16 +33,6 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
     modifier givenAnActionExist() {
         _;
-    }
-
-    /// @dev NOTE: Cosmin, I think this test does not belong here, but rather to a SuperActions test suite
-    function test_RevertWhen_NoHooksAreDefined() external givenAnActionExist {
-        // it should revert
-        // register an empty invalid action
-        address[] memory hooks = new address[](0);
-        vm.prank(SUPER_ACTIONS_CONFIGURATOR);
-        vm.expectRevert(ISuperActions.INVALID_HOOKS_LENGTH.selector);
-        uint256 actionId = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
     }
 
     function test_RevertWhen_HooksAreDefinedByExecutionDataIsNotValid() external givenAnActionExist {
@@ -92,7 +84,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         assertEq(accSharesAfter, amount);
     }
 
-    function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured(uint256 amount)
+    function test_WhenHooksAreDefinedAndExecutionDataIsValid(uint256 amount)
         external
         givenAnActionExist
         givenSentinelCallIsNotPerformed
@@ -125,9 +117,8 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             hooksData: nonMainActionHooksData,
             nonMainActionHooks: nonMainActionHooks
         });
-
         vm.expectEmit(true, true, true, true);
-        emit SuperPositionSentinel.SuperPositionMint(ACTION["4626_DEPOSIT"], RANDOM_TARGET, amount);
+        emit ISuperActions.AccountingUpdated(instance.account, ACTION["4626_DEPOSIT"], finalTarget, true, amount, 1e18);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
@@ -137,36 +128,37 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         assertEq(allowanceForUser2, amount);
     }
 
-    function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured_Deposit_And_Withdraw_In_The_Same_Strategy(
-        uint256 amount
-    )
+    function test_WhenHooksAreDefinedAndExecutionDataIsValid_Deposit_And_Withdraw_In_The_Same_Intent(uint256 amount)
         external
         givenAnActionExist
         givenSentinelCallIsNotPerformed
     {
         amount = _bound(amount);
         address finalTarget = address(mock4626Vault);
-        bytes[] memory hooksData = _createDepositWithdrawActionData(finalTarget, amount);
-
+        bytes[] memory depositHooksData = _createDepositActionData(finalTarget, amount);
+        bytes[] memory withdrawHooksData = _createWithdrawActionData(finalTarget, amount);
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 
         // it should execute all hooks
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](2);
         entries[0] = ISuperExecutorV2.ExecutorEntry({
-            actionId: ACTION["4626_DEPOSIT_WITHDRAW"],
+            actionId: ACTION["4626_DEPOSIT"],
             finalTarget: finalTarget,
-            hooksData: hooksData,
+            hooksData: depositHooksData,
+            nonMainActionHooks: new address[](0)
+        });
+        entries[1] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_WITHDRAW"],
+            finalTarget: finalTarget,
+            hooksData: withdrawHooksData,
             nonMainActionHooks: new address[](0)
         });
 
-        vm.expectEmit(true, true, true, true);
-
-        emit SuperPositionSentinel.SuperPositionMint(ACTION["4626_DEPOSIT_WITHDRAW"], finalTarget, amount - 100);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
-        assertEq(accSharesAfter, amount - 100);
+        assertEq(accSharesAfter, 0);
     }
 
     function _createDepositActionData(
@@ -193,6 +185,18 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         hooksData = new bytes[](3);
         hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
         hooksData[1] = abi.encode(finalTarget, instance.account, amount);
-        hooksData[2] = abi.encode(finalTarget, instance.account, 100);
+        hooksData[2] = abi.encode(finalTarget, instance.account, instance.account, 100);
+    }
+
+    function _createWithdrawActionData(
+        address finalTarget,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes[] memory hooksData)
+    {
+        hooksData = new bytes[](1);
+        hooksData[0] = abi.encode(finalTarget, instance.account, instance.account, amount);
     }
 }
