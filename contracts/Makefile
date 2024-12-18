@@ -38,3 +38,12 @@ deploy-poc:
 build :; forge build
 ftest :; forge test
 test-vvv :; forge test --match-test test_GivenAStrategyDoesNotExist -vvvv
+
+
+.PHONY: generate
+generate: build 
+	chmod +x ./script/utils/retrieve-abis.sh
+	./script/utils/retrieve-abis.sh
+
+	# General
+	abigen --abi out/SuperExecutorV2.sol/SuperExecutorV2.abi --pkg contracts --type SuperExecutorV2 --out contract_bindings/SuperExecutorV2.go
