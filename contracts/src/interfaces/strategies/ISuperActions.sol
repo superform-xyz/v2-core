@@ -20,9 +20,14 @@ interface ISuperActions {
         address vaultShareToken;
     }
 
+    struct YieldSourceData {
+        address oracle;
+        uint256[] actionIds;
+    }
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+
     error NOT_AUTHORIZED();
     error INVALID_ARRAY_LENGTH();
     error ACTION_NOT_FOUND();
@@ -36,6 +41,8 @@ interface ISuperActions {
     error YIELD_SOURCE_NOT_FOUND();
     error YIELD_SOURCE_ALREADY_EXISTS();
     error EMPTY_YIELD_SOURCE_ID();
+    error INVALID_FEE_PERCENT();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -188,6 +195,12 @@ interface ISuperActions {
         address[] memory vaultShareTokens_
     )
         external;
+
+    /// @notice Retrieves all action IDs associated with a specific yield source
+    /// @param yieldSourceId_ The yield source identifier
+    /// @return Array of action IDs
+    function getActionsByYieldSource(string calldata yieldSourceId_) external view returns (uint256[] memory);
+
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/

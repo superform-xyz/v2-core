@@ -13,8 +13,6 @@ import { ISentinel } from "../interfaces/sentinel/ISentinel.sol";
 import { ISuperExecutorV2 } from "../interfaces/ISuperExecutorV2.sol";
 import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 
-import { console } from "forge-std/console.sol";
-
 contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecutorV2 {
     constructor(address registry_) BaseExecutorModule(registry_) { }
 
@@ -105,16 +103,12 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         uint256 hooksLength = hooks.length;
 
         _processHooks(account, entry, hooks, hooksLength);
-        console.log(entry.actionId);
         if (entry.actionId != type(uint256).max) {
-            console.log("HELL");
             /// @dev I added this at the end of each action execution to update the accounting for that strategy
             /// @dev In terms of value of shares being minted it is using the last value obtained in uintStore
             if (typeOfMainAction == keccak256("DEPOSIT")) {
-                console.log("DEPOSIT");
                 _updateAccounting(account, entry.actionId, entry.finalTarget, true, shareDelta);
             } else if (typeOfMainAction == keccak256("WITHDRAW")) {
-                console.log("WITHDRAW");
                 _updateAccounting(account, entry.actionId, entry.finalTarget, false, shareDelta);
             }
         }

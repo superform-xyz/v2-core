@@ -155,6 +155,10 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             nonMainActionHooks: new address[](0)
         });
 
+        vm.expectEmit(true, true, true, true);
+        emit ISuperActions.AccountingUpdated(
+            instance.account, ACTION["4626_WITHDRAW"], finalTarget, false, amount, 1e18
+        );
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);

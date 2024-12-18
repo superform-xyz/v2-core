@@ -14,14 +14,27 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    /// @notice Maps action IDs to their corresponding action logic (hooks and yield source)
     mapping(uint256 actionId => ActionLogic) private actionLogic;
-    mapping(bytes32 yieldSourceId => address oracle) private yieldSourceToOracle;
+
+    /// @notice Maps yield source IDs to their data
+    mapping(bytes32 yieldSourceId => YieldSourceData) private yieldSourceData;
+
+    /// @notice Tracks user's ledger entries for each yield source and final target
+    /// @dev Structure: user => yieldSourceId => finalTarget => array of ledger entries
     mapping(address user => mapping(bytes32 yieldSourceId => mapping(address finalTarget => LedgerEntry[]))) private
         userLedgerEntries;
+
+    /// @notice Tracks the index of unconsumed entries in the ledger for FIFO accounting
+    /// @dev Structure: user => yieldSourceId => finalTarget => current unconsumed index
     mapping(address user => mapping(bytes32 yieldSourceId => mapping(address finalTarget => uint256))) private
         unconsumedEntries;
+
+    /// @notice Stores configuration for each strategy (combination of yieldSourceId and finalTarget)
+    /// @dev Structure: yieldSourceId => finalTarget => strategy configuration
     mapping(bytes32 yieldSourceId => mapping(address finalTarget => StrategyConfig strategyConfig)) private
         strategyConfiguration;
+
     /*//////////////////////////////////////////////////////////////
                                  MODIFIERS
     //////////////////////////////////////////////////////////////*/
@@ -129,15 +142,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         external
         onlyActionsConfigurator
     {
-        ActionLogic storage logic = _getActionLogicOrRevert(actionId_);
-        bytes32 yieldSourceId = keccak256(abi.encode(yieldSourceId_));
-        if (yieldSourceToOracle[yieldSourceId] == address(0)) revert YIELD_SOURCE_NOT_FOUND();
-
-        _validateHooks(newHooks_);
-
-        logic.yieldSourceId = yieldSourceId;
-        logic.hooks = newHooks_;
-
+        _updateSingleAction(actionId_, yieldSourceId_, newHooks_);
         emit ActionUpdated(actionId_, newHooks_, yieldSourceId_);
     }
 
@@ -154,13 +159,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         if (len != yieldSourceIds_.length || len != newHooks_.length) revert INVALID_ARRAY_LENGTH();
 
         for (uint256 i = 0; i < len; i++) {
-            ActionLogic storage logic = _getActionLogicOrRevert(actionIds_[i]);
-            if (bytes(yieldSourceIds_[i]).length == 0) revert EMPTY_YIELD_SOURCE_ID();
-
-            _validateHooks(newHooks_[i]);
-
-            logic.yieldSourceId = keccak256(abi.encode(yieldSourceIds_[i]));
-            logic.hooks = newHooks_[i];
+            _updateSingleAction(actionIds_[i], yieldSourceIds_[i], newHooks_[i]);
         }
         emit ActionBatchUpdated(actionIds_, newHooks_, yieldSourceIds_);
     }
@@ -260,7 +259,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @inheritdoc ISuperActions
     function getOracleForAction(uint256 actionId_) external view returns (address oracle_) {
         ActionLogic memory logic = _getActionLogicOrRevert(actionId_);
-        return yieldSourceToOracle[logic.yieldSourceId];
+        return yieldSourceData[logic.yieldSourceId].oracle;
     }
 
     /// @inheritdoc ISuperActions
@@ -321,6 +320,12 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         return strategyConfiguration[yieldSourceId][finalTarget_];
     }
 
+    /// @inheritdoc ISuperActions
+    function getActionsByYieldSource(string calldata yieldSourceId_) external view returns (uint256[] memory) {
+        bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
+        return yieldSourceData[yieldSourceIdBytes].actionIds;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -355,9 +360,47 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
 
         if (actionLogic[actionId_].hooks.length != 0) revert ACTION_ALREADY_EXISTS();
-        if (yieldSourceToOracle[yieldSourceIdBytes] == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+        if (yieldSourceData[yieldSourceIdBytes].oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
 
         actionLogic[actionId_] = ActionLogic({ yieldSourceId: yieldSourceIdBytes, hooks: hooks_ });
+        yieldSourceData[yieldSourceIdBytes].actionIds.push(actionId_);
+    }
+
+    /// @dev Internal function to update a single action's configuration
+    /// @param actionId_ The ID of the action to update
+    /// @param yieldSourceId_ The new yield source identifier
+    /// @param newHooks_ The new hooks array
+    function _updateSingleAction(
+        uint256 actionId_,
+        string calldata yieldSourceId_,
+        address[] memory newHooks_
+    )
+        internal
+    {
+        ActionLogic storage logic = _getActionLogicOrRevert(actionId_);
+        if (bytes(yieldSourceId_).length == 0) revert EMPTY_YIELD_SOURCE_ID();
+
+        bytes32 newYieldSourceId = keccak256(abi.encode(yieldSourceId_));
+        if (yieldSourceData[newYieldSourceId].oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+
+        _validateHooks(newHooks_);
+
+        // Remove action from old yield source's action list
+        uint256[] storage oldActions = yieldSourceData[logic.yieldSourceId].actionIds;
+        for (uint256 i = 0; i < oldActions.length; i++) {
+            if (oldActions[i] == actionId_) {
+                oldActions[i] = oldActions[oldActions.length - 1];
+                oldActions.pop();
+                break;
+            }
+        }
+
+        // Add action to new yield source's action list
+        yieldSourceData[newYieldSourceId].actionIds.push(actionId_);
+
+        // Update the action logic
+        logic.yieldSourceId = newYieldSourceId;
+        logic.hooks = newHooks_;
     }
 
     /// @dev Internal function to register a single yield source
@@ -367,9 +410,9 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         if (metadataOracle_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
 
         bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
-        if (yieldSourceToOracle[yieldSourceIdBytes] != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
+        if (yieldSourceData[yieldSourceIdBytes].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-        yieldSourceToOracle[yieldSourceIdBytes] = metadataOracle_;
+        yieldSourceData[yieldSourceIdBytes].oracle = metadataOracle_;
         emit YieldSourceRegistered(yieldSourceId_, metadataOracle_);
     }
 
@@ -393,7 +436,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         ActionLogic memory logic = _getActionLogicOrRevert(actionId_);
 
         // Get current price from oracle
-        pps_ = IActionOracle(yieldSourceToOracle[logic.yieldSourceId]).getStrategyPrice(finalTarget_);
+        pps_ = IActionOracle(yieldSourceData[logic.yieldSourceId].oracle).getStrategyPrice(finalTarget_);
         if (pps_ == 0) revert INVALID_PRICE();
 
         if (isDeposit_) {
@@ -480,9 +523,10 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     {
         if (finalTarget_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (vaultShareToken_ != address(0) && vaultShareToken_ == finalTarget_) revert INVALID_VAULT_SHARE_TOKEN();
+        if (feePercent_ > 10_000) revert INVALID_FEE_PERCENT();
 
         bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
-        if (yieldSourceToOracle[yieldSourceIdBytes] == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+        if (yieldSourceData[yieldSourceIdBytes].oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
 
         StrategyConfig memory config = StrategyConfig({ feePercent: feePercent_, vaultShareToken: vaultShareToken_ });
         strategyConfiguration[yieldSourceIdBytes][finalTarget_] = config;

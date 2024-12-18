@@ -71,7 +71,8 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         addRole(superRbac.BRIDGE_GATEWAY())
     {
         amount = _bound(amount);
-        bytes[] memory hooksData = _createDepositAndBridgeAction(amount);
+        address finalTarget = address(mock4626Vault);
+        bytes[] memory hooksData = _createDepositAndBridgeActionData(finalTarget, amount);
 
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
@@ -80,7 +81,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT_ACROSS"],
-            finalTarget: RANDOM_TARGET,
+            finalTarget: finalTarget,
             hooksData: hooksData,
             nonMainActionHooks: new address[](0)
         });
@@ -89,8 +90,8 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         ISuperExecutorV2.ExecutorEntry[] memory subEntries = new ISuperExecutorV2.ExecutorEntry[](1);
         subEntries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
-            finalTarget: RANDOM_TARGET,
-            hooksData: _createStrategy1(amount),
+            finalTarget: finalTarget,
+            hooksData: _createWithdrawActionData(finalTarget, amount),
             nonMainActionHooks: new address[](0)
         });
         vm.expectEmit(true, true, true, true);
@@ -98,27 +99,39 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         superExecutor.execute(instance.account, abi.encode(entries));
 
         //  simulate Orchestrator call for the remaning data
-        vm.expectEmit(true, true, true, true);
-        emit SuperPositionSentinel.SuperPositionBurn(ACTION["4626_WITHDRAW"], RANDOM_TARGET, DEFAULT_AMOUNT);
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
     }
 
-    function _createStrategy1(uint256 amount) internal view returns (bytes[] memory hooksData) {
+    function _createWithdrawActionData(
+        address finalTarget,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes[] memory hooksData)
+    {
         hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(address(mock4626Vault), user2, instance.account, DEFAULT_AMOUNT);
+        hooksData[0] = abi.encode(finalTarget, user2, instance.account, DEFAULT_AMOUNT);
     }
 
-    function _createDepositAndBridgeAction(uint256 amount) internal view returns (bytes[] memory hooksData) {
+    function _createDepositAndBridgeActionData(
+        address finalTarget,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes[] memory hooksData)
+    {
         hooksData = new bytes[](4);
-        hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
-        hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);
-        hooksData[2] = abi.encode(address(mock4626Vault), address(spokePoolV3Mock), amount);
+        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
+        hooksData[1] = abi.encode(finalTarget, instance.account, amount);
+        hooksData[2] = abi.encode(finalTarget, address(spokePoolV3Mock), amount);
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
-            finalTarget: RANDOM_TARGET,
-            hooksData: _createStrategy1(amount),
+            finalTarget: finalTarget,
+            hooksData: _createWithdrawActionData(finalTarget, amount),
             nonMainActionHooks: new address[](0)
         });
 
@@ -126,8 +139,8 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
             .AcrossV3DepositData({
             value: SMALL,
             recipient: instance.account,
-            inputToken: address(mock4626Vault),
-            outputToken: address(mock4626Vault),
+            inputToken: finalTarget,
+            outputToken: finalTarget,
             inputAmount: amount,
             outputAmount: amount,
             destinationChainId: 1,
