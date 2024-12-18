@@ -38,7 +38,6 @@ import { BaseTest } from "../BaseTest.t.sol";
 
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
-
 abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ModuleKitUserOp for *;
@@ -58,7 +57,9 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     MockERC20 public mockERC20;
     Mock4626Vault public mock4626Vault;
 
-    uint256[] public actionIds;
+    mapping(bytes32 name => uint256 actionId) public ACTION;
+
+    uint256[] public allActions;
 
     address public constant ENTRY_POINT = address(1);
 
@@ -86,11 +87,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         vm.label(address(superPositionSentinel), "superPositionSentinel");
 
         mockERC20 = _deployToken("MockERC20", "MRC20", 18);
-        mock4626Vault = new Mock4626Vault(
-            IERC20(address(mockERC20)),
-            "Mock4626Vault",
-            "MRC4626"
-        );
+        mock4626Vault = new Mock4626Vault(IERC20(address(mockERC20)), "Mock4626Vault", "MRC4626");
         vm.label(address(mock4626Vault), "mock4626Vault");
 
         acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
@@ -109,8 +106,8 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         // set roles
         _setRoles();
 
-        // register strategies
-        actionIds = _registerSameChainActions();
+        // register action
+        _registerActions();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -129,6 +126,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL
     //////////////////////////////////////////////////////////////*/
+
     function _setSuperRegistryAddresses() internal {
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), address(superActions));
         SuperRegistry(address(superRegistry)).setAddress(
@@ -144,37 +142,40 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
     }
 
-    function _registerSameChainActions() internal returns (uint256[] memory) {
-        vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
-        uint256[] memory _actionIds = new uint256[](4);
+    function getAction(string memory _name) internal view returns (uint256) {
+        return ACTION[bytes32(bytes(_name))];
+    }
 
+    function _registerActions() internal returns (uint256[] memory) {
+        vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
+        mapping(bytes32 name => uint256 actionId) storage actionIds = ACTION;
         address[] memory hooks = new address[](2);
         // approve + 4626 deposit
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
-        _actionIds[0] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
-
+        actionIds["4626_DEPOSIT"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        allActions.push(actionIds["4626_DEPOSIT"]);
         // 4626 withdraw
         hooks = new address[](1);
         hooks[0] = address(withdraw4626VaultHook);
-        _actionIds[1] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        actionIds["4626_WITHDRAW"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        allActions.push(actionIds["4626_WITHDRAW"]);
 
         // approve + 4626 deposit + 4626 withdraw
         hooks = new address[](3);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
         hooks[2] = address(withdraw4626VaultHook);
-        _actionIds[2] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
-
+        actionIds["4626_DEPOSIT_WITHDRAW"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        allActions.push(actionIds["4626_DEPOSIT_WITHDRAW"]);
         // approve + 4626 deposit + across
         hooks = new address[](4);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
         hooks[2] = address(approveErc20Hook);
         hooks[3] = address(acrossExecuteOnDestinationHook);
-        _actionIds[3] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
-
+        actionIds["4626_DEPOSIT_ACROSS"] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        allActions.push(actionIds["4626_DEPOSIT_ACROSS"]);
         vm.stopPrank();
-        return _actionIds;
     }
 }

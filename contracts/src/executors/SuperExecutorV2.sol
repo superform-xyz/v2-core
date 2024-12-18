@@ -89,17 +89,34 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     function _executeAction(address account, ExecutorEntry memory entry) private {
         address[] memory hooks;
         if (entry.actionId == type(uint256).max) {
-            hooks = entry.hooks;
+            if (entry.finalTarget != address(0)) {
+                revert FINAL_TARGET_NOT_ZERO();
+            }
+            hooks = entry.nonMainActionHooks;
         } else {
+            if (entry.nonMainActionHooks.length > 0) {
+                revert MAIN_ACTION_WITH_NON_MAIN_ACTION_HOOKS();
+            }
             // retrieve hooks for this action
             hooks = ISuperActions(superActions()).getHooksForAction(entry.actionId);
         }
         uint256 hooksLength = hooks.length;
 
-        (uint256 _spSharesMint, uint256 _spSharesBurn) = _processHooks(account, entry, hooks, hooksLength);
+        (uint256 spSharesMint_, uint256 spSharesBurn_) = _processHooks(account, entry, hooks, hooksLength);
 
+        if (entry.actionId != type(uint256).max) {
+            /// @dev I added this at the end of each action execution to update the accounting for that strategy
+            /// @dev In terms of value of shares being minted it is using the last value obtained in uintStore
+            if (bytes32Storage == keccak256("DEPOSIT")) {
+                _updateAccounting(account, entry.actionId, entry.finalTarget, true, uintStorage);
+            } else if (bytes32Storage == keccak256("WITHDRAW")) {
+                _updateAccounting(account, entry.actionId, entry.finalTarget, false, uintStorage);
+            }
+        }
         // all hooks have been executed; act on SuperPositions changes for current strategy
-        _notifySuperPosition(entry, _spSharesMint, _spSharesBurn);
+        _notifySuperPosition(entry, spSharesMint_, spSharesBurn_);
+
+        /// @dev TODO pass new transient storage values to the next action and delete unused ones
     }
 
     function _processHooks(
@@ -107,7 +124,10 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         ExecutorEntry memory entry,
         address[] memory hooks,
         uint256 hooksLength
-    ) private returns (uint256 _spSharesMint, uint256 _spSharesBurn) {
+    )
+        private
+        returns (uint256 spSharesMint_, uint256 spSharesBurn_)
+    {
         for (uint256 j; j < hooksLength;) {
             ISuperHook hook = ISuperHook(hooks[j]);
 
@@ -124,9 +144,9 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
 
             // update the total mint and burn values
             if (bytes32Storage == keccak256("DEPOSIT")) {
-                _spSharesMint += uintStorage;
+                spSharesMint_ += uintStorage;
             } else if (bytes32Storage == keccak256("WITHDRAW")) {
-                _spSharesBurn += uintStorage;
+                spSharesBurn_ += uintStorage;
             }
 
             unchecked {
@@ -135,22 +155,26 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         }
     }
 
-    function _notifySuperPosition(
-        ExecutorEntry memory entry,
-        uint256 _spSharesMint,
-        uint256 _spSharesBurn
-    ) private {
+    function _updateAccounting(
+        address account,
+        uint256 actionId,
+        address finalTarget,
+        bool isDeposit,
+        uint256 amountShares
+    )
+        private
+    {
+        ISuperActions(superActions()).updateAccounting(account, actionId, finalTarget, isDeposit, amountShares);
+    }
+
+    function _notifySuperPosition(ExecutorEntry memory entry, uint256 _spSharesMint, uint256 _spSharesBurn) private {
         if (_spSharesMint > _spSharesBurn) {
             ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId,
-                entry.finalTarget,
-                abi.encode(_spSharesMint - _spSharesBurn, true)
+                entry.actionId, entry.finalTarget, abi.encode(_spSharesMint - _spSharesBurn, true)
             );
         } else if (_spSharesBurn > _spSharesMint) {
             ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId,
-                entry.finalTarget,
-                abi.encode(_spSharesBurn - _spSharesMint, false)
+                entry.actionId, entry.finalTarget, abi.encode(_spSharesBurn - _spSharesMint, false)
             );
         }
     }

@@ -18,13 +18,17 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
     function test_GivenAStrategyDoesNotExist(uint256 amount) external addRole(superRbac.BRIDGE_GATEWAY()) {
         amount = _bound(amount);
         // it should retrieve an empty array of hooks
-        // it should revert wityh DATA_NOT_VALID
+        // it should revert with DATA_NOT_VALID
         uint256 actionId = uint256(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
         bytes[] memory hooksData = new bytes[](0);
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: actionId,
+            finalTarget: RANDOM_TARGET,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
         superExecutor.executeFromGateway(instance.account, abi.encode(entries));
@@ -45,8 +49,12 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         hooksData[1] = abi.encode(uint256(1));
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT"],
+            finalTarget: RANDOM_TARGET,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         vm.expectRevert();
         superExecutor.executeFromGateway(instance.account, abi.encode(entries));
@@ -70,16 +78,20 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
 
         // it should execute all hooks
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[3], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT_ACROSS"],
+            finalTarget: RANDOM_TARGET,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         // check bridge emitted event; assume Orchestrator picks it up
         ISuperExecutorV2.ExecutorEntry[] memory subEntries = new ISuperExecutorV2.ExecutorEntry[](1);
         subEntries[0] = ISuperExecutorV2.ExecutorEntry({
-            actionId: actionIds[1],
+            actionId: ACTION["4626_WITHDRAW"],
             finalTarget: RANDOM_TARGET,
-            hooksData: _createStrategy1(amount), 
-            hooks: new address[](0)
+            hooksData: _createStrategy1(amount),
+            nonMainActionHooks: new address[](0)
         });
         vm.expectEmit(true, true, true, true);
         emit AcrossBridgeGateway.InstructionProcessed(instance.account, abi.encode(subEntries));
@@ -87,7 +99,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
 
         //  simulate Orchestrator call for the remaning data
         vm.expectEmit(true, true, true, true);
-        emit SuperPositionSentinel.SuperPositionBurn(actionIds[1], RANDOM_TARGET, DEFAULT_AMOUNT);
+        emit SuperPositionSentinel.SuperPositionBurn(ACTION["4626_WITHDRAW"], RANDOM_TARGET, DEFAULT_AMOUNT);
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
     }
 
@@ -104,10 +116,10 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] = ISuperExecutorV2.ExecutorEntry({
-            actionId: actionIds[1],
+            actionId: ACTION["4626_WITHDRAW"],
             finalTarget: RANDOM_TARGET,
             hooksData: _createStrategy1(amount),
-            hooks: new address[](0)
+            nonMainActionHooks: new address[](0)
         });
 
         AcrossExecuteOnDestinationHook.AcrossV3DepositData memory acrossV3DepositData = AcrossExecuteOnDestinationHook

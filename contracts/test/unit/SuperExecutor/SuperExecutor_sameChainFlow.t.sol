@@ -18,8 +18,12 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         bytes[] memory hooksData = new bytes[](0);
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: actionId,
+            finalTarget: RANDOM_TARGET,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
         superExecutor.execute(instance.account, abi.encode(entries));
@@ -46,9 +50,14 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         hooksData[1] = abi.encode(uint256(1));
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT"],
+            finalTarget: RANDOM_TARGET,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
+        /// @dev COSMIN: should use named error
         vm.expectRevert();
         superExecutor.execute(instance.account, abi.encode(entries));
     }
@@ -57,26 +66,25 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         _;
     }
 
-    function test_WhenHooksHasNonActionHooks_ShouldExecuteAll(uint256 amount) 
-        external 
-        givenAnActionExist 
-    {
+    function test_WhenHooksHasNonActionHooks_ShouldExecuteAll(uint256 amount) external givenAnActionExist {
         amount = _bound(amount);
-
+        /// @dev Note: this test should fail because it contains hooks that should always be part of a main action, such
+        /// as deposit4626VaultHook
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
-
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
-        hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);    
-
+        address finalTarget = address(mock4626Vault);
+        bytes[] memory hooksData = _createDepositActionData(finalTarget, amount);
         address[] memory hooks = new address[](2);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: type(uint256).max, finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: hooks });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: type(uint256).max,
+            finalTarget: address(0),
+            hooksData: hooksData,
+            nonMainActionHooks: hooks
+        });
 
         superExecutor.execute(instance.account, abi.encode(entries));
 
@@ -90,32 +98,41 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         givenSentinelCallIsNotPerformed
     {
         amount = _bound(amount);
-        bytes[] memory hooksData = _createStrategy0(amount);
+        address finalTarget = address(mock4626Vault);
+
+        bytes[] memory hooksData = _createDepositActionData(finalTarget, amount);
 
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 
         // extra non-action set of hooks
-        bytes[] memory nonActionHooksData = new bytes[](1);
-        nonActionHooksData[0] = abi.encode(address(mockERC20), address(user2), amount);
-        address[] memory nonActionHooks = new address[](1);
-        nonActionHooks[0] = address(approveErc20Hook);
-
+        bytes[] memory nonMainActionHooksData = new bytes[](1);
+        nonMainActionHooksData[0] = abi.encode(address(mockERC20), address(user2), amount);
+        address[] memory nonMainActionHooks = new address[](1);
+        nonMainActionHooks[0] = address(approveErc20Hook);
 
         // it should execute all hooks
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](2);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
-        entries[1] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: type(uint256).max, finalTarget: RANDOM_TARGET, hooksData: nonActionHooksData, hooks: nonActionHooks });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT"],
+            finalTarget: finalTarget,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
+        entries[1] = ISuperExecutorV2.ExecutorEntry({
+            actionId: type(uint256).max,
+            finalTarget: address(0),
+            hooksData: nonMainActionHooksData,
+            nonMainActionHooks: nonMainActionHooks
+        });
 
         vm.expectEmit(true, true, true, true);
-        emit SuperPositionSentinel.SuperPositionMint(actionIds[0], RANDOM_TARGET, amount);
+        emit SuperPositionSentinel.SuperPositionMint(ACTION["4626_DEPOSIT"], RANDOM_TARGET, amount);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, amount);
-        
+
         uint256 allowanceForUser2 = mockERC20.allowance(instance.account, user2);
         assertEq(allowanceForUser2, amount);
     }
@@ -128,35 +145,54 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         givenSentinelCallIsNotPerformed
     {
         amount = _bound(amount);
-        bytes[] memory hooksData = _createStrategy2(amount);
+        address finalTarget = address(mock4626Vault);
+        bytes[] memory hooksData = _createDepositWithdrawActionData(finalTarget, amount);
 
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 
         // it should execute all hooks
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[2], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT_WITHDRAW"],
+            finalTarget: finalTarget,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         vm.expectEmit(true, true, true, true);
 
-        emit SuperPositionSentinel.SuperPositionMint(actionIds[2], RANDOM_TARGET, amount - 100);
+        emit SuperPositionSentinel.SuperPositionMint(ACTION["4626_DEPOSIT_WITHDRAW"], finalTarget, amount - 100);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, amount - 100);
     }
 
-    function _createStrategy0(uint256 amount) internal view returns (bytes[] memory hooksData) {
+    function _createDepositActionData(
+        address finalTarget,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes[] memory hooksData)
+    {
         hooksData = new bytes[](2);
-        hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
-        hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);
+        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
+        hooksData[1] = abi.encode(finalTarget, instance.account, amount);
     }
 
-    function _createStrategy2(uint256 amount) internal view returns (bytes[] memory hooksData) {
+    function _createDepositWithdrawActionData(
+        address finalTarget,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes[] memory hooksData)
+    {
         hooksData = new bytes[](3);
-        hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
-        hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);
-        hooksData[2] = abi.encode(address(mock4626Vault), instance.account, instance.account, 100);
+        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
+        hooksData[1] = abi.encode(finalTarget, instance.account, amount);
+        hooksData[2] = abi.encode(finalTarget, instance.account, 100);
     }
 }

@@ -6,7 +6,7 @@ interface ISuperExecutorV2 {
         uint256 actionId;
         address finalTarget;
         bytes[] hooksData;
-        address[] hooks;
+        address[] nonMainActionHooks;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -16,6 +16,8 @@ interface ISuperExecutorV2 {
     error NOT_AUTHORIZED();
     error AMOUNT_NOT_VALID();
     error ADDRESS_NOT_VALID();
+    error MAIN_ACTION_WITH_NON_MAIN_ACTION_HOOKS();
+    error FINAL_TARGET_NOT_ZERO();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
