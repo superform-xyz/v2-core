@@ -13,6 +13,7 @@ import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SharedState } from "../src/state/SharedState.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperActions } from "../src/strategies/SuperActions.sol";
+import { AcrossBridgeGateway } from "../src/bridges/AcrossBridgeGateway.sol";
 import { SuperPositionsMock } from "../src/strategies/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
@@ -47,6 +48,7 @@ import { DepositRedeem5115ActionOracle } from "../src/strategies/oracles/Deposit
  *     SuperPositionsMock
  *     SharedState
  *     SuperPositionSentinel
+ *     AcrossBridgeGateway
  *
  *     Hooks:
  *         AcrossExecuteOnDestinationHook
@@ -83,19 +85,35 @@ contract DeployV2 is Script, Data {
         bytes creationCode;
     }
 
-    function run(uint8 config) public {
+    struct DeployedContracts {
+        address superRegistry;
+        address superRbac;
+        address superActions;
+        address superPositionSentinel;
+        address sharedState;
+        address acrossBridgeGateway;
+    }
+
+    function run(uint64[] memory chainIds) public {
         vm.startBroadcast();
 
-        if (config == uint8(DeployChain.MAINNET)) {
-            console2.log("Deploying on MAINNET \n");
-            _deployMainnet();
-        } else if (config == uint8(DeployChain.TESTNET1)) {
-            console2.log("Deploying on TESTNET1 \n");
-            _deployTestnetV1();
-        } else if (config == uint8(DeployChain.TESTNET2)) {
-            console2.log("Deploying on TESTNET2 \n");
-        } else {
-            revert INVALID_CONFIG();
+        uint256 len = chainIds.length;
+        for (uint256 i; i < len;) {
+            uint64 chainId = chainIds[i];
+            console2.log("Deploying on chainId: ", chainId);
+
+            // set chain configuration
+            _setConfiguration(chainId);
+
+            // deploy contracts
+            DeployedContracts memory deployedContracts = _deploy();
+
+            // configure contracts
+            _configure(deployedContracts);
+
+            unchecked {
+                ++i;
+            }
         }
 
         vm.stopBroadcast();
@@ -105,9 +123,8 @@ contract DeployV2 is Script, Data {
         return ISuperDeployer(configuration.deployer);
     }
 
-    function _deployMainnet() private { }
 
-    function _deployTestnetV1() private {
+    function _deploy() private returns(DeployedContracts memory deployedContracts) {
         // set configuration
         _setConfiguration(uint8(DeployChain.TESTNET1));
 
@@ -115,7 +132,7 @@ contract DeployV2 is Script, Data {
         ISuperDeployer deployer = _getDeployer();
 
         // Deploy SuperRegistry
-        address superRegistry = __deployContract(
+        deployedContracts.superRegistry = __deployContract(
             deployer,
             "SuperRegistry",
             __getSalt(configuration.owner, configuration.deployer, "SuperRegistry"),
@@ -123,7 +140,7 @@ contract DeployV2 is Script, Data {
         );
 
         // Deploy SuperRbac
-        address superRbac = __deployContract(
+        deployedContracts.superRbac = __deployContract(
             deployer,
             "SuperRbac",
             __getSalt(configuration.owner, configuration.deployer, "SuperRbac"),
@@ -131,18 +148,18 @@ contract DeployV2 is Script, Data {
         );
 
         // Deploy SuperActions
-        address superActions = __deployContract(
+        deployedContracts.superActions = __deployContract(
             deployer,
             "SuperActions",
             __getSalt(configuration.owner, configuration.deployer, "SuperActions"),
-            abi.encodePacked(type(SuperActions).creationCode, superRegistry)
+            abi.encodePacked(type(SuperActions).creationCode, deployedContracts.superRegistry)
         );
 
         // Deploy SuperPositionMock
-        _deploySuperPositions(deployer, superRegistry, configuration.superPositions);
+        _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions);
 
         // Deploy SharedState
-        address sharedState = __deployContract(
+        deployedContracts.sharedState = __deployContract(
             deployer,
             "SharedState",
             __getSalt(configuration.owner, configuration.deployer, "SharedState"),
@@ -150,18 +167,56 @@ contract DeployV2 is Script, Data {
         );
 
         // Deploy SuperPositionSentinel
-        address superPositionSentinel = __deployContract(
+        deployedContracts.superPositionSentinel = __deployContract(
             deployer,
             "SuperPositionSentinel",
             __getSalt(configuration.owner, configuration.deployer, "SuperPositionSentinel"),
-            abi.encodePacked(type(SuperPositionSentinel).creationCode, superRegistry)
+            abi.encodePacked(type(SuperPositionSentinel).creationCode, deployedContracts.superRegistry)
+        );
+
+        // Deploy AcrossBridgeGateway
+        deployedContracts.acrossBridgeGateway = __deployContract(
+            deployer,
+            "AcrossBridgeGateway",
+            __getSalt(configuration.owner, configuration.deployer, "AcrossBridgeGateway"),
+            abi.encodePacked(type(AcrossBridgeGateway).creationCode, deployedContracts.superRegistry, configuration.acrossSpokePoolV3)
         );
 
         // Deploy Hooks
-        _deployHooks(deployer, superRegistry);
+        _deployHooks(deployer, deployedContracts.superRegistry);
 
         // Deploy Oracles
-        _deployOracles(deployer, superRegistry);
+        _deployOracles(deployer, deployedContracts.superRegistry);
+    }
+    function _configure(DeployedContracts memory deployedContracts) private {
+        SuperRbac superRbac = SuperRbac(deployedContracts.superRbac);
+        SuperRegistry superRegistry = SuperRegistry(deployedContracts.superRegistry);
+
+        // -- Roles
+        // ---- | set external roles (ex: SUPER_ACTIONS_CONFIGURATOR for another address)
+        uint256 len = configuration.externalRoles.length;
+        for (uint256 i; i < len;) {
+            RolesData memory _roleInfo = configuration.externalRoles[i];
+            superRbac.setRole(_roleInfo.addr, _roleInfo.role, true);
+
+            unchecked {
+                ++i;
+            }
+        }
+        // ---- | set deployed contracts roles
+        superRbac.setRole(deployedContracts.acrossBridgeGateway, superRbac.BRIDGE_GATEWAY(), true);
+        superRbac.setRole(configuration.owner, superRbac.EXECUTOR_CONFIGURATOR(), true);
+        superRbac.setRole(configuration.owner, superRbac.SENTINEL_CONFIGURATOR(), true);
+        superRbac.setRole(configuration.owner, superRbac.STRATEGY_ORACLE_CONFIGURATOR(), true);
+        superRbac.setRole(configuration.owner, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
+
+        // -- SuperRegistry
+        superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), deployedContracts.superRbac);
+        superRegistry.setAddress(superRegistry.SHARED_STATE_ID(), deployedContracts.sharedState);
+        superRegistry.setAddress(superRegistry.SUPER_ACTIONS_ID(), deployedContracts.superActions);
+        superRegistry.setAddress(superRegistry.ACROSS_GATEWAY_ID(), deployedContracts.acrossBridgeGateway);
+        superRegistry.setAddress(superRegistry.SUPER_POSITION_SENTINEL_ID(), deployedContracts.superPositionSentinel);
+        superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
     }
 
     /*//////////////////////////////////////////////////////////////
