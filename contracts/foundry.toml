@@ -42,3 +42,4 @@ wrap_comments = true
 
 [fmt.exclude]
 path = "test/mocks/TransientStorageExecutor.sol"
+
