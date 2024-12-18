@@ -51,16 +51,16 @@ abstract contract Data {
     //////////////////////////////////////////////////////////////*/
     function _setConfiguration(uint64 chainId) internal {
         // common configuration
-        configuration.deployer = 0x0000000000000000000000000000000000000000;    
+        configuration.deployer = 0x4b38341B1126F45614B26319787CA98aeC1b6f57;    
         configuration.chainId = chainId;
-        configuration.owner = 0x0000000000000000000000000000000000000000;
-        configuration.paymaster = 0x0000000000000000000000000000000000000000;
+        configuration.owner = 0x168910Ea470113A07Ec777769E76D9C8C80A402f;
+        configuration.paymaster = 0x168910Ea470113A07Ec777769E76D9C8C80A402f;
 
         // chain specific configuration
         if (chainId == MAINNET_CHAIN_ID) {
             configuration.acrossSpokePoolV3 = 0x0000000000000000000000000000000000000000;
-        } else if (chainId == SEPOLIA_CHAIN_ID) {
-            configuration.acrossSpokePoolV3 = 0x0000000000000000000000000000000000000000;
+        } else if (chainId == ARBITRUM_CHAIN_ID) {
+            configuration.acrossSpokePoolV3 = 0xE248B1deEb12828788eB0e27F3BF8f0e18cfd362;
         } else if (chainId == ARB_SEPOLIA_CHAIN_ID) {
             configuration.acrossSpokePoolV3 = 0x0000000000000000000000000000000000000000;
         } else {

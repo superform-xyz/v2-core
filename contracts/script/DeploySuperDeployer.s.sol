@@ -6,10 +6,22 @@ import { SuperDeployer } from "./utils/SuperDeployer.sol";
 import { Script } from "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
+/**
+ * forge script DeploySuperDeployer \
+ *     --slow \
+ *     --verify \
+ *     --verifier-url <url> \
+ *     --rpc-url <url> \
+ *     --etherscan-api-key <key> \
+ *     --private-key <key> \
+ *     --broadcast
+ */
+
+
 contract DeploySuperDeployer is Script {
     function run() public {
         vm.startBroadcast();
-        bytes32 salt = "SuperformSuperDeployer.v1";
+        bytes32 salt = "SuperformSuperDeployer.v1.0.2";
         address expectedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
         console2.log("Expected address:", expectedAddr);
         if (expectedAddr.code.length > 0) {
