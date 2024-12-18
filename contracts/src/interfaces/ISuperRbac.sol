@@ -49,4 +49,7 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the sentinel configurator role.
     function SENTINEL_CONFIGURATOR() external view returns (bytes32);
+
+    /// @dev Get the ID of the strategy oracle configurator role.
+    function STRATEGY_ORACLE_CONFIGURATOR() external view returns (bytes32);
 }
