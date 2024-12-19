@@ -14,6 +14,7 @@ src = "src"
 test = "test"
 cbor_metadata = true
 libs = ['lib']
+fs_permissions = [{ access = "read-write", path = "./" }]
 
 # remappings
 remappings = [
@@ -43,3 +44,6 @@ wrap_comments = true
 [fmt.exclude]
 path = "test/mocks/TransientStorageExecutor.sol"
 
+[etherscan]
+#                   Paste TENDERLY_ACCESS_TOKEN            Chain ID         Verifier URL: RPC_URL/verify/etherscan
+unknown_chain = { key = "${TENDERLY_ACCESS_KEY}", chain = 1, url = "${V2_TEST_VNET}/verify/etherscan" }
