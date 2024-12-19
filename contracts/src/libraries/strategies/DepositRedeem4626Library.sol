@@ -29,11 +29,14 @@ library DepositRedeem4626Library {
         returns (uint256[] memory pricePerShares)
     {
         pricePerShares = new uint256[](finalTargets.length);
-        for (uint256 i = 0; i < finalTargets.length; ++i) {
+        for (uint256 i = 0; i < finalTargets.length;) {
             if (IERC4626(finalTargets[i]).asset() != underlyingAsset) {
                 revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
             }
             pricePerShares[i] = getPricePerShare(finalTargets[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 }

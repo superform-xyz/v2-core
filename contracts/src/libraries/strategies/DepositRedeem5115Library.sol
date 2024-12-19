@@ -23,8 +23,11 @@ library DepositRedeem5115Library {
     ) internal view returns (uint256[] memory pricePerShares) {
         uint256 length = finalTargets.length;
         pricePerShares = new uint256[](length);
-        for (uint256 i = 0; i < length; i++) {
+        for (uint256 i = 0; i < length;) {
             pricePerShares[i] = getPricePerShare(finalTargets[i], tokenIns[i]);
+            unchecked {
+                ++i;
+            }
         }
     }
 }
