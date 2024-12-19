@@ -2,12 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit,
-    ModuleKitHelpers,
-    AccountInstance,
-    UserOpData
-} from "modulekit/ModuleKit.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
@@ -139,6 +134,8 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
             superRegistry.ACROSS_GATEWAY_ID(), address(acrossBridgeGateway)
         );
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_EXECUTOR_ID(), address(superExecutor));
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SHARED_STATE_ID(), address(sharedState));
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
     }
 
     function _setRoles() internal {
