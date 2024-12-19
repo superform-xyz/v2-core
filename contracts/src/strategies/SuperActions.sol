@@ -61,15 +61,15 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         address user_,
         uint256 actionId_,
         address finalTarget_,
-        bool isDeposit_,
+        bool isInflow_,
         uint256 amountShares_
     )
         external
         onlyExecutor
         returns (uint256 pps_)
     {
-        pps_ = _processAccounting(user_, actionId_, finalTarget_, isDeposit_, amountShares_);
-        emit AccountingUpdated(user_, actionId_, finalTarget_, isDeposit_, amountShares_, pps_);
+        pps_ = _processAccounting(user_, actionId_, finalTarget_, isInflow_, amountShares_);
+        emit AccountingUpdated(user_, actionId_, finalTarget_, isInflow_, amountShares_, pps_);
     }
 
     /// @inheritdoc ISuperActions
@@ -77,7 +77,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         address user_,
         uint256[] memory actionIds_,
         address[] memory finalTargets_,
-        bool[] memory isDeposits_,
+        bool[] memory isInflows_,
         uint256[] memory amountsShares_
     )
         external
@@ -85,35 +85,93 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         returns (uint256[] memory pps_)
     {
         uint256 len = actionIds_.length;
-        if (len != finalTargets_.length || len != isDeposits_.length || len != amountsShares_.length) {
+        if (len != finalTargets_.length || len != isInflows_.length || len != amountsShares_.length) {
             revert INVALID_ARRAY_LENGTH();
         }
 
         pps_ = new uint256[](len);
         for (uint256 i = 0; i < len; i++) {
-            pps_[i] = _processAccounting(user_, actionIds_[i], finalTargets_[i], isDeposits_[i], amountsShares_[i]);
+            pps_[i] = _processAccounting(user_, actionIds_[i], finalTargets_[i], isInflows_[i], amountsShares_[i]);
         }
 
-        emit BatchAccountingUpdated(user_, actionIds_, finalTargets_, isDeposits_, amountsShares_, pps_);
+        emit BatchAccountingUpdated(user_, actionIds_, finalTargets_, isInflows_, amountsShares_, pps_);
+    }
+
+    /// @inheritdoc ISuperActions
+    function registerYieldSourceAndActions(YieldSourceConfig calldata config)
+        external
+        onlyActionsConfigurator
+        returns (uint256[] memory actionIds)
+    {
+        // Register yield source
+        _registerSingleYieldSource(config.yieldSourceId, config.metadataOracle);
+        uint256 len = config.actions.length;
+        // Register all actions
+        actionIds = new uint256[](len);
+        for (uint256 i; i < len;) {
+            actionIds[i] = _registerSingleAction(
+                config.actions[i].hooks,
+                config.yieldSourceId,
+                config.actions[i].actionType,
+                config.actions[i].shareDeltaHookIndex
+            );
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc ISuperActions
+    function registerYieldSource(
+        string calldata yieldSourceId_,
+        address metadataOracle_
+    )
+        external
+        onlyActionsConfigurator
+    {
+        _registerSingleYieldSource(yieldSourceId_, metadataOracle_);
+    }
+
+    /// @inheritdoc ISuperActions
+    function batchRegisterYieldSources(
+        string[] calldata yieldSourceIds_,
+        address[] calldata metadataOracles_
+    )
+        external
+        onlyActionsConfigurator
+    {
+        uint256 len = yieldSourceIds_.length;
+        if (len != metadataOracles_.length) revert INVALID_ARRAY_LENGTH();
+
+        for (uint256 i; i < len;) {
+            _registerSingleYieldSource(yieldSourceIds_[i], metadataOracles_[i]);
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @inheritdoc ISuperActions
     function registerAction(
         address[] memory hooks_,
-        string calldata yieldSourceId_
+        string calldata yieldSourceId_,
+        ActionType actionType_,
+        uint256 shareDeltaHookIndex_
     )
         external
         onlyActionsConfigurator
         returns (uint256 actionId_)
     {
-        actionId_ = _registerSingleAction(hooks_, yieldSourceId_);
+        actionId_ = _registerSingleAction(hooks_, yieldSourceId_, actionType_, shareDeltaHookIndex_);
         emit ActionRegistered(actionId_, hooks_, yieldSourceId_);
     }
 
     // Update batch register to use string IDs
     function batchRegisterActions(
         address[][] memory hooks_,
-        string[] calldata yieldSourceIds_
+        string[] calldata yieldSourceIds_,
+        ActionType[] calldata actionTypes_,
+        uint256[] calldata shareDeltaHookIndices_
     )
         external
         onlyActionsConfigurator
@@ -124,7 +182,8 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
 
         actionIds_ = new uint256[](len);
         for (uint256 i; i < len;) {
-            actionIds_[i] = _registerSingleAction(hooks_[i], yieldSourceIds_[i]);
+            actionIds_[i] =
+                _registerSingleAction(hooks_[i], yieldSourceIds_[i], actionTypes_[i], shareDeltaHookIndices_[i]);
             unchecked {
                 ++i;
             }
@@ -179,36 +238,6 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     }
 
     /// @inheritdoc ISuperActions
-    function registerYieldSource(
-        string calldata yieldSourceId_,
-        address metadataOracle_
-    )
-        external
-        onlyActionsConfigurator
-    {
-        _registerSingleYieldSource(yieldSourceId_, metadataOracle_);
-    }
-
-    /// @inheritdoc ISuperActions
-    function batchRegisterYieldSources(
-        string[] calldata yieldSourceIds_,
-        address[] calldata metadataOracles_
-    )
-        external
-        onlyActionsConfigurator
-    {
-        uint256 len = yieldSourceIds_.length;
-        if (len != metadataOracles_.length) revert INVALID_ARRAY_LENGTH();
-
-        for (uint256 i; i < len;) {
-            _registerSingleYieldSource(yieldSourceIds_[i], metadataOracles_[i]);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /// @inheritdoc ISuperActions
     function setStrategyConfig(
         string calldata yieldSourceId_,
         address finalTarget_,
@@ -245,15 +274,8 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperActions
-    function getActionLogic(uint256 actionId_) public view returns (ActionLogic memory) {
-        ActionLogic memory logic = actionLogic[actionId_];
-        if (logic.yieldSourceId == bytes32(0)) revert ACTION_NOT_FOUND();
-        return logic;
-    }
-
-    /// @inheritdoc ISuperActions
-    function getHooksForAction(uint256 actionId_) external view returns (address[] memory) {
-        return _getActionLogicOrRevert(actionId_).hooks;
+    function getActionLogic(uint256 actionId_) external view returns (ActionLogic memory) {
+        return _getActionLogicOrRevert(actionId_);
     }
 
     /// @inheritdoc ISuperActions
@@ -351,18 +373,29 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @return actionId_ The generated action ID
     function _registerSingleAction(
         address[] memory hooks_,
-        string calldata yieldSourceId_
+        string calldata yieldSourceId_,
+        ActionType actionType_,
+        uint256 shareDeltaHookIndex_
     )
         internal
         returns (uint256 actionId_)
     {
+        if (shareDeltaHookIndex_ >= hooks_.length) revert INVALID_SHARE_DELTA_HOOK();
+        if (actionType_ == ActionType.NONE) revert INVALID_ACTION_TYPE();
+
         actionId_ = _validateHooks(hooks_);
         bytes32 yieldSourceIdBytes = keccak256(abi.encode(yieldSourceId_));
 
         if (actionLogic[actionId_].hooks.length != 0) revert ACTION_ALREADY_EXISTS();
         if (yieldSourceData[yieldSourceIdBytes].oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
 
-        actionLogic[actionId_] = ActionLogic({ yieldSourceId: yieldSourceIdBytes, hooks: hooks_ });
+        actionLogic[actionId_] = ActionLogic({
+            yieldSourceId: yieldSourceIdBytes,
+            hooks: hooks_,
+            actionType: actionType_,
+            shareDeltaHookIndex: shareDeltaHookIndex_
+        });
+
         yieldSourceData[yieldSourceIdBytes].actionIds.push(actionId_);
     }
 
@@ -420,14 +453,14 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @param user_ The user address
     /// @param actionId_ The ID of the action
     /// @param finalTarget_ The target contract address
-    /// @param isDeposit_ Whether this is a deposit operation
+    /// @param isInflow_ Whether this is an inflow operation
     /// @param amountShares_ The amount of shares to process
     /// @return pps_ The price per share at which the accounting was updated
     function _processAccounting(
         address user_,
         uint256 actionId_,
         address finalTarget_,
-        bool isDeposit_,
+        bool isInflow_,
         uint256 amountShares_
     )
         internal
@@ -439,7 +472,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         pps_ = IActionOracle(yieldSourceData[logic.yieldSourceId].oracle).getStrategyPrice(finalTarget_);
         if (pps_ == 0) revert INVALID_PRICE();
 
-        if (isDeposit_) {
+        if (isInflow_) {
             userLedgerEntries[user_][logic.yieldSourceId][finalTarget_].push(
                 LedgerEntry({ amountSharesAvailableToConsume: amountShares_, price: pps_ })
             );
