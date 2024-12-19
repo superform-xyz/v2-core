@@ -14,7 +14,6 @@ src = "src"
 test = "test"
 cbor_metadata = true
 libs = ['lib']
-ignored_warnings_from = ["lib"]
 
 # remappings
 remappings = [
