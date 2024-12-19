@@ -47,9 +47,22 @@ abstract contract Configuration {
     uint64 public constant ARB_SEPOLIA_CHAIN_ID = 421_613;
     uint64 public constant BASE_SEPOLIA_CHAIN_ID = 84_532;
 
+    mapping(uint64 chainId => string chainName) private chainNames;
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    function _setAllChainsConfiguration() internal {
+        chainNames[MAINNET_CHAIN_ID] = "Ethereum";
+        chainNames[BASE_CHAIN_ID] = "Base";
+        chainNames[OPTIMISM_CHAIN_ID] = "Optimism";
+        chainNames[POLYGON_CHAIN_ID] = "Polygon";
+        chainNames[ARBITRUM_CHAIN_ID] = "Arbitrum";
+        chainNames[SEPOLIA_CHAIN_ID] = "Sepolia";
+        chainNames[ARB_SEPOLIA_CHAIN_ID] = "Arbitrum_Sepolia";
+        chainNames[BASE_SEPOLIA_CHAIN_ID] = "Base_Sepolia";
+    }
+
     function _setConfiguration(uint64 chainId) internal {
         // common configuration
         // this is the SuperDeployer address

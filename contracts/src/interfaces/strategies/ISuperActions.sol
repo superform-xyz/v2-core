@@ -244,6 +244,14 @@ interface ISuperActions {
                             EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Retrieves all action IDs
+    /// @return Array of action IDs
+    function getAllActionIds() external view returns (uint256[] memory);
+
+    /// @notice Retrieves all yield source IDs
+    /// @return Array of yield source IDs
+    function getAllYieldSourceIds() external view returns (string[] memory);
+
     /// @notice Retrieves logic for a specific action
     /// @param actionId_ The ID of the action
     /// @return logic_ The action logic

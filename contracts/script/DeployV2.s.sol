@@ -70,6 +70,7 @@ contract DeployV2 is Script, Configuration {
 
     function run(uint64[] memory chainIds) public {
         vm.startBroadcast();
+        _setAllChainsConfiguration();
         uint256 len = chainIds.length;
         for (uint256 i; i < len;) {
             uint64 chainId = chainIds[i];
@@ -103,6 +104,8 @@ contract DeployV2 is Script, Configuration {
         return ISuperDeployer(configuration.deployer);
     }
 
+    mapping(uint64 chainId => string chainName) private chainNames;
+
     function _deploy(uint64 chainId)
         internal
         returns (
@@ -121,6 +124,7 @@ contract DeployV2 is Script, Configuration {
         deployedContracts.superRegistry = __deployContract(
             deployer,
             "SuperRegistry",
+            chainId,
             __getSalt(configuration.owner, configuration.deployer, "SuperRegistry"),
             abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
         );
@@ -129,6 +133,7 @@ contract DeployV2 is Script, Configuration {
         deployedContracts.superExecutor = __deployContract(
             deployer,
             "SuperExecutor",
+            chainId,
             __getSalt(configuration.owner, configuration.deployer, "SuperExecutor"),
             abi.encodePacked(type(SuperExecutorV2).creationCode, abi.encode(deployedContracts.superRegistry))
         );
@@ -137,6 +142,7 @@ contract DeployV2 is Script, Configuration {
         deployedContracts.superRbac = __deployContract(
             deployer,
             "SuperRbac",
+            chainId,
             __getSalt(configuration.owner, configuration.deployer, "SuperRbac"),
             abi.encodePacked(type(SuperRbac).creationCode, abi.encode(configuration.owner))
         );
@@ -145,17 +151,19 @@ contract DeployV2 is Script, Configuration {
         deployedContracts.superActions = __deployContract(
             deployer,
             "SuperActions",
+            chainId,
             __getSalt(configuration.owner, configuration.deployer, "SuperActions"),
             abi.encodePacked(type(SuperActions).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
         // Deploy SuperPositionMock
-        _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions);
+        _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions, chainId);
 
         // Deploy SharedState
         deployedContracts.sharedState = __deployContract(
             deployer,
             "SharedState",
+            chainId,
             __getSalt(configuration.owner, configuration.deployer, "SharedState"),
             type(SharedState).creationCode
         );
@@ -164,6 +172,7 @@ contract DeployV2 is Script, Configuration {
         deployedContracts.superPositionSentinel = __deployContract(
             deployer,
             "SuperPositionSentinel",
+            chainId,
             __getSalt(configuration.owner, configuration.deployer, "SuperPositionSentinel"),
             abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
         );
@@ -172,6 +181,7 @@ contract DeployV2 is Script, Configuration {
         deployedContracts.acrossBridgeGateway = __deployContract(
             deployer,
             "AcrossBridgeGateway",
+            chainId,
             __getSalt(configuration.owner, configuration.deployer, "AcrossBridgeGateway"),
             abi.encodePacked(
                 type(AcrossBridgeGateway).creationCode,
@@ -180,10 +190,10 @@ contract DeployV2 is Script, Configuration {
         );
 
         // Deploy Hooks
-        hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry);
+        hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);
 
         // Deploy Oracles
-        oracleAddresses = _deployOracles(deployer, deployedContracts.superRegistry);
+        oracleAddresses = _deployOracles(deployer, deployedContracts.superRegistry, chainId);
     }
 
     function _configure(DeployedContracts memory deployedContracts) internal {
@@ -225,6 +235,7 @@ contract DeployV2 is Script, Configuration {
     function __deployContract(
         ISuperDeployer deployer,
         string memory contractName,
+        uint64 chainId,
         bytes32 salt,
         bytes memory creationCode
     )
@@ -240,6 +251,9 @@ contract DeployV2 is Script, Configuration {
 
         address deployedAddr = deployer.deploy(salt, creationCode);
         console2.log("  [+] %s deployed at:", contractName, deployedAddr);
+
+        _exportContract(chainNames[chainId], contractName, deployedAddr, chainId);
+
         return deployedAddr;
     }
 
@@ -247,7 +261,14 @@ contract DeployV2 is Script, Configuration {
         return keccak256(abi.encodePacked(eoa, deployer, bytes(SALT_NAMESPACE), bytes(string.concat(name, ".v0.1"))));
     }
 
-    function _deployHooks(ISuperDeployer deployer, address registry) private returns (address[] memory hookAddresses) {
+    function _deployHooks(
+        ISuperDeployer deployer,
+        address registry,
+        uint64 chainId
+    )
+        private
+        returns (address[] memory hookAddresses)
+    {
         uint256 len = 15;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
@@ -320,6 +341,7 @@ contract DeployV2 is Script, Configuration {
             hookAddresses[i] = __deployContract(
                 deployer,
                 hook.name,
+                chainId,
                 __getSalt(configuration.owner, configuration.deployer, hook.name),
                 hook.creationCode
             );
@@ -332,7 +354,8 @@ contract DeployV2 is Script, Configuration {
 
     function _deployOracles(
         ISuperDeployer deployer,
-        address registry
+        address registry,
+        uint64 chainId
     )
         private
         returns (address[] memory oracleAddresses)
@@ -348,6 +371,7 @@ contract DeployV2 is Script, Configuration {
             oracleAddresses[i] = __deployContract(
                 deployer,
                 oracle.name,
+                chainId,
                 __getSalt(configuration.owner, configuration.deployer, oracle.name),
                 oracle.creationCode
             );
@@ -400,7 +424,8 @@ contract DeployV2 is Script, Configuration {
     function _deploySuperPositions(
         ISuperDeployer deployer,
         address registry,
-        SuperPositionData[] memory superPositions
+        SuperPositionData[] memory superPositions,
+        uint64 chainId
     )
         private
     {
@@ -411,6 +436,7 @@ contract DeployV2 is Script, Configuration {
             __deployContract(
                 deployer,
                 name,
+                chainId,
                 __getSalt(configuration.owner, configuration.deployer, name),
                 abi.encodePacked(type(SuperPositionsMock).creationCode, registry, _superPosition.decimals)
             );
@@ -418,6 +444,23 @@ contract DeployV2 is Script, Configuration {
             unchecked {
                 ++i;
             }
+        }
+    }
+
+    function _exportContract(string memory name, string memory label, address addr, uint64 chainId) private {
+        string memory json = vm.serializeAddress("EXPORTS", label, addr);
+        string memory root = vm.projectRoot();
+
+        string memory chainOutputFolder =
+            string(abi.encodePacked("/script/output/", vm.toString(uint256(chainId)), "/"));
+
+        if (vm.envOr("FOUNDRY_EXPORTS_OVERWRITE_LATEST", false)) {
+            vm.writeJson(json, string(abi.encodePacked(root, chainOutputFolder, name, "-latest.json")));
+        } else {
+            vm.writeJson(
+                json,
+                string(abi.encodePacked(root, chainOutputFolder, name, "-", vm.toString(block.timestamp), ".json"))
+            );
         }
     }
 }

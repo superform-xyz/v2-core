@@ -14,6 +14,10 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+
+    uint256[] private allActionIds;
+    string[] private allYieldSourceIds;
+
     /// @notice Maps action IDs to their corresponding action logic (hooks and yield source)
     mapping(uint256 actionId => ActionLogic) private actionLogic;
 
@@ -226,6 +230,19 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /// @inheritdoc ISuperActions
     function delistAction(uint256 actionId_) external onlyActionsConfigurator {
         delete actionLogic[actionId_];
+
+        uint256 len = allActionIds.length;
+        // Remove from allActionIds
+        for (uint256 i; i < len;) {
+            if (allActionIds[i] == actionId_) {
+                allActionIds[i] = allActionIds[len - 1];
+                allActionIds.pop();
+                break;
+            }
+            unchecked {
+                ++i;
+            }
+        }
         emit ActionDelisted(actionId_);
     }
 
@@ -272,6 +289,16 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperActions
+    function getAllActionIds() external view returns (uint256[] memory) {
+        return allActionIds;
+    }
+
+    /// @inheritdoc ISuperActions
+    function getAllYieldSourceIds() external view returns (string[] memory) {
+        return allYieldSourceIds;
+    }
 
     /// @inheritdoc ISuperActions
     function getActionLogic(uint256 actionId_) external view returns (ActionLogic memory) {
@@ -397,6 +424,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         });
 
         yieldSourceData[yieldSourceIdBytes].actionIds.push(actionId_);
+        allActionIds.push(actionId_);
     }
 
     /// @dev Internal function to update a single action's configuration
@@ -446,6 +474,7 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
         if (yieldSourceData[yieldSourceIdBytes].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
         yieldSourceData[yieldSourceIdBytes].oracle = metadataOracle_;
+        allYieldSourceIds.push(yieldSourceId_);
         emit YieldSourceRegistered(yieldSourceId_, metadataOracle_);
     }
 
