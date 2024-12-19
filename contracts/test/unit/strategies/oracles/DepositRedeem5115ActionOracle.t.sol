@@ -25,7 +25,7 @@ contract DepositRedeem5115ActionOracleTest is BaseTest {
         assertEq(pricePerShare, 1e18);
     }
 
-    function test_get5115StrategyPrices() public {
+    function test_get5115StrategyPrices() public view {
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(vault);
 
