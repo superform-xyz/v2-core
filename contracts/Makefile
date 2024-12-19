@@ -37,8 +37,8 @@ deploy-poc:
 
 build :; forge build
 ftest :; forge test
-test-vvv :; forge test --match-test test_GivenAStrategyDoesNotExist -vvvv
 
+test-vvv :; forge test --match-test test_GivenAStrategyDoesNotExist -vvvv
 
 .PHONY: generate
 generate: build 

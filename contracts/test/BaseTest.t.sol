@@ -11,6 +11,7 @@ import { SpokePoolV3Mock } from "./mocks/SpokePoolV3Mock.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { ISuperRegistry } from "../src/interfaces/ISuperRegistry.sol";
 
+// hooks
 // tokens hooks
 // --- erc20
 import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -27,6 +28,10 @@ import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDep
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 // bridges hooks
 import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
+
+// action oracles
+import { DepositRedeem4626ActionOracle } from "../src/strategies/oracles/DepositRedeem4626ActionOracle.sol";
+import { DepositRedeem5115ActionOracle } from "../src/strategies/oracles/DepositRedeem5115ActionOracle.sol";
 
 abstract contract BaseTest is Helpers {
     /*//////////////////////////////////////////////////////////////
@@ -56,6 +61,8 @@ abstract contract BaseTest is Helpers {
     RequestDeposit7540VaultHook public requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook public requestWithdraw7540VaultHook;
     AcrossExecuteOnDestinationHook public acrossExecuteOnDestinationHook;
+    DepositRedeem4626ActionOracle public depositRedeem4626ActionOracle;
+    DepositRedeem5115ActionOracle public depositRedeem5115ActionOracle;
 
     function setUp() public virtual {
         arbitrumFork = vm.createSelectFork(arbitrumUrl);
@@ -93,6 +100,12 @@ abstract contract BaseTest is Helpers {
         acrossExecuteOnDestinationHook =
             new AcrossExecuteOnDestinationHook(address(superRegistry), address(this), address(spokePoolV3Mock));
         vm.label(address(acrossExecuteOnDestinationHook), "AcrossExecuteOnDestinationHook");
+
+        // action oracles
+        depositRedeem4626ActionOracle = new DepositRedeem4626ActionOracle();
+        vm.label(address(depositRedeem4626ActionOracle), "DepositRedeem4626ActionOracle");
+        depositRedeem5115ActionOracle = new DepositRedeem5115ActionOracle();
+        vm.label(address(depositRedeem5115ActionOracle), "DepositRedeem5115ActionOracle");
     }
 
     /*//////////////////////////////////////////////////////////////

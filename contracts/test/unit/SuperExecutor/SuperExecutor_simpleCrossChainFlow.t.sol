@@ -18,13 +18,17 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
     function test_GivenAStrategyDoesNotExist(uint256 amount) external addRole(superRbac.BRIDGE_GATEWAY()) {
         amount = _bound(amount);
         // it should retrieve an empty array of hooks
-        // it should revert wityh DATA_NOT_VALID
+        // it should revert with DATA_NOT_VALID
         uint256 actionId = uint256(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
         bytes[] memory hooksData = new bytes[](0);
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionId, finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: actionId,
+            finalTarget: RANDOM_TARGET,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
         superExecutor.executeFromGateway(instance.account, abi.encode(entries));
@@ -45,8 +49,12 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         hooksData[1] = abi.encode(uint256(1));
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[0], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT"],
+            finalTarget: RANDOM_TARGET,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         vm.expectRevert();
         superExecutor.executeFromGateway(instance.account, abi.encode(entries));
@@ -63,59 +71,76 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         addRole(superRbac.BRIDGE_GATEWAY())
     {
         amount = _bound(amount);
-        bytes[] memory hooksData = _createStrategy3(amount);
+        address finalTarget = address(mock4626Vault);
+        bytes[] memory hooksData = _createDepositAndBridgeActionData(finalTarget, amount);
 
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 
         // it should execute all hooks
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] =
-            ISuperExecutorV2.ExecutorEntry({ actionId: actionIds[3], finalTarget: RANDOM_TARGET, hooksData: hooksData, hooks: new address[](0) });
+        entries[0] = ISuperExecutorV2.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT_ACROSS"],
+            finalTarget: finalTarget,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
 
         // check bridge emitted event; assume Orchestrator picks it up
         ISuperExecutorV2.ExecutorEntry[] memory subEntries = new ISuperExecutorV2.ExecutorEntry[](1);
         subEntries[0] = ISuperExecutorV2.ExecutorEntry({
-            actionId: actionIds[1],
-            finalTarget: RANDOM_TARGET,
-            hooksData: _createStrategy1(amount), 
-            hooks: new address[](0)
+            actionId: ACTION["4626_WITHDRAW"],
+            finalTarget: finalTarget,
+            hooksData: _createWithdrawActionData(finalTarget, amount),
+            nonMainActionHooks: new address[](0)
         });
         vm.expectEmit(true, true, true, true);
         emit AcrossBridgeGateway.InstructionProcessed(instance.account, abi.encode(subEntries));
         superExecutor.execute(instance.account, abi.encode(entries));
 
         //  simulate Orchestrator call for the remaning data
-        vm.expectEmit(true, true, true, true);
-        emit SuperPositionSentinel.SuperPositionBurn(actionIds[1], RANDOM_TARGET, DEFAULT_AMOUNT);
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
     }
 
-    function _createStrategy1(uint256 amount) internal view returns (bytes[] memory hooksData) {
+    function _createWithdrawActionData(
+        address finalTarget,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes[] memory hooksData)
+    {
         hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(address(mock4626Vault), user2, instance.account, DEFAULT_AMOUNT);
+        hooksData[0] = abi.encode(finalTarget, user2, instance.account, DEFAULT_AMOUNT);
     }
 
-    function _createStrategy3(uint256 amount) internal view returns (bytes[] memory hooksData) {
+    function _createDepositAndBridgeActionData(
+        address finalTarget,
+        uint256 amount
+    )
+        internal
+        view
+        returns (bytes[] memory hooksData)
+    {
         hooksData = new bytes[](4);
-        hooksData[0] = abi.encode(address(mockERC20), address(mock4626Vault), amount);
-        hooksData[1] = abi.encode(address(mock4626Vault), instance.account, amount);
-        hooksData[2] = abi.encode(address(mock4626Vault), address(spokePoolV3Mock), amount);
+        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
+        hooksData[1] = abi.encode(finalTarget, instance.account, amount);
+        hooksData[2] = abi.encode(finalTarget, address(spokePoolV3Mock), amount);
 
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
         entries[0] = ISuperExecutorV2.ExecutorEntry({
-            actionId: actionIds[1],
-            finalTarget: RANDOM_TARGET,
-            hooksData: _createStrategy1(amount),
-            hooks: new address[](0)
+            actionId: ACTION["4626_WITHDRAW"],
+            finalTarget: finalTarget,
+            hooksData: _createWithdrawActionData(finalTarget, amount),
+            nonMainActionHooks: new address[](0)
         });
 
         AcrossExecuteOnDestinationHook.AcrossV3DepositData memory acrossV3DepositData = AcrossExecuteOnDestinationHook
             .AcrossV3DepositData({
             value: SMALL,
             recipient: instance.account,
-            inputToken: address(mock4626Vault),
-            outputToken: address(mock4626Vault),
+            inputToken: finalTarget,
+            outputToken: finalTarget,
             inputAmount: amount,
             outputAmount: amount,
             destinationChainId: 1,

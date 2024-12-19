@@ -89,17 +89,37 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     function _executeAction(address account, ExecutorEntry memory entry) private {
         address[] memory hooks;
         if (entry.actionId == type(uint256).max) {
-            hooks = entry.hooks;
+            if (entry.finalTarget != address(0)) {
+                revert FINAL_TARGET_NOT_ZERO();
+            }
+            hooks = entry.nonMainActionHooks;
         } else {
             // retrieve hooks for this action
             hooks = ISuperActions(superActions()).getHooksForAction(entry.actionId);
         }
         uint256 hooksLength = hooks.length;
 
-        (uint256 _spSharesMint, uint256 _spSharesBurn) = _processHooks(account, entry, hooks, hooksLength);
+        _processHooks(account, entry, hooks, hooksLength);
+        if (entry.actionId != type(uint256).max) {
+            /// @dev I added this at the end of each action execution to update the accounting for that strategy
+            /// @dev In terms of value of shares being minted it is using the last value obtained in uintStore
+            if (typeOfMainAction == keccak256("DEPOSIT")) {
+                _updateAccounting(account, entry.actionId, entry.finalTarget, true, shareDelta);
+            } else if (typeOfMainAction == keccak256("WITHDRAW")) {
+                _updateAccounting(account, entry.actionId, entry.finalTarget, false, shareDelta);
+            }
+        }
 
+        /// @dev reset transient storage
+        typeOfMainAction = bytes32(0);
+        shareDelta = 0;
+
+        /*
+        Commented because this will be performed directly inside unlock/lock shares hooks in _processHooks
+        TODO Remove
         // all hooks have been executed; act on SuperPositions changes for current strategy
-        _notifySuperPosition(entry, _spSharesMint, _spSharesBurn);
+        _notifySuperPosition(entry, spSharesMint_, spSharesBurn_);
+        */
     }
 
     function _processHooks(
@@ -107,7 +127,9 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         ExecutorEntry memory entry,
         address[] memory hooks,
         uint256 hooksLength
-    ) private returns (uint256 _spSharesMint, uint256 _spSharesBurn) {
+    )
+        private
+    {
         for (uint256 j; j < hooksLength;) {
             ISuperHook hook = ISuperHook(hooks[j]);
 
@@ -117,17 +139,38 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
             // execute the hook in the context of the SCAL
             _execute(account, hook.build(entry.hooksData[j]));
 
-            // get updated transient values
-            // for deposit or withdraw hooks, uintStorage represents the amount of shares to mint or burn
-            //                                bytes32Storage is the keccak256 of the hook type (keccak256("DEPOSIT"))
-            (, uint256 uintStorage, bytes32 bytes32Storage,) = hook.postExecute(entry.hooksData[j]);
+            (, uint256 shareDelta_, bytes32 hookType_,) = hook.postExecute(entry.hooksData[j]);
 
+            /// @dev the following sets the type of main action in transient storage
+            if (typeOfMainAction == bytes32(0)) {
+                if (hookType_ == keccak256("DEPOSIT") || hookType_ == keccak256("WITHDRAW")) {
+                    /// @dev if the type of main action is unset and hook type is a main deposit or withdraw hook
+                    typeOfMainAction = hookType_;
+                }
+            } else if (hookType_ != bytes32(0) && typeOfMainAction != hookType_) {
+                /// @dev if the type of main action is already set, and hookType_ is returned and is different than the
+                /// already set
+                /// @dev notice, this assumes there can only be two types of actions to be priced: deposit and withdraw
+                revert ACTION_TYPE_MISMATCH();
+            }
+
+            /// @dev This means the last hooks' provided share difference (must be accurate) is added to uint
+            /// @dev Warning: If there is a malicious action, accounting will be performed improperly and will result in
+            /// a fee loss
+            if (shareDelta_ != 0) {
+                shareDelta = shareDelta_;
+            }
+
+            /*
+            Commented because this will be performed directly inside unlock/lock shares hooks
+            TODO Remove
             // update the total mint and burn values
             if (bytes32Storage == keccak256("DEPOSIT")) {
-                _spSharesMint += uintStorage;
+                spSharesMint_ += uintStorage;
             } else if (bytes32Storage == keccak256("WITHDRAW")) {
-                _spSharesBurn += uintStorage;
+                spSharesBurn_ += uintStorage;
             }
+            */
 
             unchecked {
                 ++j;
@@ -135,22 +178,26 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         }
     }
 
-    function _notifySuperPosition(
-        ExecutorEntry memory entry,
-        uint256 _spSharesMint,
-        uint256 _spSharesBurn
-    ) private {
+    function _updateAccounting(
+        address account,
+        uint256 actionId,
+        address finalTarget,
+        bool isDeposit,
+        uint256 amountShares
+    )
+        private
+    {
+        ISuperActions(superActions()).updateAccounting(account, actionId, finalTarget, isDeposit, amountShares);
+    }
+
+    function _notifySuperPosition(ExecutorEntry memory entry, uint256 _spSharesMint, uint256 _spSharesBurn) private {
         if (_spSharesMint > _spSharesBurn) {
             ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId,
-                entry.finalTarget,
-                abi.encode(_spSharesMint - _spSharesBurn, true)
+                entry.actionId, entry.finalTarget, abi.encode(_spSharesMint - _spSharesBurn, true)
             );
         } else if (_spSharesBurn > _spSharesMint) {
             ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId,
-                entry.finalTarget,
-                abi.encode(_spSharesBurn - _spSharesMint, false)
+                entry.actionId, entry.finalTarget, abi.encode(_spSharesBurn - _spSharesMint, false)
             );
         }
     }

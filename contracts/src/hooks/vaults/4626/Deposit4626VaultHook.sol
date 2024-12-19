@@ -11,7 +11,9 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract Deposit4626VaultHook is BaseHook, ISuperHook {
+    // forgefmt: disable-start
     uint256 public transient obtainedShares;
+    // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 

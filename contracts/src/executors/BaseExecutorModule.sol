@@ -12,6 +12,8 @@ contract BaseExecutorModule is SuperRegistryImplementer {
     uint256 internal transient uintStorage;
     address internal transient addressStorage;
     bytes32 internal transient bytes32Storage;
+    uint256 internal transient shareDelta;
+    bytes32 internal transient typeOfMainAction;
     // forgefmt: disable-end
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }  
