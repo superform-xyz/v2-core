@@ -13,6 +13,7 @@ import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SharedState } from "../src/state/SharedState.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperActions } from "../src/strategies/SuperActions.sol";
+import { SuperExecutorV2 } from "../src/executors/SuperExecutorV2.sol";
 import { AcrossBridgeGateway } from "../src/bridges/AcrossBridgeGateway.sol";
 import { SuperPositionsMock } from "../src/strategies/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
@@ -62,6 +63,7 @@ import { DepositRedeem5115ActionOracle } from "../src/strategies/oracles/Deposit
  *     SharedState
  *     SuperPositionSentinel
  *     AcrossBridgeGateway
+ *     SuperExecutorV2  
  *
  *     Hooks:
  *         AcrossExecuteOnDestinationHook
@@ -105,6 +107,7 @@ contract DeployV2 is Script, Data {
         address superPositionSentinel;
         address sharedState;
         address acrossBridgeGateway;
+        address superExecutor;
     }
 
     function run(uint64[] memory chainIds) public {
@@ -123,7 +126,6 @@ contract DeployV2 is Script, Data {
 
             // configure contracts
             _configure(deployedContracts);
-
             unchecked {
                 ++i;
             }
@@ -195,12 +197,22 @@ contract DeployV2 is Script, Data {
             abi.encodePacked(type(AcrossBridgeGateway).creationCode, abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3))
         );
 
+        // Deploy SuperExecutor
+        deployedContracts.superExecutor = __deployContract(
+            deployer,
+            "SuperExecutor",
+            __getSalt(configuration.owner, configuration.deployer, "SuperExecutor"),
+            abi.encodePacked(type(SuperExecutorV2).creationCode, abi.encode(deployedContracts.superRegistry))
+        );
+
+
         // Deploy Hooks
         _deployHooks(deployer, deployedContracts.superRegistry);
 
         // Deploy Oracles
         _deployOracles(deployer, deployedContracts.superRegistry);
     }
+
     function _configure(DeployedContracts memory deployedContracts) private {
         SuperRbac superRbac = SuperRbac(deployedContracts.superRbac);
         SuperRegistry superRegistry = SuperRegistry(deployedContracts.superRegistry);
