@@ -11,4 +11,3 @@ interface IYearnStakingRewardsMulti {
     /// @param _rewardsToken Address of the rewards token to claim.
     function getOneReward(address _rewardsToken) external;
 }
-

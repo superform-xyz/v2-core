@@ -94,9 +94,6 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
             }
             hooks = entry.nonMainActionHooks;
         } else {
-            if (entry.nonMainActionHooks.length > 0) {
-                revert MAIN_ACTION_WITH_NON_MAIN_ACTION_HOOKS();
-            }
             // retrieve hooks for this action
             hooks = ISuperActions(superActions()).getHooksForAction(entry.actionId);
         }
@@ -145,13 +142,12 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
             (, uint256 shareDelta_, bytes32 hookType_,) = hook.postExecute(entry.hooksData[j]);
 
             /// @dev the following sets the type of main action in transient storage
-            if (
-                typeOfMainAction == bytes32(0)
-                    && (hookType_ == keccak256("DEPOSIT") || hookType_ == keccak256("WITHDRAW"))
-            ) {
-                /// @dev if the type of main action is unset and hook type is a main deposit or withdraw hook
-                typeOfMainAction = hookType_;
-            } else if (typeOfMainAction != bytes32(0) && hookType_ != bytes32(0) && typeOfMainAction != hookType_) {
+            if (typeOfMainAction == bytes32(0)) {
+                if (hookType_ == keccak256("DEPOSIT") || hookType_ == keccak256("WITHDRAW")) {
+                    /// @dev if the type of main action is unset and hook type is a main deposit or withdraw hook
+                    typeOfMainAction = hookType_;
+                }
+            } else if (hookType_ != bytes32(0) && typeOfMainAction != hookType_) {
                 /// @dev if the type of main action is already set, and hookType_ is returned and is different than the
                 /// already set
                 /// @dev notice, this assumes there can only be two types of actions to be priced: deposit and withdraw
