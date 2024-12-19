@@ -28,8 +28,9 @@ library DepositRedeem4626Library {
         view
         returns (uint256[] memory pricePerShares)
     {
-        pricePerShares = new uint256[](finalTargets.length);
-        for (uint256 i = 0; i < finalTargets.length;) {
+        uint256 length = finalTargets.length;
+        pricePerShares = new uint256[](length);
+        for (uint256 i = 0; i < length;) {
             if (IERC4626(finalTargets[i]).asset() != underlyingAsset) {
                 revert VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
             }
