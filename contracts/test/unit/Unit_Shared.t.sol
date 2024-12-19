@@ -5,11 +5,11 @@ pragma solidity >=0.8.28;
 import {
     RhinestoneModuleKit,
     ModuleKitHelpers,
-    ModuleKitUserOp,
     AccountInstance,
     UserOpData
 } from "modulekit/ModuleKit.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/external/ERC7579.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
@@ -42,7 +42,7 @@ import { console } from "forge-std/console.sol";
 
 abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
-    using ModuleKitUserOp for *;
+    using ExecutionLib for *;
 
     // core
     ISuperRbac public superRbac;

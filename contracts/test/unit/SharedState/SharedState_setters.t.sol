@@ -5,17 +5,17 @@ pragma solidity >=0.8.28;
 import {
     RhinestoneModuleKit,
     ModuleKitHelpers,
-    ModuleKitUserOp,
     AccountInstance,
     UserOpData
 } from "modulekit/ModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { Unit_Shared } from "test/unit/Unit_Shared.t.sol";
 
 contract SharedState_setters is Unit_Shared {
     using ModuleKitHelpers for *;
-    using ModuleKitUserOp for *;
+    using ExecutionLib for *;
 
     bytes32 public constant KEY = "0x123";
 
