@@ -21,10 +21,7 @@ contract Looped4626DepositActionOracle {
     /// @param finalTarget The address of the final target
     /// @param loops The number of loops
     /// @return price The price per share
-    function getStrategyPrice(
-        address finalTarget,
-        uint256 loops
-    ) public view returns (uint256 price) {
+    function getStrategyPrice(address finalTarget, uint256 loops) public view returns (uint256 price) {
         price = Looped4626DepositLibrary.getPricePerShare(finalTarget, loops);
     }
 
@@ -35,7 +32,11 @@ contract Looped4626DepositActionOracle {
     function getStrategyPrices(
         address[] memory finalTargets,
         uint256[] memory loops
-    ) external view returns (uint256[] memory prices) {
+    )
+        external
+        view
+        returns (uint256[] memory prices)
+    {
         prices = new uint256[](finalTargets.length);
         for (uint256 i = 0; i < finalTargets.length; i++) {
             prices[i] = getStrategyPrice(finalTargets[i], loops[i]);
