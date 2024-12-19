@@ -21,12 +21,12 @@ contract DepositRedeem4626ActionOracleTest is BaseTest {
     vault = new Mock4626Vault(IERC20(address(underlying)), "Vault", "VAULT");
   }
 
-  function test_getStrategyVaultPrice() public {
+  function test_getStrategyVaultPrice() public view {
     uint256 pricePerShare = oracle.getStrategyPrice(address(vault));
     assertEq(pricePerShare, 1e18);
   }
 
-  function test_getStrategyPrices() public {
+  function test_getStrategyPrices() public view {
     address[] memory finalTargets = new address[](1);
     finalTargets[0] = address(vault);
     uint256[] memory prices = oracle.getStrategyPrices(

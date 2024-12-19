@@ -20,7 +20,7 @@ contract DepositRedeem4626LibraryTest is BaseTest {
         vault = new Mock4626Vault(IERC20(address(underlying)), "Vault", "VAULT");
     }
 
-    function test_getPricePerShare() public {
+    function test_getPricePerShare() public view {
         uint256 expectedPricePerShare = 1e18;
         uint256 actualPricePerShare = DepositRedeem4626Library.getPricePerShare(address(vault));
         assertEq(actualPricePerShare, expectedPricePerShare);
