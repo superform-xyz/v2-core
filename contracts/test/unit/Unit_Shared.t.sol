@@ -4,17 +4,16 @@ pragma solidity >=0.8.28;
 // external
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_FALLBACK } from "modulekit/accounts/kernel/types/Constants.sol";
 
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
+import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
 import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
 import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";
-import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
-import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 
 import { SuperRbac } from "../../src/settings/SuperRbac.sol";
 import { SharedState } from "../../src/state/SharedState.sol";
@@ -28,6 +27,7 @@ import { AcrossBridgeGateway } from "../../src/bridges/AcrossBridgeGateway.sol";
 
 import { MockERC20 } from "../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../mocks/Mock4626Vault.sol";
+import { MockFallback } from "../mocks/MockFallbackModule.sol";
 
 import { BaseTest } from "../BaseTest.t.sol";
 
@@ -35,7 +35,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 import { console } from "forge-std/console.sol";
 
-abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
+contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -49,6 +49,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     ISharedStateWriter public sharedStateWriter;
     AcrossBridgeGateway public acrossBridgeGateway;
 
+    MockFallback public mockFallback;
     AccountInstance public instance;
 
     MockERC20 public mockERC20;
@@ -92,10 +93,15 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         spokePoolV3Mock.setAcrossBridgeGateway(address(acrossBridgeGateway));
 
         // Initialize the account instance
+        mockFallback = new MockFallback();
         instance = makeAccountInstance("SuperformAccount");
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        //instance.installModule({ moduleTypeId: MODULE_TYPE_FALLBACK, module: address(mockFallback), data: "" });
         vm.deal(instance.account, LARGE);
         vm.label(instance.account, "SuperformAccount");
+
+
+        instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (bytes(""))), address(instance.defaultValidator));
 
         // register on SuperRegistry
         _setSuperRegistryAddresses();
@@ -123,6 +129,13 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL
     //////////////////////////////////////////////////////////////*/
+    function _getExecOps(bytes memory data) internal returns (UserOpData memory) {
+        return instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator));
+    }
+
+    function executeOp(UserOpData memory userOpData) public {
+        userOpData.execUserOps();
+    }
 
     function _setSuperRegistryAddresses() internal {
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), address(superActions));

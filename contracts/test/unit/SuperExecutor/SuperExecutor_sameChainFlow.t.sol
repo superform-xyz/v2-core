@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { ISuperExecutorV2 } from "../../../src/interfaces/ISuperExecutorV2.sol";
-import { Unit_Shared } from "../Unit_Shared.t.sol";
-import { ISuperActions } from "../../../src/interfaces/strategies/ISuperActions.sol";
-import { SuperPositionSentinel } from "../../../src/sentinels/SuperPositionSentinel.sol";
+// external
+import { UserOpData } from "modulekit/ModuleKit.sol";
 
-import { console2 } from "forge-std/console2.sol";
+import { ISuperExecutorV2 } from "../../../src/interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "../../../src/interfaces/strategies/ISuperActions.sol";
+import { Unit_Shared } from "../Unit_Shared.t.sol";
 
 contract SuperExecutor_sameChainFlow is Unit_Shared {
+
     address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
 
     /// @dev NOTE: Cosmin, I think this test does not belong here, but rather to a SuperActions test suite
@@ -27,8 +28,9 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             nonMainActionHooks: new address[](0)
         });
 
-        vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
-        superExecutor.execute(instance.account, abi.encode(entries));
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
+        vm.expectRevert();
+        executeOp(userOpData);
     }
 
     modifier givenAnActionExist() {
@@ -51,7 +53,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
         /// @dev COSMIN: should use named error
         vm.expectRevert();
-        superExecutor.execute(instance.account, abi.encode(entries));
+        superExecutor.execute(abi.encode(entries));
     }
 
     modifier givenSentinelCallIsNotPerformed() {
@@ -78,7 +80,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             nonMainActionHooks: hooks
         });
 
-        superExecutor.execute(instance.account, abi.encode(entries));
+        superExecutor.execute(abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, amount);
@@ -119,7 +121,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         });
         vm.expectEmit(true, true, true, true);
         emit ISuperActions.AccountingUpdated(instance.account, ACTION["4626_DEPOSIT"], finalTarget, true, amount, 1e18);
-        superExecutor.execute(instance.account, abi.encode(entries));
+        superExecutor.execute(abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, amount);
@@ -159,7 +161,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         emit ISuperActions.AccountingUpdated(
             instance.account, ACTION["4626_WITHDRAW"], finalTarget, false, amount, 1e18
         );
-        superExecutor.execute(instance.account, abi.encode(entries));
+        superExecutor.execute(abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, 0);

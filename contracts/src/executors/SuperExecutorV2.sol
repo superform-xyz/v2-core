@@ -31,8 +31,8 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
         return _superActions();
     }
 
-    function isInitialized(address) external pure returns (bool) {
-        return _isInitialized();
+    function isInitialized(address account) external view returns (bool) {
+        return _isInitialized(account);
     }
 
     function name() external pure returns (string memory) {
@@ -50,12 +50,20 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external { }
-    function onUninstall(bytes calldata) external { }
+    function onInstall(bytes calldata) external {
+        if (_isInitialized(msg.sender)) revert ALREADY_INITIALIZED();
+        _initialized[msg.sender] = true;
+    }
+    function onUninstall(bytes calldata) external {
+        if (!_isInitialized(msg.sender)) revert NOT_INITIALIZED();
+        _initialized[msg.sender] = false;
+    }
 
-    function execute(address account, bytes calldata data) external {
+    function execute(bytes calldata data) external {
+        if (!_isInitialized(msg.sender)) revert NOT_INITIALIZED();
+
         ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
-        _execute(account, entries);
+        _execute(msg.sender, entries);
     }
 
     /// @inheritdoc ISuperExecutorV2

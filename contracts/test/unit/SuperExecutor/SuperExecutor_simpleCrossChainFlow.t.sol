@@ -96,7 +96,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         });
         vm.expectEmit(true, true, true, true);
         emit AcrossBridgeGateway.InstructionProcessed(instance.account, abi.encode(subEntries));
-        superExecutor.execute(instance.account, abi.encode(entries));
+        superExecutor.execute(abi.encode(entries));
 
         //  simulate Orchestrator call for the remaning data
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
