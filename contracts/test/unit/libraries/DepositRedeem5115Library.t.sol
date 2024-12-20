@@ -29,13 +29,14 @@ contract DepositRedeem5115LibraryTest is BaseTest {
         uint256[] memory expectedPricePerShares = new uint256[](1);
         expectedPricePerShares[0] = 1e18;
 
-        address[] memory finalTargets = new address[](1); 
+        address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(vault);
 
         address[] memory tokenIns = new address[](1);
         tokenIns[0] = address(underlying);
 
-        uint256[] memory actualPricePerShares = DepositRedeem5115Library.getPricePerShareMultiple(finalTargets, tokenIns);
+        uint256[] memory actualPricePerShares =
+            DepositRedeem5115Library.getPricePerShareMultiple(finalTargets, tokenIns);
         assertEq(actualPricePerShares[0], expectedPricePerShares[0]);
     }
 }

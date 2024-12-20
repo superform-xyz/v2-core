@@ -2,8 +2,8 @@
 pragma solidity >=0.8.28;
 
 // external
-import { Execution } from "modulekit/Accounts.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
@@ -11,7 +11,9 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract Deposit4626VaultHook is BaseHook, ISuperHook {
+    // forgefmt: disable-start
     uint256 public transient obtainedShares;
+    // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 interface ISomelierCellarStaking {
- // ===================== Events =======================
+    // ===================== Events =======================
 
     event Funding(uint256 rewardAmount, uint256 rewardEnd);
     event Stake(address indexed user, uint256 depositId, uint256 amount);

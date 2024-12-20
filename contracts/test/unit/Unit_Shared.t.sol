@@ -2,14 +2,9 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit,
-    ModuleKitHelpers,
-    ModuleKitUserOp,
-    AccountInstance,
-    UserOpData
-} from "modulekit/ModuleKit.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/external/ERC7579.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
@@ -38,10 +33,11 @@ import { BaseTest } from "../BaseTest.t.sol";
 
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
+import { console } from "forge-std/console.sol";
 
 abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
-    using ModuleKitUserOp for *;
+    using ExecutionLib for *;
 
     // core
     ISuperRbac public superRbac;
@@ -58,7 +54,9 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     MockERC20 public mockERC20;
     Mock4626Vault public mock4626Vault;
 
-    uint256[] public actionIds;
+    mapping(bytes32 name => uint256 actionId) public ACTION;
+
+    uint256[] public allActions;
 
     address public constant ENTRY_POINT = address(1);
 
@@ -86,11 +84,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         vm.label(address(superPositionSentinel), "superPositionSentinel");
 
         mockERC20 = _deployToken("MockERC20", "MRC20", 18);
-        mock4626Vault = new Mock4626Vault(
-            IERC20(address(mockERC20)),
-            "Mock4626Vault",
-            "MRC4626"
-        );
+        mock4626Vault = new Mock4626Vault(IERC20(address(mockERC20)), "Mock4626Vault", "MRC4626");
         vm.label(address(mock4626Vault), "mock4626Vault");
 
         acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
@@ -109,8 +103,8 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         // set roles
         _setRoles();
 
-        // register strategies
-        actionIds = _registerSameChainActions();
+        // register action
+        _performRegistrations();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -129,6 +123,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL
     //////////////////////////////////////////////////////////////*/
+
     function _setSuperRegistryAddresses() internal {
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), address(superActions));
         SuperRegistry(address(superRegistry)).setAddress(
@@ -138,43 +133,78 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         SuperRegistry(address(superRegistry)).setAddress(
             superRegistry.ACROSS_GATEWAY_ID(), address(acrossBridgeGateway)
         );
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_EXECUTOR_ID(), address(superExecutor));
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SHARED_STATE_ID(), address(sharedState));
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
     }
 
     function _setRoles() internal {
         superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
     }
 
-    function _registerSameChainActions() internal returns (uint256[] memory) {
+    function getAction(string memory _name) internal view returns (uint256) {
+        return ACTION[bytes32(bytes(_name))];
+    }
+
+    function _performRegistrations() internal {
         vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
-        uint256[] memory _actionIds = new uint256[](4);
 
-        address[] memory hooks = new address[](2);
-        // approve + 4626 deposit
-        hooks[0] = address(approveErc20Hook);
-        hooks[1] = address(deposit4626VaultHook);
-        _actionIds[0] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        // Configure ERC4626 yield source
+        ISuperActions.YieldSourceConfig memory erc4626Config = ISuperActions.YieldSourceConfig({
+            yieldSourceId: "ERC4626",
+            metadataOracle: address(depositRedeem4626ActionOracle),
+            actions: new ISuperActions.ActionConfig[](2)
+        });
 
-        // 4626 withdraw
-        hooks = new address[](1);
-        hooks[0] = address(withdraw4626VaultHook);
-        _actionIds[1] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        // Deposit action (approve + deposit)
+        address[] memory depositHooks = new address[](2);
+        depositHooks[0] = address(approveErc20Hook);
+        depositHooks[1] = address(deposit4626VaultHook);
 
-        // approve + 4626 deposit + 4626 withdraw
-        hooks = new address[](3);
-        hooks[0] = address(approveErc20Hook);
-        hooks[1] = address(deposit4626VaultHook);
-        hooks[2] = address(withdraw4626VaultHook);
-        _actionIds[2] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
+        erc4626Config.actions[0] = ISuperActions.ActionConfig({
+            hooks: depositHooks,
+            actionType: ISuperActions.ActionType.INFLOW,
+            shareDeltaHookIndex: 1 // deposit4626VaultHook provides share delta
+         });
+
+        // Withdraw action
+        address[] memory withdrawHooks = new address[](1);
+        withdrawHooks[0] = address(withdraw4626VaultHook);
+
+        erc4626Config.actions[1] = ISuperActions.ActionConfig({
+            hooks: withdrawHooks,
+            actionType: ISuperActions.ActionType.OUTFLOW,
+            shareDeltaHookIndex: 0 // withdraw4626VaultHook provides share delta
+         });
+
+        // Register ERC4626 actions
+        uint256[] memory erc4626ActionIds = superActions.registerYieldSourceAndActions(erc4626Config);
+
+        // Store action IDs in mapping
+        ACTION["4626_DEPOSIT"] = erc4626ActionIds[0];
+        ACTION["4626_WITHDRAW"] = erc4626ActionIds[1];
+
+        // Add to allActions array
+        allActions.push(erc4626ActionIds[0]);
+        allActions.push(erc4626ActionIds[1]);
+
+        // Log action IDs
+        console.log("4626_DEPOSIT", erc4626ActionIds[0]);
+        console.log("4626_WITHDRAW", erc4626ActionIds[1]);
 
         // approve + 4626 deposit + across
-        hooks = new address[](4);
+        // uses separate register method because yield source is already registered
+        /// @dev WARNING: the last 2 hooks here should not be part of this main action (which is really just
+        /// 4626_DEPOSIT) TODO
+        address[] memory hooks = new address[](4);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
         hooks[2] = address(approveErc20Hook);
         hooks[3] = address(acrossExecuteOnDestinationHook);
-        _actionIds[3] = superActions.registerAction(hooks, ACTION_ORACLE_TEMP);
-
+        ACTION["4626_DEPOSIT_ACROSS"] =
+            superActions.registerAction(hooks, "ERC4626", ISuperActions.ActionType.INFLOW, 1);
+        allActions.push(ACTION["4626_DEPOSIT_ACROSS"]);
+        console.log("4626_DEPOSIT_ACROSS", ACTION["4626_DEPOSIT_ACROSS"]);
         vm.stopPrank();
-        return _actionIds;
     }
 }
