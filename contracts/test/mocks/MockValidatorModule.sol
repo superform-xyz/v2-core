@@ -42,26 +42,16 @@ contract MockValidatorModule is ERC7579ValidatorBase {
         return _verifySignature(_userOp.sender, _userOpHash, _userOp.signature);
     }
 
-    function isValidSignatureWithSender(address sender, bytes32 hash, bytes calldata data)
+    function isValidSignatureWithSender(address, bytes32, bytes calldata)
         external
         override
-        view
+        pure
         returns (bytes4)
     {
         return 0x1626ba7e; //ERC1271_MAGIC_VALUE
     }
 
-    function validateSignatureWithData(bytes32, bytes calldata, bytes calldata)
-        external
-        override
-        view
-        virtual
-        returns (bool validSig) 
-    {
-        return true;
-    }
-
-    function _verifySignature(address sender, bytes32 hash, bytes calldata data) internal view returns (ValidationData) {
+    function _verifySignature(address, bytes32, bytes calldata) internal pure returns (ValidationData) {
         //sigFailed  - True for signature failure, false for success.
         //validUntil - Last timestamp this UserOperation is valid (or zero for infinite)
         //validAfter - First timestamp this UserOperation is valid.

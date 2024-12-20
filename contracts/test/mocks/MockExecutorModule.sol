@@ -32,7 +32,7 @@ contract MockExecutorModule is ERC7579ExecutorBase {
     function onInstall(bytes calldata) external { }
     function onUninstall(bytes calldata) external { }
 
-    function execute(address account, bytes calldata data) external {
+    function execute(address, bytes calldata data) external {
        uint256 toSet = abi.decode(data, (uint256));
        val = toSet;
     }

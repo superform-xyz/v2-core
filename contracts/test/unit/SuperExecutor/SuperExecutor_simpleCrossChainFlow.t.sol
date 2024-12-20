@@ -104,7 +104,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
 
     function _createWithdrawActionData(
         address finalTarget,
-        uint256 amount
+        uint256
     )
         internal
         view

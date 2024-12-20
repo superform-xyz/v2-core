@@ -118,7 +118,6 @@ contract SuperMerkleValidator is
         external
         view
         virtual
-        override
         returns (bool validSig)
     {
         // Decode signature and user operation data

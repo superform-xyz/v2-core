@@ -13,6 +13,8 @@ interface ISuperActions {
     struct ActionLogic {
         bytes32 yieldSourceId;
         address[] hooks;
+        ActionType actionType;
+        uint256 shareDeltaHookIndex;
     }
 
     struct StrategyConfig {
@@ -24,6 +26,26 @@ interface ISuperActions {
         address oracle;
         uint256[] actionIds;
     }
+
+    enum ActionType {
+        NONE,
+        INFLOW,
+        OUTFLOW
+    }
+
+    // used as arguments for registerYieldSource and registerAction
+    struct ActionConfig {
+        address[] hooks;
+        ActionType actionType;
+        uint256 shareDeltaHookIndex;
+    }
+
+    struct YieldSourceConfig {
+        string yieldSourceId;
+        address metadataOracle;
+        ActionConfig[] actions;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -42,6 +64,8 @@ interface ISuperActions {
     error YIELD_SOURCE_ALREADY_EXISTS();
     error EMPTY_YIELD_SOURCE_ID();
     error INVALID_FEE_PERCENT();
+    error INVALID_SHARE_DELTA_HOOK();
+    error INVALID_ACTION_TYPE();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -51,7 +75,7 @@ interface ISuperActions {
         address indexed user_,
         uint256 indexed actionId_,
         address indexed finalTarget_,
-        bool isDeposit_,
+        bool isInflow_,
         uint256 amountShares_,
         uint256 pps_
     );
@@ -59,7 +83,7 @@ interface ISuperActions {
         address indexed user_,
         uint256[] actionIds_,
         address[] finalTargets_,
-        bool[] isDeposits_,
+        bool[] isInflows_,
         uint256[] amountsShares_,
         uint256[] pps_
     );
@@ -81,14 +105,14 @@ interface ISuperActions {
     /// @param user_ The user address
     /// @param actionId_ The ID of the action
     /// @param finalTarget_ The target contract address
-    /// @param isDeposit_ Whether this is a deposit operation
+    /// @param isInflow_ Whether this is an inflow operation
     /// @param amountShares_ The amount of shares minted or burned to update
     /// @return pps_ The price per share at which the accounting was updated
     function updateAccounting(
         address user_,
         uint256 actionId_,
         address finalTarget_,
-        bool isDeposit_,
+        bool isInflow_,
         uint256 amountShares_
     )
         external
@@ -98,25 +122,50 @@ interface ISuperActions {
     /// @param user_ The user address
     /// @param actionIds_ Array of action IDs
     /// @param finalTargets_ Array of target contract addresses
-    /// @param isDeposits_ Array of deposit flags
+    /// @param isInflows_ Array of inflow flags
     /// @param amountsShares_ Array of amounts to update
     /// @return pps_ Array of prices per share at which the accounting was updated
     function batchUpdateAccounting(
         address user_,
         uint256[] memory actionIds_,
         address[] memory finalTargets_,
-        bool[] memory isDeposits_,
+        bool[] memory isInflows_,
         uint256[] memory amountsShares_
     )
         external
         returns (uint256[] memory pps_);
 
+    /// @notice Registers a yield source with all its associated actions
+    /// @param config The complete yield source configuration
+    /// @return actionIds Array of registered action IDs
+    function registerYieldSourceAndActions(YieldSourceConfig calldata config)
+        external
+        returns (uint256[] memory actionIds);
+
+    /// @notice Registers a new yield source
+    /// @param yieldSourceId_ The yield source identifier
+    /// @param metadataOracle_ The oracle address
+    function registerYieldSource(string calldata yieldSourceId_, address metadataOracle_) external;
+
+    /// @notice Registers multiple yield sources in a batch
+    /// @param yieldSourceIds_ Array of yield source identifiers
+    /// @param metadataOracles_ Array of oracle addresses
+    function batchRegisterYieldSources(
+        string[] calldata yieldSourceIds_,
+        address[] calldata metadataOracles_
+    )
+        external;
+
     /// @notice Registers a new action
     /// @param hooks_ Array of hook addresses
     /// @param yieldSourceId_ The yield source identifier
+    /// @param actionType_ The action type
+    /// @param shareDeltaHookIndex_ The index of the hook that provides the share delta
     function registerAction(
         address[] memory hooks_,
-        string calldata yieldSourceId_
+        string calldata yieldSourceId_,
+        ActionType actionType_,
+        uint256 shareDeltaHookIndex_
     )
         external
         returns (uint256 actionId_);
@@ -124,9 +173,13 @@ interface ISuperActions {
     /// @notice Registers multiple actions in a batch
     /// @param hooks_ Array of hook address arrays for each action
     /// @param yieldSourceIds_ Array of yield source identifiers
+    /// @param actionTypes_ Array of action types
+    /// @param shareDeltaHookIndices_ Array of share delta hook indices
     function batchRegisterActions(
         address[][] memory hooks_,
-        string[] calldata yieldSourceIds_
+        string[] calldata yieldSourceIds_,
+        ActionType[] calldata actionTypes_,
+        uint256[] calldata shareDeltaHookIndices_
     )
         external
         returns (uint256[] memory actionIds_);
@@ -155,20 +208,6 @@ interface ISuperActions {
     /// @notice Delists multiple actions in a batch
     /// @param actionIds_ Array of action IDs to delist
     function batchDelistActions(uint256[] memory actionIds_) external;
-
-    /// @notice Registers a new yield source
-    /// @param yieldSourceId_ The yield source identifier
-    /// @param metadataOracle_ The oracle address
-    function registerYieldSource(string calldata yieldSourceId_, address metadataOracle_) external;
-
-    /// @notice Registers multiple yield sources in a batch
-    /// @param yieldSourceIds_ Array of yield source identifiers
-    /// @param metadataOracles_ Array of oracle addresses
-    function batchRegisterYieldSources(
-        string[] calldata yieldSourceIds_,
-        address[] calldata metadataOracles_
-    )
-        external;
 
     /// @notice Sets the strategy config for a single yield source and target pair
     /// @param yieldSourceId_ The yield source identifier
@@ -205,10 +244,13 @@ interface ISuperActions {
                             EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Retrieves hooks for a specific action
-    /// @param actionId_ The ID of the action
-    /// @return hooks_ Array of hook addresses
-    function getHooksForAction(uint256 actionId_) external view returns (address[] memory hooks_);
+    /// @notice Retrieves all action IDs
+    /// @return Array of action IDs
+    function getAllActionIds() external view returns (uint256[] memory);
+
+    /// @notice Retrieves all yield source IDs
+    /// @return Array of yield source IDs
+    function getAllYieldSourceIds() external view returns (string[] memory);
 
     /// @notice Retrieves logic for a specific action
     /// @param actionId_ The ID of the action

@@ -2,15 +2,9 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit,
-    ModuleKitHelpers,
-    ModuleKitUserOp,
-    AccountInstance,
-    UserOpData
-} from "modulekit/ModuleKit.sol";
-import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/external/ERC7579.sol";
-
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 
 import { BaseTest } from "../../BaseTest.t.sol";
 
@@ -24,7 +18,7 @@ import "forge-std/console2.sol";
 
 contract Mock is BaseTest, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
-    using ModuleKitUserOp for *;
+    using ExecutionLib for *;
 
     TransientStorageExecutor transientExecutor;
 

@@ -87,90 +87,69 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     }
 
     function _executeAction(address account, ExecutorEntry memory entry) private {
-        address[] memory hooks;
         if (entry.actionId == type(uint256).max) {
             if (entry.finalTarget != address(0)) {
                 revert FINAL_TARGET_NOT_ZERO();
             }
-            hooks = entry.nonMainActionHooks;
+            // Process non-main action hooks directly
+            _processNonMainActionHooks(account, entry);
         } else {
-            // retrieve hooks for this action
-            hooks = ISuperActions(superActions()).getHooksForAction(entry.actionId);
-        }
-        uint256 hooksLength = hooks.length;
+            ISuperActions.ActionLogic memory actionLogic = ISuperActions(superActions()).getActionLogic(entry.actionId);
 
-        _processHooks(account, entry, hooks, hooksLength);
-        if (entry.actionId != type(uint256).max) {
-            /// @dev I added this at the end of each action execution to update the accounting for that strategy
-            /// @dev In terms of value of shares being minted it is using the last value obtained in uintStore
-            if (typeOfMainAction == keccak256("DEPOSIT")) {
-                _updateAccounting(account, entry.actionId, entry.finalTarget, true, shareDelta);
-            } else if (typeOfMainAction == keccak256("WITHDRAW")) {
-                _updateAccounting(account, entry.actionId, entry.finalTarget, false, shareDelta);
-            }
+            // Process main action hooks
+            _processMainActionHooks(account, entry, actionLogic);
+
+            // Update accounting based on action type
+            _updateAccounting(
+                account,
+                entry.actionId,
+                entry.finalTarget,
+                actionLogic.actionType == ISuperActions.ActionType.INFLOW,
+                shareDelta
+            );
         }
 
-        /// @dev reset transient storage
-        typeOfMainAction = bytes32(0);
         shareDelta = 0;
-
-        /*
-        Commented because this will be performed directly inside unlock/lock shares hooks in _processHooks
-        TODO Remove
-        // all hooks have been executed; act on SuperPositions changes for current strategy
-        _notifySuperPosition(entry, spSharesMint_, spSharesBurn_);
-        */
     }
 
-    function _processHooks(
+    // New function for processing hooks with ActionInfo
+    function _processMainActionHooks(
         address account,
         ExecutorEntry memory entry,
-        address[] memory hooks,
-        uint256 hooksLength
+        ISuperActions.ActionLogic memory actionLogic
     )
         private
     {
+        uint256 hooksLength = actionLogic.hooks.length;
         for (uint256 j; j < hooksLength;) {
-            ISuperHook hook = ISuperHook(hooks[j]);
+            ISuperHook hook = ISuperHook(actionLogic.hooks[j]);
 
-            // update any hook's internal transient storage
             hook.preExecute(entry.hooksData[j]);
-
-            // execute the hook in the context of the SCAL
             _execute(account, hook.build(entry.hooksData[j]));
 
-            (, uint256 shareDelta_, bytes32 hookType_,) = hook.postExecute(entry.hooksData[j]);
+            (, uint256 shareDelta_,,) = hook.postExecute(entry.hooksData[j]);
 
-            /// @dev the following sets the type of main action in transient storage
-            if (typeOfMainAction == bytes32(0)) {
-                if (hookType_ == keccak256("DEPOSIT") || hookType_ == keccak256("WITHDRAW")) {
-                    /// @dev if the type of main action is unset and hook type is a main deposit or withdraw hook
-                    typeOfMainAction = hookType_;
-                }
-            } else if (hookType_ != bytes32(0) && typeOfMainAction != hookType_) {
-                /// @dev if the type of main action is already set, and hookType_ is returned and is different than the
-                /// already set
-                /// @dev notice, this assumes there can only be two types of actions to be priced: deposit and withdraw
-                revert ACTION_TYPE_MISMATCH();
-            }
-
-            /// @dev This means the last hooks' provided share difference (must be accurate) is added to uint
-            /// @dev Warning: If there is a malicious action, accounting will be performed improperly and will result in
-            /// a fee loss
-            if (shareDelta_ != 0) {
+            // Only capture shareDelta from designated hook
+            if (j == actionLogic.shareDeltaHookIndex) {
                 shareDelta = shareDelta_;
             }
-
-            /*
-            Commented because this will be performed directly inside unlock/lock shares hooks
-            TODO Remove
-            // update the total mint and burn values
-            if (bytes32Storage == keccak256("DEPOSIT")) {
-                spSharesMint_ += uintStorage;
-            } else if (bytes32Storage == keccak256("WITHDRAW")) {
-                spSharesBurn_ += uintStorage;
+            unchecked {
+                ++j;
             }
-            */
+        }
+    }
+
+    // Modified to handle direct hook array
+    function _processNonMainActionHooks(address account, ExecutorEntry memory entry) private {
+        uint256 hooksLength = entry.nonMainActionHooks.length;
+        for (uint256 j; j < hooksLength;) {
+            ISuperHook hook = ISuperHook(entry.nonMainActionHooks[j]);
+
+            hook.preExecute(entry.hooksData[j]);
+
+            _execute(account, hook.build(entry.hooksData[j]));
+
+            hook.postExecute(entry.hooksData[j]);
 
             unchecked {
                 ++j;

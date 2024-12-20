@@ -13,7 +13,7 @@ contract Mock5115Vault {
 
     MockERC20 asset;
 
-    constructor(IERC20 asset_, string memory name_, string memory symbol_) {
+    constructor(IERC20, string memory name_, string memory symbol_) {
         asset = new MockERC20(name_, symbol_, 18);
     }
 
@@ -24,7 +24,7 @@ contract Mock5115Vault {
     }
 
     function previewDeposit(
-        address tokenIn,
+        address,
         uint256 amountTokenToDeposit
     )
         external
@@ -35,7 +35,7 @@ contract Mock5115Vault {
     }
 
     function previewRedeem(
-        address tokenIn,
+        address,
         uint256 amountSharesToRedeem
     )
         external
