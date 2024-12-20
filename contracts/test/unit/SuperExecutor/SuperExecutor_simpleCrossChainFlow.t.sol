@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+// external
+import { UserOpData } from "modulekit/ModuleKit.sol";
+
 import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
 import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
@@ -94,9 +97,10 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
             hooksData: _createWithdrawActionData(finalTarget, amount),
             nonMainActionHooks: new address[](0)
         });
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
         vm.expectEmit(true, true, true, true);
         emit AcrossBridgeGateway.InstructionProcessed(instance.account, abi.encode(subEntries));
-        superExecutor.execute(abi.encode(entries));
+        executeOp(userOpData);
 
         //  simulate Orchestrator call for the remaning data
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));

@@ -100,9 +100,6 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         vm.deal(instance.account, LARGE);
         vm.label(instance.account, "SuperformAccount");
 
-
-        instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (bytes(""))), address(instance.defaultValidator));
-
         // register on SuperRegistry
         _setSuperRegistryAddresses();
 
