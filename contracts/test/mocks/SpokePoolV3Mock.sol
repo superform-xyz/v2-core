@@ -13,16 +13,16 @@ contract SpokePoolV3Mock {
     }
 
     function depositV3Now(
-        address depositor,
+        address ,
         address recipient,
         address inputToken,
-        address outputToken,
+        address ,
         uint256 inputAmount,
-        uint256 outputAmount,
-        uint256 destinationChainId,
+        uint256 ,
+        uint256 ,
         address exclusiveRelayer,
-        uint32 fillDeadlineOffset,
-        uint32 exclusivityDeadline,
+        uint32 ,
+        uint32 ,
         bytes calldata message
     )
         external

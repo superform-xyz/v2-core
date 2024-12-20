@@ -193,7 +193,7 @@ contract DeployV2 is Script, Configuration {
         hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);
 
         // Deploy Oracles
-        oracleAddresses = _deployOracles(deployer, deployedContracts.superRegistry, chainId);
+        oracleAddresses = _deployOracles(deployer, chainId);
     }
 
     function _configure(DeployedContracts memory deployedContracts) internal {
@@ -354,7 +354,6 @@ contract DeployV2 is Script, Configuration {
 
     function _deployOracles(
         ISuperDeployer deployer,
-        address registry,
         uint64 chainId
     )
         private
