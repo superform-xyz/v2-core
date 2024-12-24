@@ -20,6 +20,7 @@ contract ForkedTestBase is BaseTest {
         "Ethereum",
         "Arbitrum",
         "Optimism",
+        "Sepolia",
         "Base"
     ];
 
@@ -32,12 +33,16 @@ contract ForkedTestBase is BaseTest {
         "ERC7540AsyncRedeem"
     ];
 
-    string[] public underlyingTokens = ["DAI", "USDC", "WETH", "ETH"];
-
-    uint256 public deployerPrivateKey;
+    string[] public underlyingTokens = [
+      "DAI", 
+      "USDC", 
+      "WETH", 
+      "ETH"
+    ];
 
     address[] public users;
     uint256[] public userKeys;
+    uint256 public deployerPrivateKey;
 
     address public ownerAddress;
     address public deployer = vm.addr(777);
@@ -85,7 +90,6 @@ contract ForkedTestBase is BaseTest {
                                 SETUP
     //////////////////////////////////////////////////////////////*/
 
-
     function setUp() public virtual override {
         super.setUp();
     }
@@ -102,26 +106,23 @@ contract ForkedTestBase is BaseTest {
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _preDeploymentSetup(bool pinnedBlock) internal {
+    function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        for (uint256 i = 0; i < chainIds.length; i++) {
-            selectedChainIds[chainIds[i]] = true;
-        }
-
-        forks[ETH] = selectedChainIds[ETH] = createFork(ETHEREUM_RPC_URL_QN);
-        forks[ARBI] = selectedChainIds[ARBI] = createFork(ARBITRUM_RPC_URL_QN);
-        forks[OP] = selectedChainIds[OP] = createFork(OPTIMISM_RPC_URL_QN);
-        forks[BASE] = selectedChainIds[BASE] = createFork(BASE_RPC_URL_QN);
-        forks[SEPOLIA] = selectedChainIds[SEPOLIA] = createFork(SEPOLIA_RPC_URL_QN);
+        forks[SEPOLIA] = createFork(SEPOLIA_RPC_URL_QN);
+        forks[ARBI] = createFork(ARBITRUM_RPC_URL_QN);
+        forks[ETH] = createFork(ETHEREUM_RPC_URL_QN);
+        forks[OP] = createFork(OPTIMISM_RPC_URL_QN);
+        forks[BASE] = createFork(BASE_RPC_URL_QN);
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
-        rpcURLs[ETH] = ETHEREUM_RPC_URL;
+        rpcURLs[SEPOLIA] = SEPOLIA_RPC_URL;
         rpcURLs[ARBI] = ARBITRUM_RPC_URL;
+        rpcURLs[ETH] = ETHEREUM_RPC_URL;
         rpcURLs[OP] = OPTIMISM_RPC_URL;
         rpcURLs[BASE] = BASE_RPC_URL;
-        rpcURLs[SEPOLIA] = SEPOLIA_RPC_URL_QN;
 
         /// @dev setup users
+        /// @dev TODO: update with users from BaseTest
         userKeys.push(1);
         userKeys.push(2);
         userKeys.push(3);
@@ -137,37 +138,33 @@ contract ForkedTestBase is BaseTest {
             vaultNames[j].push(string.concat(underlyingTokens[j], vaultKinds[j]));
         }
 
-        mapping(uint64 chainId => mapping(string underlying => address realAddress)) storage existingTokens =
-            existingUnderlyingTokens;
+        mapping(uint64 chainId => mapping(string underlying => address realAddress)) storage existingTokens = 
+        existingUnderlyingTokens;
 
-        existingTokens[42_161]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        existingTokens[42_161]["USDC"] = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-        existingTokens[42_161]["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
-        existingTokens[42_161]["wstETH"] = 0x5979D7b546E38E414F7E9822514be443A4800529;
-
-        existingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        existingTokens[10]["USDC"] = 0x7F5c764cBc14f9669B88837ca1490cCa17c31607;
-        existingTokens[10]["WETH"] = 0x4200000000000000000000000000000000000006;
-        existingTokens[10]["wstETH"] = 0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
-
+        // Mainnet tokens
         existingTokens[1]["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         existingTokens[1]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         existingTokens[1]["WETH"] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        existingTokens[1]["sUSDe"] = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
 
+        // Optimism tokens
+        existingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+        existingTokens[10]["USDC"] = 0x0b2c639c533813f4aa9d7837caf62653d097ff85;
+        existingTokens[10]["WETH"] = 0x4200000000000000000000000000000000000006;
+
+        // Arbitrum tokens
+        existingTokens[42_161]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+        existingTokens[42_161]["USDC"] = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+        existingTokens[42_161]["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+        
+        // Base tokens
         existingTokens[8453]["DAI"] = 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb;
-        existingTokens[8453]["USDC"] = address(0);
-        existingTokens[8453]["WETH"] = address(0);
+        existingTokens[8453]["USDC"] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+        existingTokens[8453]["WETH"] = 0x4200000000000000000000000000000000000006;
 
-
-        existingTokens[11_155_111]["DAI"] = address(0);
-        existingTokens[11_155_111]["USDC"] = address(0);
-        existingTokens[11_155_111]["WETH"] = address(0);
-        existingTokens[11_155_111]["tUSD"] = 0x8503b4452Bf6238cC76CdbEE223b46d7196b1c93;
-
-        existingTokens[80_084]["DAI"] = address(0);
-        existingTokens[80_084]["USDC"] = 0xd6D83aF58a19Cd14eF3CF6fe848C9A4d21e5727c;
-        existingTokens[80_084]["WETH"] = 0xE28AfD8c634946833e89ee3F122C06d7C537E8A8;
+        // Sepolia tokens
+        existingTokens[11_155_111]["DAI"] = 0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6;
+        existingTokens[11_155_111]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+        existingTokens[11_155_111]["WETH"] = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
 
         mapping(
             uint64 chainId
