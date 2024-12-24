@@ -50,6 +50,7 @@ contract ForkedTestBase is BaseTest {
     //address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     // bytes32 public salt;
+    mapping(uint256 vaultId => string[] names) public vaultNames;
     mapping(uint64 chainId => uint256 n4626Vaults) public numberOf4626Vaults;
     mapping(uint64 chainId => uint256 n5115Vaults) public numberOf5115Vaults;
 
@@ -108,18 +109,18 @@ contract ForkedTestBase is BaseTest {
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        forks[SEPOLIA] = createFork(SEPOLIA_RPC_URL_QN);
-        forks[ARBI] = createFork(ARBITRUM_RPC_URL_QN);
-        forks[ETH] = createFork(ETHEREUM_RPC_URL_QN);
-        forks[OP] = createFork(OPTIMISM_RPC_URL_QN);
-        forks[BASE] = createFork(BASE_RPC_URL_QN);
+        forks[SEPOLIA] = vm.createFork(SEPOLIA_RPC_URL_QN);
+        forks[ARBI] = vm.createFork(ARBITRUM_RPC_URL_QN);
+        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL_QN);
+        forks[OP] = vm.createFork(OPTIMISM_RPC_URL_QN);
+        forks[BASE] = vm.createFork(BASE_RPC_URL_QN);
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
-        rpcURLs[SEPOLIA] = SEPOLIA_RPC_URL;
-        rpcURLs[ARBI] = ARBITRUM_RPC_URL;
-        rpcURLs[ETH] = ETHEREUM_RPC_URL;
-        rpcURLs[OP] = OPTIMISM_RPC_URL;
-        rpcURLs[BASE] = BASE_RPC_URL;
+        rpcURLs[SEPOLIA] = SEPOLIA_RPC_URL_QN;
+        rpcURLs[ARBI] = ARBITRUM_RPC_URL_QN;
+        rpcURLs[ETH] = ETHEREUM_RPC_URL_QN;
+        rpcURLs[OP] = OPTIMISM_RPC_URL_QN;
+        rpcURLs[BASE] = BASE_RPC_URL_QN;
 
         /// @dev setup users
         /// @dev TODO: update with users from BaseTest
@@ -148,7 +149,7 @@ contract ForkedTestBase is BaseTest {
 
         // Optimism tokens
         existingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        existingTokens[10]["USDC"] = 0x0b2c639c533813f4aa9d7837caf62653d097ff85;
+        existingTokens[10]["USDC"] = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
         existingTokens[10]["WETH"] = 0x4200000000000000000000000000000000000006;
 
         // Arbitrum tokens
@@ -166,119 +167,108 @@ contract ForkedTestBase is BaseTest {
         existingTokens[11_155_111]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
         existingTokens[11_155_111]["WETH"] = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
 
-        mapping(
-            uint64 chainId
-                => mapping(
-                    uint32 formImplementationId
-                        => mapping(string underlying => mapping(uint256 vaultKindIndex => address realVault))
-                )
-        ) storage existingVaults = realVaultAddresses;
+        mapping(uint64 chainId => mapping(string vaultName => 
+        address realVault)) storage existingVaults = realVaultAddresses;
 
-        existingVaults[42_161][1]["DAI"][0] = address(0);
-        existingVaults[42_161][1]["USDC"][0] = address(0);
-        existingVaults[42_161][1]["WETH"][0] = 0xe4c2A17f38FEA3Dcb3bb59CEB0aC0267416806e2;
+        // existingVaults[42_161][1]["DAI"][0] = address(0);
+        // existingVaults[42_161][1]["USDC"][0] = address(0);
+        // existingVaults[42_161][1]["WETH"][0] = 0xe4c2A17f38FEA3Dcb3bb59CEB0aC0267416806e2;
 
-        existingVaults[1][1]["DAI"][0] = address(0);
-        existingVaults[1][1]["USDC"][0] = address(0);
-        existingVaults[1][1]["WETH"][0] = address(0);
-        existingVaults[1][1]["USDe"][0] = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+        // existingVaults[1][1]["DAI"][0] = address(0);
+        // existingVaults[1][1]["USDC"][0] = address(0);
+        // existingVaults[1][1]["WETH"][0] = address(0);
+        // existingVaults[1][1]["USDe"][0] = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
 
-        existingVaults[10][1]["DAI"][0] = address(0);
-        existingVaults[10][1]["USDC"][0] = address(0);
-        existingVaults[10][1]["WETH"][0] = address(0);
+        // existingVaults[10][1]["DAI"][0] = address(0);
+        // existingVaults[10][1]["USDC"][0] = address(0);
+        // existingVaults[10][1]["WETH"][0] = address(0);
 
+        // existingVaults[8453][1]["DAI"][0] = 0x88510ced6F82eFd3ddc4599B72ad8ac2fF172043;
+        // existingVaults[8453][1]["USDC"][0] = address(0);
+        // existingVaults[8453][1]["WETH"][0] = address(0);
 
+        // existingVaults[250][1]["DAI"][0] = address(0);
+        // existingVaults[250][1]["USDC"][0] = 0xd55C59Da5872DE866e39b1e3Af2065330ea8Acd6;
+        // existingVaults[250][1]["WETH"][0] = address(0);
 
+        // /// @dev 7540 real centrifuge vaults on mainnet & testnet
+        // existingVaults[1][4]["USDC"][0] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
+        // existingVaults[11_155_111][4]["tUSD"][0] = 0x3b33D257E77E018326CCddeCA71cf9350C585A66;
 
-        existingVaults[8453][1]["DAI"][0] = 0x88510ced6F82eFd3ddc4599B72ad8ac2fF172043;
-        existingVaults[8453][1]["USDC"][0] = address(0);
-        existingVaults[8453][1]["WETH"][0] = address(0);
+        //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults = ERC5115_VAULTS;
+        //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
+        //    ERC5115_VAULTS_NAMES;
+        //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
+        //mapping(uint64 chainId => mapping(address realVault => ChosenAssets chosenAssets)) storage erc5115ChosenAssets =
+        //    ERC5115S_CHOSEN_ASSETS;
 
-        existingVaults[250][1]["DAI"][0] = address(0);
-        existingVaults[250][1]["USDC"][0] = 0xd55C59Da5872DE866e39b1e3Af2065330ea8Acd6;
-        existingVaults[250][1]["WETH"][0] = address(0);
-
-        /// @dev 7540 real centrifuge vaults on mainnet & testnet
-        existingVaults[1][4]["USDC"][0] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
-        existingVaults[11_155_111][4]["tUSD"][0] = 0x3b33D257E77E018326CCddeCA71cf9350C585A66;
-
-        mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults = ERC5115_VAULTS;
-        mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
-            ERC5115_VAULTS_NAMES;
-        mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
-        mapping(uint64 chainId => mapping(address realVault => ChosenAssets chosenAssets)) storage erc5115ChosenAssets =
-            ERC5115S_CHOSEN_ASSETS;
-
-        numberOf5115s[1] = 2;
-        numberOf5115s[10] = 1;
-        numberOf5115s[42_161] = 2;
-        numberOf5115s[56] = 1;
-        numberOf5115s[8453] = 0;
-        numberOf5115s[250] = 0;
-        numberOf5115s[137] = 0;
-        numberOf5115s[43_114] = 0;
+        numberOf5115Vaults[1] = 2;
+        numberOf5115Vaults[10] = 1;
+        numberOf5115Vaults[42_161] = 2;
+        numberOf5115Vaults[8453] = 0;
+        numberOf5115Vaults[11_155_111] = 0;
 
         /// @dev  pendle ethena - market: SUSDE-MAINNET-SEP2024
         /// sUSDe sUSDe
-        erc5115Vaults[1][0] = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
-        erc5115VaultsNames[1][0] = "sUSDe";
-        erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetIn =
-            0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
-        erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetOut =
-            0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+        // erc5115Vaults[1][0] = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
+        // erc5115VaultsNames[1][0] = "sUSDe";
+        // erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetIn =
+        //     0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+        // erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetOut =
+        //     0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
 
         /// ezETH
         /// @dev pendle renzo - market:  SY ezETH
-        erc5115Vaults[1][1] = 0x22E12A50e3ca49FB183074235cB1db84Fe4C716D;
-        erc5115VaultsNames[1][1] = "ezETH";
-        erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetIn =
-            0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
-        erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetOut =
-            0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
+        // erc5115Vaults[1][1] = 0x22E12A50e3ca49FB183074235cB1db84Fe4C716D;
+        // erc5115VaultsNames[1][1] = "ezETH";
+        // erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetIn =
+        //     0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
+        // erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetOut =
+        //     0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
 
         /// ezETH
         /// @dev pendle aave usdt - market:  SY aUSDT
-        erc5115Vaults[1][2] = 0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74;
-        erc5115VaultsNames[1][2] = "aUSDT";
-        erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetIn =
-            0xdAC17F958D2ee523a2206206994597C13D831ec7;
-        erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetOut =
-            0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a;
+        // erc5115Vaults[1][2] = 0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74;
+        // erc5115VaultsNames[1][2] = "aUSDT";
+        // erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetIn =
+        //     0xdAC17F958D2ee523a2206206994597C13D831ec7;
+        // erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetOut =
+        //     0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a;
 
         /// wstETH
         /// @dev pendle wrapped st ETH from LDO - market:  SY wstETH
-        erc5115Vaults[10][0] = 0x96A528f4414aC3CcD21342996c93f2EcdEc24286;
-        erc5115VaultsNames[10][0] = "wstETH";
-        erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetIn =
-            0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
-        erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
-            0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
+        // erc5115Vaults[10][0] = 0x96A528f4414aC3CcD21342996c93f2EcdEc24286;
+        // erc5115VaultsNames[10][0] = "wstETH";
+        // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetIn =
+        //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
+        // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
+        //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
 
         /// ezETH
         /// @dev pendle renzo - market: EZETH-BSC-SEP2024
-        erc5115Vaults[56][0] = 0xe49269B5D31299BcE407c8CcCf241274e9A93C9A;
-        erc5115VaultsNames[56][0] = "ezETH";
-        erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetIn =
-            0x2416092f143378750bb29b79eD961ab195CcEea5;
-        erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetOut =
-            0x2416092f143378750bb29b79eD961ab195CcEea5;
+        // erc5115Vaults[56][0] = 0xe49269B5D31299BcE407c8CcCf241274e9A93C9A;
+        // erc5115VaultsNames[56][0] = "ezETH";
+        // erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetIn =
+        //     0x2416092f143378750bb29b79eD961ab195CcEea5;
+        // erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetOut =
+        //     0x2416092f143378750bb29b79eD961ab195CcEea5;
 
         /// USDC aARBUsdc
         /// @dev pendle aave - market: SY aUSDC
-        erc5115Vaults[42_161][0] = 0x50288c30c37FA1Ec6167a31E575EA8632645dE20;
-        erc5115VaultsNames[42_161][0] = "USDC";
-        erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetIn =
-            0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-        erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetOut =
-            0x724dc807b04555b71ed48a6896b6F41593b8C637;
+        // erc5115Vaults[42_161][0] = 0x50288c30c37FA1Ec6167a31E575EA8632645dE20;
+        // erc5115VaultsNames[42_161][0] = "USDC";
+        // erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetIn =
+        //     0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+        // erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetOut =
+        //     0x724dc807b04555b71ed48a6896b6F41593b8C637;
 
         /// wstETH
         /// @dev pendle wrapped st ETH from LDO - market: SY wstETH
-        erc5115Vaults[42_161][1] = 0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df;
-        erc5115VaultsNames[42_161][1] = "wstETH";
-        erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetIn =
-            0x5979D7b546E38E414F7E9822514be443A4800529;
-        erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetOut =
-            0x5979D7b546E38E414F7E9822514be443A4800529;
+        // erc5115Vaults[42_161][1] = 0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df;
+        // erc5115VaultsNames[42_161][1] = "wstETH";
+        // erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetIn =
+        //     0x5979D7b546E38E414F7E9822514be443A4800529;
+        // erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetOut =
+        //     0x5979D7b546E38E414F7E9822514be443A4800529;
     }
 }
