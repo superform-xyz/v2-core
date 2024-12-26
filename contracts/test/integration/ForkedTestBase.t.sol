@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { BaseTest } from "../BaseTest.t.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract ForkedTestBase is BaseTest {
 
@@ -94,6 +95,7 @@ contract ForkedTestBase is BaseTest {
         super.setUp();
         _preDeploymentSetup();
         _fundNativeTokens();
+        _fundUnderlyingTokens(1000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -171,7 +173,7 @@ contract ForkedTestBase is BaseTest {
         existingVaults[1]["ERC4626"]["AaveVault"]["USDC"] = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
         existingVaults[1]["ERC4626"]["FluidVault"]["USDC"] = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
         existingVaults[1]["ERC4626"]["EulerVault"]["USDC"] = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
-        existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"] = 0xdd0f28e19C1780eb6396170735D45153D261490d; // Gauntlet USDC Prime Vault
+        existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"] = 0xdd0f28e19C1780eb6396170735D45153D261490d;
         existingVaults[1]["ERC4626"]["YearnDaiYVault"]["DAI"] = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
 
         /// @dev Arbitrum 4626vault addresses
@@ -276,6 +278,19 @@ contract ForkedTestBase is BaseTest {
             vm.deal(users[0], amountUSER);
             vm.deal(users[1], amountUSER);
             vm.deal(users[2], amountUSER);
+        }
+    }
+
+    function _fundUnderlyingTokens(uint256 amount) internal {
+        for (uint256 j = 0; j < underlyingTokens.length; ++j) {
+            for (uint256 i = 0; i < chainIds.length; ++i) {
+                vm.selectFork(FORKS[chainIds[i]]);
+                address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
+                ERC20(token).mint(deployer, 1 ether * amount);
+                ERC20(token).mint(users[0], 1 ether * amount);
+                ERC20(token).mint(users[1], 1 ether * amount);
+                ERC20(token).mint(users[2], 1 ether * amount);
+            }
         }
     }
 }
