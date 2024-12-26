@@ -51,8 +51,6 @@ contract ForkedTestBase is BaseTest {
 
     // bytes32 public salt;
     //mapping(uint256 vaultId => string[] names) public vaultNames;
-    mapping(uint64 chainId => uint256 n4626Vaults) public numberOf4626Vaults;
-    mapping(uint64 chainId => uint256 n5115Vaults) public numberOf5115Vaults;
 
     mapping(uint64 chainId => mapping(string underlying => address realAddress)) public existingUnderlyingTokens;
 
@@ -65,7 +63,6 @@ contract ForkedTestBase is BaseTest {
     mapping(uint64 chainId => mapping(bytes32 implementation => address at)) public contracts;
 
     mapping(string vaultKind => address[] vaults) public vaultsByKind;
-    //mapping(uint256 vaultKindIndex => string vaultKind) public vaultKinds;
     
     /*//////////////////////////////////////////////////////////////
                               RPC VARIABLES
@@ -95,6 +92,8 @@ contract ForkedTestBase is BaseTest {
 
     function setUp() public virtual override {
         super.setUp();
+        _preDeploymentSetup();
+        _fundNativeTokens();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -169,18 +168,11 @@ contract ForkedTestBase is BaseTest {
         address realVault)))) storage existingVaults = realVaultAddresses;
 
         /// @dev Ethereum 4626 vault addresses
-        address aaveUsdcVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
-        address eulerUsdcVault = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
-        address fluidUsdcVault = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
-        address yearnDaiYVault = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
-        address morphoUSDCVault = 0xdd0f28e19C1780eb6396170735D45153D261490d;
-        // Gauntlet USDC Prime Vault
-
-        existingVaults[1]["ERC4626"]["AaveVault"]["USDC"] = aaveUsdcVault;
-        existingVaults[1]["ERC4626"]["FluidVault"]["USDC"] = fluidUsdcVault;
-        existingVaults[1]["ERC4626"]["EulerVault"]["USDC"] = eulerUsdcVault;
-        existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"] = morphoUSDCVault;
-        existingVaults[1]["ERC4626"]["YearnDaiYVault"]["DAI"] = yearnDaiYVault;
+        existingVaults[1]["ERC4626"]["AaveVault"]["USDC"] = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
+        existingVaults[1]["ERC4626"]["FluidVault"]["USDC"] = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
+        existingVaults[1]["ERC4626"]["EulerVault"]["USDC"] = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
+        existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"] = 0xdd0f28e19C1780eb6396170735D45153D261490d; // Gauntlet USDC Prime Vault
+        existingVaults[1]["ERC4626"]["YearnDaiYVault"]["DAI"] = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
 
         /// @dev Arbitrum 4626vault addresses
         existingVaults[42_161]["ERC4626"]["GoatUSDC"]["USDC"] = 0x8a1eF3066553275829d1c0F64EE8D5871D5ce9d3;
@@ -207,11 +199,6 @@ contract ForkedTestBase is BaseTest {
         //mapping(uint64 chainId => mapping(address realVault => ChosenAssets chosenAssets)) storage erc5115ChosenAssets =
         //    ERC5115S_CHOSEN_ASSETS;
 
-        numberOf5115Vaults[1] = 2;
-        numberOf5115Vaults[10] = 1;
-        numberOf5115Vaults[42_161] = 2;
-        numberOf5115Vaults[8453] = 0;
-        numberOf5115Vaults[11_155_111] = 0;
 
         /// @dev  pendle ethena - market: SUSDE-MAINNET-SEP2024
         /// sUSDe sUSDe
@@ -275,5 +262,20 @@ contract ForkedTestBase is BaseTest {
         //     0x5979D7b546E38E414F7E9822514be443A4800529;
         // erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetOut =
         //     0x5979D7b546E38E414F7E9822514be443A4800529;
+    }
+
+    function _fundNativeTokens() internal {
+        for (uint256 i = 0; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+
+            uint256 amountDeployer = 1e24;
+            uint256 amountUSER = 1e24;
+
+            vm.deal(deployer, amountDeployer);
+
+            vm.deal(users[0], amountUSER);
+            vm.deal(users[1], amountUSER);
+            vm.deal(users[2], amountUSER);
+        }
     }
 }
