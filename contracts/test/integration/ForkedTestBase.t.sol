@@ -50,7 +50,7 @@ contract ForkedTestBase is BaseTest {
     //address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     // bytes32 public salt;
-    mapping(uint256 vaultId => string[] names) public vaultNames;
+    //mapping(uint256 vaultId => string[] names) public vaultNames;
     mapping(uint64 chainId => uint256 n4626Vaults) public numberOf4626Vaults;
     mapping(uint64 chainId => uint256 n5115Vaults) public numberOf5115Vaults;
 
@@ -58,7 +58,9 @@ contract ForkedTestBase is BaseTest {
 
     mapping(uint64 chainId => mapping(address realVaultAddress => ChosenAssets chosenAssets)) public chosen5115Assets;
     
-    mapping(uint64 chainId => mapping(string vaultName =>  address realVault)) public realVaultAddresses;
+    mapping(uint64 chainId => mapping(string vaultKind => 
+    mapping(string vaultName => mapping (string underlying => 
+    address realVault)))) public realVaultAddresses;
 
     mapping(uint64 chainId => mapping(bytes32 implementation => address at)) public contracts;
 
@@ -132,13 +134,7 @@ contract ForkedTestBase is BaseTest {
         users.push(vm.addr(userKeys[1]));
         users.push(vm.addr(userKeys[2]));
 
-        /// @dev populate vaultNames state arg with underlyingTokens + vaultKinds names
-        // TODO: update with actual underlyingTokens + vaultKinds
-        string[] memory _underlyingTokens = underlyingTokens;
-        for (uint256 j = 0; j < _underlyingTokens.length; ++j) {
-            vaultNames[j].push(string.concat(underlyingTokens[j], vaultKinds[j]));
-        }
-
+        /// @dev Setup existingUnderlyingTokens
         mapping(uint64 chainId => mapping(string underlying => address realAddress)) storage existingTokens = 
         existingUnderlyingTokens;
 
@@ -167,29 +163,38 @@ contract ForkedTestBase is BaseTest {
         existingTokens[11_155_111]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
         existingTokens[11_155_111]["WETH"] = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
 
-        mapping(uint64 chainId => mapping(string vaultName => 
-        address realVault)) storage existingVaults = realVaultAddresses;
+        /// @dev Setup realVaultAddresses
+        mapping(uint64 chainId => mapping(string vaultKind => 
+        mapping (string vaultName => mapping (string underlying => 
+        address realVault)))) storage existingVaults = realVaultAddresses;
 
-        // existingVaults[42_161][1]["DAI"][0] = address(0);
-        // existingVaults[42_161][1]["USDC"][0] = address(0);
-        // existingVaults[42_161][1]["WETH"][0] = 0xe4c2A17f38FEA3Dcb3bb59CEB0aC0267416806e2;
+        /// @dev Ethereum 4626 vault addresses
+        address aaveUsdcVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
+        address eulerUsdcVault = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
+        address fluidUsdcVault = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
+        address yearnDaiYVault = 0xdA816459F1AB5631232FE5e97a05BBBb94970c95;
+        address morphoUSDCVault = 0xdd0f28e19C1780eb6396170735D45153D261490d;
+        // Gauntlet USDC Prime Vault
 
-        // existingVaults[1][1]["DAI"][0] = address(0);
-        // existingVaults[1][1]["USDC"][0] = address(0);
-        // existingVaults[1][1]["WETH"][0] = address(0);
-        // existingVaults[1][1]["USDe"][0] = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+        existingVaults[1]["ERC4626"]["AaveVault"]["USDC"] = aaveUsdcVault;
+        existingVaults[1]["ERC4626"]["FluidVault"]["USDC"] = fluidUsdcVault;
+        existingVaults[1]["ERC4626"]["EulerVault"]["USDC"] = eulerUsdcVault;
+        existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"] = morphoUSDCVault;
+        existingVaults[1]["ERC4626"]["YearnDaiYVault"]["DAI"] = yearnDaiYVault;
+
+        /// @dev Arbitrum 4626vault addresses
+        existingVaults[42_161]["ERC4626"]["GoatUSDC"]["USDC"] = 0x8a1eF3066553275829d1c0F64EE8D5871D5ce9d3;
+        existingVaults[42_161]["ERC4626"]["AaveV3ERC4626Reinvest"]["WETH"] = 0xe4c2A17f38FEA3Dcb3bb59CEB0aC0267416806e2;
 
         // existingVaults[10][1]["DAI"][0] = address(0);
-        // existingVaults[10][1]["USDC"][0] = address(0);
+        existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"] = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
         // existingVaults[10][1]["WETH"][0] = address(0);
 
-        // existingVaults[8453][1]["DAI"][0] = 0x88510ced6F82eFd3ddc4599B72ad8ac2fF172043;
-        // existingVaults[8453][1]["USDC"][0] = address(0);
-        // existingVaults[8453][1]["WETH"][0] = address(0);
 
-        // existingVaults[250][1]["DAI"][0] = address(0);
-        // existingVaults[250][1]["USDC"][0] = 0xd55C59Da5872DE866e39b1e3Af2065330ea8Acd6;
-        // existingVaults[250][1]["WETH"][0] = address(0);
+        /// @dev Base 4626 vault addresses
+        existingVaults[8453]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"] = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
+        existingVaults[8453]["ERC4626"]["MorphoGauntletWETHCore"]["WETH"] = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
+
 
         // /// @dev 7540 real centrifuge vaults on mainnet & testnet
         // existingVaults[1][4]["USDC"][0] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
