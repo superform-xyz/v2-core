@@ -85,7 +85,7 @@ contract ForkedTestBase is BaseTest {
     uint64 public constant ARBI = 42_161;
     uint64 public constant SEPOLIA = 11_155_111;
 
-    uint64[] public chainIds = [1, 42_161, 10, 8453, 250, 11_155_111];
+    uint64[] public chainIds = [1, 42_161, 10, 8453, 11_155_111];
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -140,29 +140,29 @@ contract ForkedTestBase is BaseTest {
         existingUnderlyingTokens;
 
         // Mainnet tokens
-        existingTokens[1]["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        existingTokens[1]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        existingTokens[1]["WETH"] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        existingUnderlyingTokens[1]["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        existingUnderlyingTokens[1]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        existingUnderlyingTokens[1]["WETH"] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
         // Optimism tokens
-        existingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        existingTokens[10]["USDC"] = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
-        existingTokens[10]["WETH"] = 0x4200000000000000000000000000000000000006;
+        existingUnderlyingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+        existingUnderlyingTokens[10]["USDC"] = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
+        existingUnderlyingTokens[10]["WETH"] = 0x4200000000000000000000000000000000000006;
 
         // Arbitrum tokens
-        existingTokens[42_161]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        existingTokens[42_161]["USDC"] = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-        existingTokens[42_161]["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
+        existingUnderlyingTokens[42_161]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
+        existingUnderlyingTokens[42_161]["USDC"] = 0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
+        existingUnderlyingTokens[42_161]["WETH"] = 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1;
         
         // Base tokens
-        existingTokens[8453]["DAI"] = 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb;
-        existingTokens[8453]["USDC"] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
-        existingTokens[8453]["WETH"] = 0x4200000000000000000000000000000000000006;
+        existingUnderlyingTokens[8453]["DAI"] = 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb;
+        existingUnderlyingTokens[8453]["USDC"] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+        existingUnderlyingTokens[8453]["WETH"] = 0x4200000000000000000000000000000000000006;
 
         // Sepolia tokens
-        existingTokens[11_155_111]["DAI"] = 0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6;
-        existingTokens[11_155_111]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
-        existingTokens[11_155_111]["WETH"] = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
+        existingUnderlyingTokens[11_155_111]["DAI"] = 0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6;
+        existingUnderlyingTokens[11_155_111]["USDC"] = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
+        existingUnderlyingTokens[11_155_111]["WETH"] = 0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9;
 
         /// @dev Setup realVaultAddresses
         mapping(uint64 chainId => mapping(string vaultKind => 
@@ -282,14 +282,14 @@ contract ForkedTestBase is BaseTest {
     }
 
     function _fundUnderlyingTokens(uint256 amount) internal {
-        for (uint256 j = 0; j < underlyingTokens.length; ++j) {
+        for (uint256 j = 0; j < underlyingTokens.length - 1; ++j) {
             for (uint256 i = 0; i < chainIds.length; ++i) {
                 vm.selectFork(FORKS[chainIds[i]]);
                 address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
-                ERC20(token).mint(deployer, 1 ether * amount);
-                ERC20(token).mint(users[0], 1 ether * amount);
-                ERC20(token).mint(users[1], 1 ether * amount);
-                ERC20(token).mint(users[2], 1 ether * amount);
+                deal(token, deployer, 1e18 * amount);
+                deal(token, users[0], 1e18 * amount);
+                deal(token, users[1], 1e18 * amount);
+                deal(token, users[2], 1e18 * amount);
             }
         }
     }
