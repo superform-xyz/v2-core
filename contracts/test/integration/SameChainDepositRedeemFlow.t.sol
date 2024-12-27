@@ -5,11 +5,12 @@ import { console } from "forge-std/console.sol";
 import { ForkedTestBase } from "./ForkedTestBase.t.sol";
 import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
 import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
-import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
+
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault in the same intent
 contract SameChainDepositRedeemFlowTest is ForkedTestBase {
-    ERC4626 public vaultInstance;
+    IERC4626 public vaultInstance;
     address finalTarget;
 
     address public underlying;
@@ -21,8 +22,11 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
 
         underlying = existingUnderlyingTokens[1]["DAI"];
         console.log("underlying", underlying);
+
         finalTarget = realVaultAddresses[1]["ERC4626"]["YearnDaiYVault"]["DAI"];
         console.log("finalTarget", finalTarget);
+
+        vaultInstance = IERC4626(finalTarget);
     }
 
     function test_Deposit_Redeem_Mainnet_4626_Flow() public {
@@ -69,6 +73,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         // emit ISuperActions.AccountingUpdated(
         //     instance.account, ACTION["4626_DEPOSIT"], finalTarget, true, amount, 1e18
         // );
+        superExecutor = ISuperExecutorV2(superExecutorsAddresses[chainIds[0]]);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = vaultInstance.balanceOf(instance.account);
