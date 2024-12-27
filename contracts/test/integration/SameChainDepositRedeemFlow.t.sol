@@ -21,6 +21,7 @@ import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 
 // external
+import { console } from "forge-std/console.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 import { 
@@ -32,12 +33,15 @@ import {
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
+/// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault in the same intent
 contract SameChainDepositRedeemFlowTest is ForkedTestBase, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
     ERC4626 public vaultInstance;
     AccountInstance public instance;
+
+    address public underlying;
 
     // core
     ISuperRbac public superRbac;
@@ -56,6 +60,8 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase, RhinestoneModuleKit {
 
     function setUp() public override {
         super.setUp();
+
+        vm.selectFork(chainIds[0]);
 
         sharedState = new SharedState();
         vm.label(address(sharedState), "sharedState");
@@ -86,20 +92,19 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase, RhinestoneModuleKit {
         // Register action
         _performRegistrations();
 
-        vm.selectFork(chainIds[0]);
+        underlying = existingUnderlyingTokens[1]["DAI"];
         vaultInstance = ERC4626(realVaultAddresses[1]["ERC4626"]["YearnDaiYVault"]["DAI"]);
     }
 
-    function test_Deposit_Redeem_Flow() public {
+    function test_Deposit_Redeem_Mainnet_4626_Flow() public {
         address finalTarget = address(vaultInstance);
         uint256 amount = 1e18;
-        bytes[] memory depositHooksData = _createDepositActionData(finalTarget, amount);
+        bytes[] memory depositHooksData = _createDepositActionData(finalTarget, underlying, amount);
         bytes[] memory redeemHooksData = _createWithdrawActionData(finalTarget, amount);
 
         vm.prank(deployer);
-        vaultInstance.deposit(amount, deployer);
-        address dai = existingUnderlyingTokens[1]["DAI"];
-        _getTokens(dai, instance.account, amount);
+          vaultInstance.deposit(amount, deployer);
+        _getTokens(underlying, instance.account, amount);
 
         // it should execute all hooks
         ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](2);
@@ -122,7 +127,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase, RhinestoneModuleKit {
         );
         superExecutor.execute(instance.account, abi.encode(entries));
 
-        uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
+        uint256 accSharesAfter = vaultInstance.balanceOf(instance.account);
         assertEq(accSharesAfter, 0);
     }
 
@@ -132,6 +137,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase, RhinestoneModuleKit {
 
     function _createDepositActionData(
         address finalTarget,
+        address underlying,
         uint256 amount
     )
         internal
@@ -139,7 +145,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase, RhinestoneModuleKit {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](2);
-        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
+        hooksData[0] = abi.encode(underlying, finalTarget, amount);
         hooksData[1] = abi.encode(finalTarget, instance.account, amount);
     }
 
