@@ -195,9 +195,11 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
 
         // Initialize the account instance
         instance = makeAccountInstance("SuperformAccount");
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
-        vm.label(instance.account, "SuperformAccount");
         vm.makePersistent(instance.account);
+        address superExecutorAddress = superExecutorsAddresses[chainIds[0]];
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: superExecutorAddress, data: "" });
+        vm.label(instance.account, "SuperformAccount");
+        
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
@@ -480,7 +482,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
 
             vm.deal(user1, amountUSER);
             vm.deal(user2, amountUSER);
-            vm.deal(address(instance.account), amountUSER);
+            vm.deal(instance.account, amountUSER);
         }
     }
 
@@ -492,7 +494,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
                 deal(token, deployer, 1e18 * amount);
                 deal(token, user1, 1e18 * amount);
                 deal(token, user2, 1e18 * amount);
-                deal(token, address(instance.account), 1e18 * amount);
+                deal(token, instance.account, 1e18 * amount);
             }
         }
     }
