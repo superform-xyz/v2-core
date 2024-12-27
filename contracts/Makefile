@@ -38,7 +38,9 @@ deploy-poc:
 build :; forge build
 ftest :; forge test
 
-test-vvv :; forge test --match-contract SameChainDepositRedeemFlowTest -vvvv
+test-vvv :; forge test --match-test test_WhenHooksAreDefinedAndExecutionDataIsValid -vvvv
+
+test-integration :; forge test --match-contract SameChainDepositRedeemFlowTest -vvvv
 
 .PHONY: generate
 generate: build 
