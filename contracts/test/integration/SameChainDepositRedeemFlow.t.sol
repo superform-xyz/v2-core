@@ -47,7 +47,8 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         entries[1] = ISuperExecutorV2.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
             finalTarget: finalTarget,
-            hooksData: redeemHooksData,
+            //hooksData: redeemHooksData,
+            hooksData: nonMainActionHooksData,
             nonMainActionHooks: nonMainActionHooks
         });
 
