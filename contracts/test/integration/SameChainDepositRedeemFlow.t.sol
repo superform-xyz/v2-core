@@ -37,7 +37,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         //nonMainActionHooks[1] = address(deposit4626VaultHook);
 
         // it should execute all hooks
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
+        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](2);
         entries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT"],
             finalTarget: finalTarget,
