@@ -99,14 +99,6 @@ contract ForkedTestBase is BaseTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                TESTS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_test() public {
-        assert(true);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -136,9 +128,6 @@ contract ForkedTestBase is BaseTest {
         users.push(vm.addr(userKeys[2]));
 
         /// @dev Setup existingUnderlyingTokens
-        mapping(uint64 chainId => mapping(string underlying => address realAddress)) storage existingTokens = 
-        existingUnderlyingTokens;
-
         // Mainnet tokens
         existingUnderlyingTokens[1]["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         existingUnderlyingTokens[1]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -184,15 +173,13 @@ contract ForkedTestBase is BaseTest {
         existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"] = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
         // existingVaults[10][1]["WETH"][0] = address(0);
 
-
         /// @dev Base 4626 vault addresses
         existingVaults[8453]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"] = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
         existingVaults[8453]["ERC4626"]["MorphoGauntletWETHCore"]["WETH"] = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
 
 
-        // /// @dev 7540 real centrifuge vaults on mainnet & testnet
-        // existingVaults[1][4]["USDC"][0] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
-        // existingVaults[11_155_111][4]["tUSD"][0] = 0x3b33D257E77E018326CCddeCA71cf9350C585A66;
+        /// @dev 7540 real centrifuge vaults on mainnet
+        existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
 
         //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults = ERC5115_VAULTS;
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
