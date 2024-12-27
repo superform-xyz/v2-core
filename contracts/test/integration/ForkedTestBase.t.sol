@@ -553,6 +553,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
     function _setRoles() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
+            superRbac = ISuperRbac(superRbacAddresses[chainIds[i]]);
             superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
         }
     }
