@@ -29,10 +29,10 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         bytes[] memory redeemHooksData = _createWithdrawActionData(finalTarget, amount);
 
         // extra non-action set of hooks
-        bytes[] memory nonMainActionHooksData = new bytes[](2);
+        bytes[] memory nonMainActionHooksData = new bytes[](1);
         nonMainActionHooksData[0] = abi.encode(underlying, instance.account, amount); //Should account be user2?
         //nonMainActionHooksData[1] = abi.encode(finalTarget, instance.account, amount);
-        address[] memory nonMainActionHooks = new address[](2);
+        address[] memory nonMainActionHooks = new address[](1);
         nonMainActionHooks[0] = address(approveErc20Hook);
         //nonMainActionHooks[1] = address(deposit4626VaultHook);
 
