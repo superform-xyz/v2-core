@@ -229,49 +229,38 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
 
         approveErc20Hook = new ApproveERC20Hook(address(superRegistry), address(this));
         vm.label(address(approveErc20Hook), "ApproveERC20Hook");
-        vm.makePersistent(address(approveErc20Hook));
 
         transferErc20Hook = new TransferERC20Hook(address(superRegistry), address(this));
         vm.label(address(transferErc20Hook), "TransferERC20Hook");
-        vm.makePersistent(address(transferErc20Hook));
 
         deposit4626VaultHook = new Deposit4626VaultHook(address(superRegistry), address(this));
         vm.label(address(deposit4626VaultHook), "Deposit4626VaultHook");
-        vm.makePersistent(address(deposit4626VaultHook));
 
         withdraw4626VaultHook = new Withdraw4626VaultHook(address(superRegistry), address(this));
         vm.label(address(withdraw4626VaultHook), "Withdraw4626VaultHook");
-        vm.makePersistent(address(withdraw4626VaultHook));
 
         deposit5115VaultHook = new Deposit5115VaultHook(address(superRegistry), address(this));
         vm.label(address(deposit5115VaultHook), "Deposit5115VaultHook");
-        vm.makePersistent(address(deposit5115VaultHook));
 
         withdraw5115VaultHook = new Withdraw5115VaultHook(address(superRegistry), address(this));
         vm.label(address(withdraw5115VaultHook), "Withdraw5115VaultHook");
-        vm.makePersistent(address(withdraw5115VaultHook));
 
         requestDeposit7540VaultHook = new RequestDeposit7540VaultHook(address(superRegistry), address(this));
         vm.label(address(requestDeposit7540VaultHook), "RequestDeposit7540VaultHook");
-        vm.makePersistent(address(requestDeposit7540VaultHook));
 
         requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(address(superRegistry), address(this));
         vm.label(address(requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
-        vm.makePersistent(address(requestWithdraw7540VaultHook));
 
         acrossExecuteOnDestinationHook =
             new AcrossExecuteOnDestinationHook(address(superRegistry), address(this), address(spokePoolV3Mock));
         vm.label(address(acrossExecuteOnDestinationHook), "AcrossExecuteOnDestinationHook");
-        vm.makePersistent(address(acrossExecuteOnDestinationHook));
 
         // action oracles
         depositRedeem4626ActionOracle = new DepositRedeem4626ActionOracle();
         vm.label(address(depositRedeem4626ActionOracle), "DepositRedeem4626ActionOracle");
-        vm.makePersistent(address(depositRedeem4626ActionOracle));
 
         depositRedeem5115ActionOracle = new DepositRedeem5115ActionOracle();
         vm.label(address(depositRedeem5115ActionOracle), "DepositRedeem5115ActionOracle");
-        vm.makePersistent(address(depositRedeem5115ActionOracle));
       }
     }
     
