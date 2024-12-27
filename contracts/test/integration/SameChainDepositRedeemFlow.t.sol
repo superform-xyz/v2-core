@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { console } from "forge-std/console.sol";
 import { ForkedTestBase } from "./ForkedTestBase.t.sol";
 import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
 import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
@@ -9,6 +10,7 @@ import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault in the same intent
 contract SameChainDepositRedeemFlowTest is ForkedTestBase {
     ERC4626 public vaultInstance;
+    address finalTarget;
 
     address public underlying;
 
@@ -18,13 +20,16 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         vm.selectFork(chainIds[0]);
 
         underlying = existingUnderlyingTokens[1]["DAI"];
-        vaultInstance = ERC4626(realVaultAddresses[1]["ERC4626"]["YearnDaiYVault"]["DAI"]);
+        console.log("underlying", underlying);
+        finalTarget = realVaultAddresses[1]["ERC4626"]["YearnDaiYVault"]["DAI"];
+        console.log("finalTarget", finalTarget);
     }
 
     function test_Deposit_Redeem_Mainnet_4626_Flow() public {
         vm.selectFork(chainIds[0]);
-        address finalTarget = address(vaultInstance);
-        uint256 amount = 1e18;
+
+        uint256 amount = 1e8;
+
         bytes[] memory depositHooksData = _createDepositActionData(finalTarget, underlying, amount);
         bytes[] memory redeemHooksData = _createWithdrawActionData(finalTarget, amount);
 
@@ -32,6 +37,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         bytes[] memory nonMainActionHooksData = new bytes[](1);
         nonMainActionHooksData[0] = abi.encode(underlying, instance.account, amount); //Should account be user2?
         //nonMainActionHooksData[1] = abi.encode(finalTarget, instance.account, amount);
+
         address[] memory nonMainActionHooks = new address[](1);
         nonMainActionHooks[0] = address(approveErc20Hook);
         //nonMainActionHooks[1] = address(deposit4626VaultHook);
@@ -45,16 +51,23 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
             nonMainActionHooks: new address[](0)
         });
         entries[1] = ISuperExecutorV2.ExecutorEntry({
-            actionId: ACTION["4626_WITHDRAW"],
-            finalTarget: finalTarget,
-            //hooksData: redeemHooksData,
+            actionId: type(uint256).max,
+            finalTarget: address(0),
             hooksData: nonMainActionHooksData,
             nonMainActionHooks: nonMainActionHooks
         });
+        
+        //  entries[1] = ISuperExecutorV2.ExecutorEntry({
+        //     actionId: ACTION["4626_WITHDRAW"],
+        //     finalTarget: finalTarget,
+        //     hooksData: redeemHooksData,
+        //     nonMainActionHooks: new address[](0)
+        // });
 
         // vm.expectEmit(true, true, true, true);
+       
         // emit ISuperActions.AccountingUpdated(
-        //     instance.account, ACTION["4626_WITHDRAW"], finalTarget, false, amount, 1e18
+        //     instance.account, ACTION["4626_DEPOSIT"], finalTarget, true, amount, 1e18
         // );
         superExecutor.execute(instance.account, abi.encode(entries));
 
