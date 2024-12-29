@@ -8,12 +8,12 @@ library Looped4626DepositLibrary {
     error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
 
     /// @notice Get the price per share for a single vault over a number of loops
-    /// @param finalTarget The address of the final target
+    /// @param yieldSourceAddress The address of the final target
     /// @param loops The number of loops
     /// @return pricePerShare The price per share
-    function getPricePerShare(address finalTarget, uint256 loops) internal view returns (uint256 pricePerShare) {
-        uint256 decimals = IERC4626(finalTarget).decimals();
-        pricePerShare = IERC4626(finalTarget).previewRedeem(10 ** decimals);
+    function getPricePerShare(address yieldSourceAddress, uint256 loops) internal view returns (uint256 pricePerShare) {
+        uint256 decimals = IERC4626(yieldSourceAddress).decimals();
+        pricePerShare = IERC4626(yieldSourceAddress).previewRedeem(10 ** decimals);
         pricePerShare *= loops;
     }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { ISuperExecutorV2 } from "../../../src/interfaces/ISuperExecutorV2.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { Unit_Shared } from "../Unit_Shared.t.sol";
 import { ISuperActions } from "../../../src/interfaces/strategies/ISuperActions.sol";
 import { SuperPositionSentinel } from "../../../src/sentinels/SuperPositionSentinel.sol";
@@ -19,10 +19,10 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         uint256 actionId = uint256(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
         bytes[] memory hooksData = new bytes[](0);
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: actionId,
-            finalTarget: RANDOM_TARGET,
+            yieldSourceAddress: RANDOM_TARGET,
             hooksData: hooksData,
             nonMainActionHooks: new address[](0)
         });
@@ -41,10 +41,10 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         hooksData[0] = abi.encode(uint256(1));
         hooksData[1] = abi.encode(uint256(1));
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT"],
-            finalTarget: RANDOM_TARGET,
+            yieldSourceAddress: RANDOM_TARGET,
             hooksData: hooksData,
             nonMainActionHooks: new address[](0)
         });
@@ -64,16 +64,16 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         /// as deposit4626VaultHook
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
-        address finalTarget = address(mock4626Vault);
-        bytes[] memory hooksData = _createDepositActionData(finalTarget, amount);
+        address yieldSourceAddress = address(mock4626Vault);
+        bytes[] memory hooksData = _createDepositActionData(yieldSourceAddress, amount);
         address[] memory hooks = new address[](2);
         hooks[0] = address(approveErc20Hook);
         hooks[1] = address(deposit4626VaultHook);
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: type(uint256).max,
-            finalTarget: address(0),
+            yieldSourceAddress: address(0),
             hooksData: hooksData,
             nonMainActionHooks: hooks
         });
@@ -90,9 +90,9 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         givenSentinelCallIsNotPerformed
     {
         amount = _bound(amount);
-        address finalTarget = address(mock4626Vault);
+        address yieldSourceAddress = address(mock4626Vault);
 
-        bytes[] memory hooksData = _createDepositActionData(finalTarget, amount);
+        bytes[] memory hooksData = _createDepositActionData(yieldSourceAddress, amount);
 
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
@@ -104,21 +104,21 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         nonMainActionHooks[0] = address(approveErc20Hook);
 
         // it should execute all hooks
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](2);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](2);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT"],
-            finalTarget: finalTarget,
+            yieldSourceAddress: yieldSourceAddress,
             hooksData: hooksData,
             nonMainActionHooks: new address[](0)
         });
-        entries[1] = ISuperExecutorV2.ExecutorEntry({
+        entries[1] = ISuperExecutor.ExecutorEntry({
             actionId: type(uint256).max,
-            finalTarget: address(0),
+            yieldSourceAddress: address(0),
             hooksData: nonMainActionHooksData,
             nonMainActionHooks: nonMainActionHooks
         });
         vm.expectEmit(true, true, true, true);
-        emit ISuperActions.AccountingUpdated(instance.account, ACTION["4626_DEPOSIT"], finalTarget, true, amount, 1e18);
+        emit ISuperActions.AccountingUpdated(instance.account, ACTION["4626_DEPOSIT"], yieldSourceAddress, true, amount, 1e18);
         superExecutor.execute(instance.account, abi.encode(entries));
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
@@ -134,30 +134,30 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         givenSentinelCallIsNotPerformed
     {
         amount = _bound(amount);
-        address finalTarget = address(mock4626Vault);
-        bytes[] memory depositHooksData = _createDepositActionData(finalTarget, amount);
-        bytes[] memory withdrawHooksData = _createWithdrawActionData(finalTarget, amount);
+        address yieldSourceAddress = address(mock4626Vault);
+        bytes[] memory depositHooksData = _createDepositActionData(yieldSourceAddress, amount);
+        bytes[] memory withdrawHooksData = _createWithdrawActionData(yieldSourceAddress, amount);
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 
         // it should execute all hooks
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](2);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](2);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT"],
-            finalTarget: finalTarget,
+            yieldSourceAddress: yieldSourceAddress,
             hooksData: depositHooksData,
             nonMainActionHooks: new address[](0)
         });
-        entries[1] = ISuperExecutorV2.ExecutorEntry({
+        entries[1] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
-            finalTarget: finalTarget,
+            yieldSourceAddress: yieldSourceAddress,
             hooksData: withdrawHooksData,
             nonMainActionHooks: new address[](0)
         });
 
         vm.expectEmit(true, true, true, true);
         emit ISuperActions.AccountingUpdated(
-            instance.account, ACTION["4626_WITHDRAW"], finalTarget, false, amount, 1e18
+            instance.account, ACTION["4626_WITHDRAW"], yieldSourceAddress, false, amount, 1e18
         );
         superExecutor.execute(instance.account, abi.encode(entries));
 
@@ -166,7 +166,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
     }
 
     function _createDepositActionData(
-        address finalTarget,
+        address yieldSourceAddress,
         uint256 amount
     )
         internal
@@ -174,12 +174,12 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](2);
-        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
-        hooksData[1] = abi.encode(finalTarget, instance.account, amount);
+        hooksData[0] = abi.encode(address(mockERC20), yieldSourceAddress, amount);
+        hooksData[1] = abi.encode(yieldSourceAddress, instance.account, amount);
     }
 
     function _createDepositWithdrawActionData(
-        address finalTarget,
+        address yieldSourceAddress,
         uint256 amount
     )
         internal
@@ -187,13 +187,13 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](3);
-        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
-        hooksData[1] = abi.encode(finalTarget, instance.account, amount);
-        hooksData[2] = abi.encode(finalTarget, instance.account, instance.account, 100);
+        hooksData[0] = abi.encode(address(mockERC20), yieldSourceAddress, amount);
+        hooksData[1] = abi.encode(yieldSourceAddress, instance.account, amount);
+        hooksData[2] = abi.encode(yieldSourceAddress, instance.account, instance.account, 100);
     }
 
     function _createWithdrawActionData(
-        address finalTarget,
+        address yieldSourceAddress,
         uint256 amount
     )
         internal
@@ -201,6 +201,6 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(finalTarget, instance.account, instance.account, amount);
+        hooksData[0] = abi.encode(yieldSourceAddress, instance.account, instance.account, amount);
     }
 }

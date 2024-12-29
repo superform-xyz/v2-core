@@ -19,20 +19,20 @@ contract DepositRedeem4626ActionOracle is IActionOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IActionOracle
-    function getStrategyPrice(address finalTarget) public view returns (uint256 price) {
-        price = DepositRedeem4626Library.getPricePerShare(finalTarget);
+    function getStrategyPrice(address yieldSourceAddress) public view returns (uint256 price) {
+        price = DepositRedeem4626Library.getPricePerShare(yieldSourceAddress);
     }
 
     /// @inheritdoc IActionOracle
     function getStrategyPrices(
-        address[] memory finalTargets,
+        address[] memory yieldSourceAddresses,
         address underlyingAsset
     )
         external
         view
         returns (uint256[] memory prices)
     {
-        prices = DepositRedeem4626Library.getPricePerShareMultiple(finalTargets, underlyingAsset);
+        prices = DepositRedeem4626Library.getPricePerShareMultiple(yieldSourceAddresses, underlyingAsset);
     }
 
     // ToDo: Implement this with the metadata library
@@ -43,7 +43,7 @@ contract DepositRedeem4626ActionOracle is IActionOracle {
 
     // ToDo: Implement this with the metadata library
     /// @inheritdoc IActionOracle
-    function getVaultsStrategyMetadata(address[] memory finalTargets) external pure returns (bytes[] memory metadata) {
-        return new bytes[](finalTargets.length);
+    function getVaultsStrategyMetadata(address[] memory yieldSourceAddresses) external pure returns (bytes[] memory metadata) {
+        return new bytes[](yieldSourceAddresses.length);
     }
 }

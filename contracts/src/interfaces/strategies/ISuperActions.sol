@@ -94,7 +94,7 @@ interface ISuperActions {
     event ActionDelisted(uint256 indexed actionId_);
     event ActionBatchDelisted(uint256[] indexed actionIds_);
     event StrategyConfigSet(
-        string indexed yieldSourceId, address indexed finalTarget, uint256 feePercent, address vaultShareToken
+        string indexed yieldSourceId, address indexed yieldSourceAddress, uint256 feePercent, address vaultShareToken
     );
     event YieldSourceRegistered(string indexed yieldSourceId_, address metadataOracle_);
     /*//////////////////////////////////////////////////////////////

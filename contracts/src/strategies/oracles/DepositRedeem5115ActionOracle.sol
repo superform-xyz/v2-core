@@ -19,25 +19,25 @@ contract DepositRedeem5115ActionOracle {
 
     /// @notice Get the price per share for a deposit into a 5115 vault
     /// @param asset The address of the asset
-    /// @param finalTarget The address of the final target
+    /// @param yieldSourceAddress The address of the final target
     /// @return price The price per share
-    function getStrategyPrice(address asset, address finalTarget) external view returns (uint256 price) {
-        price = DepositRedeem5115Library.getPricePerShare(asset, finalTarget);
+    function getStrategyPrice(address asset, address yieldSourceAddress) external view returns (uint256 price) {
+        price = DepositRedeem5115Library.getPricePerShare(asset, yieldSourceAddress);
     }
 
     /// @notice Get the price per share for a deposit into multiple 5115 vaults
     /// @param assets The addresses of the assets
-    /// @param finalTargets The addresses of the final targets
+    /// @param yieldSourceAddresses The addresses of the final targets
     /// @return prices The price per share per final target
     function getStrategyPrices(
         address[] memory assets,
-        address[] memory finalTargets
+        address[] memory yieldSourceAddresses
     )
         external
         view
         returns (uint256[] memory prices)
     {
-        prices = DepositRedeem5115Library.getPricePerShareMultiple(finalTargets, assets);
+        prices = DepositRedeem5115Library.getPricePerShareMultiple(yieldSourceAddresses, assets);
     }
 
     // ToDo: Implement this with the metadata library
@@ -50,7 +50,7 @@ contract DepositRedeem5115ActionOracle {
     // ToDo: Implement this with the metadata library
     /// @notice Get the metadata for multiple 5115 vaults
     /// @return metadata The metadata per final target
-    function getVaultsStrategyMetadata(address[] memory finalTargets) external pure returns (bytes[] memory metadata) {
-        return new bytes[](finalTargets.length);
+    function getVaultsStrategyMetadata(address[] memory yieldSourceAddresses) external pure returns (bytes[] memory metadata) {
+        return new bytes[](yieldSourceAddresses.length);
     }
 }

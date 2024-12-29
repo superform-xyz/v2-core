@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-interface ISuperExecutorV2 {
+interface ISuperExecutor {
     struct ExecutorEntry {
         uint256 actionId;
-        address finalTarget;
+        address yieldSourceAddress;
         bytes[] hooksData;
         address[] nonMainActionHooks;
     }

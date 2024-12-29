@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
+import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
 import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
@@ -22,10 +22,10 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         uint256 actionId = uint256(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
         bytes[] memory hooksData = new bytes[](0);
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: actionId,
-            finalTarget: RANDOM_TARGET,
+            yieldSourceAddress: RANDOM_TARGET,
             hooksData: hooksData,
             nonMainActionHooks: new address[](0)
         });
@@ -48,10 +48,10 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         hooksData[0] = abi.encode(uint256(1));
         hooksData[1] = abi.encode(uint256(1));
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT"],
-            finalTarget: RANDOM_TARGET,
+            yieldSourceAddress: RANDOM_TARGET,
             hooksData: hooksData,
             nonMainActionHooks: new address[](0)
         });
@@ -71,27 +71,27 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         addRole(superRbac.BRIDGE_GATEWAY())
     {
         amount = _bound(amount);
-        address finalTarget = address(mock4626Vault);
-        bytes[] memory hooksData = _createDepositAndBridgeActionData(finalTarget, amount);
+        address yieldSourceAddress = address(mock4626Vault);
+        bytes[] memory hooksData = _createDepositAndBridgeActionData(yieldSourceAddress, amount);
 
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 
         // it should execute all hooks
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT_ACROSS"],
-            finalTarget: finalTarget,
+            yieldSourceAddress: yieldSourceAddress,
             hooksData: hooksData,
             nonMainActionHooks: new address[](0)
         });
 
         // check bridge emitted event; assume Orchestrator picks it up
-        ISuperExecutorV2.ExecutorEntry[] memory subEntries = new ISuperExecutorV2.ExecutorEntry[](1);
-        subEntries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory subEntries = new ISuperExecutor.ExecutorEntry[](1);
+        subEntries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
-            finalTarget: finalTarget,
-            hooksData: _createWithdrawActionData(finalTarget),
+            yieldSourceAddress: yieldSourceAddress,
+            hooksData: _createWithdrawActionData(yieldSourceAddress),
             nonMainActionHooks: new address[](0)
         });
         vm.expectEmit(true, true, true, true);
@@ -102,17 +102,17 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
     }
 
-    function _createWithdrawActionData(address finalTarget)
+    function _createWithdrawActionData(address yieldSourceAddress)
         internal
         view
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(finalTarget, user2, instance.account, DEFAULT_AMOUNT);
+        hooksData[0] = abi.encode(yieldSourceAddress, user2, instance.account, DEFAULT_AMOUNT);
     }
 
     function _createDepositAndBridgeActionData(
-        address finalTarget,
+        address yieldSourceAddress,
         uint256 amount
     )
         internal
@@ -120,15 +120,15 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](4);
-        hooksData[0] = abi.encode(address(mockERC20), finalTarget, amount);
-        hooksData[1] = abi.encode(finalTarget, instance.account, amount);
-        hooksData[2] = abi.encode(finalTarget, address(spokePoolV3Mock), amount);
+        hooksData[0] = abi.encode(address(mockERC20), yieldSourceAddress, amount);
+        hooksData[1] = abi.encode(yieldSourceAddress, instance.account, amount);
+        hooksData[2] = abi.encode(yieldSourceAddress, address(spokePoolV3Mock), amount);
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
-            finalTarget: finalTarget,
-            hooksData: _createWithdrawActionData(finalTarget),
+            yieldSourceAddress: yieldSourceAddress,
+            hooksData: _createWithdrawActionData(yieldSourceAddress),
             nonMainActionHooks: new address[](0)
         });
 
@@ -136,8 +136,8 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
             .AcrossV3DepositData({
             value: SMALL,
             recipient: instance.account,
-            inputToken: finalTarget,
-            outputToken: finalTarget,
+            inputToken: yieldSourceAddress,
+            outputToken: yieldSourceAddress,
             inputAmount: amount,
             outputAmount: amount,
             destinationChainId: 1,

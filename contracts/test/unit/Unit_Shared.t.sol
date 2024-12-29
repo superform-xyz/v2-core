@@ -9,17 +9,16 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
+import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
 import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
 import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";
-import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
 import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 
 import { SuperRbac } from "../../src/settings/SuperRbac.sol";
 import { SharedState } from "../../src/state/SharedState.sol";
 import { SuperRegistry } from "../../src/settings/SuperRegistry.sol";
-import { SuperExecutorV2 } from "../../src/executors/SuperExecutorV2.sol";
+import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { SuperActions } from "../../src/strategies/SuperActions.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
@@ -43,7 +42,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     ISuperRbac public superRbac;
     SharedState public sharedState;
     ISuperActions public superActions;
-    ISuperExecutorV2 public superExecutor;
+    ISuperExecutor public superExecutor;
     ISentinel public superPositionSentinel;
     ISharedStateReader public sharedStateReader;
     ISharedStateWriter public sharedStateWriter;
@@ -77,7 +76,7 @@ abstract contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
         vm.label(address(superPositionSentinel), "superPositionSentinel");
 
-        superExecutor = ISuperExecutorV2(address(new SuperExecutorV2(address(superRegistry))));
+        superExecutor = ISuperExecutor(address(new SuperExecutor(address(superRegistry))));
         vm.label(address(superExecutor), "superExecutor");
 
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));

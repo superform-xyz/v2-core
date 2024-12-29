@@ -46,4 +46,4 @@ generate: build
 	./script/utils/retrieve-abis.sh
 
 	# General
-	abigen --abi out/SuperExecutorV2.sol/SuperExecutorV2.abi --pkg contracts --type SuperExecutorV2 --out contract_bindings/SuperExecutorV2.go
+	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
