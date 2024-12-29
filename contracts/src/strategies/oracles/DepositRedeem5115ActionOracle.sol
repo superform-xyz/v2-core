@@ -49,7 +49,6 @@ contract DepositRedeem5115ActionOracle {
 
     // ToDo: Implement this with the metadata library
     /// @notice Get the metadata for multiple 5115 vaults
-    /// @param finalTargets The addresses of the final targets
     /// @return metadata The metadata per final target
     function getVaultsStrategyMetadata(address[] memory finalTargets) external pure returns (bytes[] memory metadata) {
         return new bytes[](finalTargets.length);
