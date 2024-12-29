@@ -37,13 +37,13 @@ contract DepositRedeem4626ActionOracle is IActionOracle {
 
     // ToDo: Implement this with the metadata library
     /// @inheritdoc IActionOracle
-    function getVaultStrategyMetadata(address finalTarget) external view returns (bytes memory metadata) {
+    function getVaultStrategyMetadata(address) external pure returns (bytes memory metadata) {
         return "0x0";
     }
 
     // ToDo: Implement this with the metadata library
     /// @inheritdoc IActionOracle
-    function getVaultsStrategyMetadata(address[] memory finalTargets) external view returns (bytes[] memory metadata) {
+    function getVaultsStrategyMetadata(address[] memory finalTargets) external pure returns (bytes[] memory metadata) {
         return new bytes[](finalTargets.length);
     }
 }

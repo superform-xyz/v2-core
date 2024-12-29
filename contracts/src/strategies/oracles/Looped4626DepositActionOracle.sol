@@ -45,9 +45,8 @@ contract Looped4626DepositActionOracle {
 
     // ToDo: Implement this with the metadata library
     /// @notice Get the metadata for a single vault
-    /// @param finalTarget The address of the final target
     /// @return metadata The metadata
-    function getVaultStrategyMetadata(address finalTarget) external view returns (bytes memory metadata) {
+    function getVaultStrategyMetadata(address) external pure returns (bytes memory metadata) {
         return "0x0";
     }
 
@@ -55,7 +54,7 @@ contract Looped4626DepositActionOracle {
     /// @notice Get the metadata for a list of vaults
     /// @param finalTargets The addresses of the final targets
     /// @return metadata The metadata
-    function getVaultsStrategyMetadata(address[] memory finalTargets) external view returns (bytes[] memory metadata) {
+    function getVaultsStrategyMetadata(address[] memory finalTargets) external pure returns (bytes[] memory metadata) {
         return new bytes[](finalTargets.length);
     }
 }
