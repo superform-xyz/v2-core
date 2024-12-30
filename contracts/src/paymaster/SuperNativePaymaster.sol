@@ -10,6 +10,7 @@ import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPo
 
 /// @title SuperNativePaymaster
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
+/// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.sol
 contract SuperNativePaymaster is BasePaymaster {
     using UserOperationLib for PackedUserOperation; 
 
