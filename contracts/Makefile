@@ -40,7 +40,7 @@ ftest :; forge test
 
 test-vvv :; forge test --match-test test_WhenHooksAreDefinedAndExecutionDataIsValid -vvvv
 
-test-integration :; forge test --match-contract SameChainDepositRedeemFlowTest -vv
+test-integration :; forge test --match-contract SameChainDepositRedeemFlowTest -vvvv
 
 .PHONY: generate
 generate: build 
