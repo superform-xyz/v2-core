@@ -50,7 +50,8 @@ import { console } from "forge-std/console.sol";
 import { 
   RhinestoneModuleKit, 
   ModuleKitHelpers, 
-  AccountInstance
+  AccountInstance,
+  AccountType
 } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
@@ -149,14 +150,11 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
     mapping(string vaultKind => address[] vaults) public vaultsByKind;
 
     // contracts
-    mapping(uint64 chainId => address superRegistry) public superRegistries;
-    mapping(uint64 chainId => address superRbac) public superRbacAddresses;
-    mapping(uint64 chainId => address sharedState) public sharedStatesAddresses;
-    mapping(uint64 chainId => address superActions) public superActionsAddresses;
-    mapping(uint64 chainId => address superExecutor) public superExecutorsAddresses;
-    mapping(uint64 chainId => address superPositionSentinel) public superPositionSentinelsAddresses;
-    mapping(uint64 chainId => address spokePoolV3Mock) public spokePoolV3MocksAddresses;
-    mapping(uint64 chainId => address acrossBridgeGateway) public acrossBridgeGatewaysAddresses;
+    mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
+
+    mapping(uint64 chainId =>  mapping (string hookName => address hook)) public hookAddresses;
+
+    mapping(uint64 chainId => address instance) public accountInstances;
     
     /*//////////////////////////////////////////////////////////////
                               RPC VARIABLES
@@ -177,7 +175,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
     uint64 public constant BASE = 8453;
     uint64 public constant ARBI = 42_161;
 
-    uint64[] public chainIds = [1, 42_161, 10, 8453];
+    uint64[] public chainIds = [1, 10, 8453, 42_161];
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -194,19 +192,34 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         _deployHooks();
 
         // Initialize the account instance
-        instance = makeAccountInstance("SuperformAccount");
-        vm.makePersistent(instance.account);
-        address superExecutorAddress = superExecutorsAddresses[chainIds[0]];
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: superExecutorAddress, data: "" });
+        for (uint256 i = 0; i < chainIds.length; ++i) {
+          vm.selectFork(FORKS[chainIds[i]]);
+          console.log("forked", FORKS[chainIds[i]]);
+          console.log("chainId", chainIds[i]);
+
+          //_initializeModuleKit("NEXUS");
+          
+          instance = makeAccountInstance("SuperformAccount");
+          accountInstances[chainIds[i]] = instance.account;
+          console.log("SuperExecutorV2", _getContract(chainIds[i], "SuperExecutorV2"));
+          instance.installModule({ 
+            moduleTypeId: MODULE_TYPE_EXECUTOR, 
+            module: _getContract(chainIds[i], "SuperExecutorV2"), data: "" 
+          });
+          console.log("SuperExecutorV2 installed");
+        }
         vm.label(instance.account, "SuperformAccount");
         
+        console.log("SuperformRegistration");
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
 
+        console.log("Roles");
         // Set roles
         _setRoles();
 
+        console.log("Registrations");
         // Register action
         _performRegistrations();
 
@@ -221,52 +234,69 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function _getContract(uint64 chainId, string memory contractName) internal view returns (address) {
+      return contractAddresses[chainId][contractName];
+    }
+
+    function _getHook(uint64 chainId, string memory hookName) internal view returns (address) {
+      return hookAddresses[chainId][hookName];
+    }
+
     function _deployHooks() internal {
       for (uint256 i = 0; i < chainIds.length; ++i) {
         vm.selectFork(FORKS[chainIds[i]]);
 
-        superRegistry = ISuperRegistry(superRegistries[chainIds[i]]);
+        superRegistry = ISuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
 
         approveErc20Hook = new ApproveERC20Hook(address(superRegistry), address(this));
         vm.label(address(approveErc20Hook), "ApproveERC20Hook");
-
+        hookAddresses[chainIds[i]]["ApproveERC20Hook"] = address(approveErc20Hook);
         transferErc20Hook = new TransferERC20Hook(address(superRegistry), address(this));
         vm.label(address(transferErc20Hook), "TransferERC20Hook");
+        hookAddresses[chainIds[i]]["TransferERC20Hook"] = address(transferErc20Hook);
 
         deposit4626VaultHook = new Deposit4626VaultHook(address(superRegistry), address(this));
         vm.label(address(deposit4626VaultHook), "Deposit4626VaultHook");
+        hookAddresses[chainIds[i]]["Deposit4626VaultHook"] = address(deposit4626VaultHook);
 
         withdraw4626VaultHook = new Withdraw4626VaultHook(address(superRegistry), address(this));
         vm.label(address(withdraw4626VaultHook), "Withdraw4626VaultHook");
+        hookAddresses[chainIds[i]]["Withdraw4626VaultHook"] = address(withdraw4626VaultHook);
 
         deposit5115VaultHook = new Deposit5115VaultHook(address(superRegistry), address(this));
         vm.label(address(deposit5115VaultHook), "Deposit5115VaultHook");
+        hookAddresses[chainIds[i]]["Deposit5115VaultHook"] = address(deposit5115VaultHook); 
 
         withdraw5115VaultHook = new Withdraw5115VaultHook(address(superRegistry), address(this));
         vm.label(address(withdraw5115VaultHook), "Withdraw5115VaultHook");
+        hookAddresses[chainIds[i]]["Withdraw5115VaultHook"] = address(withdraw5115VaultHook);
 
         requestDeposit7540VaultHook = new RequestDeposit7540VaultHook(address(superRegistry), address(this));
         vm.label(address(requestDeposit7540VaultHook), "RequestDeposit7540VaultHook");
-
+        hookAddresses[chainIds[i]]["RequestDeposit7540VaultHook"] = address(requestDeposit7540VaultHook);
         requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(address(superRegistry), address(this));
         vm.label(address(requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
+        hookAddresses[chainIds[i]]["RequestWithdraw7540VaultHook"] = address(requestWithdraw7540VaultHook);
 
         acrossExecuteOnDestinationHook =
             new AcrossExecuteOnDestinationHook(address(superRegistry), address(this), address(spokePoolV3Mock));
         vm.label(address(acrossExecuteOnDestinationHook), "AcrossExecuteOnDestinationHook");
+        hookAddresses[chainIds[i]]["AcrossExecuteOnDestinationHook"] = address(acrossExecuteOnDestinationHook);
 
         // action oracles
         depositRedeem4626ActionOracle = new DepositRedeem4626ActionOracle();
         vm.label(address(depositRedeem4626ActionOracle), "DepositRedeem4626ActionOracle");
-
         depositRedeem5115ActionOracle = new DepositRedeem5115ActionOracle();
         vm.label(address(depositRedeem5115ActionOracle), "DepositRedeem5115ActionOracle");
       }
     }
     
     function _deployContracts() internal {
+      for (uint256 i = 0; i < chainIds.length; ++i) {
+        vm.selectFork(FORKS[chainIds[i]]);
+
         superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
-        vm.makePersistent(address(superRegistry));
+        contractAddresses[chainIds[i]]["SuperRegistry"] = address(superRegistry);
 
         sharedState = new SharedState();
         vm.makePersistent(address(sharedState));
@@ -276,42 +306,38 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
 
         superRbac = ISuperRbac(address(new SuperRbac(address(this))));
         vm.label(address(superRbac), "superRbac");
-        vm.makePersistent(address(superRbac));
+        contractAddresses[chainIds[i]]["SuperRbac"] = address(superRbac);
 
         superActions = ISuperActions(address(new SuperActions(address(superRegistry))));
         vm.label(address(superActions), "superActions");
-        vm.makePersistent(address(superActions));
+        contractAddresses[chainIds[i]]["SuperActions"] = address(superActions);
 
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
         vm.label(address(superPositionSentinel), "superPositionSentinel");
-        vm.makePersistent(address(superPositionSentinel));
+        contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(superPositionSentinel);
 
         superExecutor = ISuperExecutorV2(address(new SuperExecutorV2(address(superRegistry))));
         vm.label(address(superExecutor), "superExecutor");
-        vm.makePersistent(address(superExecutor));
+        contractAddresses[chainIds[i]]["SuperExecutorV2"] = address(superExecutor);
 
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
         vm.label(address(superPositionSentinel), "superPositionSentinel");
-        vm.makePersistent(address(superPositionSentinel));
+        contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(superPositionSentinel);
+
+        // nexusFactory = new NexusFactory();
+        // vm.label(address(nexusFactory), "nexusFactory");
+        // contractAddresses[chainIds[i]]["NexusFactory"] = address(nexusFactory);
 
         spokePoolV3Mock = new SpokePoolV3Mock();
-        vm.makePersistent(address(spokePoolV3Mock));
+        vm.label(address(spokePoolV3Mock), "spokePoolV3Mock");
+        contractAddresses[chainIds[i]]["SpokePoolV3Mock"] = address(spokePoolV3Mock);
 
         acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
-        vm.makePersistent(address(acrossBridgeGateway));
+        vm.label(address(acrossBridgeGateway), "acrossBridgeGateway");
+        contractAddresses[chainIds[i]]["AcrossBridgeGateway"] = address(acrossBridgeGateway);
 
         spokePoolV3Mock.setAcrossBridgeGateway(address(acrossBridgeGateway));
-
-        for (uint256 i = 0; i < chainIds.length; ++i) {
-          superRegistries[chainIds[i]] = address(superRegistry);
-          superRbacAddresses[chainIds[i]] = address(superRbac);
-          sharedStatesAddresses[chainIds[i]] = address(sharedState);
-          superActionsAddresses[chainIds[i]] = address(superActions);
-          superExecutorsAddresses[chainIds[i]] = address(superExecutor);
-          superPositionSentinelsAddresses[chainIds[i]] = address(superPositionSentinel);
-          spokePoolV3MocksAddresses[chainIds[i]] = address(spokePoolV3Mock);
-          acrossBridgeGatewaysAddresses[chainIds[i]] = address(acrossBridgeGateway);
-        }
+      }
     }
 
     function _preDeploymentSetup() internal {
@@ -331,7 +357,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         for (uint256 i = 0; i < chainIds.length; ++i) {
           vm.selectFork(FORKS[chainIds[i]]);
           user1 = _deployAccount(USER1_KEY, "USER1");
-          vm.makePersistent(user1);
+          vm.makePersistent(user1); // Todo mapping
           user2 = _deployAccount(USER2_KEY, "USER2");
           vm.makePersistent(user2);
           SUPER_ACTIONS_CONFIGURATOR = _deployAccount(SUPER_ACTIONS_CONFIGURATOR_KEY, "SUPER_ACTIONS_CONFIGURATOR");
@@ -532,20 +558,20 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
     function _setSuperRegistryAddresses() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            superRegistry = ISuperRegistry(superRegistries[chainIds[i]]);
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), superActionsAddresses[chainIds[i]]);
+            superRegistry = ISuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
+            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), _getContract(chainIds[i], "SuperActions"));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_POSITION_SENTINEL_ID(), superPositionSentinelsAddresses[chainIds[i]]
+                superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainIds[i], "SuperPositionSentinel")
             );
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_RBAC_ID(), superRbacAddresses[chainIds[i]]);
+            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainIds[i], "SuperRbac"));
             acrossBridgeGateway = new AcrossBridgeGateway(address(superRegistry), address(spokePoolV3Mock));
             vm.label(address(acrossBridgeGateway), "acrossBridgeGateway");
             spokePoolV3Mock.setAcrossBridgeGateway(address(acrossBridgeGateway));
             SuperRegistry(address(superRegistry)).setAddress(
-            superRegistry.ACROSS_GATEWAY_ID(), acrossBridgeGatewaysAddresses[chainIds[i]]
+            superRegistry.ACROSS_GATEWAY_ID(), _getContract(chainIds[i], "AcrossBridgeGateway")
             );
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_EXECUTOR_ID(), superExecutorsAddresses[chainIds[i]]);
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SHARED_STATE_ID(), sharedStatesAddresses[chainIds[i]]);
+            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], "SuperExecutorV2"));
+            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SHARED_STATE_ID(), _getContract(chainIds[i], "SharedState"));
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
         }
     }
@@ -553,70 +579,79 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
     function _setRoles() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            superRbac = ISuperRbac(superRbacAddresses[chainIds[i]]);
+            superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
             superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
         }
     }
 
     function _performRegistrations() internal {
-        vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
+      console.log("Registration");
+        for (uint256 i; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+            vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
 
-        // Configure ERC4626 yield source
-        ISuperActions.YieldSourceConfig memory erc4626Config = ISuperActions.YieldSourceConfig({
-            yieldSourceId: "ERC4626",
-            metadataOracle: address(depositRedeem4626ActionOracle),
-            actions: new ISuperActions.ActionConfig[](2)
-        });
+            // Configure ERC4626 yield source
+            ISuperActions.YieldSourceConfig memory erc4626Config = ISuperActions.YieldSourceConfig({
+                yieldSourceId: "ERC4626",
+                metadataOracle: address(depositRedeem4626ActionOracle),
+                actions: new ISuperActions.ActionConfig[](2)
+            });
 
-        // Deposit action (approve + deposit)
-        address[] memory depositHooks = new address[](2);
-        depositHooks[0] = address(approveErc20Hook);
-        depositHooks[1] = address(deposit4626VaultHook);
+            // Deposit action (approve + deposit)
+            address[] memory depositHooks = new address[](2);
+            address approveErc20Hook = _getHook(chainIds[i], "ApproveERC20Hook");
+            address deposit4626VaultHook = _getHook(chainIds[i], "Deposit4626VaultHook");
+            depositHooks[0] = approveErc20Hook;
+            depositHooks[1] = deposit4626VaultHook;
 
-        erc4626Config.actions[0] = ISuperActions.ActionConfig({
-            hooks: depositHooks,
-            actionType: ISuperActions.ActionType.INFLOW,
-            shareDeltaHookIndex: 1 // deposit4626VaultHook provides share delta
-         });
+            erc4626Config.actions[0] = ISuperActions.ActionConfig({
+                hooks: depositHooks,
+                actionType: ISuperActions.ActionType.INFLOW,
+                shareDeltaHookIndex: 1 // deposit4626VaultHook provides share delta
+            });
 
-        // Withdraw action
-        address[] memory withdrawHooks = new address[](1);
-        withdrawHooks[0] = address(withdraw4626VaultHook);
+            // Withdraw action
+            address[] memory withdrawHooks = new address[](1);
+            address withdraw4626VaultHook = _getHook(chainIds[i], "Withdraw4626VaultHook");
+            withdrawHooks[0] = withdraw4626VaultHook;
 
-        erc4626Config.actions[1] = ISuperActions.ActionConfig({
-            hooks: withdrawHooks,
-            actionType: ISuperActions.ActionType.OUTFLOW,
-            shareDeltaHookIndex: 0 // withdraw4626VaultHook provides share delta
-         });
+            erc4626Config.actions[1] = ISuperActions.ActionConfig({
+                hooks: withdrawHooks,
+                actionType: ISuperActions.ActionType.OUTFLOW,
+                shareDeltaHookIndex: 0 // withdraw4626VaultHook provides share delta
+            });
 
-        // Register ERC4626 actions
-        uint256[] memory erc4626ActionIds = superActions.registerYieldSourceAndActions(erc4626Config);
+            // Register ERC4626 actions
+            uint256[] memory erc4626ActionIds = superActions.registerYieldSourceAndActions(erc4626Config);
 
-        // Store action IDs in mapping
-        ACTION["4626_DEPOSIT"] = erc4626ActionIds[0];
-        ACTION["4626_WITHDRAW"] = erc4626ActionIds[1];
+            // Store action IDs in mapping
+            ACTION["4626_DEPOSIT"] = erc4626ActionIds[0];
+            ACTION["4626_WITHDRAW"] = erc4626ActionIds[1];
 
-        // Add to allActions array
-        allActions.push(erc4626ActionIds[0]);
-        allActions.push(erc4626ActionIds[1]);
+            // Add to allActions array
+            allActions.push(erc4626ActionIds[0]);
+            allActions.push(erc4626ActionIds[1]);
 
-        // Log action IDs
-        console.log("4626_DEPOSIT", erc4626ActionIds[0]);
-        console.log("4626_WITHDRAW", erc4626ActionIds[1]);
+            // Log action IDs
+            console.log("4626_DEPOSIT", erc4626ActionIds[0]);
+            console.log("4626_WITHDRAW", erc4626ActionIds[1]);
 
-        // approve + 4626 deposit + across
-        // uses separate register method because yield source is already registered
-        /// @dev WARNING: the last 2 hooks here should not be part of this main action (which is really just
-        /// 4626_DEPOSIT) TODO
-        address[] memory hooks = new address[](4);
-        hooks[0] = address(approveErc20Hook);
-        hooks[1] = address(deposit4626VaultHook);
-        hooks[2] = address(approveErc20Hook);
-        hooks[3] = address(acrossExecuteOnDestinationHook);
-        ACTION["4626_DEPOSIT_ACROSS"] =
-            superActions.registerAction(hooks, "ERC4626", ISuperActions.ActionType.INFLOW, 1);
-        allActions.push(ACTION["4626_DEPOSIT_ACROSS"]);
-        console.log("4626_DEPOSIT_ACROSS", ACTION["4626_DEPOSIT_ACROSS"]);
-        vm.stopPrank();
+            // approve + 4626 deposit + across
+            // uses separate register method because yield source is already registered
+            /// @dev WARNING: the last 2 hooks here should not be part of this main action (which is really just
+            /// 4626_DEPOSIT) TODO
+            address[] memory hooks = new address[](4);
+            hooks[0] = approveErc20Hook;
+            hooks[1] = deposit4626VaultHook;
+            hooks[2] = approveErc20Hook;
+
+            address acrossExecuteOnDestinationHook = _getHook(chainIds[i], "AcrossExecuteOnDestinationHook");
+            hooks[3] = acrossExecuteOnDestinationHook;
+            ACTION["4626_DEPOSIT_ACROSS"] =
+                superActions.registerAction(hooks, "ERC4626", ISuperActions.ActionType.INFLOW, 1);
+            allActions.push(ACTION["4626_DEPOSIT_ACROSS"]);
+            console.log("4626_DEPOSIT_ACROSS", ACTION["4626_DEPOSIT_ACROSS"]);
+            vm.stopPrank();
+        }
     }
 }
