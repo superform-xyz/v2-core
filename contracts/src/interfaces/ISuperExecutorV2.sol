@@ -14,11 +14,13 @@ interface ISuperExecutorV2 {
     //////////////////////////////////////////////////////////////*/
     error DATA_NOT_VALID();
     error NOT_AUTHORIZED();
+    error NOT_INITIALIZED();
     error AMOUNT_NOT_VALID();
     error ADDRESS_NOT_VALID();
-    error FINAL_TARGET_NOT_ZERO();
-    error ACTION_TYPE_MISMATCH();
     error INVALID_HOOK_TYPE();
+    error ALREADY_INITIALIZED();
+    error ACTION_TYPE_MISMATCH();
+    error FINAL_TARGET_NOT_ZERO();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -31,7 +33,7 @@ interface ISuperExecutorV2 {
     //////////////////////////////////////////////////////////////*/
     /// @notice Execute a batch of calls
     /// @param data The data to execute
-    function execute(address account, bytes memory data) external;
+    function execute(bytes memory data) external;
 
     /// @notice Execute a batch of calls from the bridge gateway
     /// @param data The data to execute
