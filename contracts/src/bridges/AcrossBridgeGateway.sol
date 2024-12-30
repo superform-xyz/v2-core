@@ -34,7 +34,7 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     /// @inheritdoc IAcrossV3Receiver
     function handleV3AcrossMessage(
         address tokenSent,
-        uint256,
+        uint256, //amount
         address, //relayer; not used
         bytes memory message
     )

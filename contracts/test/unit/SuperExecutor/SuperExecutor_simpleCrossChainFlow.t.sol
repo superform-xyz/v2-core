@@ -94,7 +94,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         subEntries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
             finalTarget: finalTarget,
-            hooksData: _createWithdrawActionData(finalTarget, amount),
+            hooksData: _createWithdrawActionData(finalTarget),
             nonMainActionHooks: new address[](0)
         });
         UserOpData memory userOpData = _getExecOps(abi.encode(entries));
@@ -106,10 +106,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
     }
 
-    function _createWithdrawActionData(
-        address finalTarget,
-        uint256
-    )
+    function _createWithdrawActionData(address finalTarget)
         internal
         view
         returns (bytes[] memory hooksData)
@@ -135,7 +132,7 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         entries[0] = ISuperExecutorV2.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"],
             finalTarget: finalTarget,
-            hooksData: _createWithdrawActionData(finalTarget, amount),
+            hooksData: _createWithdrawActionData(finalTarget),
             nonMainActionHooks: new address[](0)
         });
 
