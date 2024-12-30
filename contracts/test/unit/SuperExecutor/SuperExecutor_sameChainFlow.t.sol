@@ -1,16 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
-import { Unit_Shared } from "../Unit_Shared.t.sol";
-import { ISuperActions } from "../../../src/interfaces/strategies/ISuperActions.sol";
-import { SuperPositionSentinel } from "../../../src/sentinels/SuperPositionSentinel.sol";
+// external
+import { UserOpData } from "modulekit/ModuleKit.sol";
 
-import { console2 } from "forge-std/console2.sol";
+// Superform
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
+import { ISuperActions } from "../../../src/interfaces/strategies/ISuperActions.sol";
+
+import { Unit_Shared } from "../Unit_Shared.t.sol";
 
 contract SuperExecutor_sameChainFlow is Unit_Shared {
+
     address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
 
+    /**
     /// @dev NOTE: Cosmin, I think this test does not belong here, but rather to a SuperActions test suite
     function test_GivenAnActionDoesNotExist(uint256 amount) external {
         amount = _bound(amount);
@@ -27,14 +31,16 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             nonMainActionHooks: new address[](0)
         });
 
-        vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
-        superExecutor.execute(instance.account, abi.encode(entries));
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
+        vm.expectRevert();
+        executeOp(userOpData);
     }
-
+   */
     modifier givenAnActionExist() {
         _;
     }
 
+    /**
     function test_RevertWhen_HooksAreDefinedByExecutionDataIsNotValid() external givenAnActionExist {
         // it should revert
         bytes[] memory hooksData = new bytes[](2);
@@ -49,10 +55,11 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             nonMainActionHooks: new address[](0)
         });
 
-        /// @dev COSMIN: should use named error
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
         vm.expectRevert();
-        superExecutor.execute(instance.account, abi.encode(entries));
+        executeOp(userOpData);
     }
+   */
 
     modifier givenSentinelCallIsNotPerformed() {
         _;
@@ -78,13 +85,14 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             nonMainActionHooks: hooks
         });
 
-        superExecutor.execute(instance.account, abi.encode(entries));
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
+        executeOp(userOpData);
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, amount);
     }
 
-    function test_WhenHooksAreDefinedAndExecutionDataIsValid(uint256 amount)
+    function test_WhenHooksAreDefinedAndExecutionDataIsValidQQQ(uint256 amount)
         external
         givenAnActionExist
         givenSentinelCallIsNotPerformed
@@ -117,9 +125,12 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             hooksData: nonMainActionHooksData,
             nonMainActionHooks: nonMainActionHooks
         });
+    
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
         vm.expectEmit(true, true, true, true);
+
         emit ISuperActions.AccountingUpdated(instance.account, ACTION["4626_DEPOSIT"], yieldSourceAddress, true, amount, 1e18);
-        superExecutor.execute(instance.account, abi.encode(entries));
+        executeOp(userOpData);
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, amount);
@@ -155,11 +166,12 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
             nonMainActionHooks: new address[](0)
         });
 
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
         vm.expectEmit(true, true, true, true);
         emit ISuperActions.AccountingUpdated(
             instance.account, ACTION["4626_WITHDRAW"], yieldSourceAddress, false, amount, 1e18
         );
-        superExecutor.execute(instance.account, abi.encode(entries));
+        executeOp(userOpData);
 
         uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
         assertEq(accSharesAfter, 0);

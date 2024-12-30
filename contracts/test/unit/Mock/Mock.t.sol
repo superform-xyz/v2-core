@@ -107,7 +107,7 @@ contract Mock is BaseTest, RhinestoneModuleKit {
         uint256 amount = 1e18;
         bytes memory data = abi.encode(amount);
 
-         // Get exec user ops
+        // Get exec user ops
         UserOpData memory userOpData = instance.getExecOps({
             target: address(executor),
             value: 0,
