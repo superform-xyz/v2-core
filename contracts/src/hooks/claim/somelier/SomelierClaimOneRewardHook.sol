@@ -12,13 +12,18 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
 contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    uint256 public transient outAmount;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         (address vault, uint256 depositId) = abi.decode(data, (address, uint256));
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -29,7 +34,7 @@ contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory data)
+    function preExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
@@ -38,7 +43,7 @@ contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory data)
+    function postExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {

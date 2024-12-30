@@ -12,13 +12,18 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
 contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    uint256 public transient outAmount;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         (address stakingRewards) = abi.decode(data, (address));
         if (stakingRewards == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -29,7 +34,7 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory data)
+    function preExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
@@ -38,7 +43,7 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory data)
+    function postExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {

@@ -11,13 +11,18 @@ import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 
 contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    uint256 public transient outAmount;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         (address vault, address receiver, address owner, uint256 shares) =
             abi.decode(data, (address, address, address, uint256));
 
@@ -36,7 +41,7 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory)
+    function preExecute(address, bytes memory)
         external
         pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
@@ -45,7 +50,7 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory)
+    function postExecute(address, bytes memory)
         external
         pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)

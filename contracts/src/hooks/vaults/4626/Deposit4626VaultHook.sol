@@ -12,8 +12,12 @@ import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract Deposit4626VaultHook is BaseHook, ISuperHook {
     // forgefmt: disable-start
-    uint256 public transient obtainedShares;
+    uint256 public transient outAmount;
     // forgefmt: disable-end
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
 
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -21,7 +25,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         (address vault, address receiver, uint256 amount) = abi.decode(data, (address, address, uint256));
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -36,22 +40,22 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory data)
+    function preExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {   
         // store current balance
-        obtainedShares = _getBalance(data);
+        outAmount = _getBalance(data);
         return _returnDefaultTransientStorage();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory data)
+    function postExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
-        obtainedShares = _getBalance(data) - obtainedShares;
-        return (address(0), obtainedShares, bytes32(keccak256("DEPOSIT")), true);
+        outAmount = _getBalance(data) - outAmount;
+        return (address(0), outAmount, bytes32(keccak256("DEPOSIT")), true);
     }
 
     /*//////////////////////////////////////////////////////////////

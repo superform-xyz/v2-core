@@ -15,13 +15,18 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 //      The following hook claims an array of rewards tokens
 //      How we store those to be used in the `postExecute` is the question?
 contract SomelierClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    uint256 public transient outAmount;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         (address vault) = abi.decode(data, (address));
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -32,7 +37,7 @@ contract SomelierClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHoo
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory)
+    function preExecute(address, bytes memory)
         external
         pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
@@ -41,7 +46,7 @@ contract SomelierClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHoo
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory)
+    function postExecute(address, bytes memory)
         external
         pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)

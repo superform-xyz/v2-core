@@ -11,13 +11,18 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract TransferERC20Hook is BaseHook, ISuperHook {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    uint256 public transient outAmount;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
 
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         (address token, address to, uint256 amount) = abi.decode(data, (address, address, uint256));
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -31,7 +36,7 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory data)
+    function preExecute(address, bytes memory data)
         external
         view
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
@@ -40,7 +45,7 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory data)
+    function postExecute(address, bytes memory data)
         external
         view
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)

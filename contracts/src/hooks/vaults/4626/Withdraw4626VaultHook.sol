@@ -12,8 +12,11 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook } from "src/interfaces/ISuperHook.sol";
 
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
     // forgefmt: disable-start
-    uint256 public transient shareDifference;
+    uint256 public transient outAmount;
     // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
@@ -22,7 +25,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         (address vault, address receiver, address owner, uint256 shares) =
             abi.decode(data, (address, address, address, uint256));
 
@@ -38,21 +41,21 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory data)
+    function preExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
-        shareDifference = _getShareBalance(data);
+        outAmount = _getShareBalance(data);
         return _returnDefaultTransientStorage();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory data)
+    function postExecute(address, bytes memory data)
         external
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
     {
-        shareDifference = shareDifference - _getShareBalance(data);
-        return (address(0), shareDifference, bytes32(keccak256("WITHDRAW")), false);
+        outAmount = outAmount - _getShareBalance(data);
+        return (address(0), outAmount, bytes32(keccak256("WITHDRAW")), false);
     }
 
     /*//////////////////////////////////////////////////////////////

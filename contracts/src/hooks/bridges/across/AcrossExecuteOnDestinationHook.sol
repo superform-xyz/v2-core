@@ -16,6 +16,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable spokePoolV3;
+    uint256 public transient outAmount;
 
     struct AcrossV3DepositData {
         uint256 value;
@@ -40,7 +41,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external view override returns (Execution[] memory executions) {
+    function build(address, bytes memory data) external view override returns (Execution[] memory executions) {
         AcrossV3DepositData memory acrossV3DepositData = abi.decode(data, (AcrossV3DepositData));
 
         // checks
@@ -76,7 +77,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory)
+    function preExecute(address, bytes memory)
         external
         pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
@@ -85,7 +86,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory)
+    function postExecute(address, bytes memory)
         external
         pure
         returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
