@@ -25,18 +25,18 @@ contract SuperActions is ISuperActions, SuperRegistryImplementer {
     mapping(bytes32 yieldSourceId => YieldSourceData) private yieldSourceData;
 
     /// @notice Tracks user's ledger entries for each yield source and final target
-    /// @dev Structure: user => yieldSourceId => finalTarget => array of ledger entries
-    mapping(address user => mapping(bytes32 yieldSourceId => mapping(address finalTarget => LedgerEntry[]))) private
+    /// @dev Structure: user => yieldSourceId => yieldSourceAddress => array of ledger entries
+    mapping(address user => mapping(bytes32 yieldSourceId => mapping(address yieldSourceAddress => LedgerEntry[]))) private
         userLedgerEntries;
 
     /// @notice Tracks the index of unconsumed entries in the ledger for FIFO accounting
-    /// @dev Structure: user => yieldSourceId => finalTarget => current unconsumed index
-    mapping(address user => mapping(bytes32 yieldSourceId => mapping(address finalTarget => uint256))) private
+    /// @dev Structure: user => yieldSourceId => yieldSourceAddress => current unconsumed index
+    mapping(address user => mapping(bytes32 yieldSourceId => mapping(address yieldSourceAddress => uint256))) private
         unconsumedEntries;
 
-    /// @notice Stores configuration for each strategy (combination of yieldSourceId and finalTarget)
-    /// @dev Structure: yieldSourceId => finalTarget => strategy configuration
-    mapping(bytes32 yieldSourceId => mapping(address finalTarget => StrategyConfig strategyConfig)) private
+    /// @notice Stores configuration for each strategy (combination of yieldSourceId and yieldSourceAddress)
+    /// @dev Structure: yieldSourceId => yieldSourceAddress => strategy configuration
+    mapping(bytes32 yieldSourceId => mapping(address yieldSourceAddress => StrategyConfig strategyConfig)) private
         strategyConfiguration;
 
     /*//////////////////////////////////////////////////////////////
