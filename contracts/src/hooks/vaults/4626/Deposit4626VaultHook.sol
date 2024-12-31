@@ -2,31 +2,32 @@
 pragma solidity >=0.8.28;
 
 // external
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+
+import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 contract Deposit4626VaultHook is BaseHook, ISuperHook {
-    // forgefmt: disable-start
-    uint256 public transient outAmount;
-    // forgefmt: disable-end
-
-    /*//////////////////////////////////////////////////////////////
-                                 STORAGE
-    //////////////////////////////////////////////////////////////*/
-
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address vault, address receiver, uint256 amount) = abi.decode(data, (address, address, uint256));
+    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 72);
+
+        if (usePrevHookAmount) {
+            amount = ISuperHookResult(prevHook).outAmount();
+        } 
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (vault == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
@@ -40,29 +41,24 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    function preExecute(address, bytes memory data) external
     {   
         // store current balance
         outAmount = _getBalance(data);
-        return _returnDefaultTransientStorage();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    function postExecute(address, bytes memory data) external
     {
         outAmount = _getBalance(data) - outAmount;
-        return (address(0), outAmount, bytes32(keccak256("DEPOSIT")), true);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        (address vault, address receiver,) = abi.decode(data, (address, address, uint256));
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         return IERC4626(vault).balanceOf(receiver);
     }
 }

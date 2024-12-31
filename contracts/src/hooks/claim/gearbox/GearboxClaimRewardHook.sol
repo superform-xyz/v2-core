@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -12,11 +13,6 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
 
 contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    /*//////////////////////////////////////////////////////////////
-                                 STORAGE
-    //////////////////////////////////////////////////////////////*/
-    uint256 public transient outAmount;
-
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -24,7 +20,7 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address farmingPool) = abi.decode(data, (address));
+        address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
@@ -34,20 +30,13 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    function preExecute(address, bytes memory data) external
     {
-        obtainedReward = _getBalance(data);
-        return _returnDefaultTransientStorage();
+        outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        obtainedReward = _getBalance(data) - obtainedReward;
-        return (address(0), obtainedReward, bytes32(keccak256("CLAIM")), true);
+    function postExecute(address, bytes memory data) external {
+        outAmount = _getBalance(data) - outAmount;
     }
 }

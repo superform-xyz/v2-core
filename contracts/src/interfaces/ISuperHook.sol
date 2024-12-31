@@ -4,13 +4,15 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-interface ISuperHook {
+interface ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @notice The amount of tokens processed by the hook
     function outAmount() external view returns (uint256);
+}
 
-    
+interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
@@ -18,16 +20,12 @@ interface ISuperHook {
     /// @notice Pre-hook operation
     /// @param prevHook The previous hook
     /// @param data The data to pre-hook
-    function preExecute(address prevHook,bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag);
+    function preExecute(address prevHook,bytes memory data) external;
 
     /// @notice Post-hook operation
     /// @param prevHook The previous hook
     /// @param data The data to post-hook
-    function postExecute(address prevHook, bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag);
+    function postExecute(address prevHook, bytes memory data) external;
 
     /// @notice Build the execution array for the hook
     /// @param prevHook The previous hook

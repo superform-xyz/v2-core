@@ -2,29 +2,32 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 
 contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
-    /*//////////////////////////////////////////////////////////////
-                                 STORAGE
-    //////////////////////////////////////////////////////////////*/
-    uint256 public transient outAmount;
-
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address vault, address receiver, address owner, uint256 shares) =
-            abi.decode(data, (address, address, address, uint256));
+    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address owner = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);   
+        bool usePrevHookAmount = _decodeBool(data, 92);
+
+        if (usePrevHookAmount) {
+            shares = ISuperHookResult(prevHook).outAmount();
+        }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
         if (vault == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
@@ -41,20 +44,9 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
-    }
+    function preExecute(address, bytes memory) external pure {}
+
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
-    }
+    function postExecute(address, bytes memory) external pure {}
 }

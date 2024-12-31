@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -11,30 +12,28 @@ import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 contract Withdraw5115VaultHook is BaseHook, ISuperHook {
-    /*//////////////////////////////////////////////////////////////
-                                 STORAGE
-    //////////////////////////////////////////////////////////////*/
-    uint256 public transient outAmount;
-
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        (
-            address vault,
-            address receiver,
-            address tokenOut,
-            uint256 shares,
-            uint256 minTokenOut,
-            bool burnFromInternalBalance
-        ) = abi.decode(data, (address, address, address, uint256, uint256, bool));
+    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+        uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        bool burnFromInternalBalance = _decodeBool(data, 124);
+        bool usePrevHookAmount = _decodeBool(data, 125);
 
+        if (usePrevHookAmount) {
+            shares = ISuperHookResult(prevHook).outAmount();
+        }
+        
         if (shares == 0) revert AMOUNT_NOT_VALID();
         if (vault == address(0) || tokenOut == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -50,28 +49,21 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data)
-        external
-        view
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return (address(0), _getBalance(data), bytes32(0), false);
+    function preExecute(address, bytes memory data) external {
+        outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data)
-        external
-        view
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return (address(0), _getBalance(data), bytes32(0), false);
+    function postExecute(address, bytes memory data) external {
+        outAmount = outAmount - _getBalance(data);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        (address vault, address receiver,) = abi.decode(data, (address, address, uint256));
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         address asset = IERC5115(vault).asset();
         return IERC20(asset).balanceOf(receiver);
     }

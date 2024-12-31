@@ -2,8 +2,10 @@
 pragma solidity >=0.8.28;
 
 // external
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+
+import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
 import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
@@ -11,29 +13,27 @@ import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 contract Deposit5115VaultHook is BaseHook, ISuperHook {
-    /*//////////////////////////////////////////////////////////////
-                                 STORAGE
-    //////////////////////////////////////////////////////////////*/
-    uint256 public transient outAmount;
-
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        (
-            address vault,
-            address receiver,
-            address tokenIn,
-            uint256 amount,
-            uint256 minSharesOut,
-            bool depositFromInternalBalance
-        ) = abi.decode(data, (address, address, address, uint256, uint256, bool));
+    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40    , 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        bool depositFromInternalBalance = _decodeBool(data, 124);
+        bool usePrevHookAmount = _decodeBool(data, 125);
+
+        if (usePrevHookAmount) {
+            amount = ISuperHookResult(prevHook).outAmount();
+        }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (vault == address(0) || receiver == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
@@ -50,28 +50,23 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data)
-        external
-        view
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    function preExecute(address, bytes memory data) external
     {
-        return (address(0), _getBalance(data), bytes32(0), false);
+        outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data)
-        external
-        view
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    function postExecute(address, bytes memory data) external
     {
-        return (address(0), _getBalance(data), bytes32(0), false);
+        outAmount = _getBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        (address vault, address receiver,) = abi.decode(data, (address, address, uint256));
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         return IERC4626(vault).balanceOf(receiver);
     }
 }

@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -18,7 +19,9 @@ abstract contract BaseClaimRewardHook {
     }
 
     function _getBalance(bytes memory data) internal view returns (uint256) {
-        (address account, address rewardToken) = abi.decode(data, (address, address));
+        address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+
         return IERC20(rewardToken).balanceOf(account);
     }
 }

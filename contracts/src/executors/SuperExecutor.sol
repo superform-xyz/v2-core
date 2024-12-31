@@ -5,15 +5,21 @@ pragma solidity >=0.8.28;
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Superform
-import { BaseExecutorModule } from "./BaseExecutorModule.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 
-contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecutor {
-    constructor(address registry_) BaseExecutorModule(registry_) { }
+contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    mapping(address => bool) internal _initialized;
+
+    constructor(address registry_) SuperRegistryImplementer(registry_) { }  
+
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
@@ -27,8 +33,8 @@ contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecuto
         return superRegistry.getAddress(superRegistry.SUPER_ACTIONS_ID());
     }
 
-    function isInitialized(address) external pure returns (bool) {
-        return _isInitialized();
+    function isInitialized(address account) external view returns (bool) {
+        return _initialized[account];
     }
 
     function name() external pure returns (string memory) {
@@ -46,15 +52,23 @@ contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecuto
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external { }
-    function onUninstall(bytes calldata) external { }
+    function onInstall(bytes calldata) external {
+        if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
+        _initialized[msg.sender] = true;
+    }
+    function onUninstall(bytes calldata) external {
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        _initialized[msg.sender] = false;
+    }
 
-    function execute(address account, bytes calldata data) external {
-        _execute(account, abi.decode(data, (ExecutorEntry[])));
+    function execute(bytes calldata data) external {
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        _execute(msg.sender, abi.decode(data, (ExecutorEntry[])));
     }
 
     /// @inheritdoc ISuperExecutor
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
+        if (!_initialized[account]) revert NOT_INITIALIZED();
         // check if we need anything else here
         _execute(account, abi.decode(data, (ExecutorEntry[])));
     }
@@ -115,7 +129,7 @@ contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecuto
         // update accounting for main action
         if (entry.actionId != type(uint256).max) {
             ISuperActions.ActionLogic memory actionLogic = ISuperActions(superActions()).getActionLogic(entry.actionId);
-            uint256 accountingAmount = ISuperHook(hooks[actionLogic.shareDeltaHookIndex]).outAmount();
+            uint256 accountingAmount = ISuperHookResult(hooks[actionLogic.shareDeltaHookIndex]).outAmount();
             ISuperActions(superActions()).updateAccounting(
                 account,
                 entry.actionId,
