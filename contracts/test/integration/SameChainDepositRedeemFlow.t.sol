@@ -33,6 +33,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         vm.selectFork(FORKS[ETH]);
 
         address account = accountInstances[ETH].account;
+        console.log("account", account);
 
         uint256 amount = 1e8;
 
@@ -47,6 +48,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         });
 
         ISuperExecutor superExecutor = ISuperExecutor(_getContract(chainIds[0], "SuperExecutor"));
+        vm.prank(account);
         superExecutor.execute(abi.encode(entries));
     }
 
@@ -83,6 +85,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
             amount, 
             1e18
         );
+        vm.prank(account);
         superExecutor.execute(abi.encode(entries));
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
@@ -115,6 +118,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
             accSharesAfter, 
             1e18
         );
+        vm.prank(account);
         superExecutorWithdraw.execute(abi.encode(entriesWithdraw));
 
         uint256 accSharesAfterWithdraw = vaultInstance.balanceOf(account);
