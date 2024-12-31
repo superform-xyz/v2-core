@@ -452,7 +452,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
 
     function _createDepositWithdrawActionData(
         address account,
-        address finalTarget,
+        address yieldSourceAddress,
         address _underlying,
         uint256 amount
     )
@@ -461,9 +461,9 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](3);
-        hooksData[0] = abi.encode(_underlying, finalTarget, amount);
-        hooksData[1] = abi.encode(finalTarget, account, amount);
-        hooksData[2] = abi.encode(finalTarget, account, account, 100);
+        hooksData[0] = abi.encode(_underlying, yieldSourceAddress, amount);
+        hooksData[1] = abi.encode(yieldSourceAddress, account, amount);
+        hooksData[2] = abi.encode(yieldSourceAddress, account, account, 100);
     }
 
     function _setSuperRegistryAddresses() internal {
