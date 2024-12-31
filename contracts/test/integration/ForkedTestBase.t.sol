@@ -6,9 +6,7 @@ import { Helpers } from "../utils/Helpers.sol";
 import { ISuperRbac } from "../../src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "../../src/interfaces/sentinel/ISentinel.sol";
 import { ISuperRegistry } from "../../src/interfaces/ISuperRegistry.sol";
-import { ISuperExecutorV2 } from "../../src/interfaces/ISuperExecutorV2.sol";
-import { ISharedStateReader } from "../../src/interfaces/state/ISharedStateReader.sol";
-import { ISharedStateWriter } from "../../src/interfaces/state/ISharedStateWriter.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperActions } from "../../src/interfaces/strategies/ISuperActions.sol";
 
 // Superform contracts
@@ -17,7 +15,7 @@ import { SharedState } from "../../src/state/SharedState.sol";
 import { SpokePoolV3Mock } from "../mocks/SpokePoolV3Mock.sol";
 import { SuperActions } from "../../src/strategies/SuperActions.sol";
 import { SuperRegistry } from "../../src/settings/SuperRegistry.sol";
-import { SuperExecutorV2 } from "../../src/executors/SuperExecutorV2.sol";
+import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { AcrossBridgeGateway } from "../../src/bridges/AcrossBridgeGateway.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 
@@ -56,7 +54,7 @@ struct Addresses {
     SharedState sharedState;
     ISuperActions superActions;
     ISuperRegistry superRegistry;
-    ISuperExecutorV2 superExecutor;
+    ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
     SpokePoolV3Mock spokePoolV3Mock;
     AcrossBridgeGateway acrossBridgeGateway;
@@ -182,17 +180,13 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
 
-            A.superExecutor = ISuperExecutorV2(address(new SuperExecutorV2(address(A.superRegistry))));
+            A.superExecutor = ISuperExecutor(address(new SuperExecutor(address(A.superRegistry))));
             vm.label(address(A.superExecutor), "superExecutor");
-            contractAddresses[chainIds[i]]["SuperExecutorV2"] = address(A.superExecutor);
+            contractAddresses[chainIds[i]]["SuperExecutor"] = address(A.superExecutor);
 
             A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
-
-            // nexusFactory = new NexusFactory();
-            // vm.label(address(nexusFactory), "nexusFactory");
-            // contractAddresses[chainIds[i]]["NexusFactory"] = address(nexusFactory);
 
             A.spokePoolV3Mock = new SpokePoolV3Mock();
             vm.label(address(A.spokePoolV3Mock), "spokePoolV3Mock");
@@ -265,7 +259,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
             accountInstances[chainIds[i]] = instance;
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
-                module: _getContract(chainIds[i], "SuperExecutorV2"),
+                module: _getContract(chainIds[i], "SuperExecutor"),
                 data: ""
             });
             vm.label(instance.account, accountName);
@@ -490,7 +484,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
                 superRegistry.ACROSS_GATEWAY_ID(), _getContract(chainIds[i], "AcrossBridgeGateway")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], "SuperExecutorV2")
+                superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], "SuperExecutor")
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SHARED_STATE_ID(), _getContract(chainIds[i], "SharedState")

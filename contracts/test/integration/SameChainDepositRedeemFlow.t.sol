@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 import { console } from "forge-std/console.sol";
 import { ForkedTestBase } from "./ForkedTestBase.t.sol";
-import { ISuperExecutorV2 } from "../../src/interfaces/ISuperExecutorV2.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperActions } from "../../src/interfaces/strategies/ISuperActions.sol";
 
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -38,16 +38,16 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
 
         bytes[] memory depositHooksData = _createDepositActionData(account, yieldSourceAddress, underlying, amount);
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT"][ETH],
-            finalTarget: yieldSourceAddress,
+            yieldSourceAddress: yieldSourceAddress,
             hooksData: depositHooksData,
             nonMainActionHooks: new address[](0)
         });
 
-        ISuperExecutorV2 superExecutor = ISuperExecutorV2(_getContract(chainIds[0], "SuperExecutorV2"));
-        superExecutor.execute(account, abi.encode(entries));
+        ISuperExecutor superExecutor = ISuperExecutor(_getContract(chainIds[0], "SuperExecutor"));
+        superExecutor.execute(abi.encode(entries));
     }
 
     function test_Deposit_Redeem_4626_Mainnet_Flow() public {
@@ -64,15 +64,15 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
             amount
         );
 
-        ISuperExecutorV2.ExecutorEntry[] memory entries = new ISuperExecutorV2.ExecutorEntry[](1);
-        entries[0] = ISuperExecutorV2.ExecutorEntry({
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
+        entries[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_DEPOSIT"][ETH],
-            finalTarget: yieldSourceAddress,
+            yieldSourceAddress: yieldSourceAddress,
             hooksData: depositHooksData,
             nonMainActionHooks: new address[](0)
         });
 
-        ISuperExecutorV2 superExecutor = ISuperExecutorV2(_getContract(chainIds[0], "SuperExecutorV2"));
+        ISuperExecutor superExecutor = ISuperExecutor(_getContract(chainIds[0], "SuperExecutor"));
 
         vm.expectEmit(true, true, true, false);
         emit ISuperActions.AccountingUpdated(
@@ -83,7 +83,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
             amount, 
             1e18
         );
-        superExecutor.execute(account, abi.encode(entries));
+        superExecutor.execute(abi.encode(entries));
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
         console.log("accSharesAfter", accSharesAfter);
@@ -95,16 +95,16 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
             accSharesAfter
         );
 
-        ISuperExecutorV2.ExecutorEntry[] memory entriesWithdraw = new ISuperExecutorV2.ExecutorEntry[](1);
+        ISuperExecutor.ExecutorEntry[] memory entriesWithdraw = new ISuperExecutor.ExecutorEntry[](1);
 
-        entriesWithdraw[0] = ISuperExecutorV2.ExecutorEntry({
+        entriesWithdraw[0] = ISuperExecutor.ExecutorEntry({
             actionId: ACTION["4626_WITHDRAW"][ETH],
-            finalTarget: yieldSourceAddress,
+            yieldSourceAddress: yieldSourceAddress,
             hooksData: redeemHooksData,
             nonMainActionHooks: new address[](0)
         });
 
-        ISuperExecutorV2 superExecutorWithdraw = ISuperExecutorV2(_getContract(chainIds[0], "SuperExecutorV2"));
+        ISuperExecutor superExecutorWithdraw = ISuperExecutor(_getContract(chainIds[0], "SuperExecutor"));
 
         vm.expectEmit(true, true, true, false);
         emit ISuperActions.AccountingUpdated(
@@ -115,7 +115,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
             accSharesAfter, 
             1e18
         );
-        superExecutorWithdraw.execute(account, abi.encode(entriesWithdraw));
+        superExecutorWithdraw.execute(abi.encode(entriesWithdraw));
 
         uint256 accSharesAfterWithdraw = vaultInstance.balanceOf(account);
         assertEq(accSharesAfterWithdraw, 0);
