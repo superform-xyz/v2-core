@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -21,8 +22,8 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address yearnVault) = abi.decode(data, (address));
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
+        address yearnVault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         if (yearnVault == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(yearnVault, abi.encodeCall(IYearnStakingRewardsMulti.getReward, ()));
@@ -32,20 +33,8 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
-    }
+    function preExecute(address, bytes memory) external pure {}
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
-    }
+    function postExecute(address, bytes memory) external pure {}
 }

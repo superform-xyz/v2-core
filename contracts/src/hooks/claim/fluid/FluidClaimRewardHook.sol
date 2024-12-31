@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -18,8 +19,8 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address stakingRewards) = abi.decode(data, (address));
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
+        address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         if (stakingRewards == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(stakingRewards, abi.encodeCall(IFluidLendingStakingRewards.getReward, ()));
@@ -29,20 +30,14 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    function preExecute(address, bytes memory data) external
     {
-        obtainedReward = _getBalance(data);
-        return _returnDefaultTransientStorage();
+        outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
+    function postExecute(address, bytes memory data) external
     {
-        obtainedReward = _getBalance(data) - obtainedReward;
-        return (address(0), obtainedReward, bytes32(keccak256("CLAIM")), true);
+        outAmount = _getBalance(data) - outAmount;
     }
 }

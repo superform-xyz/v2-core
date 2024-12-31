@@ -92,7 +92,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         assertEq(accSharesAfter, amount);
     }
 
-    function test_WhenHooksAreDefinedAndExecutionDataIsValidQQQ(uint256 amount)
+    function test_WhenHooksAreDefinedAndExecutionDataIsValid(uint256 amount)
         external
         givenAnActionExist
         givenSentinelCallIsNotPerformed
@@ -107,7 +107,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
         // extra non-action set of hooks
         bytes[] memory nonMainActionHooksData = new bytes[](1);
-        nonMainActionHooksData[0] = abi.encode(address(mockERC20), address(user2), amount);
+        nonMainActionHooksData[0] = abi.encodePacked(address(mockERC20), address(user2), amount, false);
         address[] memory nonMainActionHooks = new address[](1);
         nonMainActionHooks[0] = address(approveErc20Hook);
 
@@ -137,6 +137,55 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
 
         uint256 allowanceForUser2 = mockERC20.allowance(instance.account, user2);
         assertEq(allowanceForUser2, amount);
+    }
+
+    function test_WhenHooksAreDefinedAndExecutionDataIsValid_AndContextIsPassedBetweenActionsAndHooks(uint256 amount)
+        external
+        givenAnActionExist
+        givenSentinelCallIsNotPerformed
+    {
+        amount = _bound(amount);
+        address yieldSourceAddress = address(mock4626Vault);
+
+        // should get less shares than amount
+        mock4626Vault.setLessAmount(true);
+
+        bytes[] memory  hooksData = new bytes[](2);
+        hooksData[0] = abi.encodePacked(address(mockERC20), yieldSourceAddress, amount, false);
+        hooksData[1] = abi.encodePacked(yieldSourceAddress, instance.account, uint256(0), true);
+
+        // assure account has tokens
+        _getTokens(address(mockERC20), instance.account, amount);
+
+        // extra non-action set of hooks
+        bytes[] memory nonMainActionHooksData = new bytes[](1);
+        // `true` means use the amount from the previous hook = obtained shares
+        nonMainActionHooksData[0] = abi.encodePacked(address(mockERC20), address(user2), uint256(0), true);
+        address[] memory nonMainActionHooks = new address[](1);
+        nonMainActionHooks[0] = address(approveErc20Hook);
+
+        // it should execute all hooks
+        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](2);
+        entries[0] = ISuperExecutor.ExecutorEntry({
+            actionId: ACTION["4626_DEPOSIT"],
+            yieldSourceAddress: yieldSourceAddress,
+            hooksData: hooksData,
+            nonMainActionHooks: new address[](0)
+        });
+        entries[1] = ISuperExecutor.ExecutorEntry({
+            actionId: type(uint256).max,
+            yieldSourceAddress: address(0),
+            hooksData: nonMainActionHooksData,
+            nonMainActionHooks: nonMainActionHooks
+        });
+        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
+        executeOp(userOpData);
+    
+        uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
+        assertEq(accSharesAfter, amount/2, "A");
+
+        uint256 allowanceForUser2 = mockERC20.allowance(instance.account, user2);
+        assertEq(allowanceForUser2, amount/2, "B");
     }
 
     function test_WhenHooksAreDefinedAndExecutionDataIsValid_Deposit_And_Withdraw_In_The_Same_Intent(uint256 amount)
@@ -186,8 +235,8 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](2);
-        hooksData[0] = abi.encode(address(mockERC20), yieldSourceAddress, amount);
-        hooksData[1] = abi.encode(yieldSourceAddress, instance.account, amount);
+        hooksData[0] = abi.encodePacked(address(mockERC20), yieldSourceAddress, amount, false);
+        hooksData[1] = abi.encodePacked(yieldSourceAddress, instance.account, amount, false);
     }
 
     function _createDepositWithdrawActionData(
@@ -199,9 +248,9 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](3);
-        hooksData[0] = abi.encode(address(mockERC20), yieldSourceAddress, amount);
-        hooksData[1] = abi.encode(yieldSourceAddress, instance.account, amount);
-        hooksData[2] = abi.encode(yieldSourceAddress, instance.account, instance.account, 100);
+        hooksData[0] = abi.encodePacked(address(mockERC20), yieldSourceAddress, amount, false);
+        hooksData[1] = abi.encodePacked(yieldSourceAddress, instance.account, amount, false);
+        hooksData[2] = abi.encodePacked(yieldSourceAddress, instance.account, instance.account, uint256(100), false);
     }
 
     function _createWithdrawActionData(
@@ -213,6 +262,6 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(yieldSourceAddress, instance.account, instance.account, amount);
+        hooksData[0] = abi.encodePacked(yieldSourceAddress, instance.account, instance.account, amount, false);
     }
 }

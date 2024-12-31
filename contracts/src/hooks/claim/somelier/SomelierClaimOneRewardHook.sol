@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -18,8 +19,9 @@ contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address vault, uint256 depositId) = abi.decode(data, (address, uint256));
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(vault, abi.encodeCall(ISomelierCellarStaking.claim, (depositId)));
@@ -29,20 +31,12 @@ contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        obtainedReward = _getBalance(data);
-        return _returnDefaultTransientStorage();
+    function preExecute(address, bytes memory data) external {
+        outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory data)
-        external
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        obtainedReward = _getBalance(data) - obtainedReward;
-        return (address(0), obtainedReward, bytes32(keccak256("CLAIM")), true);
+    function postExecute(address, bytes memory data) external {
+        outAmount = _getBalance(data) - outAmount;
     }
 }

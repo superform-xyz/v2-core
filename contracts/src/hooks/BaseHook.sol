@@ -5,6 +5,12 @@ pragma solidity >=0.8.28;
 import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
 
 abstract contract BaseHook is SuperRegistryImplementer {
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    // forgefmt: disable-start
+    uint256 public transient outAmount;
+    // forgefmt: disable-end
     address public immutable author;
 
     /*//////////////////////////////////////////////////////////////
@@ -20,11 +26,12 @@ abstract contract BaseHook is SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _returnDefaultTransientStorage()
-        internal
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return (address(0), 0, bytes32(0), false);
+    function _decodeBool(bytes memory data, uint256 offset) internal pure returns (bool) {
+        require(data.length >= offset + 1, "Data length insufficient");
+        uint8 value;
+        assembly {
+            value := byte(0, mload(add(data, add(offset, 32))))
+        }
+        return value != 0;
     }
 }

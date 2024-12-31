@@ -9,7 +9,6 @@ import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_FALLBACK } from "modulekit/accounts/k
 // Superform
 import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
-
 import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
 import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
 import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";

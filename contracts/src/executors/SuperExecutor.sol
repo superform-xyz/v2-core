@@ -5,16 +5,21 @@ pragma solidity >=0.8.28;
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Superform
-import { BaseExecutorModule } from "./BaseExecutorModule.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
-import { ISentinel } from "../interfaces/sentinel/ISentinel.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 
-contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecutor {
-    constructor(address registry_) BaseExecutorModule(registry_) { }
+contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    mapping(address => bool) internal _initialized;
+
+    constructor(address registry_) SuperRegistryImplementer(registry_) { }  
+
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
@@ -23,16 +28,13 @@ contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecuto
         _;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperExecutor
     function superActions() public view returns (address) {
-        return _superActions();
+        return superRegistry.getAddress(superRegistry.SUPER_ACTIONS_ID());
     }
 
     function isInitialized(address account) external view returns (bool) {
-        return _isInitialized(account);
+        return _initialized[account];
     }
 
     function name() external pure returns (string memory) {
@@ -51,141 +53,124 @@ contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecuto
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function onInstall(bytes calldata) external {
-        if (_isInitialized(msg.sender)) revert ALREADY_INITIALIZED();
+        if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
     function onUninstall(bytes calldata) external {
-        if (!_isInitialized(msg.sender)) revert NOT_INITIALIZED();
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
     }
 
     function execute(bytes calldata data) external {
-        if (!_isInitialized(msg.sender)) revert NOT_INITIALIZED();
-
-        ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
-        _execute(msg.sender, entries);
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        _execute(msg.sender, abi.decode(data, (ExecutorEntry[])));
     }
 
     /// @inheritdoc ISuperExecutor
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
+        if (!_initialized[account]) revert NOT_INITIALIZED();
         // check if we need anything else here
-        ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
-        _execute(account, entries);
+        _execute(account, abi.decode(data, (ExecutorEntry[])));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getSuperPositionSentinel() private view returns (address) {
-        return superRegistry.getAddress(superRegistry.SUPER_POSITION_SENTINEL_ID());
-    }
-
     function _execute(address account, ExecutorEntry[] memory entries) private {
         uint256 actionLen = entries.length;
         if (actionLen == 0) revert DATA_NOT_VALID();
 
         // execute each strategy
+        address actionLastHook = address(0);
         for (uint256 i; i < actionLen;) {
-            _executeAction(account, entries[i]);
+            ExecutorEntry memory _entry = entries[i];
 
+            // validate action
+            _validateAction(_entry);
+
+            // retrieve hooks
+            address[] memory hooks = _getActionHooks(_entry);
+
+            // execute action
+            _executeAction(account, _entry, hooks, actionLastHook);
+
+            // set last hook for next action
+            actionLastHook = hooks[hooks.length - 1];
             unchecked {
                 ++i;
             }
         }
     }
 
-    function _executeAction(address account, ExecutorEntry memory entry) private {
-        if (entry.actionId == type(uint256).max) {
-            if (entry.yieldSourceAddress != address(0)) {
-                revert FINAL_TARGET_NOT_ZERO();
-            }
-            // Process non-main action hooks directly
-            _processNonMainActionHooks(account, entry);
-        } else {
+    function _validateAction(ExecutorEntry memory entry) private pure {
+        if (entry.actionId == type(uint256).max && entry.yieldSourceAddress != address(0)) {
+            revert FINAL_TARGET_NOT_ZERO();
+        }
+    }
+
+    function _getActionHooks(ExecutorEntry memory entry) private view returns (address[] memory hooks) {
+        if (entry.actionId != type(uint256).max) {
+            return ISuperActions(superActions()).getActionLogic(entry.actionId).hooks;
+        }
+        return entry.nonMainActionHooks;
+    }
+
+    function _executeAction(
+        address account,
+        ExecutorEntry memory entry,
+        address[] memory hooks,
+        address prevActionHook
+    )
+        private
+    {
+        // execute all hooks for current action
+        _executeActionHooks(account, hooks, entry.hooksData, prevActionHook);
+
+        // update accounting for main action
+        if (entry.actionId != type(uint256).max) {
             ISuperActions.ActionLogic memory actionLogic = ISuperActions(superActions()).getActionLogic(entry.actionId);
-
-            // Process main action hooks
-            _processMainActionHooks(account, entry, actionLogic);
-
-            // Update accounting based on action type
-            _updateAccounting(
+            uint256 accountingAmount = ISuperHookResult(hooks[actionLogic.shareDeltaHookIndex]).outAmount();
+            ISuperActions(superActions()).updateAccounting(
                 account,
                 entry.actionId,
                 entry.yieldSourceAddress,
                 actionLogic.actionType == ISuperActions.ActionType.INFLOW,
-                shareDelta
+                accountingAmount
             );
         }
-
-        shareDelta = 0;
     }
 
-    // New function for processing hooks with ActionInfo
-    function _processMainActionHooks(
+    function _executeActionHooks(
         address account,
-        ExecutorEntry memory entry,
-        ISuperActions.ActionLogic memory actionLogic
+        address[] memory hooks,
+        bytes[] memory hooksData,
+        address prevActionHook
     )
         private
     {
-        uint256 hooksLength = actionLogic.hooks.length;
-        for (uint256 j; j < hooksLength;) {
-            ISuperHook hook = ISuperHook(actionLogic.hooks[j]);
+        uint256 hooksLength = hooks.length;
+        for (uint256 i; i < hooksLength;) {
+            // fill prevHook
+            address prevHook = (i == 0) ? prevActionHook : hooks[i - 1];
 
-            hook.preExecute(entry.hooksData[j]);
-            _execute(account, hook.build(entry.hooksData[j]));
+            // execute current hook
+            _processHook(account, ISuperHook(hooks[i]), prevHook, hooksData[i]);
 
-            (, uint256 shareDelta_,,) = hook.postExecute(entry.hooksData[j]);
-
-            // Only capture shareDelta from designated hook
-            if (j == actionLogic.shareDeltaHookIndex) {
-                shareDelta = shareDelta_;
-            }
+            // go to next hook
             unchecked {
-                ++j;
+                ++i;
             }
         }
     }
 
-    // Modified to handle direct hook array
-    function _processNonMainActionHooks(address account, ExecutorEntry memory entry) private {
-        uint256 hooksLength = entry.nonMainActionHooks.length;
-        for (uint256 j; j < hooksLength;) {
-            ISuperHook hook = ISuperHook(entry.nonMainActionHooks[j]);
+    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) private {
+        // run hook preExecute
+        hook.preExecute(prevHook, hookData);
 
-            hook.preExecute(entry.hooksData[j]);
+        // run hook execute
+        _execute(account, hook.build(prevHook, hookData));
 
-            _execute(account, hook.build(entry.hooksData[j]));
-
-            hook.postExecute(entry.hooksData[j]);
-
-            unchecked {
-                ++j;
-            }
-        }
-    }
-
-    function _updateAccounting(
-        address account,
-        uint256 actionId,
-        address yieldSourceAddress,
-        bool isDeposit,
-        uint256 amountShares
-    )
-        private
-    {
-        ISuperActions(superActions()).updateAccounting(account, actionId, yieldSourceAddress, isDeposit, amountShares);
-    }
-
-    function _notifySuperPosition(ExecutorEntry memory entry, uint256 _spSharesMint, uint256 _spSharesBurn) private {
-        if (_spSharesMint > _spSharesBurn) {
-            ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId, entry.yieldSourceAddress, abi.encode(_spSharesMint - _spSharesBurn, true)
-            );
-        } else if (_spSharesBurn > _spSharesMint) {
-            ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId, entry.yieldSourceAddress, abi.encode(_spSharesBurn - _spSharesMint, false)
-            );
-        }
+        // run hook postExecute
+        hook.postExecute(prevHook, hookData);
     }
 }

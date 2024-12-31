@@ -107,14 +107,13 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
     }
 
-
     function _createWithdrawActionData(address yieldSourceAddress)
         internal
         view
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(yieldSourceAddress, user2, instance.account, DEFAULT_AMOUNT);
+        hooksData[0] = abi.encodePacked(yieldSourceAddress, user2, instance.account, DEFAULT_AMOUNT, false);
     }
 
     function _createDepositAndBridgeActionData(
@@ -126,9 +125,9 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](4);
-        hooksData[0] = abi.encode(address(mockERC20), yieldSourceAddress, amount);
-        hooksData[1] = abi.encode(yieldSourceAddress, instance.account, amount);
-        hooksData[2] = abi.encode(yieldSourceAddress, address(spokePoolV3Mock), amount);
+        hooksData[0] = abi.encodePacked(address(mockERC20), yieldSourceAddress, amount, false);
+        hooksData[1] = abi.encodePacked(yieldSourceAddress, instance.account, amount, false);
+        hooksData[2] = abi.encodePacked(yieldSourceAddress, address(spokePoolV3Mock), amount, false);
 
         ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
         entries[0] = ISuperExecutor.ExecutorEntry({
