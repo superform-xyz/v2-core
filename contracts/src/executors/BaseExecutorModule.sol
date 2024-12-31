@@ -16,6 +16,8 @@ contract BaseExecutorModule is SuperRegistryImplementer {
     bytes32 internal transient typeOfMainAction;
     // forgefmt: disable-end
 
+    mapping(address => bool) internal _initialized;
+
     constructor(address registry_) SuperRegistryImplementer(registry_) { }  
 
     /*//////////////////////////////////////////////////////////////
@@ -25,7 +27,7 @@ contract BaseExecutorModule is SuperRegistryImplementer {
         return superRegistry.getAddress(superRegistry.SUPER_ACTIONS_ID());
     }
 
-    function _isInitialized() internal pure returns (bool) {
-        return true;
+    function _isInitialized(address account) internal view returns (bool) {
+        return _initialized[account];
     }
 }

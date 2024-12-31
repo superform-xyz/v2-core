@@ -18,44 +18,43 @@ contract Looped4626DepositActionOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Get the price per share for a single vault over a number of loops
-    /// @param finalTarget The address of the final target
+    /// @param yieldSourceAddress The address of the final target
     /// @param loops The number of loops
     /// @return price The price per share
-    function getStrategyPrice(address finalTarget, uint256 loops) public view returns (uint256 price) {
-        price = Looped4626DepositLibrary.getPricePerShare(finalTarget, loops);
+    function getStrategyPrice(address yieldSourceAddress, uint256 loops) public view returns (uint256 price) {
+        price = Looped4626DepositLibrary.getPricePerShare(yieldSourceAddress, loops);
     }
 
     /// @notice Get the price per share for a list of vaults over a number of loops
-    /// @param finalTargets The addresses of the final targets
+    /// @param yieldSourceAddresses The addresses of the final targets
     /// @param loops The number of loops
     /// @return prices The prices per share
     function getStrategyPrices(
-        address[] memory finalTargets,
+        address[] memory yieldSourceAddresses,
         uint256[] memory loops
     )
         external
         view
         returns (uint256[] memory prices)
     {
-        prices = new uint256[](finalTargets.length);
-        for (uint256 i = 0; i < finalTargets.length; i++) {
-            prices[i] = getStrategyPrice(finalTargets[i], loops[i]);
+        prices = new uint256[](yieldSourceAddresses.length);
+        for (uint256 i = 0; i < yieldSourceAddresses.length; i++) {
+            prices[i] = getStrategyPrice(yieldSourceAddresses[i], loops[i]);
         }
     }
 
     // ToDo: Implement this with the metadata library
     /// @notice Get the metadata for a single vault
-    /// @param finalTarget The address of the final target
     /// @return metadata The metadata
-    function getVaultStrategyMetadata(address finalTarget) external view returns (bytes memory metadata) {
+    function getVaultStrategyMetadata(address) external pure returns (bytes memory metadata) {
         return "0x0";
     }
 
     // ToDo: Implement this with the metadata library
     /// @notice Get the metadata for a list of vaults
-    /// @param finalTargets The addresses of the final targets
+    /// @param yieldSourceAddresses The addresses of the final targets
     /// @return metadata The metadata
-    function getVaultsStrategyMetadata(address[] memory finalTargets) external view returns (bytes[] memory metadata) {
-        return new bytes[](finalTargets.length);
+    function getVaultsStrategyMetadata(address[] memory yieldSourceAddresses) external pure returns (bytes[] memory metadata) {
+        return new bytes[](yieldSourceAddresses.length);
     }
 }

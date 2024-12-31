@@ -10,10 +10,10 @@ import { BaseExecutorModule } from "./BaseExecutorModule.sol";
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISentinel } from "../interfaces/sentinel/ISentinel.sol";
-import { ISuperExecutorV2 } from "../interfaces/ISuperExecutorV2.sol";
+import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 
-contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecutorV2 {
+contract SuperExecutor is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecutor {
     constructor(address registry_) BaseExecutorModule(registry_) { }
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
@@ -26,13 +26,13 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperExecutorV2
+    /// @inheritdoc ISuperExecutor
     function superActions() public view returns (address) {
         return _superActions();
     }
 
-    function isInitialized(address) external pure returns (bool) {
-        return _isInitialized();
+    function isInitialized(address account) external view returns (bool) {
+        return _isInitialized(account);
     }
 
     function name() external pure returns (string memory) {
@@ -50,15 +50,23 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external { }
-    function onUninstall(bytes calldata) external { }
-
-    function execute(address account, bytes calldata data) external {
-        ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
-        _execute(account, entries);
+    function onInstall(bytes calldata) external {
+        if (_isInitialized(msg.sender)) revert ALREADY_INITIALIZED();
+        _initialized[msg.sender] = true;
+    }
+    function onUninstall(bytes calldata) external {
+        if (!_isInitialized(msg.sender)) revert NOT_INITIALIZED();
+        _initialized[msg.sender] = false;
     }
 
-    /// @inheritdoc ISuperExecutorV2
+    function execute(bytes calldata data) external {
+        if (!_isInitialized(msg.sender)) revert NOT_INITIALIZED();
+
+        ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
+        _execute(msg.sender, entries);
+    }
+
+    /// @inheritdoc ISuperExecutor
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
         // check if we need anything else here
         ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
@@ -88,7 +96,7 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
 
     function _executeAction(address account, ExecutorEntry memory entry) private {
         if (entry.actionId == type(uint256).max) {
-            if (entry.finalTarget != address(0)) {
+            if (entry.yieldSourceAddress != address(0)) {
                 revert FINAL_TARGET_NOT_ZERO();
             }
             // Process non-main action hooks directly
@@ -103,7 +111,7 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
             _updateAccounting(
                 account,
                 entry.actionId,
-                entry.finalTarget,
+                entry.yieldSourceAddress,
                 actionLogic.actionType == ISuperActions.ActionType.INFLOW,
                 shareDelta
             );
@@ -160,23 +168,23 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     function _updateAccounting(
         address account,
         uint256 actionId,
-        address finalTarget,
+        address yieldSourceAddress,
         bool isDeposit,
         uint256 amountShares
     )
         private
     {
-        ISuperActions(superActions()).updateAccounting(account, actionId, finalTarget, isDeposit, amountShares);
+        ISuperActions(superActions()).updateAccounting(account, actionId, yieldSourceAddress, isDeposit, amountShares);
     }
 
     function _notifySuperPosition(ExecutorEntry memory entry, uint256 _spSharesMint, uint256 _spSharesBurn) private {
         if (_spSharesMint > _spSharesBurn) {
             ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId, entry.finalTarget, abi.encode(_spSharesMint - _spSharesBurn, true)
+                entry.actionId, entry.yieldSourceAddress, abi.encode(_spSharesMint - _spSharesBurn, true)
             );
         } else if (_spSharesBurn > _spSharesMint) {
             ISentinel(_getSuperPositionSentinel()).notify(
-                entry.actionId, entry.finalTarget, abi.encode(_spSharesBurn - _spSharesMint, false)
+                entry.actionId, entry.yieldSourceAddress, abi.encode(_spSharesBurn - _spSharesMint, false)
             );
         }
     }

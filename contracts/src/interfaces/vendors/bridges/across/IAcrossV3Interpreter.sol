@@ -19,7 +19,7 @@ interface IAcrossV3Interpreter {
     }
 
     struct Instruction {
-        bytes strategyData; // ISuperExecutorV2.ExecutorEntry[]
+        bytes strategyData; // ISuperExecutor.ExecutorEntry[]
         uint256 amount;
         address account;
     }

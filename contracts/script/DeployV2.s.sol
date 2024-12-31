@@ -10,7 +10,7 @@ import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
 
 import { Configuration } from "./utils/Configuration.sol";
 
-import { SuperExecutorV2 } from "../src/executors/SuperExecutorV2.sol";
+import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SharedState } from "../src/state/SharedState.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
@@ -135,7 +135,7 @@ contract DeployV2 is Script, Configuration {
             "SuperExecutor",
             chainId,
             __getSalt(configuration.owner, configuration.deployer, "SuperExecutor"),
-            abi.encodePacked(type(SuperExecutorV2).creationCode, abi.encode(deployedContracts.superRegistry))
+            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
         // Deploy SuperRbac
@@ -193,7 +193,7 @@ contract DeployV2 is Script, Configuration {
         hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);
 
         // Deploy Oracles
-        oracleAddresses = _deployOracles(deployer, deployedContracts.superRegistry, chainId);
+        oracleAddresses = _deployOracles(deployer, chainId);
     }
 
     function _configure(DeployedContracts memory deployedContracts) internal {
@@ -354,7 +354,6 @@ contract DeployV2 is Script, Configuration {
 
     function _deployOracles(
         ISuperDeployer deployer,
-        address registry,
         uint64 chainId
     )
         private

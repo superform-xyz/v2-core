@@ -9,11 +9,11 @@ library DepositRedeem4626Library {
     error VAULTS_MUST_HAVE_SAME_UNDERLYING_ASSET();
 
     /// @notice Gets the price per share for a deposit
-    /// @param finalTarget The final target vault to deposit into
+    /// @param yieldSourceAddress The final target vault to deposit into
     /// @return pricePerShare The price per share
-    function getPricePerShare(address finalTarget) internal view returns (uint256 pricePerShare) {
-        uint256 decimals = IERC4626(finalTarget).decimals();
-        pricePerShare = IERC4626(finalTarget).previewRedeem(10 ** decimals);
+    function getPricePerShare(address yieldSourceAddress) internal view returns (uint256 pricePerShare) {
+        uint256 decimals = IERC4626(yieldSourceAddress).decimals();
+        pricePerShare = IERC4626(yieldSourceAddress).previewRedeem(10 ** decimals);
     }
 
     /// @notice Get the price per share for a deposit into multiple vaults

@@ -10,9 +10,9 @@ interface IActionOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Derives the price of an action
-    /// @param finalTarget The vault to derive the price for
+    /// @param yieldSourceAddress The vault to derive the price for
     /// @return price The price of the action
-    function getStrategyPrice(address finalTarget) external view returns (uint256 price);
+    function getStrategyPrice(address yieldSourceAddress) external view returns (uint256 price);
 
     /// @notice Derives the price of an action for multiple vaults
     /// @param finalTargets The vaults to derive the price for
@@ -27,12 +27,12 @@ interface IActionOracle {
         returns (uint256[] memory prices);
 
     /// @notice Gets the metadata of a strategy
-    /// @param finalTarget The vault to get the metadata for
+    /// @param yieldSourceAddress The vault to get the metadata for
     /// @return metadata The metadata of the strategy
-    function getVaultStrategyMetadata(address finalTarget) external view returns (bytes memory metadata);
+    function getVaultStrategyMetadata(address yieldSourceAddress) external view returns (bytes memory metadata);
 
     /// @notice Gets the metadata of multiple strategies
-    /// @param finalTargets The vaults to get the metadata for
+    /// @param yieldSourceAddresses The vaults to get the metadata for
     /// @return metadata The metadata of the strategies
-    function getVaultsStrategyMetadata(address[] memory finalTargets) external view returns (bytes[] memory metadata);
+    function getVaultsStrategyMetadata(address[] memory yieldSourceAddresses) external view returns (bytes[] memory metadata);
 }
