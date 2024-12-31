@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { Helpers } from "../utils/Helpers.sol";
+
 // Superform interfaces
 import { ISuperRbac } from "../../src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "../../src/interfaces/sentinel/ISentinel.sol";
@@ -46,8 +47,6 @@ import { console } from "forge-std/console.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
-
-import { Strings } from "@openzeppelin/contracts/utils/Strings.sol";
 
 struct Addresses {
     ISuperRbac superRbac;
@@ -136,7 +135,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         // Set roles
         _setRoles();
 
-        // Register action
+        // Register actions
         _performRegistrations();
 
         // Fund underlying tokens
