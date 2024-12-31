@@ -8,9 +8,9 @@ interface IGearboxFarmingPool {
     event RewardUpdated(uint256 reward, uint256 duration);
 
     // View functions
-    function distributor() external view returns(address);
+    function distributor() external view returns (address);
     //function farmInfo() external view returns(FarmAccounting.Info memory);
-    function farmed(address account) external view returns(uint256);
+    function farmed(address account) external view returns (uint256);
 
     // User functions
     function deposit(uint256 amount) external;
@@ -25,4 +25,3 @@ interface IGearboxFarmingPool {
     function startFarming(uint256 amount, uint256 period) external;
     function rescueFunds(IERC20 token, uint256 amount) external;
 }
-
