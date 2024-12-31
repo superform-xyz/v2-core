@@ -429,7 +429,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         uint256 amount
     )
         internal
-        view
+        pure
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](2);
@@ -443,7 +443,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         uint256 amount
     )
         internal
-        view
+        pure
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](1);
@@ -457,7 +457,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         uint256 amount
     )
         internal
-        view
+        pure
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](3);
