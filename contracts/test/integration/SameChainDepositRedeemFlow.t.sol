@@ -3,8 +3,8 @@ pragma solidity >=0.8.28;
 
 import { console } from "forge-std/console.sol";
 import { ForkedTestBase } from "./ForkedTestBase.t.sol";
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
+import { ISuperExecutorV2 } from "../../src/interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "../../src/interfaces/strategies/ISuperActions.sol";
 
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
