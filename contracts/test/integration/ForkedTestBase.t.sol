@@ -251,8 +251,6 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            _initializeModuleKit("NEXUS");
-
             string memory accountName = "SuperformAccount";
             AccountInstance memory instance = makeAccountInstance(keccak256(abi.encode(accountName)));
             accountInstances[chainIds[i]] = instance;
