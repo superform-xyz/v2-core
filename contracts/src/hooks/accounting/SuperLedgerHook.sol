@@ -29,12 +29,12 @@ contract SuperLedgerHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 
-        address yieldSourceOracle = ISuperHookResult(prevHook).yieldSourceOracle();
-        bool isInflow = ISuperHookResult(prevHook).isInflow();
-        address yieldSource = ISuperHookResult(prevHook).yieldSource();
         /// @dev WARNING this must be on shares
         uint256 amount = ISuperHookResult(prevHook).outAmount();
+        bool isInflow = ISuperHookResult(prevHook).isInflow();
 
         if (amount == 0) {
             revert AMOUNT_NOT_VALID();

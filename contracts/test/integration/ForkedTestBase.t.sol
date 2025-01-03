@@ -8,19 +8,21 @@ import { ISuperRbac } from "../../src/interfaces/ISuperRbac.sol";
 import { ISentinel } from "../../src/interfaces/sentinel/ISentinel.sol";
 import { ISuperRegistry } from "../../src/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
-import { ISuperActions } from "../../src/interfaces/strategies/ISuperActions.sol";
+import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 
 // Superform contracts
 import { SuperRbac } from "../../src/settings/SuperRbac.sol";
 import { SharedState } from "../../src/state/SharedState.sol";
 import { SpokePoolV3Mock } from "../mocks/SpokePoolV3Mock.sol";
-import { SuperActions } from "../../src/strategies/SuperActions.sol";
+import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperRegistry } from "../../src/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { AcrossBridgeGateway } from "../../src/bridges/AcrossBridgeGateway.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 
 // hooks
+import { SuperAccountingHook } from "../../src/hooks/accounting/SuperAccountingHook.sol";
+
 // tokens hooks
 // --- erc20
 import { ApproveERC20Hook } from "../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -39,8 +41,8 @@ import { RequestWithdraw7540VaultHook } from "../../src/hooks/vaults/7540/Reques
 import { AcrossExecuteOnDestinationHook } from "../../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
 
 // action oracles
-import { DepositRedeem4626ActionOracle } from "../../src/strategies/oracles/DepositRedeem4626ActionOracle.sol";
-import { DepositRedeem5115ActionOracle } from "../../src/strategies/oracles/DepositRedeem5115ActionOracle.sol";
+import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
 // external
 import { console } from "forge-std/console.sol";
@@ -51,12 +53,13 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 struct Addresses {
     ISuperRbac superRbac;
     SharedState sharedState;
-    ISuperActions superActions;
+    ISuperLedger superLedger;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
     SpokePoolV3Mock spokePoolV3Mock;
     AcrossBridgeGateway acrossBridgeGateway;
+    SuperAccountingHook superAccountingHook;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
@@ -66,8 +69,8 @@ struct Addresses {
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
     AcrossExecuteOnDestinationHook acrossExecuteOnDestinationHook;
-    DepositRedeem4626ActionOracle depositRedeem4626ActionOracle;
-    DepositRedeem5115ActionOracle depositRedeem5115ActionOracle;
+    ERC4626YieldSourceOracle erc4626YieldSourceOracle;
+    ERC5115YieldSourceOracle erc5115YieldSourceOracle;
 }
 
 contract ForkedTestBase is Helpers, RhinestoneModuleKit {
@@ -171,9 +174,9 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superRbac), "superRbac");
             contractAddresses[chainIds[i]]["SuperRbac"] = address(A.superRbac);
 
-            A.superActions = ISuperActions(address(new SuperActions(address(A.superRegistry))));
-            vm.label(address(A.superActions), "superActions");
-            contractAddresses[chainIds[i]]["SuperActions"] = address(A.superActions);
+            A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superRegistry))));
+            vm.label(address(A.superLedger), "superLedger");
+            contractAddresses[chainIds[i]]["SuperLedger"] = address(A.superLedger);
 
             A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
@@ -198,15 +201,19 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
             A.spokePoolV3Mock.setAcrossBridgeGateway(address(A.acrossBridgeGateway));
 
             /// @dev action oracles
-            A.depositRedeem4626ActionOracle = new DepositRedeem4626ActionOracle();
-            vm.label(address(A.depositRedeem4626ActionOracle), "DepositRedeem4626ActionOracle");
-            contractAddresses[chainIds[i]]["DepositRedeem4626ActionOracle"] = address(A.depositRedeem4626ActionOracle);
+            A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
+            vm.label(address(A.erc4626YieldSourceOracle), "ERC4626YieldSourceOracle");
+            contractAddresses[chainIds[i]]["ERC4626YieldSourceOracle"] = address(A.erc4626YieldSourceOracle);
 
-            A.depositRedeem5115ActionOracle = new DepositRedeem5115ActionOracle();
-            vm.label(address(A.depositRedeem5115ActionOracle), "DepositRedeem5115ActionOracle");
-            contractAddresses[chainIds[i]]["DepositRedeem5115ActionOracle"] = address(A.depositRedeem5115ActionOracle);
+            A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
+            vm.label(address(A.erc5115YieldSourceOracle), "ERC5115YieldSourceOracle");
+            contractAddresses[chainIds[i]]["ERC5115YieldSourceOracle"] = address(A.erc5115YieldSourceOracle);
 
             /// @dev  hooks
+
+            A.superAccountingHook = new SuperAccountingHook(address(A.superRegistry), address(this));
+            vm.label(address(A.superAccountingHook), "SuperAccountingHook");
+            hookAddresses[chainIds[i]]["SuperAccountingHook"] = address(A.superAccountingHook);
 
             A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
             vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
@@ -413,56 +420,14 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         }
     }
 
-    function _createDepositActionData(
-        address account,
-        address yieldSourceAddress,
-        address _underlying,
-        uint256 amount
-    )
-        internal
-        pure
-        returns (bytes[] memory hooksData)
-    {
-        hooksData = new bytes[](2);
-        hooksData[0] = abi.encode(_underlying, yieldSourceAddress, amount);
-        hooksData[1] = abi.encode(yieldSourceAddress, account, amount);
-    }
 
-    function _createWithdrawActionData(
-        address account,
-        address yieldSourceAddress,
-        uint256 amount
-    )
-        internal
-        pure
-        returns (bytes[] memory hooksData)
-    {
-        hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(yieldSourceAddress, account, account, amount);
-    }
-
-    function _createDepositWithdrawActionData(
-        address account,
-        address yieldSourceAddress,
-        address _underlying,
-        uint256 amount
-    )
-        internal
-        pure
-        returns (bytes[] memory hooksData)
-    {
-        hooksData = new bytes[](3);
-        hooksData[0] = abi.encode(_underlying, yieldSourceAddress, amount);
-        hooksData[1] = abi.encode(yieldSourceAddress, account, amount);
-        hooksData[2] = abi.encode(yieldSourceAddress, account, account, 100);
-    }
 
     function _setSuperRegistryAddresses() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_ACTIONS_ID(), _getContract(chainIds[i], "SuperActions")
+                superRegistry.SUPER_ACTIONS_ID(), _getContract(chainIds[i], "SuperLedger")
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainIds[i], "SuperPositionSentinel")
@@ -501,13 +466,14 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
     function _performRegistrations() internal {
         console.log("Registration");
         for (uint256 i; i < chainIds.length; ++i) {
+            /*
             vm.selectFork(FORKS[chainIds[i]]);
             vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
             // Configure ERC4626 yield source
-            ISuperActions.YieldSourceConfig memory erc4626Config = ISuperActions.YieldSourceConfig({
+            ISuperLedger.YieldSourceConfig memory erc4626Config = ISuperLedger.YieldSourceConfig({
                 yieldSourceId: "ERC4626",
                 metadataOracle: _getContract(chainIds[i], "DepositRedeem4626ActionOracle"),
-                actions: new ISuperActions.ActionConfig[](2)
+                actions: new ISuperLedger.ActionConfig[](2)
             });
 
             // Deposit action (approve + deposit)
@@ -517,9 +483,9 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
             depositHooks[0] = approveErc20Hook;
             depositHooks[1] = deposit4626VaultHook;
 
-            erc4626Config.actions[0] = ISuperActions.ActionConfig({
+            erc4626Config.actions[0] = ISuperLedger.ActionConfig({
                 hooks: depositHooks,
-                actionType: ISuperActions.ActionType.INFLOW,
+                actionType: ISuperLedger.ActionType.INFLOW,
                 shareDeltaHookIndex: 1 // deposit4626VaultHook provides share delta
              });
 
@@ -528,15 +494,15 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
             address withdraw4626VaultHook = _getHook(chainIds[i], "Withdraw4626VaultHook");
             withdrawHooks[0] = withdraw4626VaultHook;
 
-            erc4626Config.actions[1] = ISuperActions.ActionConfig({
+            erc4626Config.actions[1] = ISuperLedger.ActionConfig({
                 hooks: withdrawHooks,
-                actionType: ISuperActions.ActionType.OUTFLOW,
+                actionType: ISuperLedger.ActionType.OUTFLOW,
                 shareDeltaHookIndex: 0 // withdraw4626VaultHook provides share delta
              });
 
             // Register ERC4626 actions
             uint256[] memory erc4626ActionIds =
-                ISuperActions(_getContract(chainIds[i], "SuperActions")).registerYieldSourceAndActions(erc4626Config);
+            ISuperLedger(_getContract(chainIds[i], "SuperLedger")).registerYieldSourceAndActions(erc4626Config);
 
             // Store action IDs in mapping
             ACTION["4626_DEPOSIT"][chainIds[i]] = erc4626ActionIds[0];
@@ -547,6 +513,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
             console.log("4626_WITHDRAW", erc4626ActionIds[1]);
 
             vm.stopPrank();
+            */
         }
     }
 }

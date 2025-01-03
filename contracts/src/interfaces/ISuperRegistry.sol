@@ -55,7 +55,7 @@ interface ISuperRegistry {
 
     // -- actions
     /// @dev Get the ID of the super actions.
-    function SUPER_ACTIONS_ID() external view returns (bytes32);
+    function SUPER_LEDGER_ID() external view returns (bytes32);
 
     // -- sentinels
     /// @dev Get the ID of the super position sentinel.

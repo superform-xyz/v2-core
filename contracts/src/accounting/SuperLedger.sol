@@ -5,7 +5,7 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IActionOracle } from "../interfaces/accounting/IActionOracle.sol";
+import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 
 contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
@@ -47,7 +47,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
         // Get price from oracle
-        pps = IActionOracle(yieldSourceOracle).getStrategyPrice(yieldSource);
+        pps = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSource);
         if (pps == 0) revert INVALID_PRICE();
 
         if (isInflow) {

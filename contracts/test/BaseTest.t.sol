@@ -12,6 +12,7 @@ import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { ISuperRegistry } from "../src/interfaces/ISuperRegistry.sol";
 
 // hooks
+import { SuperAccountingHook } from "../src/hooks/accounting/SuperAccountingHook.sol";
 // tokens hooks
 // --- erc20
 import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -30,8 +31,8 @@ import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWi
 import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
 
 // action oracles
-import { DepositRedeem4626ActionOracle } from "../src/strategies/oracles/DepositRedeem4626ActionOracle.sol";
-import { DepositRedeem5115ActionOracle } from "../src/strategies/oracles/DepositRedeem5115ActionOracle.sol";
+import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
 abstract contract BaseTest is Helpers {
     /*//////////////////////////////////////////////////////////////
@@ -52,6 +53,7 @@ abstract contract BaseTest is Helpers {
 
     // hooks
     address public ACTION_ORACLE_TEMP = address(0x111112);
+    SuperAccountingHook public superAccountingHook;
     ApproveERC20Hook public approveErc20Hook;
     TransferERC20Hook public transferErc20Hook;
     Deposit4626VaultHook public deposit4626VaultHook;
@@ -61,8 +63,8 @@ abstract contract BaseTest is Helpers {
     RequestDeposit7540VaultHook public requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook public requestWithdraw7540VaultHook;
     AcrossExecuteOnDestinationHook public acrossExecuteOnDestinationHook;
-    DepositRedeem4626ActionOracle public depositRedeem4626ActionOracle;
-    DepositRedeem5115ActionOracle public depositRedeem5115ActionOracle;
+    ERC4626YieldSourceOracle public erc4626YieldSourceOracle;
+    ERC5115YieldSourceOracle public erc5115YieldSourceOracle;
 
     function setUp() public virtual {
         arbitrumFork = vm.createSelectFork(arbitrumUrl);
@@ -81,6 +83,8 @@ abstract contract BaseTest is Helpers {
         vm.label(address(spokePoolV3Mock), "SpokePoolV3Mock");
 
         // deploy hooks
+        superAccountingHook = new SuperAccountingHook(address(superRegistry), address(this));
+        vm.label(address(superAccountingHook), "SuperAccountingHook");
         approveErc20Hook = new ApproveERC20Hook(address(superRegistry), address(this));
         vm.label(address(approveErc20Hook), "ApproveERC20Hook");
         transferErc20Hook = new TransferERC20Hook(address(superRegistry), address(this));
@@ -102,10 +106,10 @@ abstract contract BaseTest is Helpers {
         vm.label(address(acrossExecuteOnDestinationHook), "AcrossExecuteOnDestinationHook");
 
         // action oracles
-        depositRedeem4626ActionOracle = new DepositRedeem4626ActionOracle();
-        vm.label(address(depositRedeem4626ActionOracle), "DepositRedeem4626ActionOracle");
-        depositRedeem5115ActionOracle = new DepositRedeem5115ActionOracle();
-        vm.label(address(depositRedeem5115ActionOracle), "DepositRedeem5115ActionOracle");
+        erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
+        vm.label(address(erc4626YieldSourceOracle), "ERC4626YieldSourceOracle");
+        erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
+        vm.label(address(erc5115YieldSourceOracle), "ERC5115YieldSourceOracle");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -114,6 +118,54 @@ abstract contract BaseTest is Helpers {
     function _bound(uint256 amount_) internal pure returns (uint256) {
         amount_ = bound(amount_, SMALL, LARGE);
         return amount_;
+    }
+
+    function _createApproveHookData(
+        address _underlying,
+        address yieldSourceAddress,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(_underlying, yieldSourceAddress, amount);
+    }
+
+    function _createDepositHookData(
+        address account,
+        address yieldSourceAddress,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(yieldSourceAddress, account, amount);
+    }
+
+    function _createWithdrawHookData(
+        address account,
+        address yieldSourceAddress,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(yieldSourceAddress, account, account, amount);
+    }
+
+    function _createSuperAccountingHookData(
+        address account,
+        address yieldSourceOracle,
+        address yieldSourceAddress
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(account, yieldSourceOracle, yieldSourceAddress);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -57,28 +57,28 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     function execute(bytes calldata data) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-        _execute(msg.sender, abi.decode(data, (Hooks)));
+        _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
     }
 
     /// @inheritdoc ISuperExecutor
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
         if (!_initialized[account]) revert NOT_INITIALIZED();
         // check if we need anything else here
-        _execute(account, abi.decode(data, (Hooks)));
+        _execute(account, abi.decode(data, (ExecutorEntry)));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _execute(address account, Hooks memory hooks) private {
+    function _execute(address account, ExecutorEntry memory entry) private {
         // execute each strategy
-        uint256 hooksLen = hooks.hooksAddresses.length;
+        uint256 hooksLen = entry.hooksAddresses.length;
         for (uint256 i; i < hooksLen;) {
             // fill prevHook
-            address prevHook = (i != 0) ? hooks.addresses[i - 1] : address(0);
+            address prevHook = (i != 0) ? entry.hooksAddresses[i - 1] : address(0);
 
             // execute current hook
-            _processHook(account, ISuperHook(hooks.addresses[i]), prevHook, hooks.data[i]);
+            _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
 
             // go to next hook
             unchecked {
@@ -87,14 +87,14 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         }
     }
 
-    function _processHook(address account, ISuperHook superHook, address prevHook, bytes memory hookData) private {
+    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) private {
         // run hook preExecute
-        superHook.preExecute(prevHook, hookData);
+        hook.preExecute(prevHook, hookData);
 
         // run hook execute
-        _execute(account, superHook.build(prevHook, hookData));
+        _execute(account, hook.build(prevHook, hookData));
 
         // run hook postExecute
-        superHook.postExecute(prevHook, hookData);
+        hook.postExecute(prevHook, hookData);
     }
 }

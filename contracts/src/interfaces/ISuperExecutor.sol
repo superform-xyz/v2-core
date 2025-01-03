@@ -2,9 +2,9 @@
 pragma solidity >=0.8.28;
 
 interface ISuperExecutor {
-    struct Hooks {
-        address[] addresses;
-        bytes[] data;
+    struct ExecutorEntry {
+        address[] hooksAddresses;
+        bytes[] hooksData;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -13,8 +13,6 @@ interface ISuperExecutor {
     error NOT_AUTHORIZED();
     error NOT_INITIALIZED();
     error ALREADY_INITIALIZED();
-
-    /*//////////////////////////////////////////////////////////////
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS

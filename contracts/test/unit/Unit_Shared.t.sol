@@ -12,14 +12,14 @@ import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
 import { ISharedStateReader } from "src/interfaces/state/ISharedStateReader.sol";
 import { ISharedStateWriter } from "src/interfaces/state/ISharedStateWriter.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
+import { ISuperLedger } from "src/interfaces/accounting/ISuperLedger.sol";
 import { ISentinel } from "src/interfaces/sentinel/ISentinel.sol";
 
 import { SuperRbac } from "../../src/settings/SuperRbac.sol";
 import { SharedState } from "../../src/state/SharedState.sol";
 import { SuperRegistry } from "../../src/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
-import { SuperActions } from "../../src/strategies/SuperActions.sol";
+import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 
@@ -42,7 +42,7 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     // core
     ISuperRbac public superRbac;
     SharedState public sharedState;
-    ISuperActions public superActions;
+    ISuperLedger public superLedger;
     ISuperExecutor public superExecutor;
     ISentinel public superPositionSentinel;
     ISharedStateReader public sharedStateReader;
@@ -72,8 +72,8 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         superRbac = ISuperRbac(address(new SuperRbac(address(this))));
         vm.label(address(superRbac), "superRbac");
 
-        superActions = ISuperActions(address(new SuperActions(address(superRegistry))));
-        vm.label(address(superActions), "superActions");
+        superLedger = ISuperLedger(address(new SuperLedger(address(superRegistry))));
+        vm.label(address(superLedger), "superLedger");
 
         superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(superRegistry))));
         vm.label(address(superPositionSentinel), "superPositionSentinel");
@@ -127,7 +127,9 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
                                  INTERNAL
     //////////////////////////////////////////////////////////////*/
     function _getExecOps(bytes memory data) internal returns (UserOpData memory) {
-        return instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator));
+        return instance.getExecOps(
+            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
+        );
     }
 
     function executeOp(UserOpData memory userOpData) public {
@@ -135,7 +137,7 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
     }
 
     function _setSuperRegistryAddresses() internal {
-        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_ACTIONS_ID(), address(superActions));
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_LEDGER_ID(), address(superLedger));
         SuperRegistry(address(superRegistry)).setAddress(
             superRegistry.SUPER_POSITION_SENTINEL_ID(), address(superPositionSentinel)
         );
@@ -148,15 +150,14 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
     }
 
-    function _setRoles() internal {
-        superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
-    }
+    function _setRoles() internal { }
 
     function getAction(string memory _name) internal view returns (uint256) {
         return ACTION[bytes32(bytes(_name))];
     }
 
     function _performRegistrations() internal {
+        /*
         vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
 
         // Configure ERC4626 yield source
@@ -216,5 +217,6 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         allActions.push(ACTION["4626_DEPOSIT_ACROSS"]);
         console.log("4626_DEPOSIT_ACROSS", ACTION["4626_DEPOSIT_ACROSS"]);
         vm.stopPrank();
+        */
     }
 }
