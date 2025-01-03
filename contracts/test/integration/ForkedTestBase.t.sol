@@ -424,8 +424,8 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](2);
-        hooksData[0] = abi.encode(_underlying, yieldSourceAddress, amount);
-        hooksData[1] = abi.encode(yieldSourceAddress, account, amount);
+        hooksData[0] = abi.encodePacked(_underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = abi.encodePacked(yieldSourceAddress, account, amount, false);
     }
 
     function _createWithdrawActionData(
@@ -438,7 +438,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](1);
-        hooksData[0] = abi.encode(yieldSourceAddress, account, account, amount);
+        hooksData[0] = abi.encodePacked(yieldSourceAddress, account, account, amount, false);
     }
 
     function _createDepositWithdrawActionData(
@@ -452,9 +452,9 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         returns (bytes[] memory hooksData)
     {
         hooksData = new bytes[](3);
-        hooksData[0] = abi.encode(_underlying, yieldSourceAddress, amount);
-        hooksData[1] = abi.encode(yieldSourceAddress, account, amount);
-        hooksData[2] = abi.encode(yieldSourceAddress, account, account, 100);
+        hooksData[0] = abi.encodePacked(_underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = abi.encodePacked(yieldSourceAddress, account, amount, false);
+        hooksData[2] = abi.encodePacked(yieldSourceAddress, account, account, uint256(100), false);
     }
 
     function _setSuperRegistryAddresses() internal {
