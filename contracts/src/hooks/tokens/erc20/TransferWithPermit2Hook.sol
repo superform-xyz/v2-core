@@ -4,21 +4,33 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { IPermit2Single } from "../../../interfaces/vendors/uniswap/permit2/IPermit2Single.sol";
 
-contract TransferERC20Hook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+contract TransferWithPermit2Hook is BaseHook, ISuperHook {
+    using SafeCast for uint256;
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    address public permit2;
+
+    constructor(address registry_, address author_, address permit2_) BaseHook(registry_, author_) {
+        if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
+        permit2 = permit2_;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-
     function build(
         address prevHook,
         bytes memory data
@@ -28,20 +40,24 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address from = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 72);
+        uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
+        address token = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+        bool usePrevHookAmount = _decodeBool(data, 80);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).outAmount().toUint160();
         }
 
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (token == address(0)) revert ADDRESS_NOT_VALID();
+        if (token == address(0) || from == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
+        executions[0] = Execution({
+            target: address(permit2),
+            value: 0,
+            callData: abi.encodeCall(IPermit2Single.transferFrom, (from, to, amount, token))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -61,8 +77,8 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address token = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
         return IERC20(token).balanceOf(to);
     }
 }

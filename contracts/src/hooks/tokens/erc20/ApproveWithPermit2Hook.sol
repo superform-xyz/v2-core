@@ -4,16 +4,26 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/IAllowanceTransfer.sol";
 
-contract ApproveERC20Hook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+contract ApproveWithPermit2Hook is BaseHook, ISuperHook {
+    using SafeCast for uint256;
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    address public permit2;
+
+    constructor(address registry_, address author_, address permit2_) BaseHook(registry_, author_) {
+        if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
+        permit2 = permit2_;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -30,20 +40,22 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
     {
         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 72);
+        uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
+        uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 60, 6), 0));
+        bool usePrevHookAmount = _decodeBool(data, 66);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).outAmount().toUint160();
         }
 
-        if (amount == 0) revert AMOUNT_NOT_VALID();
         if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();
 
-        executions = new Execution[](2);
-        executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, 0)) });
-        executions[1] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, amount)) });
+        executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(permit2),
+            value: 0,
+            callData: abi.encodeCall(IAllowanceTransfer.approve, (token, spender, amount, expiration))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -51,11 +63,11 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external {
-        outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
-        outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
     }
 }
