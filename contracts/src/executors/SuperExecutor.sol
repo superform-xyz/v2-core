@@ -7,10 +7,9 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
+import { ISuperHook } from "../interfaces/ISuperHook.sol";
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
-import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
@@ -18,19 +17,13 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) internal _initialized;
 
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }  
-
+    constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
         if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
         _;
-    }
-
-    /// @inheritdoc ISuperExecutor
-    function superActions() public view returns (address) {
-        return superRegistry.getAddress(superRegistry.SUPER_ACTIONS_ID());
     }
 
     function isInitialized(address account) external view returns (bool) {
@@ -56,6 +49,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
+
     function onUninstall(bytes calldata) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
@@ -63,98 +57,28 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     function execute(bytes calldata data) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-        _execute(msg.sender, abi.decode(data, (ExecutorEntry[])));
+        _execute(msg.sender, abi.decode(data, (Hooks)));
     }
 
     /// @inheritdoc ISuperExecutor
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
         if (!_initialized[account]) revert NOT_INITIALIZED();
         // check if we need anything else here
-        _execute(account, abi.decode(data, (ExecutorEntry[])));
+        _execute(account, abi.decode(data, (Hooks)));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _execute(address account, ExecutorEntry[] memory entries) private {
-        uint256 actionLen = entries.length;
-        if (actionLen == 0) revert DATA_NOT_VALID();
-
+    function _execute(address account, Hooks memory hooks) private {
         // execute each strategy
-        address actionLastHook = address(0);
-        for (uint256 i; i < actionLen;) {
-            ExecutorEntry memory _entry = entries[i];
-
-            // validate action
-            _validateAction(_entry);
-
-            // retrieve hooks
-            address[] memory hooks = _getActionHooks(_entry);
-
-            // execute action
-            _executeAction(account, _entry, hooks, actionLastHook);
-
-            // set last hook for next action
-            actionLastHook = hooks[hooks.length - 1];
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _validateAction(ExecutorEntry memory entry) private pure {
-        if (entry.actionId == type(uint256).max && entry.yieldSourceAddress != address(0)) {
-            revert FINAL_TARGET_NOT_ZERO();
-        }
-    }
-
-    function _getActionHooks(ExecutorEntry memory entry) private view returns (address[] memory hooks) {
-        if (entry.actionId != type(uint256).max) {
-            return ISuperActions(superActions()).getActionLogic(entry.actionId).hooks;
-        }
-        return entry.nonMainActionHooks;
-    }
-
-    function _executeAction(
-        address account,
-        ExecutorEntry memory entry,
-        address[] memory hooks,
-        address prevActionHook
-    )
-        private
-    {
-        // execute all hooks for current action
-        _executeActionHooks(account, hooks, entry.hooksData, prevActionHook);
-
-        // update accounting for main action
-        if (entry.actionId != type(uint256).max) {
-            ISuperActions.ActionLogic memory actionLogic = ISuperActions(superActions()).getActionLogic(entry.actionId);
-            uint256 accountingAmount = ISuperHookResult(hooks[actionLogic.shareDeltaHookIndex]).outAmount();
-            ISuperActions(superActions()).updateAccounting(
-                account,
-                entry.actionId,
-                entry.yieldSourceAddress,
-                actionLogic.actionType == ISuperActions.ActionType.INFLOW,
-                accountingAmount
-            );
-        }
-    }
-
-    function _executeActionHooks(
-        address account,
-        address[] memory hooks,
-        bytes[] memory hooksData,
-        address prevActionHook
-    )
-        private
-    {
-        uint256 hooksLength = hooks.length;
-        for (uint256 i; i < hooksLength;) {
+        uint256 hooksLen = hooks.hooksAddresses.length;
+        for (uint256 i; i < hooksLen;) {
             // fill prevHook
-            address prevHook = (i == 0) ? prevActionHook : hooks[i - 1];
+            address prevHook = (i != 0) ? hooks.addresses[i - 1] : address(0);
 
             // execute current hook
-            _processHook(account, ISuperHook(hooks[i]), prevHook, hooksData[i]);
+            _processHook(account, ISuperHook(hooks.addresses[i]), prevHook, hooks.data[i]);
 
             // go to next hook
             unchecked {
@@ -163,14 +87,14 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         }
     }
 
-    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) private {
+    function _processHook(address account, ISuperHook superHook, address prevHook, bytes memory hookData) private {
         // run hook preExecute
-        hook.preExecute(prevHook, hookData);
+        superHook.preExecute(prevHook, hookData);
 
         // run hook execute
-        _execute(account, hook.build(prevHook, hookData));
+        _execute(account, superHook.build(prevHook, hookData));
 
         // run hook postExecute
-        hook.postExecute(prevHook, hookData);
+        superHook.postExecute(prevHook, hookData);
     }
 }
