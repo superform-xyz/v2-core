@@ -107,7 +107,7 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         _setRoles();
 
         // register action
-        _performRegistrations();
+        _setupSuperLedger();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -157,67 +157,20 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         return ACTION[bytes32(bytes(_name))];
     }
 
-    function _performRegistrations() internal {
-        /*
-        vm.startPrank(SUPER_ACTIONS_CONFIGURATOR);
-
-        // Configure ERC4626 yield source
-        ISuperActions.YieldSourceConfig memory erc4626Config = ISuperActions.YieldSourceConfig({
-            yieldSourceId: "ERC4626",
-            metadataOracle: address(depositRedeem4626ActionOracle),
-            actions: new ISuperActions.ActionConfig[](2)
+    function _setupSuperLedger() internal {
+        vm.startPrank(MANAGER);
+        address[] memory mainHooks = new address[](2);
+        mainHooks[0] = address(deposit4626VaultHook);
+        mainHooks[1] = address(withdraw4626VaultHook);
+        ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
+        configs[0] = ISuperLedger.HookRegistrationConfig({
+            mainHooks: mainHooks,
+            yieldSourceOracle: address(erc4626YieldSourceOracle),
+            feePercent: 100,
+            vaultShareToken: address(0), // this is auto set because its standardized yield
+            feeRecipient: SuperRegistry(address(superRegistry)).getAddress(superRegistry.PAYMASTER_ID())
         });
-
-        // Deposit action (approve + deposit)
-        address[] memory depositHooks = new address[](2);
-        depositHooks[0] = address(approveErc20Hook);
-        depositHooks[1] = address(deposit4626VaultHook);
-
-        erc4626Config.actions[0] = ISuperActions.ActionConfig({
-            hooks: depositHooks,
-            actionType: ISuperActions.ActionType.INFLOW,
-            shareDeltaHookIndex: 1 // deposit4626VaultHook provides share delta
-         });
-
-        // Withdraw action
-        address[] memory withdrawHooks = new address[](1);
-        withdrawHooks[0] = address(withdraw4626VaultHook);
-
-        erc4626Config.actions[1] = ISuperActions.ActionConfig({
-            hooks: withdrawHooks,
-            actionType: ISuperActions.ActionType.OUTFLOW,
-            shareDeltaHookIndex: 0 // withdraw4626VaultHook provides share delta
-         });
-
-        // Register ERC4626 actions
-        uint256[] memory erc4626ActionIds = superActions.registerYieldSourceAndActions(erc4626Config);
-
-        // Store action IDs in mapping
-        ACTION["4626_DEPOSIT"] = erc4626ActionIds[0];
-        ACTION["4626_WITHDRAW"] = erc4626ActionIds[1];
-
-        // Add to allActions array
-        allActions.push(erc4626ActionIds[0]);
-        allActions.push(erc4626ActionIds[1]);
-
-        // Log action IDs
-        console.log("4626_DEPOSIT", erc4626ActionIds[0]);
-        console.log("4626_WITHDRAW", erc4626ActionIds[1]);
-
-        // approve + 4626 deposit + across
-        // uses separate register method because yield source is already registered
-        /// @dev WARNING: the last 2 hooks here should not be part of this main action (which is really just
-        /// 4626_DEPOSIT) TODO
-        address[] memory hooks = new address[](4);
-        hooks[0] = address(approveErc20Hook);
-        hooks[1] = address(deposit4626VaultHook);
-        hooks[2] = address(approveErc20Hook);
-        hooks[3] = address(acrossExecuteOnDestinationHook);
-        ACTION["4626_DEPOSIT_ACROSS"] =
-            superActions.registerAction(hooks, "ERC4626", ISuperActions.ActionType.INFLOW, 1);
-        allActions.push(ACTION["4626_DEPOSIT_ACROSS"]);
-        console.log("4626_DEPOSIT_ACROSS", ACTION["4626_DEPOSIT_ACROSS"]);
+        superLedger.setYieldSourceOracles(configs);
         vm.stopPrank();
-        */
     }
 }

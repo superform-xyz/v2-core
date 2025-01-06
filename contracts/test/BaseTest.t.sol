@@ -41,6 +41,7 @@ abstract contract BaseTest is Helpers {
     address public SUPER_ACTIONS_CONFIGURATOR;
     address public user1;
     address public user2;
+    address public MANAGER;
 
     uint256 public mainnetFork;
     uint256 public arbitrumFork;
@@ -73,6 +74,7 @@ abstract contract BaseTest is Helpers {
         // deploy accounts
         user1 = _deployAccount(USER1_KEY, "USER1");
         user2 = _deployAccount(USER2_KEY, "USER2");
+        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
         SUPER_ACTIONS_CONFIGURATOR = _deployAccount(SUPER_ACTIONS_CONFIGURATOR_KEY, "SUPER_ACTIONS_CONFIGURATOR");
 
         superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
