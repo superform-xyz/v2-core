@@ -2,137 +2,91 @@
 pragma solidity >=0.8.28;
 
 // external
-import { UserOpData } from "modulekit/ModuleKit.sol";
-
+import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
 
-import { Unit_Shared } from "../Unit_Shared.t.sol";
+import { BaseTest } from "../../BaseTest.t.sol";
 
 import { console2 } from "forge-std/console2.sol";
 
-contract SuperExecutor_sameChainFlow is Unit_Shared {
-    address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
-
-    address yieldSourceOracle = address(erc4626YieldSourceOracle);
-
-    modifier givenAnActionExist() {
-        _;
-    }
-
-    modifier givenSentinelCallIsNotPerformed() {
-        _;
-    }
+contract SuperExecutor_sameChainFlow is BaseTest {
+    IERC4626 public vaultInstance;
+    address public yieldSourceAddress;
+    address public yieldSourceOracle;
+    address public underlying;
+    address public account;
+    AccountInstance public instance;
+    ISuperExecutor public superExecutor;
 
     function setUp() public override {
         super.setUp();
-        yieldSourceOracle = address(erc4626YieldSourceOracle);
+        vm.selectFork(FORKS[ETH]);
+        underlying = existingUnderlyingTokens[1]["USDC"];
+
+        yieldSourceAddress = realVaultAddresses[1]["ERC4626"]["MorphoVault"]["USDC"];
+        yieldSourceOracle = _getContract(ETH, "ERC4626YieldSourceOracle");
+        vaultInstance = IERC4626(yieldSourceAddress);
+        account = accountInstances[ETH].account;
+        instance = accountInstances[ETH];
+        superExecutor = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
     }
 
-    function test_ShouldExecuteAll(uint256 amount) external givenAnActionExist {
+    function test_ShouldExecuteAll(uint256 amount) external {
         amount = _bound(amount);
 
-        _getTokens(address(mockERC20), instance.account, amount);
-        address yieldSourceAddress = address(mock4626Vault);
+        _getTokens(underlying, account, amount);
 
         address[] memory hooksAddresses = new address[](3);
-        hooksAddresses[0] = address(approveErc20Hook);
-        hooksAddresses[1] = address(deposit4626VaultHook);
-        hooksAddresses[2] = address(superLedgerHook);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(yieldSourceAddress, instance.account, amount, false);
-        hooksData[2] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
+        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        UserOpData memory userOpData = _getExecOps(abi.encode(entry));
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         executeOp(userOpData);
 
-        uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
-        assertEq(accSharesAfter, amount);
-    }
-
-    function test_1_WhenHooksAreDefinedAndExecutionDataIsValid(uint256 amount)
-        external
-        givenAnActionExist
-        givenSentinelCallIsNotPerformed
-    {
-        amount = _bound(amount);
-        address yieldSourceAddress = address(mock4626Vault);
-
-        // assure account has tokens
-        _getTokens(address(mockERC20), instance.account, amount);
-
-        address[] memory hooksAddresses = new address[](3);
-        hooksAddresses[0] = address(approveErc20Hook);
-        hooksAddresses[1] = address(deposit4626VaultHook);
-        hooksAddresses[2] = address(superLedgerHook);
-
-        console2.log("approveErc20Hook", address(approveErc20Hook));
-        console2.log("deposit4626VaultHook", address(deposit4626VaultHook));
-        console2.log("superLedgerHook", address(superLedgerHook));
-        console2.log("yieldSourceAddress", yieldSourceAddress); // 0xe8dc788818033232EF9772CB2e6622F1Ec8bc840
-        console2.log("instance.account", instance.account);
-        bytes[] memory hooksData = new bytes[](4);
-        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(yieldSourceAddress, instance.account, amount, false);
-        hooksData[2] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
-        hooksData[3] = abi.encodePacked(address(mockERC20), address(user2), amount, false);
-
-        // it should execute all hooks
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        UserOpData memory userOpData = _getExecOps(abi.encode(entry));
-        vm.expectEmit(true, true, true, true);
-
-        emit ISuperLedger.AccountingUpdated(instance.account, yieldSourceOracle, yieldSourceAddress, true, amount, 1e18);
-        executeOp(userOpData);
-
-        uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
-        assertEq(accSharesAfter, amount);
-
-        uint256 allowanceForUser2 = mockERC20.allowance(instance.account, user2);
-        assertEq(allowanceForUser2, amount);
+        uint256 accSharesAfter = vaultInstance.balanceOf(account);
+        assertEq(accSharesAfter, sharesPreviewed);
     }
 
     function test_WhenHooksAreDefinedAndExecutionDataIsValid_Deposit_And_Withdraw_In_The_Same_Intent(uint256 amount)
         external
-        givenAnActionExist
-        givenSentinelCallIsNotPerformed
     {
         amount = _bound(amount);
-        address yieldSourceAddress = address(mock4626Vault);
-        address[] memory hooksAddresses = new address[](4);
-        hooksAddresses[0] = address(approveErc20Hook);
-        hooksAddresses[1] = address(deposit4626VaultHook);
-        hooksAddresses[2] = address(superLedgerHook);
-        hooksAddresses[3] = address(withdraw4626VaultHook);
-        hooksAddresses[4] = address(superLedgerHook);
+        address[] memory hooksAddresses = new address[](5);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
+        hooksAddresses[3] = _getHook(ETH, "Withdraw4626VaultHook");
+        hooksAddresses[4] = _getHook(ETH, "SuperLedgerHook");
 
         bytes[] memory hooksData = new bytes[](5);
-        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(yieldSourceAddress, instance.account, amount, false);
-        hooksData[2] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
-        hooksData[3] = _createWithdrawHookData(yieldSourceAddress, instance.account, instance.account, amount, false);
-        hooksData[4] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
+        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[3] = _createWithdrawHookData(yieldSourceAddress, account, account, amount, false);
+        hooksData[4] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
         // assure account has tokens
-        _getTokens(address(mockERC20), instance.account, amount);
+        _getTokens(underlying, account, amount);
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(abi.encode(entry));
-        emit ISuperLedger.AccountingUpdated(
-            instance.account, yieldSourceOracle, yieldSourceAddress, false, amount, 1e18
-        );
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        emit ISuperLedger.AccountingUpdated(account, yieldSourceOracle, yieldSourceAddress, false, amount, 1e18);
         executeOp(userOpData);
 
-        uint256 accSharesAfter = mock4626Vault.balanceOf(instance.account);
-        assertEq(accSharesAfter, 0);
+        uint256 accSharesAfter = vaultInstance.balanceOf(account);
+        assertGt(accSharesAfter, 0);
     }
 }

@@ -67,6 +67,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
+        isInflow = true;
     }
 
     /*//////////////////////////////////////////////////////////////

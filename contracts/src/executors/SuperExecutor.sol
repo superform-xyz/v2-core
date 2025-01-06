@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 // external
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
@@ -10,6 +11,8 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
+
+import { console2 } from "forge-std/console2.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
@@ -76,7 +79,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         for (uint256 i; i < hooksLen;) {
             // fill prevHook
             address prevHook = (i != 0) ? entry.hooksAddresses[i - 1] : address(0);
-
+            console2.log("prevHook", prevHook);
             // execute current hook
             _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
 
@@ -91,8 +94,12 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         // run hook preExecute
         hook.preExecute(prevHook, hookData);
 
+        Execution[] memory executions = hook.build(prevHook, hookData);
+
         // run hook execute
-        _execute(account, hook.build(prevHook, hookData));
+        if (executions.length > 0) {
+            _execute(account, executions);
+        }
 
         // run hook postExecute
         hook.postExecute(prevHook, hookData);

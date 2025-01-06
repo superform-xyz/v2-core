@@ -13,9 +13,7 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 contract Deposit4626VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) {
-        isInflow = true;
-    }
+    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -59,6 +57,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
+        isInflow = true;
     }
 
     /*//////////////////////////////////////////////////////////////

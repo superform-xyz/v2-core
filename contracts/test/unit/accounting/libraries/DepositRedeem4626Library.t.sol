@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "../../../BaseTest.t.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
 import { ERC4626YieldSourceOracleLibrary } from
@@ -9,13 +9,11 @@ import { ERC4626YieldSourceOracleLibrary } from
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract DepositRedeem4626LibraryTest is BaseTest {
+contract DepositRedeem4626LibraryTest is Helpers {
     Mock4626Vault vault;
     MockERC20 underlying;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public virtual {
         underlying = new MockERC20("Underlying", "UND", 18);
 
         vault = new Mock4626Vault(IERC20(address(underlying)), "Vault", "VAULT");

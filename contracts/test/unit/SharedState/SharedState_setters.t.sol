@@ -2,22 +2,29 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit,
-    ModuleKitHelpers,
-    AccountInstance,
-    UserOpData
-} from "modulekit/ModuleKit.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { Unit_Shared } from "test/unit/Unit_Shared.t.sol";
+import { BaseTest } from "../../BaseTest.t.sol";
+import { ISharedStateWriter } from "../../../src/interfaces/state/ISharedStateWriter.sol";
+import { ISharedStateReader } from "../../../src/interfaces/state/ISharedStateReader.sol";
 
-contract SharedState_setters is Unit_Shared {
+contract SharedState_setters is BaseTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
+    ISharedStateWriter public sharedStateWriter;
+    ISharedStateReader public sharedStateReader;
+
     bytes32 public constant KEY = "0x123";
+
+    function setUp() public override {
+        super.setUp();
+        vm.selectFork(FORKS[ETH]);
+        sharedStateWriter = ISharedStateWriter(_getContract(ETH, "SharedState"));
+        sharedStateReader = ISharedStateReader(_getContract(ETH, "SharedState"));
+    }
 
     function test_WhenProvidedAnAddress() external {
         address value = address(1);

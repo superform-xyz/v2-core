@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "test/BaseTest.t.sol";
-import { MockERC20 } from "test/mocks/MockERC20.sol";
-import { Mock4626Vault } from "test/mocks/Mock4626Vault.sol";
-import { ERC4626YieldSourceOracle } from "src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
+import { ERC4626YieldSourceOracle } from "../../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract ERC4626YieldSourceOracleTest is BaseTest {
+contract ERC4626YieldSourceOracleTest is Helpers {
     ERC4626YieldSourceOracle oracle;
     MockERC20 underlying;
     Mock4626Vault vault;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public virtual {
         oracle = new ERC4626YieldSourceOracle();
         underlying = new MockERC20("Underlying", "UND", 18);
         vault = new Mock4626Vault(IERC20(address(underlying)), "Vault", "VAULT");

@@ -12,9 +12,7 @@ import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 
 contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) {
-        isInflow = true;
-    }
+    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -56,5 +54,7 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory) external pure { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external pure { }
+    function postExecute(address, bytes memory) external {
+        isInflow = true;
+    }
 }

@@ -1,45 +1,50 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+// external
+import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
+// Superform
+import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
 import { console } from "forge-std/console.sol";
-import { ForkedTestBase } from "./ForkedTestBase.t.sol";
+import { BaseTest } from "../BaseTest.t.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
-contract SameChainDepositRedeemFlowTest is ForkedTestBase {
+contract SameChainDepositRedeemFlowTest is BaseTest {
     IERC4626 public vaultInstance;
     address public yieldSourceAddress;
     address public yieldSourceOracle;
     address public underlying;
+    address public account;
+    AccountInstance public instance;
+    ISuperExecutor public superExecutor;
 
     function setUp() public override {
         super.setUp();
 
-        vm.selectFork(chainIds[0]);
+        vm.selectFork(FORKS[ETH]);
 
         underlying = existingUnderlyingTokens[1]["USDC"];
-        console.log("underlying", underlying);
 
         yieldSourceAddress = realVaultAddresses[1]["ERC4626"]["MorphoVault"]["USDC"];
-        console.log("yieldSourceAddress", yieldSourceAddress);
         yieldSourceOracle = _getContract(ETH, "ERC4626YieldSourceOracle");
         vaultInstance = IERC4626(yieldSourceAddress);
+        account = accountInstances[ETH].account;
+        instance = accountInstances[ETH];
+        superExecutor = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
     }
 
     function test_Deposit_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
-        address account = accountInstances[ETH].account;
-        console.log("account", account);
-
         uint256 amount = 1e8;
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        hooksAddresses[2] = _getHook(ETH, "SuperAccountingHook");
+        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
 
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
@@ -48,22 +53,18 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        ISuperExecutor superExecutor = ISuperExecutor(_getContract(chainIds[0], "SuperExecutor"));
-        vm.prank(account);
-        superExecutor.execute(abi.encode(entry));
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
     }
 
     function test_Deposit_Redeem_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
-        address account = accountInstances[ETH].account;
-
         uint256 amount = 1e8;
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        hooksAddresses[2] = _getHook(ETH, "SuperAccountingHook");
+        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
@@ -72,18 +73,18 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        ISuperExecutor superExecutor = ISuperExecutor(_getContract(chainIds[0], "SuperExecutor"));
-
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
         emit ISuperLedger.AccountingUpdated(account, yieldSourceOracle, yieldSourceAddress, true, amount, 1e18);
-        vm.prank(account);
-        superExecutor.execute(abi.encode(entry));
+        executeOp(userOpData);
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
-        console.log("accSharesAfter", accSharesAfter);
+
         assertEq(accSharesAfter, vaultInstance.previewDeposit(amount));
-        hooksAddresses = new address[](1);
+
+        hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
+        hooksAddresses[1] = _getHook(ETH, "SuperLedgerHook");
         hooksData = new bytes[](2);
         hooksData[0] = _createWithdrawHookData(yieldSourceAddress, account, account, accSharesAfter, false);
         hooksData[1] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
@@ -91,10 +92,12 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
+        userOpData = _getExecOps(instance, superExecutor, abi.encode(entryWithdraw));
+
         vm.expectEmit(true, true, true, false);
         emit ISuperLedger.AccountingUpdated(account, yieldSourceOracle, yieldSourceAddress, false, accSharesAfter, 1e18);
-        vm.prank(account);
-        superExecutor.execute(abi.encode(entryWithdraw));
+
+        executeOp(userOpData);
 
         uint256 accSharesAfterWithdraw = vaultInstance.balanceOf(account);
         assertEq(accSharesAfterWithdraw, 0);

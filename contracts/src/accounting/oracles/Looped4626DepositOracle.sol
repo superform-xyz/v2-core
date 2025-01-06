@@ -6,8 +6,8 @@ import { Looped4626DepositYieldSourceOracleLibrary } from
 
 /// @title LoopedDeposit4626ActionOracle
 /// @author Superform Labs
-/// @notice Oracle for the Looped Deposit Action in 4626 Vaults
-contract Looped4626DepositActionOracle {
+/// @notice Oracle for the Looped Deposit  in 4626 Vaults
+contract Looped4626DepositOracle {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
