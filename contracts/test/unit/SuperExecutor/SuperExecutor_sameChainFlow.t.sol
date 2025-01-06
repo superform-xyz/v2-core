@@ -10,6 +10,8 @@ import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.so
 
 import { Unit_Shared } from "../Unit_Shared.t.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract SuperExecutor_sameChainFlow is Unit_Shared {
     address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
 
@@ -49,7 +51,7 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         assertEq(accSharesAfter, amount);
     }
 
-    function test_WhenHooksAreDefinedAndExecutionDataIsValid(uint256 amount)
+    function test_1_WhenHooksAreDefinedAndExecutionDataIsValid(uint256 amount)
         external
         givenAnActionExist
         givenSentinelCallIsNotPerformed
@@ -65,6 +67,10 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         hooksAddresses[1] = address(deposit4626VaultHook);
         hooksAddresses[2] = address(superLedgerHook);
 
+        console2.log("approveErc20Hook", address(approveErc20Hook));
+        console2.log("deposit4626VaultHook", address(deposit4626VaultHook));
+        console2.log("superLedgerHook", address(superLedgerHook));
+        console2.log("yieldSourceAddress", yieldSourceAddress); // 0xe8dc788818033232EF9772CB2e6622F1Ec8bc840
         bytes[] memory hooksData = new bytes[](4);
         hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount);
         hooksData[1] = _createDepositHookData(instance.account, yieldSourceAddress, amount);
