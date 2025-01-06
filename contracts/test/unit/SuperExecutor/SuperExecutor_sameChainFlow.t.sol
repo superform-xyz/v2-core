@@ -25,6 +25,11 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         _;
     }
 
+    function setUp() public override {
+        super.setUp();
+        yieldSourceOracle = address(erc4626YieldSourceOracle);
+    }
+
     function test_ShouldExecuteAll(uint256 amount) external givenAnActionExist {
         amount = _bound(amount);
 
@@ -37,9 +42,9 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         hooksAddresses[2] = address(superLedgerHook);
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount);
-        hooksData[1] = _createDepositHookData(instance.account, yieldSourceAddress, amount);
-        hooksData[2] = _createSuperAccountingHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(yieldSourceAddress, instance.account, amount, false);
+        hooksData[2] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -71,10 +76,11 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         console2.log("deposit4626VaultHook", address(deposit4626VaultHook));
         console2.log("superLedgerHook", address(superLedgerHook));
         console2.log("yieldSourceAddress", yieldSourceAddress); // 0xe8dc788818033232EF9772CB2e6622F1Ec8bc840
+        console2.log("instance.account", instance.account);
         bytes[] memory hooksData = new bytes[](4);
-        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount);
-        hooksData[1] = _createDepositHookData(instance.account, yieldSourceAddress, amount);
-        hooksData[2] = _createSuperAccountingHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(yieldSourceAddress, instance.account, amount, false);
+        hooksData[2] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
         hooksData[3] = abi.encodePacked(address(mockERC20), address(user2), amount, false);
 
         // it should execute all hooks
@@ -109,11 +115,11 @@ contract SuperExecutor_sameChainFlow is Unit_Shared {
         hooksAddresses[4] = address(superLedgerHook);
 
         bytes[] memory hooksData = new bytes[](5);
-        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount);
-        hooksData[1] = _createDepositHookData(instance.account, yieldSourceAddress, amount);
-        hooksData[2] = _createSuperAccountingHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
-        hooksData[3] = _createWithdrawHookData(instance.account, yieldSourceAddress, amount);
-        hooksData[4] = _createSuperAccountingHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createApproveHookData(address(mockERC20), yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(yieldSourceAddress, instance.account, amount, false);
+        hooksData[2] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[3] = _createWithdrawHookData(yieldSourceAddress, instance.account, instance.account, amount, false);
+        hooksData[4] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
         // assure account has tokens
         _getTokens(address(mockERC20), instance.account, amount);
 

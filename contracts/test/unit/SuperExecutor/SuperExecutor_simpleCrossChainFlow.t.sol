@@ -113,8 +113,9 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
         withdrawHooksAddresses[1] = address(superLedgerHook);
 
         withdrawHooksData = new bytes[](2);
-        withdrawHooksData[0] = _createWithdrawHookData(instance.account, yieldSourceAddress, amount);
-        withdrawHooksData[1] = _createSuperAccountingHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
+        withdrawHooksData[0] =
+            _createWithdrawHookData(yieldSourceAddress, instance.account, instance.account, amount, false);
+        withdrawHooksData[1] = _createSuperLedgerHookData(instance.account, yieldSourceOracle, yieldSourceAddress);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: withdrawHooksAddresses, hooksData: withdrawHooksData });

@@ -48,50 +48,54 @@ abstract contract Helpers is Test, Constants {
     //////////////////////////////////////////////////////////////*/
 
     function _createApproveHookData(
-        address _underlying,
-        address yieldSourceAddress,
-        uint256 amount
+        address token,
+        address spender,
+        uint256 amount,
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encode(_underlying, yieldSourceAddress, amount);
+        hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
     }
 
     function _createDepositHookData(
-        address account,
-        address yieldSourceAddress,
-        uint256 amount
+        address vault,
+        address receiver,
+        uint256 amount,
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encode(yieldSourceAddress, account, amount);
+        hookData = abi.encodePacked(vault, receiver, amount, usePrevHookAmount);
     }
 
     function _createWithdrawHookData(
-        address account,
-        address yieldSourceAddress,
-        uint256 amount
+        address vault,
+        address receiver,
+        address owner,
+        uint256 shares,
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encode(yieldSourceAddress, account, account, amount);
+        hookData = abi.encodePacked(vault, receiver, owner, shares, usePrevHookAmount);
     }
 
-    function _createSuperAccountingHookData(
-        address account,
+    function _createSuperLedgerHookData(
+        address user,
         address yieldSourceOracle,
-        address yieldSourceAddress
+        address yieldSource
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encode(account, yieldSourceOracle, yieldSourceAddress);
+        hookData = abi.encodePacked(user, yieldSourceOracle, yieldSource);
     }
 }

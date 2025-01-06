@@ -8,6 +8,8 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
@@ -21,6 +23,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     mapping(address yieldSourceOracle => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
 
     modifier onlyExecutor() {
+        console2.log("msg.sender", msg.sender);
         if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_AUTHORIZED();
         _;
     }

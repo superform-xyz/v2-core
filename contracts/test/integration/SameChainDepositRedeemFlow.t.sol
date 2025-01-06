@@ -42,9 +42,9 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         hooksAddresses[2] = _getHook(ETH, "SuperAccountingHook");
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount);
-        hooksData[1] = _createDepositHookData(account, yieldSourceAddress, amount);
-        hooksData[2] = _createSuperAccountingHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
+        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -65,9 +65,9 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
         hooksAddresses[2] = _getHook(ETH, "SuperAccountingHook");
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount);
-        hooksData[1] = _createDepositHookData(account, yieldSourceAddress, amount);
-        hooksData[2] = _createSuperAccountingHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
+        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -85,8 +85,8 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
         hooksData = new bytes[](2);
-        hooksData[0] = _createWithdrawHookData(account, yieldSourceOracle, accSharesAfter);
-        hooksData[1] = _createSuperAccountingHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createWithdrawHookData(yieldSourceAddress, account, account, accSharesAfter, false);
+        hooksData[1] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
