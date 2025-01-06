@@ -84,8 +84,8 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         assertEq(accSharesAfter, vaultInstance.previewDeposit(amount));
         hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createWithdrawHookData(account, yieldSourceOracle, yieldSourceAddress, accSharesAfter);
+        hooksData = new bytes[](2);
+        hooksData[0] = _createWithdrawHookData(account, yieldSourceOracle, accSharesAfter);
         hooksData[1] = _createSuperAccountingHookData(account, yieldSourceOracle, yieldSourceAddress);
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
@@ -94,7 +94,7 @@ contract SameChainDepositRedeemFlowTest is ForkedTestBase {
         vm.expectEmit(true, true, true, false);
         emit ISuperLedger.AccountingUpdated(account, yieldSourceOracle, yieldSourceAddress, false, accSharesAfter, 1e18);
         vm.prank(account);
-        superExecutor.execute(abi.encode(entry));
+        superExecutor.execute(abi.encode(entryWithdraw));
 
         uint256 accSharesAfterWithdraw = vaultInstance.balanceOf(account);
         assertEq(accSharesAfterWithdraw, 0);

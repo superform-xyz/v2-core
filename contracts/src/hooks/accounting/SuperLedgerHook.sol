@@ -48,7 +48,7 @@ contract SuperLedgerHook is BaseHook, ISuperHook {
             target: superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()),
             value: 0,
             callData: abi.encodeCall(
-                ISuperLedger.updateAccounting, (user, yieldSourceOracle, isInflow, yieldSource, amount)
+                ISuperLedger.updateAccounting, (user, yieldSourceOracle, yieldSource, isInflow, amount)
             )
         });
     }

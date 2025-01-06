@@ -42,4 +42,56 @@ abstract contract Helpers is Test, Constants {
         vm.label(_user, name_);
         return _user;
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 HOOK DATA CREATORS
+    //////////////////////////////////////////////////////////////*/
+
+    function _createApproveHookData(
+        address _underlying,
+        address yieldSourceAddress,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(_underlying, yieldSourceAddress, amount);
+    }
+
+    function _createDepositHookData(
+        address account,
+        address yieldSourceAddress,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(yieldSourceAddress, account, amount);
+    }
+
+    function _createWithdrawHookData(
+        address account,
+        address yieldSourceAddress,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(yieldSourceAddress, account, account, amount);
+    }
+
+    function _createSuperAccountingHookData(
+        address account,
+        address yieldSourceOracle,
+        address yieldSourceAddress
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encode(account, yieldSourceOracle, yieldSourceAddress);
+    }
 }

@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "../../BaseTest.t.sol";
-import { Helpers } from "../../utils/Helpers.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { Mock5115Vault } from "../../mocks/Mock5115Vault.sol";
-import { ERC5115YieldSourceOracleLibrary } from "../../../src/libraries/accounting/ERC5115YieldSourceOracleLibrary.sol";
+import { BaseTest } from "../../../BaseTest.t.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { Mock5115Vault } from "../../../mocks/Mock5115Vault.sol";
+import { ERC5115YieldSourceOracleLibrary } from
+    "../../../../src/libraries/accounting/ERC5115YieldSourceOracleLibrary.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
@@ -21,7 +22,8 @@ contract DepositRedeem5115LibraryTest is BaseTest {
 
     function test_get5115PricePerShare() public view {
         uint256 expectedPricePerShare = 1e18;
-        uint256 actualPricePerShare = ERC5115YieldSourceOracleLibrary.getPricePerShare(address(vault));
+        uint256 actualPricePerShare =
+            ERC5115YieldSourceOracleLibrary.getPricePerShare(address(vault), address(underlying));
         assertEq(actualPricePerShare, expectedPricePerShare);
     }
 

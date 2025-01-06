@@ -29,7 +29,7 @@ contract ERC5115YieldSourceOracle {
     /// @param assets The addresses of the assets
     /// @param yieldSourceAddresses The addresses of the yield sources
     /// @return prices The price per share per yield source
-    function getStrategyPrices(
+    function getPricePerShareMultiple(
         address[] memory assets,
         address[] memory yieldSourceAddresses
     )

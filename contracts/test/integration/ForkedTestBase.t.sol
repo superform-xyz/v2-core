@@ -21,7 +21,7 @@ import { AcrossBridgeGateway } from "../../src/bridges/AcrossBridgeGateway.sol";
 import { SuperPositionSentinel } from "../../src/sentinels/SuperPositionSentinel.sol";
 
 // hooks
-import { SuperAccountingHook } from "../../src/hooks/accounting/SuperAccountingHook.sol";
+import { SuperLedgerHook } from "../../src/hooks/accounting/SuperLedgerHook.sol";
 
 // tokens hooks
 // --- erc20
@@ -59,7 +59,7 @@ struct Addresses {
     ISentinel superPositionSentinel;
     SpokePoolV3Mock spokePoolV3Mock;
     AcrossBridgeGateway acrossBridgeGateway;
-    SuperAccountingHook superAccountingHook;
+    SuperLedgerHook superLedgerHook;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
@@ -211,9 +211,9 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
 
             /// @dev  hooks
 
-            A.superAccountingHook = new SuperAccountingHook(address(A.superRegistry), address(this));
-            vm.label(address(A.superAccountingHook), "SuperAccountingHook");
-            hookAddresses[chainIds[i]]["SuperAccountingHook"] = address(A.superAccountingHook);
+            A.superLedgerHook = new SuperLedgerHook(address(A.superRegistry), address(this));
+            vm.label(address(A.superLedgerHook), "SuperLedgerHook");
+            hookAddresses[chainIds[i]]["SuperLedgerHook"] = address(A.superLedgerHook);
 
             A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
             vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
@@ -420,14 +420,12 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         }
     }
 
-
-
     function _setSuperRegistryAddresses() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_ACTIONS_ID(), _getContract(chainIds[i], "SuperLedger")
+                superRegistry.SUPER_LEDGER_ID(), _getContract(chainIds[i], "SuperLedger")
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainIds[i], "SuperPositionSentinel")
@@ -458,8 +456,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
     function _setRoles() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
-            superRbac.setRole(SUPER_ACTIONS_CONFIGURATOR, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
+            //ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
         }
     }
 

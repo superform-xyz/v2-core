@@ -71,14 +71,14 @@ interface ISuperLedger {
 
     /// @notice Updates accounting for a user's yield source interaction
     /// @param user The user address
-    /// @param mainHook The main hook address
+    /// @param yieldSourceOracle The yield source oracle address
     /// @param yieldSource The yield source address
     /// @param isInflow Whether this is an inflow (true) or outflow (false)
     /// @param amount The amount of shares
     /// @return pps The price per share used for the accounting
     function updateAccounting(
         address user,
-        address mainHook,
+        address yieldSourceOracle,
         address yieldSource,
         bool isInflow,
         uint256 amount

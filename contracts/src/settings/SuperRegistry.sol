@@ -31,7 +31,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
 
     // -- registries
     /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_ACTIONS_ID = keccak256("SUPER_ACTIONS_ID");
+    bytes32 public constant SUPER_LEDGER_ID = keccak256("SUPER_LEDGER_ID");
 
     // -- sentinels
     /// @inheritdoc ISuperRegistry

@@ -107,10 +107,12 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     function getYieldSourceOracleConfigs(address[] calldata yieldSourceOracles)
         external
         view
-        returns (YieldSourceOracleConfig[] memory)
+        returns (YieldSourceOracleConfig[] memory configs)
     {
-        YieldSourceOracleConfig[] memory configs = new YieldSourceOracleConfig[](yieldSourceOracles.length);
-        for (uint256 i; i < yieldSourceOracles.length;) {
+        uint256 length = yieldSourceOracles.length;
+
+        configs = new YieldSourceOracleConfig[](length);
+        for (uint256 i; i < length;) {
             configs[i] = yieldSourceOracleConfig[yieldSourceOracles[i]];
             unchecked {
                 ++i;
