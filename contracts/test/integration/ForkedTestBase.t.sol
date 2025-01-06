@@ -460,7 +460,7 @@ contract ForkedTestBase is Helpers, RhinestoneModuleKit {
         }
     }
 
-    function _performRegistrations() internal {
+    function _performRegistrations() internal view {
         console.log("Registration");
         for (uint256 i; i < chainIds.length; ++i) {
             /*

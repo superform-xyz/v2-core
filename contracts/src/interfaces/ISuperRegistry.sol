@@ -72,4 +72,9 @@ interface ISuperRegistry {
     // -- paymaster
     /// @dev Get the ID of the paymaster.
     function PAYMASTER_ID() external view returns (bytes32);
+
+    // -- hooks
+    /// @dev Get the ID of the super ledger hook.
+    function SUPER_LEDGER_HOOK_ID() external view returns (bytes32);
+    
 }

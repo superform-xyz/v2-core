@@ -14,51 +14,57 @@ import { ISuperHook, ISuperHookResult } from "../../interfaces/ISuperHook.sol";
 
 contract SuperLedgerHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error NOT_AUTHORIZED();
+
+    modifier onlyExecutor() {
+        if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_AUTHORIZED();
+        _;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(
-        address prevHook,
-        bytes memory data
+        address,
+        bytes memory
     )
         external
-        view
+        pure
         override
         returns (Execution[] memory executions)
     {
-        address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-
-        /// @dev WARNING this must be on shares
-        uint256 amount = ISuperHookResult(prevHook).outAmount();
-        bool isInflow = ISuperHookResult(prevHook).isInflow();
-
-        if (amount == 0) {
-            revert AMOUNT_NOT_VALID();
-        }
-        if (user == address(0) || yieldSourceOracle == address(0) || yieldSource == address(0)) {
-            revert ADDRESS_NOT_VALID();
-        }
-
-        executions = new Execution[](1);
-        executions[0] = Execution({
-            target: superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()),
-            value: 0,
-            callData: abi.encodeCall(
-                ISuperLedger.updateAccounting, (user, yieldSourceOracle, yieldSource, isInflow, amount)
-            )
-        });
+        return new Execution[](0);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external { }
+    function preExecute(address, bytes memory) external pure { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external { }
+    function postExecute(address prevHook, bytes memory data) external onlyExecutor {
+        ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
+
+        address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+         /// @dev WARNING this must be on shares
+        uint256 amount = ISuperHookResult(prevHook).outAmount();
+        bool isInflow = ISuperHookResult(prevHook).isInflow();
+
+        ledger.updateAccounting(user, yieldSourceOracle, yieldSource, isInflow, amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getAddress(bytes32 id_) private view returns (address) {
+        return superRegistry.getAddress(id_);
+    }
 }

@@ -148,6 +148,7 @@ contract Unit_Shared is BaseTest, RhinestoneModuleKit {
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_EXECUTOR_ID(), address(superExecutor));
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.SHARED_STATE_ID(), address(sharedState));
         SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
+        SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_LEDGER_HOOK_ID(), address(superLedgerHook));
     }
 
     function _setRoles() internal { }
