@@ -15,7 +15,7 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 
 /// @title Deposit4626VaultHook
 /// @dev data has the following structure
-/// @notice         address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
@@ -57,13 +57,13 @@ contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, bytes memory data) external onlyExecutor {
         // store current balance
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
         _performAccounting(data, superRegistry, outAmount, true);
     }

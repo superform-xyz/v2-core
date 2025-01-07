@@ -77,12 +77,12 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external pure {}
+    function preExecute(address, bytes memory) external view onlyExecutor {}
             
         
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external pure {}
+    function postExecute(address, bytes memory) external view onlyExecutor {}
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

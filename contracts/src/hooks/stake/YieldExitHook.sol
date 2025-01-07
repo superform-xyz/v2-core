@@ -33,12 +33,12 @@ contract YieldExitHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = outAmount - _getBalance(data);
     }
 

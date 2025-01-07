@@ -34,8 +34,8 @@ contract SomelierUnbondAllHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external pure { }
+    function preExecute(address, bytes memory data) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external pure { }
+    function postExecute(address, bytes memory data) external view onlyExecutor { }
 }

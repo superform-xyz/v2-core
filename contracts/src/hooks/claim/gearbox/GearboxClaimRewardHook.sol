@@ -30,13 +30,13 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external
+    function preExecute(address, bytes memory data) external onlyExecutor
     {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
     }
 }
