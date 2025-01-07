@@ -12,7 +12,7 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 
 /// @title SomelierUnbondHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 contract SomelierUnbondHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
@@ -22,14 +22,17 @@ contract SomelierUnbondHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 
-        if (vault == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: vault, value: 0, callData: abi.encodeCall(ISomelierCellarStaking.unbond, (depositId)) });
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(ISomelierCellarStaking.unbond, (depositId))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////

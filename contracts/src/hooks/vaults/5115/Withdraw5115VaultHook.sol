@@ -41,8 +41,8 @@ contract Withdraw5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
@@ -54,13 +54,13 @@ contract Withdraw5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || tokenOut == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)|| tokenOut == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: vault,
+            target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC5115.redeem, (receiver, shares, tokenOut, minTokenOut, burnFromInternalBalance))
+            callData: abi.encodeCall(IERC5115.redeem, (account, shares, tokenOut, minTokenOut, burnFromInternalBalance))
         });
     }
 
@@ -82,9 +82,9 @@ contract Withdraw5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        address asset = IERC5115(vault).asset();
-        return IERC20(asset).balanceOf(receiver);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address asset = IERC5115(yieldSource).asset();
+        return IERC20(asset).balanceOf(account);
     }
 }

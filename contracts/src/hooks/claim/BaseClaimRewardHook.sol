@@ -13,9 +13,9 @@ abstract contract BaseClaimRewardHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _build(address vault, bytes memory encoded) internal pure returns (Execution[] memory executions) {
+    function _build(address yieldSource, bytes memory encoded) internal pure returns (Execution[] memory executions) {
         executions = new Execution[](1);
-        executions[0] = Execution({ target: vault, value: 0, callData: encoded });
+        executions[0] = Execution({ target: yieldSource, value: 0, callData: encoded });
     }
 
     function _getBalance(bytes memory data) internal view returns (uint256) {

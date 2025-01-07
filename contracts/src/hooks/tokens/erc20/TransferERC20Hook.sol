@@ -19,7 +19,15 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
 
-    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+    function build(
+        address prevHook,
+        bytes memory data
+    )
+        external
+        view
+        override
+        returns (Execution[] memory executions)
+    {
         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
@@ -27,7 +35,7 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
-        } 
+        }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (token == address(0)) revert ADDRESS_NOT_VALID();
@@ -48,7 +56,6 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

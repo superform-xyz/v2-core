@@ -25,13 +25,13 @@ contract SomelierUnstakeAllHook is BaseHook, BaseAccountingHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 
-        if (vault == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: vault, value: 0, callData: abi.encodeCall(ISomelierCellarStaking.unstakeAll, ()) });
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(ISomelierCellarStaking.unstakeAll, ()) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -53,9 +53,9 @@ contract SomelierUnstakeAllHook is BaseHook, BaseAccountingHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 
-        ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(vault).getUserStakes(account);
+        ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(yieldSource).getUserStakes(account);
         uint256 total;
         for (uint256 i = 0; i < stakes.length;) {
             total += stakes[i].amount;

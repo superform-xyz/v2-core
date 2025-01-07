@@ -6,9 +6,15 @@ import { BytesLib } from "../libraries/BytesLib.sol";
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 
-
 abstract contract BaseAccountingHook {
-    function _performAccounting(bytes memory data, ISuperRegistry superRegistry, uint256 amount, bool isInflow) internal {
+    function _performAccounting(
+        bytes memory data,
+        ISuperRegistry superRegistry,
+        uint256 amount,
+        bool isInflow
+    )
+        internal
+    {
         ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
 
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);

@@ -36,8 +36,8 @@ contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 92);
 
@@ -46,11 +46,11 @@ contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: vault, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, receiver)) });
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -72,8 +72,8 @@ contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        return IERC4626(vault).balanceOf(receiver);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        return IERC4626(yieldSource).balanceOf(account);
     }
 }

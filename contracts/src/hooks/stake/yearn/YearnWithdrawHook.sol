@@ -37,12 +37,12 @@ contract YearnWithdrawHook is BaseHook, BaseAccountingHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address recipient = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
-        if (vault == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
             maxShares = ISuperHookResult(prevHook).outAmount();
@@ -50,7 +50,7 @@ contract YearnWithdrawHook is BaseHook, BaseAccountingHook, ISuperHook {
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: vault,
+            target: yieldSource,
             value: 0,
             callData: abi.encodeCall(IYearnVault.withdraw, (maxShares, recipient, maxLoss))
         });
@@ -75,7 +75,7 @@ contract YearnWithdrawHook is BaseHook, BaseAccountingHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address recipient = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        return IYearnVault(vault).balanceOf(recipient);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        return IYearnVault(yieldSource).balanceOf(recipient);
     }
 }

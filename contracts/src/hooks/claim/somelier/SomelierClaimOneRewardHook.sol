@@ -20,11 +20,11 @@ contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        if (vault == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
-        return _build(vault, abi.encodeCall(ISomelierCellarStaking.claim, (depositId)));
+        return _build(yieldSource, abi.encodeCall(ISomelierCellarStaking.claim, (depositId)));
     }
 
     /*//////////////////////////////////////////////////////////////
