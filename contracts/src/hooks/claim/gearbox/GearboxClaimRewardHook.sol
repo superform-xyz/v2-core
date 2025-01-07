@@ -12,6 +12,9 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
 
+/// @title GearboxClaimRewardHook
+/// @dev data has the following structure
+/// @notice         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -30,8 +33,7 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external
-    {
+    function preExecute(address, bytes memory data) external {
         outAmount = _getBalance(data);
     }
 

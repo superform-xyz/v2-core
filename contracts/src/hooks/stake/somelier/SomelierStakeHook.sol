@@ -35,7 +35,6 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        //address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 104);
