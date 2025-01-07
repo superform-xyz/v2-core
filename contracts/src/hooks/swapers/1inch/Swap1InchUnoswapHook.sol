@@ -18,7 +18,10 @@ import {
     AddressLib
 } from "../../../interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
 
-contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
+/// @title Swap1InchUnoswapHook
+/// @dev data has the following structure
+/// @notice  Swap1InchUnoswapHookParams
+contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
     using AddressLib for Address;
 
     constructor(
@@ -66,7 +69,13 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
             value: params.msgValue,
             callData: abi.encodeCall(
                 I1InchAggregationRouterV6.unoswapTo,
-                (Address.wrap(uint256(uint160(params.recipient))), Address.wrap(uint256(uint160(params.token))), params.amount, params.minReturnAmount, Address.wrap(uint256(uint160(params.dex))))
+                (
+                    Address.wrap(uint256(uint160(params.recipient))),
+                    Address.wrap(uint256(uint160(params.token))),
+                    params.amount,
+                    params.minReturnAmount,
+                    Address.wrap(uint256(uint160(params.dex)))
+                )
             )
         });
     }

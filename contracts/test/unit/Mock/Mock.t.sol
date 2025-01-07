@@ -6,7 +6,7 @@ import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } fr
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 
-import { BaseTest } from "../../BaseTest.t.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
 import { MockSignature } from "../../mocks/MockSignature.sol";
 import { TransientStorageExecutor } from "../../mocks/TransientStorageExecutor.sol";
@@ -16,14 +16,13 @@ import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 
 import "forge-std/console2.sol";
 
-contract Mock is BaseTest, RhinestoneModuleKit {
+contract Mock is Helpers, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
     TransientStorageExecutor transientExecutor;
 
-    function setUp() public override {
-        super.setUp();
+    function setUp() public virtual {
         transientExecutor = new TransientStorageExecutor();
     }
 

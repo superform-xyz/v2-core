@@ -12,6 +12,13 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/IAllowanceTransfer.sol";
 
+/// @title ApproveWithPermit2Hook
+/// @dev data has the following structure
+/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
+/// @notice         uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 60, 6), 0));
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 66);
 contract ApproveWithPermit2Hook is BaseHook, ISuperHook {
     using SafeCast for uint256;
 

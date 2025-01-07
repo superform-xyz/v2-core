@@ -13,6 +13,9 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 import { IPermit2Single } from "../../../interfaces/vendors/uniswap/permit2/IPermit2Single.sol";
 import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/IAllowanceTransfer.sol";
 
+/// @title PermitWithPermit2Hook
+/// @dev data has the following structure
+/// TODO add structure
 contract PermitWithPermit2Hook is BaseHook, ISuperHook {
     using SafeCast for uint256;
 

@@ -14,10 +14,10 @@ import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SharedState } from "../src/state/SharedState.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
-import { SuperActions } from "../src/strategies/SuperActions.sol";
-import { ISuperActions } from "../src/interfaces/strategies/ISuperActions.sol";
+import { SuperLedger } from "../src/accounting/SuperLedger.sol";
+import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
 import { AcrossBridgeGateway } from "../src/bridges/AcrossBridgeGateway.sol";
-import { SuperPositionsMock } from "../src/strategies/SuperPositionsMock.sol";
+import { SuperPositionsMock } from "../src/accounting/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
 // -- hooks
@@ -41,8 +41,8 @@ import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWi
 // ---- | bridges
 import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
 // -- oracles
-import { DepositRedeem4626ActionOracle } from "../src/strategies/oracles/DepositRedeem4626ActionOracle.sol";
-import { DepositRedeem5115ActionOracle } from "../src/strategies/oracles/DepositRedeem5115ActionOracle.sol";
+import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
 contract DeployV2 is Script, Configuration {
     string private constant SALT_NAMESPACE = "Superform.v2.0.1";
@@ -62,7 +62,7 @@ contract DeployV2 is Script, Configuration {
         address superExecutor;
         address superRegistry;
         address superRbac;
-        address superActions;
+        address superLedger;
         address superPositionSentinel;
         address sharedState;
         address acrossBridgeGateway;
@@ -89,8 +89,8 @@ contract DeployV2 is Script, Configuration {
             // configure contracts
             _configure(deployedContracts);
 
-            // Register SuperActions
-            _registerSuperActions(deployedContracts.superActions, hookAddresses, oracleAddresses);
+            // Register SuperLedger
+            _registerSuperActions(deployedContracts.superLedger, hookAddresses, oracleAddresses);
 
             unchecked {
                 ++i;
@@ -147,13 +147,13 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperRbac).creationCode, abi.encode(configuration.owner))
         );
 
-        // Deploy SuperActions
-        deployedContracts.superActions = __deployContract(
+        // Deploy SuperLedger
+        deployedContracts.superLedger = __deployContract(
             deployer,
-            "SuperActions",
+            "SuperLedger",
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, "SuperActions"),
-            abi.encodePacked(type(SuperActions).creationCode, abi.encode(deployedContracts.superRegistry))
+            __getSalt(configuration.owner, configuration.deployer, "SuperLedger"),
+            abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
         // Deploy SuperPositionMock
@@ -215,11 +215,9 @@ contract DeployV2 is Script, Configuration {
         superRbac.setRole(deployedContracts.acrossBridgeGateway, superRbac.BRIDGE_GATEWAY(), true);
         superRbac.setRole(configuration.owner, superRbac.EXECUTOR_CONFIGURATOR(), true);
         superRbac.setRole(configuration.owner, superRbac.SENTINEL_CONFIGURATOR(), true);
-        superRbac.setRole(configuration.owner, superRbac.STRATEGY_ORACLE_CONFIGURATOR(), true);
-        superRbac.setRole(configuration.owner, superRbac.SUPER_ACTIONS_CONFIGURATOR(), true);
 
         // -- SuperRegistry
-        superRegistry.setAddress(superRegistry.SUPER_ACTIONS_ID(), deployedContracts.superActions);
+        superRegistry.setAddress(superRegistry.SUPER_LEDGER_ID(), deployedContracts.superLedger);
         superRegistry.setAddress(superRegistry.SUPER_POSITION_SENTINEL_ID(), deployedContracts.superPositionSentinel);
         superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), deployedContracts.superRbac);
         superRegistry.setAddress(superRegistry.ACROSS_GATEWAY_ID(), deployedContracts.acrossBridgeGateway);
@@ -362,8 +360,8 @@ contract DeployV2 is Script, Configuration {
         uint256 len = 2;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
-        oracles[0] = OracleDeployment("DepositRedeem4626ActionOracle", type(DepositRedeem4626ActionOracle).creationCode);
-        oracles[1] = OracleDeployment("DepositRedeem5115ActionOracle", type(DepositRedeem5115ActionOracle).creationCode);
+        oracles[0] = OracleDeployment("ERC4626YieldSourceOracle", type(ERC4626YieldSourceOracle).creationCode);
+        oracles[1] = OracleDeployment("ERC5115YieldSourceOracle", type(ERC5115YieldSourceOracle).creationCode);
 
         for (uint256 i = 0; i < len;) {
             OracleDeployment memory oracle = oracles[i];
@@ -382,17 +380,18 @@ contract DeployV2 is Script, Configuration {
     }
 
     function _registerSuperActions(
-        address superActions,
+        address superLedger,
         address[] memory hookAddresses,
         address[] memory oracleAddresses
     )
         private
     {
+        /*
         // Configure ERC4626 yield source
-        ISuperActions.YieldSourceConfig memory erc4626Config = ISuperActions.YieldSourceConfig({
+        ISuperLedger.YieldSourceConfig memory erc4626Config = ISuperLedger.YieldSourceConfig({
             yieldSourceId: "ERC4626",
             metadataOracle: address(oracleAddresses[0]),
-            actions: new ISuperActions.ActionConfig[](2)
+            actions: new ISuperLedger.ActionConfig[](2)
         });
 
         // Deposit action (approve + deposit)
@@ -400,9 +399,9 @@ contract DeployV2 is Script, Configuration {
         depositHooks[0] = hookAddresses[7];
         depositHooks[1] = hookAddresses[9];
 
-        erc4626Config.actions[0] = ISuperActions.ActionConfig({
+        erc4626Config.actions[0] = ISuperLedger.ActionConfig({
             hooks: depositHooks,
-            actionType: ISuperActions.ActionType.INFLOW,
+            actionType: ISuperLedger.ActionType.INFLOW,
             shareDeltaHookIndex: 1 // deposit4626VaultHook provides share delta
          });
 
@@ -410,14 +409,15 @@ contract DeployV2 is Script, Configuration {
         address[] memory withdrawHooks = new address[](1);
         withdrawHooks[0] = hookAddresses[10];
 
-        erc4626Config.actions[1] = ISuperActions.ActionConfig({
+        erc4626Config.actions[1] = ISuperLedger.ActionConfig({
             hooks: withdrawHooks,
-            actionType: ISuperActions.ActionType.OUTFLOW,
+            actionType: ISuperLedger.ActionType.OUTFLOW,
             shareDeltaHookIndex: 0 // withdraw4626VaultHook provides share delta
          });
 
         // Register ERC4626 actions
-        ISuperActions(superActions).registerYieldSourceAndActions(erc4626Config);
+        ISuperLedger(superLedger).registerYieldSourceAndActions(erc4626Config);
+        */
     }
 
     function _deploySuperPositions(

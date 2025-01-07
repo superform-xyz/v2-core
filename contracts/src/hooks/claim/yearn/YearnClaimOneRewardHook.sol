@@ -12,6 +12,10 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { IYearnStakingRewardsMulti } from "../../../interfaces/vendors/yearn/IYearnStakingRewardsMulti.sol";
 
+/// @title YearnClaimOneRewardHook
+/// @dev data has the following structure
+/// @notice         address yearnVault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 

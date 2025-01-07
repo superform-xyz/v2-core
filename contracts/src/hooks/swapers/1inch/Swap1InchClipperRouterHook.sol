@@ -16,6 +16,9 @@ import {
     Address
 } from "../../../interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
 
+/// @title Swap1InchClipperRouterHook
+/// @dev data has the following structure
+/// @notice  Swap1InchClipperRouterHookParams
 contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
     constructor(
         address registry_,
@@ -67,7 +70,17 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
             value: params.msgValue,
             callData: abi.encodeCall(
                 I1InchAggregationRouterV6.clipperSwapTo,
-                (IClipperExchange(params.clipperExchange), params.recipient, Address.wrap(uint256(uint160(params.srcToken))), IERC20(params.dstToken), params.inputAmount, params.outputAmount, params.expiryWithFlags, params.r, params.vs)
+                (
+                    IClipperExchange(params.clipperExchange),
+                    params.recipient,
+                    Address.wrap(uint256(uint160(params.srcToken))),
+                    IERC20(params.dstToken),
+                    params.inputAmount,
+                    params.outputAmount,
+                    params.expiryWithFlags,
+                    params.r,
+                    params.vs
+                )
             )
         });
     }

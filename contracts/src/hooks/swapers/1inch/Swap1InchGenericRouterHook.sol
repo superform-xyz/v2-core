@@ -16,6 +16,9 @@ import {
     IAggregationExecutor
 } from "../../../interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
 
+/// @title Swap1InchGenericRouterHook
+/// @dev data has the following structure
+/// @notice  Swap1InchGenericRouterHookParams
 contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
     constructor(
         address registry_,
