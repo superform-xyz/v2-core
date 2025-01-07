@@ -18,7 +18,15 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+    function build(
+        address prevHook,
+        bytes memory data
+    )
+        external
+        view
+        override
+        returns (Execution[] memory executions)
+    {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
@@ -43,8 +51,10 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external pure {}
+    function preExecute(address, bytes memory) external pure { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory)  external pure {}
+    function postExecute(address, bytes memory) external {
+        isInflow = true;
+    }
 }

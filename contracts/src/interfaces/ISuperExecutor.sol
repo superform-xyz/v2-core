@@ -3,30 +3,16 @@ pragma solidity >=0.8.28;
 
 interface ISuperExecutor {
     struct ExecutorEntry {
-        uint256 actionId;
-        address yieldSourceAddress;
+        address[] hooksAddresses;
         bytes[] hooksData;
-        address[] nonMainActionHooks;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error DATA_NOT_VALID();
     error NOT_AUTHORIZED();
     error NOT_INITIALIZED();
-    error AMOUNT_NOT_VALID();
-    error ADDRESS_NOT_VALID();
-    error INVALID_HOOK_TYPE();
     error ALREADY_INITIALIZED();
-    error ACTION_TYPE_MISMATCH();
-    error FINAL_TARGET_NOT_ZERO();
-
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Get the actions registry address
-    function superActions() external view returns (address);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS

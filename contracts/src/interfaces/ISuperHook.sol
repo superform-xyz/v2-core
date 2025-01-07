@@ -10,6 +10,9 @@ interface ISuperHookResult {
     //////////////////////////////////////////////////////////////*/
     /// @notice The amount of tokens processed by the hook
     function outAmount() external view returns (uint256);
+
+    /// @notice Whether the hook is an inflow or outflow
+    function isInflow() external view returns (bool);
 }
 
 interface ISuperHook {
@@ -20,7 +23,7 @@ interface ISuperHook {
     /// @notice Pre-hook operation
     /// @param prevHook The previous hook
     /// @param data The data to pre-hook
-    function preExecute(address prevHook,bytes memory data) external;
+    function preExecute(address prevHook, bytes memory data) external;
 
     /// @notice Post-hook operation
     /// @param prevHook The previous hook
