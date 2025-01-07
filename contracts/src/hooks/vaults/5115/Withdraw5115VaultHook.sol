@@ -14,6 +14,15 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
+/// @title Withdraw5115VaultHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+/// @notice         bool burnFromInternalBalance = _decodeBool(data, 124);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 125);
 contract Withdraw5115VaultHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -21,7 +30,15 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+    function build(
+        address prevHook,
+        bytes memory data
+    )
+        external
+        view
+        override
+        returns (Execution[] memory executions)
+    {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
@@ -33,7 +50,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
         }
-        
+
         if (shares == 0) revert AMOUNT_NOT_VALID();
         if (vault == address(0) || tokenOut == address(0)) revert ADDRESS_NOT_VALID();
 

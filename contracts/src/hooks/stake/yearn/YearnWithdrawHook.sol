@@ -11,6 +11,13 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
+/// @title YearnWithdrawHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address recipient = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract YearnWithdrawHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 

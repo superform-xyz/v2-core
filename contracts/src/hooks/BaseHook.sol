@@ -9,6 +9,7 @@ abstract contract BaseHook is SuperRegistryImplementer {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     // forgefmt: disable-start
+    bool public transient isInflow;
     uint256 public transient outAmount;
     // forgefmt: disable-end
     address public immutable author;

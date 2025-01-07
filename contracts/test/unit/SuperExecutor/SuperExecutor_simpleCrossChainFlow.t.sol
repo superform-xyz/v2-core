@@ -2,65 +2,77 @@
 pragma solidity >=0.8.28;
 
 // external
-import { UserOpData } from "modulekit/ModuleKit.sol";
+import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
-import { ISuperActions } from "src/interfaces/strategies/ISuperActions.sol";
+import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
+import { ISuperLedger } from "src/interfaces/accounting/ISuperLedger.sol";
 import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
 import { AcrossBridgeGateway } from "src/bridges/AcrossBridgeGateway.sol";
 import { AcrossExecuteOnDestinationHook } from "src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
+import { SpokePoolV3Mock } from "../../mocks/SpokePoolV3Mock.sol";
 
-import { Unit_Shared } from "test/unit/Unit_Shared.t.sol";
+import { BaseTest } from "../../BaseTest.t.sol";
 
-contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
-    address RANDOM_TARGET = address(uint160(uint256(keccak256(abi.encodePacked(block.timestamp, address(this))))));
-    uint256 constant DEFAULT_AMOUNT = 100;
+contract SuperExecutor_simpleCrossChainFlow is BaseTest {
+    IERC4626 public vaultInstance;
+    address public yieldSourceAddress;
+    address public yieldSourceOracle;
+    address public underlying;
+    address public account;
+    AccountInstance public instance;
+    ISuperExecutor public superExecutor;
+    ISuperRbac public superRbac;
+    SpokePoolV3Mock public spokePoolV3Mock;
 
-    function test_GivenAStrategyDoesNotExist(uint256 amount) external addRole(superRbac.BRIDGE_GATEWAY()) {
-        amount = _bound(amount);
-        // it should retrieve an empty array of hooks
-        // it should revert with DATA_NOT_VALID
-        uint256 actionId = uint256(uint256(keccak256(abi.encodePacked(block.timestamp, address(this)))));
-        bytes[] memory hooksData = new bytes[](0);
+    function setUp() public override {
+        super.setUp();
+        vm.selectFork(FORKS[ETH]);
+        underlying = existingUnderlyingTokens[1]["USDC"];
 
-        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
-        entries[0] = ISuperExecutor.ExecutorEntry({
-            actionId: actionId,
-            yieldSourceAddress: RANDOM_TARGET,
-            hooksData: hooksData,
-            nonMainActionHooks: new address[](0)
-        });
-
-        vm.expectRevert(ISuperActions.ACTION_NOT_FOUND.selector);
-        superExecutor.executeFromGateway(instance.account, abi.encode(entries));
+        yieldSourceAddress = realVaultAddresses[1]["ERC4626"]["MorphoVault"]["USDC"];
+        yieldSourceOracle = _getContract(ETH, "ERC4626YieldSourceOracle");
+        vaultInstance = IERC4626(yieldSourceAddress);
+        account = accountInstances[ETH].account;
+        instance = accountInstances[ETH];
+        superExecutor = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
+        superRbac = ISuperRbac(_getContract(ETH, "SuperRbac"));
+        spokePoolV3Mock = SpokePoolV3Mock(_getContract(ETH, "SpokePoolV3Mock"));
     }
 
-    modifier givenAStrategyExist() {
-        _;
+    function test_GivenAStrategyDoesNotExist(uint256 amount) external addRole(superRbac, superRbac.BRIDGE_GATEWAY()) {
+        amount = _bound(amount);
+        // it should retrieve an empty array of hooks
+        // it should revert ?
+        address[] memory hooksAddresses = new address[](0);
+        bytes[] memory hooksData = new bytes[](0);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        superExecutor.executeFromGateway(account, abi.encode(entry));
     }
 
     function test_RevertWhen_HooksAreDefinedByExecutionDataIsNotValid()
         external
-        givenAStrategyExist
-        addRole(superRbac.BRIDGE_GATEWAY())
+        addRole(superRbac, superRbac.BRIDGE_GATEWAY())
     {
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+
         // it should revert
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = abi.encode(uint256(1));
         hooksData[1] = abi.encode(uint256(1));
 
-        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
-        entries[0] = ISuperExecutor.ExecutorEntry({
-            actionId: ACTION["4626_DEPOSIT"],
-            yieldSourceAddress: RANDOM_TARGET,
-            hooksData: hooksData,
-            nonMainActionHooks: new address[](0)
-        });
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         vm.expectRevert();
-        superExecutor.executeFromGateway(instance.account, abi.encode(entries));
+        superExecutor.executeFromGateway(account, abi.encode(entry));
     }
 
     modifier givenStrategyHasACrossHookAndNoSameChainHooks() {
@@ -69,79 +81,61 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
 
     function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured(uint256 amount)
         external
-        givenAStrategyExist
-        givenStrategyHasACrossHookAndNoSameChainHooks
-        addRole(superRbac.BRIDGE_GATEWAY())
+        addRole(superRbac, superRbac.BRIDGE_GATEWAY())
     {
         amount = _bound(amount);
-        address yieldSourceAddress = address(mock4626Vault);
-        bytes[] memory hooksData = _createDepositAndBridgeActionData(yieldSourceAddress, amount);
+        (
+            address[] memory depositHooksAddresses,
+            bytes[] memory depositHooksData,
+            address[] memory withdrawHooksAddresses,
+            bytes[] memory withdrawHooksData
+        ) = _createDepositAndBridgeActionData(amount);
 
         // assure account has tokens
-        _getTokens(address(mockERC20), instance.account, amount);
+        _getTokens(underlying, account, amount);
 
         // it should execute all hooks
-        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
-        entries[0] = ISuperExecutor.ExecutorEntry({
-            actionId: ACTION["4626_DEPOSIT_ACROSS"],
-            yieldSourceAddress: yieldSourceAddress,
-            hooksData: hooksData,
-            nonMainActionHooks: new address[](0)
-        });
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: depositHooksAddresses, hooksData: depositHooksData });
 
         // check bridge emitted event; assume Orchestrator picks it up
-        ISuperExecutor.ExecutorEntry[] memory subEntries = new ISuperExecutor.ExecutorEntry[](1);
-        subEntries[0] = ISuperExecutor.ExecutorEntry({
-            actionId: ACTION["4626_WITHDRAW"],
-            yieldSourceAddress: yieldSourceAddress,
-            hooksData: _createWithdrawActionData(yieldSourceAddress),
-            nonMainActionHooks: new address[](0)
-        });
+        ISuperExecutor.ExecutorEntry memory subEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: withdrawHooksAddresses, hooksData: withdrawHooksData });
 
-        UserOpData memory userOpData = _getExecOps(abi.encode(entries));
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         vm.expectEmit(true, true, true, true);
-        emit AcrossBridgeGateway.InstructionProcessed(instance.account, abi.encode(subEntries));
+        emit AcrossBridgeGateway.InstructionProcessed(account, abi.encode(subEntry));
         executeOp(userOpData);
 
         //  simulate Orchestrator call for the remaning data
-        superExecutor.executeFromGateway(instance.account, abi.encode(subEntries));
+        superExecutor.executeFromGateway(account, abi.encode(subEntry));
     }
 
-    function _createWithdrawActionData(address yieldSourceAddress)
+    function _createDepositAndBridgeActionData(uint256 amount)
         internal
         view
-        returns (bytes[] memory hooksData)
+        returns (
+            address[] memory depositHooksAddresses,
+            bytes[] memory depositHooksData,
+            address[] memory withdrawHooksAddresses,
+            bytes[] memory withdrawHooksData
+        )
     {
-        hooksData = new bytes[](1);
-        hooksData[0] = abi.encodePacked(yieldSourceAddress, user2, instance.account, DEFAULT_AMOUNT, false);
-    }
+        withdrawHooksAddresses = new address[](2);
+        withdrawHooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
+        withdrawHooksAddresses[1] = _getHook(ETH, "SuperLedgerHook");
 
-    function _createDepositAndBridgeActionData(
-        address yieldSourceAddress,
-        uint256 amount
-    )
-        internal
-        view
-        returns (bytes[] memory hooksData)
-    {
-        hooksData = new bytes[](4);
-        hooksData[0] = abi.encodePacked(address(mockERC20), yieldSourceAddress, amount, false);
-        hooksData[1] = abi.encodePacked(yieldSourceAddress, instance.account, amount, false);
-        hooksData[2] = abi.encodePacked(yieldSourceAddress, address(spokePoolV3Mock), amount, false);
+        withdrawHooksData = new bytes[](2);
+        withdrawHooksData[0] = _createWithdrawHookData(yieldSourceAddress, account, account, amount, false);
+        withdrawHooksData[1] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
 
-        ISuperExecutor.ExecutorEntry[] memory entries = new ISuperExecutor.ExecutorEntry[](1);
-        entries[0] = ISuperExecutor.ExecutorEntry({
-            actionId: ACTION["4626_WITHDRAW"],
-            yieldSourceAddress: yieldSourceAddress,
-            hooksData: _createWithdrawActionData(yieldSourceAddress),
-            nonMainActionHooks: new address[](0)
-
-        });
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: withdrawHooksAddresses, hooksData: withdrawHooksData });
 
         AcrossExecuteOnDestinationHook.AcrossV3DepositData memory acrossV3DepositData = AcrossExecuteOnDestinationHook
             .AcrossV3DepositData({
             value: SMALL,
-            recipient: instance.account,
+            recipient: account,
             inputToken: yieldSourceAddress,
             outputToken: yieldSourceAddress,
             inputAmount: amount,
@@ -151,11 +145,24 @@ contract SuperExecutor_simpleCrossChainFlow is Unit_Shared {
             fillDeadline: 0,
             exclusivityDeadline: 0,
             instruction: IAcrossV3Interpreter.Instruction({
-                account: instance.account,
+                account: account,
                 amount: amount,
-                strategyData: abi.encode(entries)
+                strategyData: abi.encode(entry)
             })
         });
-        hooksData[3] = abi.encode(acrossV3DepositData);
+
+        depositHooksAddresses = new address[](5);
+        depositHooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        depositHooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        depositHooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
+        depositHooksAddresses[3] = _getHook(ETH, "ApproveERC20Hook");
+        depositHooksAddresses[4] = _getHook(ETH, "AcrossExecuteOnDestinationHook");
+
+        depositHooksData = new bytes[](5);
+        depositHooksData[0] = abi.encodePacked(underlying, yieldSourceAddress, amount, false);
+        depositHooksData[1] = abi.encodePacked(yieldSourceAddress, account, amount, false);
+        depositHooksData[2] = abi.encodePacked(account, yieldSourceOracle, yieldSourceAddress, true, amount);
+        depositHooksData[3] = abi.encodePacked(yieldSourceAddress, address(spokePoolV3Mock), amount, false);
+        depositHooksData[4] = abi.encode(acrossV3DepositData);
     }
 }

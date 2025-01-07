@@ -10,6 +10,10 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
+/// @title SomelierUnstakeAllHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 contract SomelierUnstakeAllHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -19,7 +23,6 @@ contract SomelierUnstakeAllHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        //address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
 

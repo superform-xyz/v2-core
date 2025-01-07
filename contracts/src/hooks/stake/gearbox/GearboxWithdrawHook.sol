@@ -11,6 +11,12 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
 
+/// @title GearboxWithdrawHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract GearboxWithdrawHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -28,7 +34,6 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        //address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 72);
 
@@ -40,7 +45,7 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: vault, value: 0, callData: abi.encodeCall(IGearboxFarmingPool.deposit, (amount)) });
+            Execution({ target: vault, value: 0, callData: abi.encodeCall(IGearboxFarmingPool.withdraw, (amount)) });
     }
 
     /*//////////////////////////////////////////////////////////////

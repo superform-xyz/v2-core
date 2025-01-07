@@ -10,6 +10,9 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
+/// @title SomelierUnbondAllHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract SomelierUnbondAllHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 

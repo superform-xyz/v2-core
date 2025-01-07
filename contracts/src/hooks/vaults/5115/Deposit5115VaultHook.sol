@@ -15,17 +15,36 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
+/// @title Deposit5115VaultHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+/// @notice         bool depositFromInternalBalance = _decodeBool(data, 124);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 125);
 contract Deposit5115VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_) {
+        isInflow = true;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+    function build(
+        address prevHook,
+        bytes memory data
+    )
+        external
+        view
+        override
+        returns (Execution[] memory executions)
+    {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40    , 20), 0);
+        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         bool depositFromInternalBalance = _decodeBool(data, 124);
@@ -50,15 +69,14 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external
-    {
+    function preExecute(address, bytes memory data) external {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external
-    {
+    function postExecute(address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
+        isInflow = true;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -12,6 +12,13 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
+/// @title Withdraw4626VaultHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 92);
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -19,7 +26,15 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address prevHook, bytes memory data) external view override returns (Execution[] memory executions) {
+    function build(
+        address prevHook,
+        bytes memory data
+    )
+        external
+        view
+        override
+        returns (Execution[] memory executions)
+    {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         address owner = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
@@ -28,7 +43,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
-        } 
+        }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
         if (vault == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
@@ -42,14 +57,12 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external
-    {
+    function preExecute(address, bytes memory data) external {
         outAmount = _getShareBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external
-    {
+    function postExecute(address, bytes memory data) external {
         outAmount = outAmount - _getShareBalance(data);
     }
 

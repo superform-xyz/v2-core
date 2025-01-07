@@ -11,6 +11,12 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
 
+/// @title GearboxStakeHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract GearboxStakeHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -28,7 +34,6 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        //address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 72);
 

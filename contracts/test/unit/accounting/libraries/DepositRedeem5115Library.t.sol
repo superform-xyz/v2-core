@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "../../BaseTest.t.sol";
-import { Helpers } from "../../utils/Helpers.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { Mock5115Vault } from "../../mocks/Mock5115Vault.sol";
-import { DepositRedeem5115Library } from "../../../src/libraries/strategies/DepositRedeem5115Library.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { Mock5115Vault } from "../../../mocks/Mock5115Vault.sol";
+import { ERC5115YieldSourceOracleLibrary } from
+    "../../../../src/libraries/accounting/ERC5115YieldSourceOracleLibrary.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract DepositRedeem5115LibraryTest is BaseTest {
+contract DepositRedeem5115LibraryTest is Helpers {
     Mock5115Vault vault;
     MockERC20 underlying;
 
-    function setUp() public override {
-        super.setUp();
+    function setUp() public virtual {
         underlying = new MockERC20("Underlying", "UND", 18);
         vault = new Mock5115Vault(IERC20(address(underlying)), "Vault", "VAULT");
     }
 
     function test_get5115PricePerShare() public view {
         uint256 expectedPricePerShare = 1e18;
-        uint256 actualPricePerShare = DepositRedeem5115Library.getPricePerShare(address(vault), address(underlying));
+        uint256 actualPricePerShare =
+            ERC5115YieldSourceOracleLibrary.getPricePerShare(address(vault), address(underlying));
         assertEq(actualPricePerShare, expectedPricePerShare);
     }
 
@@ -36,7 +36,7 @@ contract DepositRedeem5115LibraryTest is BaseTest {
         tokenIns[0] = address(underlying);
 
         uint256[] memory actualPricePerShares =
-            DepositRedeem5115Library.getPricePerShareMultiple(finalTargets, tokenIns);
+            ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(finalTargets, tokenIns);
         assertEq(actualPricePerShares[0], expectedPricePerShares[0]);
     }
 }

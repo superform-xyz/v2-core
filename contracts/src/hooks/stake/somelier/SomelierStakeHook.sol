@@ -11,6 +11,13 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
+/// @title SomelierStakeHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract SomelierStakeHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 

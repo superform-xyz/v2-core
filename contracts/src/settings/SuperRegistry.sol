@@ -31,7 +31,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
 
     // -- registries
     /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_ACTIONS_ID = keccak256("SUPER_ACTIONS_ID");
+    bytes32 public constant SUPER_LEDGER_ID = keccak256("SUPER_LEDGER_ID");
 
     // -- sentinels
     /// @inheritdoc ISuperRegistry
@@ -47,6 +47,10 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     // -- paymaster
     /// @inheritdoc ISuperRegistry
     bytes32 public constant PAYMASTER_ID = keccak256("PAYMASTER_ID");
+
+    // -- hooks
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant SUPER_LEDGER_HOOK_ID = keccak256("SUPER_LEDGER_HOOK_ID");
 
     constructor(address owner) Ownable(owner) {
         sharedStateNamespace = "Superform.SharedState.v1";
