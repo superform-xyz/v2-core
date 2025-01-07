@@ -79,6 +79,7 @@ contract SuperExecutor_simpleCrossChainFlow is BaseTest {
         _;
     }
 
+    
     function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured(uint256 amount)
         external
         addRole(superRbac, superRbac.BRIDGE_GATEWAY())
@@ -155,9 +156,9 @@ contract SuperExecutor_simpleCrossChainFlow is BaseTest {
         depositHooksAddresses[2] = _getHook(ETH, "ApproveERC20Hook");
         depositHooksAddresses[3] = _getHook(ETH, "AcrossExecuteOnDestinationHook");
 
-        depositHooksData = new bytes[](5);
+        depositHooksData = new bytes[](4);
         depositHooksData[0] = abi.encodePacked(underlying, yieldSourceAddress, amount, false);
-        depositHooksData[1] = abi.encodePacked(account, yieldSourceOracle, yieldSourceAddress, true, amount);
+        depositHooksData[1] = abi.encodePacked(account, yieldSourceOracle, yieldSourceAddress, amount, true);
         depositHooksData[2] = abi.encodePacked(yieldSourceAddress, address(spokePoolV3Mock), amount, true);
         depositHooksData[3] = abi.encode(acrossV3DepositData);
     }

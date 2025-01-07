@@ -13,6 +13,8 @@ import { BaseAccountingHook } from "../../BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
+import "forge-std/console2.sol";
+
 /// @title Deposit4626VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
@@ -40,6 +42,12 @@ contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 92);
+
+
+        console2.log("---------account", account);
+        console2.log("---------yieldSource", yieldSource);
+        console2.log("---------amount", amount);
+        console2.log("---------usePrevHookAmount", usePrevHookAmount);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
