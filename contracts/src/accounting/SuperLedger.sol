@@ -81,6 +81,10 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         }
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc ISuperLedger
     function getLedger(
         address user,
