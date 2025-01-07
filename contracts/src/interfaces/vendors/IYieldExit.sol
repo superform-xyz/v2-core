@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-interface IFluidLendingStakingRewards {
+interface IYieldExit {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function rewardsToken() external view returns (address);
-    function balanceOf(address account) external view returns (uint256);    
-
+    function balanceOf(address account) external view returns (uint256);
+    
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function getReward() external;
+    function exit() external;
 }
+

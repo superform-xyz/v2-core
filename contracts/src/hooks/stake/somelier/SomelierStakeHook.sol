@@ -5,29 +5,21 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
-
 // Superform
-import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-// Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
-import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
-
-/// @title Deposit5115VaultHook
+/// @title SomelierStakeHook
 /// @dev data has the following structure
 /// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool depositFromInternalBalance = _decodeBool(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 125);
-contract Deposit5115VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) {
-        isInflow = true;
-    }
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+contract SomelierStakeHook is BaseHook, ISuperHook {
+    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -43,25 +35,22 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        bool depositFromInternalBalance = _decodeBool(data, 124);
-        bool usePrevHookAmount = _decodeBool(data, 125);
+        //address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 104);
+
+        if (vault == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || receiver == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
-
         executions = new Execution[](1);
         executions[0] = Execution({
             target: vault,
             value: 0,
-            callData: abi.encodeCall(IERC5115.redeem, (receiver, amount, tokenIn, minSharesOut, depositFromInternalBalance))
+            callData: abi.encodeCall(ISomelierCellarStaking.stake, (amount, ISomelierCellarStaking.Lock(lock)))
         });
     }
 
@@ -76,7 +65,6 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
-        isInflow = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -84,7 +72,16 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        return IERC4626(vault).balanceOf(receiver);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+
+        ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(vault).getUserStakes(account);
+        uint256 total;
+        for (uint256 i = 0; i < stakes.length;) {
+            total += stakes[i].amount;
+            unchecked {
+                ++i;
+            }
+        }
+        return total;
     }
 }

@@ -5,50 +5,30 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
-
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-
-/// @title Deposit4626VaultHook
+/// @title SomelierUnstakeAllHook
 /// @dev data has the following structure
 /// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract Deposit4626VaultHook is BaseHook, ISuperHook {
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+contract SomelierUnstakeAllHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(
-        address prevHook,
-        bytes memory data
-    )
-        external
-        view
-        override
-        returns (Execution[] memory executions)
-    {
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 72);
 
-        if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
-        }
-
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
+        if (vault == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: vault, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, receiver)) });
+            Execution({ target: vault, value: 0, callData: abi.encodeCall(ISomelierCellarStaking.unstakeAll, ()) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -56,14 +36,12 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external {
-        // store current balance
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
-        isInflow = true;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -71,7 +49,16 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        return IERC4626(vault).balanceOf(receiver);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+
+        ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(vault).getUserStakes(account);
+        uint256 total;
+        for (uint256 i = 0; i < stakes.length;) {
+            total += stakes[i].amount;
+            unchecked {
+                ++i;
+            }
+        }
+        return total;
     }
 }

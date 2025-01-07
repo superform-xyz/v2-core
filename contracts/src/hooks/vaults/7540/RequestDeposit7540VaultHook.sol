@@ -11,6 +11,12 @@ import { BaseHook } from "src/hooks/BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 
+/// @title RequestDeposit7540VaultHook
+/// @dev data has the following structure
+/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
