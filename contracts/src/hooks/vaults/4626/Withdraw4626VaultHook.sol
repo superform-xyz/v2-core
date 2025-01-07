@@ -9,17 +9,19 @@ import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseAccountingHook } from "src/hooks/BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 /// @title Withdraw4626VaultHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 92);
-contract Withdraw4626VaultHook is BaseHook, ISuperHook {
+/// @notice         address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 112);
+contract Withdraw4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -35,11 +37,11 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address owner = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 92);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address owner = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 112);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
@@ -64,14 +66,15 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = outAmount - _getShareBalance(data);
+        _performAccounting(data, superRegistry, outAmount, false);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getShareBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         return IERC4626(vault).balanceOf(receiver);
     }
 }

@@ -7,18 +7,20 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { BaseAccountingHook } from "../../BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
 /// @title SomelierStakeHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-contract SomelierStakeHook is BaseHook, ISuperHook {
+contract SomelierStakeHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -34,10 +36,9 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        //address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+        uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
@@ -65,14 +66,15 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
+        _performAccounting(data, superRegistry, outAmount, true);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 
         ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(vault).getUserStakes(account);
         uint256 total;

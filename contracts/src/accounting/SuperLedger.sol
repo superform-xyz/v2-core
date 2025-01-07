@@ -21,7 +21,8 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     mapping(address yieldSourceOracle => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
 
     modifier onlySuperLedgerHook() {
-        if (_getAddress(superRegistry.SUPER_LEDGER_HOOK_ID()) != msg.sender) revert NOT_AUTHORIZED();
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.ACCOUNTING_HOOK())) revert NOT_AUTHORIZED();
         _;
     }
 

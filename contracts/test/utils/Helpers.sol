@@ -59,8 +59,9 @@ abstract contract Helpers is Test, Constants {
     }
 
     function _createDepositHookData(
-        address vault,
         address receiver,
+        address yieldSourceOracle,
+        address vault,
         uint256 amount,
         bool usePrevHookAmount
     )
@@ -68,12 +69,13 @@ abstract contract Helpers is Test, Constants {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(vault, receiver, amount, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracle, vault, amount, usePrevHookAmount);
     }
 
     function _createWithdrawHookData(
-        address vault,
         address receiver,
+        address yieldSourceOracle,
+        address vault,
         address owner,
         uint256 shares,
         bool usePrevHookAmount
@@ -82,18 +84,6 @@ abstract contract Helpers is Test, Constants {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(vault, receiver, owner, shares, usePrevHookAmount);
-    }
-
-    function _createSuperLedgerHookData(
-        address user,
-        address yieldSourceOracle,
-        address yieldSource
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(user, yieldSourceOracle, yieldSource);
+        hookData = abi.encodePacked(receiver, yieldSourceOracle, vault, owner, shares, usePrevHookAmount);
     }
 }

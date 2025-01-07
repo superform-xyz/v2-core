@@ -11,19 +11,21 @@ import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseAccountingHook } from "src/hooks/BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 /// @title Withdraw5115VaultHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool burnFromInternalBalance = _decodeBool(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 125);
-contract Withdraw5115VaultHook is BaseHook, ISuperHook {
+/// @notice         address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+/// @notice         bool burnFromInternalBalance = _decodeBool(data, 144);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 145);
+contract Withdraw5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -39,13 +41,13 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        bool burnFromInternalBalance = _decodeBool(data, 124);
-        bool usePrevHookAmount = _decodeBool(data, 125);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+        uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+        bool burnFromInternalBalance = _decodeBool(data, 144);
+        bool usePrevHookAmount = _decodeBool(data, 145);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
@@ -73,14 +75,15 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = outAmount - _getBalance(data);
+        _performAccounting(data, superRegistry, outAmount, false);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address receiver = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         address asset = IERC5115(vault).asset();
         return IERC20(asset).balanceOf(receiver);
     }

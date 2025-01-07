@@ -12,7 +12,6 @@ import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/settings/SuperRbac.sol";
-import { SharedState } from "../src/state/SharedState.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
@@ -158,15 +157,6 @@ contract DeployV2 is Script, Configuration {
 
         // Deploy SuperPositionMock
         _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions, chainId);
-
-        // Deploy SharedState
-        deployedContracts.sharedState = __deployContract(
-            deployer,
-            "SharedState",
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, "SharedState"),
-            type(SharedState).creationCode
-        );
 
         // Deploy SuperPositionSentinel
         deployedContracts.superPositionSentinel = __deployContract(

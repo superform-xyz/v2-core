@@ -7,17 +7,19 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { BaseAccountingHook } from "../../BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
 
 /// @title GearboxWithdrawHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract GearboxWithdrawHook is BaseHook, ISuperHook {
+/// @notice         address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 92);
+contract GearboxWithdrawHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -33,9 +35,9 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 72);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 92);
 
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -59,14 +61,15 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = outAmount - _getBalance(data);
+        _performAccounting(data, superRegistry, outAmount, false);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         return IGearboxFarmingPool(vault).balanceOf(account);
     }
 }

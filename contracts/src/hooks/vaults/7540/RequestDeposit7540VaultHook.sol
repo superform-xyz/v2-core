@@ -60,7 +60,5 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory) external pure { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external {
-        isInflow = true;
-    }
+    function postExecute(address, bytes memory) external { }
 }

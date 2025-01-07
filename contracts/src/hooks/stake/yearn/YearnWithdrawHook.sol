@@ -7,18 +7,20 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { BaseAccountingHook } from "../../BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
 /// @title YearnWithdrawHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address recipient = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-/// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         address user = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+/// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+/// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-contract YearnWithdrawHook is BaseHook, ISuperHook {
+contract YearnWithdrawHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -34,10 +36,10 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address recipient = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        address recipient = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+        uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (vault == address(0)) revert ADDRESS_NOT_VALID();
@@ -65,14 +67,15 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external {
         outAmount = outAmount - _getBalance(data);
+        _performAccounting(data, superRegistry, outAmount, false);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address recipient = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address recipient = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address vault = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         return IYearnVault(vault).balanceOf(recipient);
     }
 }
