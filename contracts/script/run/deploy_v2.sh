@@ -1,7 +1,7 @@
 # Note: How to set defaultKey - https://www.youtube.com/watch?v=VQe7cIpaE54
 
 export TENDERLY_ACCESS_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential)
-export V2_TEST_VNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/V2_TEST_VNET/credential)
+export V2_TEST_VNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/V2_TEST_VNET_07_01/credential)
 export VIRTUAL_TESTNET_VERIFIER_URL=$V2_TEST_VNET/verify/etherscan
 
 
@@ -14,5 +14,4 @@ forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $V2_TEST_VNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast
-
 wait

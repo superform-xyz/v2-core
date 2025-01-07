@@ -47,7 +47,8 @@ abstract contract Configuration {
     uint64 public constant ARB_SEPOLIA_CHAIN_ID = 421_613;
     uint64 public constant BASE_SEPOLIA_CHAIN_ID = 84_532;
 
-    mapping(uint64 chainId => string chainName) private chainNames;
+    mapping(uint64 chainId => string chainName) internal chainNames;
+    string internal constant SALT_NAMESPACE = "Superform.v2.0.0";
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
