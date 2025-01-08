@@ -22,6 +22,7 @@ remappings = [
   "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
   "modulekit/=lib/modulekit/src/",
   "@prb/math/=lib/modulekit/node_modules/@prb/math/src/",
+  "@account-abstraction/=lib/modulekit/node_modules/account-abstraction/contracts/",
   "@solady/=lib/solady/",
   "@layerzerolabs/oapp-evm/=lib/devtools/packages/oapp-evm/",
   "@layerzerolabs/lz-evm-protocol-v2/=lib/layerzero-v2/packages/layerzero-v2/evm/protocol",

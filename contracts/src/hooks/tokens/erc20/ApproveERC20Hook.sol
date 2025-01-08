@@ -2,23 +2,46 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
+/// @title ApproveERC20Hook
+/// @dev data has the following structure
+/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract ApproveERC20Hook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address token, address spender, uint256 amount) = abi.decode(data, (address, address, uint256));
+    function build(
+        address prevHook,
+        bytes memory data
+    )
+        external
+        view
+        override
+        returns (Execution[] memory executions)
+    {
+        address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 72);
+
+        if (usePrevHookAmount) {
+            amount = ISuperHookResult(prevHook).outAmount();
+        }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();
@@ -33,20 +56,12 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
+    function preExecute(address, bytes memory data) external onlyExecutor {
+        outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
+    function postExecute(address, bytes memory data) external onlyExecutor {
+        outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
     }
 }

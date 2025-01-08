@@ -5,7 +5,7 @@ interface ISentinel {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event Processed(uint256 actionId, address finalTarget);
+    event Processed(uint256 actionId, address yieldSourceAddress);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -18,7 +18,7 @@ interface ISentinel {
     //////////////////////////////////////////////////////////////*/
     /// @dev Notify the sentinel
     /// @param actionId_ The action id
-    /// @param finalTarget_ The final target
+    /// @param yieldSourceAddress_ The yield source address
     /// @param entry_ The entry
-    function notify(uint256 actionId_, address finalTarget_, bytes memory entry_) external;
+    function notify(uint256 actionId_, address yieldSourceAddress_, bytes memory entry_) external;
 }

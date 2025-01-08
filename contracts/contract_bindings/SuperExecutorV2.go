@@ -29,7 +29,7 @@ var (
 	_ = abi.ConvertType
 )
 
-// SuperExecutorV2MetaData contains all meta data concerning the SuperExecutorV2 contract.
+// SuperExecutorV2MetaData contains all meta data concerning the SuperExecutor contract.
 var SuperExecutorV2MetaData = &bind.MetaData{
 	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"registry_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeFromGateway\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"superActions\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperRegistry\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AMOUNT_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"DATA_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]}]",
 }
@@ -38,8 +38,8 @@ var SuperExecutorV2MetaData = &bind.MetaData{
 // Deprecated: Use SuperExecutorV2MetaData.ABI instead.
 var SuperExecutorV2ABI = SuperExecutorV2MetaData.ABI
 
-// SuperExecutorV2 is an auto generated Go binding around an Ethereum contract.
-type SuperExecutorV2 struct {
+// SuperExecutor is an auto generated Go binding around an Ethereum contract.
+type SuperExecutor struct {
 	SuperExecutorV2Caller     // Read-only binding to the contract
 	SuperExecutorV2Transactor // Write-only binding to the contract
 	SuperExecutorV2Filterer   // Log filterer for contract events
@@ -63,7 +63,7 @@ type SuperExecutorV2Filterer struct {
 // SuperExecutorV2Session is an auto generated Go binding around an Ethereum contract,
 // with pre-set call and transact options.
 type SuperExecutorV2Session struct {
-	Contract     *SuperExecutorV2  // Generic contract binding to set the session for
+	Contract     *SuperExecutor  // Generic contract binding to set the session for
 	CallOpts     bind.CallOpts     // Call options to use throughout this session
 	TransactOpts bind.TransactOpts // Transaction auth options to use throughout this session
 }
@@ -84,7 +84,7 @@ type SuperExecutorV2TransactorSession struct {
 
 // SuperExecutorV2Raw is an auto generated low-level Go binding around an Ethereum contract.
 type SuperExecutorV2Raw struct {
-	Contract *SuperExecutorV2 // Generic contract binding to access the raw methods on
+	Contract *SuperExecutor // Generic contract binding to access the raw methods on
 }
 
 // SuperExecutorV2CallerRaw is an auto generated low-level read-only Go binding around an Ethereum contract.
@@ -97,16 +97,16 @@ type SuperExecutorV2TransactorRaw struct {
 	Contract *SuperExecutorV2Transactor // Generic write-only contract binding to access the raw methods on
 }
 
-// NewSuperExecutorV2 creates a new instance of SuperExecutorV2, bound to a specific deployed contract.
-func NewSuperExecutorV2(address common.Address, backend bind.ContractBackend) (*SuperExecutorV2, error) {
+// NewSuperExecutorV2 creates a new instance of SuperExecutor, bound to a specific deployed contract.
+func NewSuperExecutorV2(address common.Address, backend bind.ContractBackend) (*SuperExecutor, error) {
 	contract, err := bindSuperExecutorV2(address, backend, backend, backend)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperExecutorV2{SuperExecutorV2Caller: SuperExecutorV2Caller{contract: contract}, SuperExecutorV2Transactor: SuperExecutorV2Transactor{contract: contract}, SuperExecutorV2Filterer: SuperExecutorV2Filterer{contract: contract}}, nil
+	return &SuperExecutor{SuperExecutorV2Caller: SuperExecutorV2Caller{contract: contract}, SuperExecutorV2Transactor: SuperExecutorV2Transactor{contract: contract}, SuperExecutorV2Filterer: SuperExecutorV2Filterer{contract: contract}}, nil
 }
 
-// NewSuperExecutorV2Caller creates a new read-only instance of SuperExecutorV2, bound to a specific deployed contract.
+// NewSuperExecutorV2Caller creates a new read-only instance of SuperExecutor, bound to a specific deployed contract.
 func NewSuperExecutorV2Caller(address common.Address, caller bind.ContractCaller) (*SuperExecutorV2Caller, error) {
 	contract, err := bindSuperExecutorV2(address, caller, nil, nil)
 	if err != nil {
@@ -115,7 +115,7 @@ func NewSuperExecutorV2Caller(address common.Address, caller bind.ContractCaller
 	return &SuperExecutorV2Caller{contract: contract}, nil
 }
 
-// NewSuperExecutorV2Transactor creates a new write-only instance of SuperExecutorV2, bound to a specific deployed contract.
+// NewSuperExecutorV2Transactor creates a new write-only instance of SuperExecutor, bound to a specific deployed contract.
 func NewSuperExecutorV2Transactor(address common.Address, transactor bind.ContractTransactor) (*SuperExecutorV2Transactor, error) {
 	contract, err := bindSuperExecutorV2(address, nil, transactor, nil)
 	if err != nil {
@@ -124,7 +124,7 @@ func NewSuperExecutorV2Transactor(address common.Address, transactor bind.Contra
 	return &SuperExecutorV2Transactor{contract: contract}, nil
 }
 
-// NewSuperExecutorV2Filterer creates a new log filterer instance of SuperExecutorV2, bound to a specific deployed contract.
+// NewSuperExecutorV2Filterer creates a new log filterer instance of SuperExecutor, bound to a specific deployed contract.
 func NewSuperExecutorV2Filterer(address common.Address, filterer bind.ContractFilterer) (*SuperExecutorV2Filterer, error) {
 	contract, err := bindSuperExecutorV2(address, nil, nil, filterer)
 	if err != nil {

@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -15,37 +16,25 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 //      The following hook claims an array of rewards tokens
 //      How we store those to be used in the `postExecute` is the question?
 contract SomelierClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(bytes memory data) external pure override returns (Execution[] memory executions) {
-        (address vault) = abi.decode(data, (address));
-        if (vault == address(0)) revert ADDRESS_NOT_VALID();
+    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
-        return _build(vault, abi.encodeCall(ISomelierCellarStaking.claimAll, ()));
+        return _build(yieldSource, abi.encodeCall(ISomelierCellarStaking.claimAll, ()));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
-    }
+    function preExecute(address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(bytes memory)
-        external
-        pure
-        returns (address _addr, uint256 _value, bytes32 _data, bool _flag)
-    {
-        return _returnDefaultTransientStorage();
-    }
+    function postExecute(address, bytes memory) external view onlyExecutor { }
 }
