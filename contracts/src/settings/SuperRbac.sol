@@ -5,7 +5,7 @@ pragma solidity >=0.8.28;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 // Superform
-import { ISuperRbac } from "src/interfaces/ISuperRbac.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 
 contract SuperRbac is Ownable, ISuperRbac {
     /*//////////////////////////////////////////////////////////////
@@ -18,8 +18,8 @@ contract SuperRbac is Ownable, ISuperRbac {
      *     BRIDGE_GATEWAY - can execute calls on SuperGatewayExecutor
      *     SUPER_ADMIN_ROLE - generic admin role; should have access for everything
      *     EXECUTOR_CONFIGURATOR - can configure super executors
-     *     HOOK_REGISTRY_CONFIGURATOR - can configure hooks registry
-     *     STRATEGIES_REGISTRY_CONFIGURATOR - can configure strategies registry
+     *     SUPER_ACTIONS_CONFIGURATOR - can configure super actions
+     *     SENTINEL_CONFIGURATOR - can configure sentinels
      */
     /// @inheritdoc ISuperRbac
     bytes32 public constant BRIDGE_GATEWAY = keccak256("BRIDGE_GATEWAY");
@@ -28,11 +28,11 @@ contract SuperRbac is Ownable, ISuperRbac {
     /// @inheritdoc ISuperRbac
     bytes32 public constant EXECUTOR_CONFIGURATOR = keccak256("EXECUTOR_CONFIGURATOR");
     /// @inheritdoc ISuperRbac
-    bytes32 public constant HOOK_REGISTRY_CONFIGURATOR = keccak256("HOOK_REGISTRY_CONFIGURATOR");
-    /// @inheritdoc ISuperRbac
-    bytes32 public constant STRATEGIES_REGISTRY_CONFIGURATOR = keccak256("STRATEGIES_REGISTRY_CONFIGURATOR");
+    bytes32 public constant SUPER_ACTIONS_CONFIGURATOR = keccak256("SUPER_ACTIONS_CONFIGURATOR");
     /// @inheritdoc ISuperRbac
     bytes32 public constant SENTINEL_CONFIGURATOR = keccak256("SENTINEL_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant STRATEGY_ORACLE_CONFIGURATOR = keccak256("STRATEGY_ORACLE_CONFIGURATOR");
 
     constructor(address owner) Ownable(owner) { }
 

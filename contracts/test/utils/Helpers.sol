@@ -7,7 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { Constants } from "./Constants.sol";
-import { ERC20Mock } from "../mocks/ERC20Mock.sol";
+import { MockERC20 } from "../mocks/MockERC20.sol";
 
 abstract contract Helpers is Test, Constants {
     /*//////////////////////////////////////////////////////////////
@@ -24,14 +24,14 @@ abstract contract Helpers is Test, Constants {
     }
 
     function _getTokens(address token_, address to_, uint256 amount_) internal {
-        ERC20Mock(token_).mint(to_, amount_);
+        MockERC20(token_).mint(to_, amount_);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  DEPLOYERS
     //////////////////////////////////////////////////////////////*/
-    function _deployToken(string memory name_, string memory symbol_, uint8 decimals_) internal returns (ERC20Mock) {
-        ERC20Mock _token = new ERC20Mock(name_, symbol_, decimals_);
+    function _deployToken(string memory name_, string memory symbol_, uint8 decimals_) internal returns (MockERC20) {
+        MockERC20 _token = new MockERC20(name_, symbol_, decimals_);
         vm.label(address(_token), name_);
         return _token;
     }

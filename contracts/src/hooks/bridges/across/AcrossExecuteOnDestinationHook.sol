@@ -2,15 +2,14 @@
 pragma solidity >=0.8.28;
 
 // external
-import { Execution } from "modulekit/Accounts.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "src/utils/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
-import { IAcrossSpokePoolV3 } from "src/interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
-import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { IAcrossSpokePoolV3 } from "../../../interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
+import { IAcrossV3Interpreter } from "../../../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
 contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
@@ -27,10 +26,9 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
         uint256 outputAmount;
         uint256 destinationChainId;
         address exclusiveRelayer;
-        uint32 quoteTimestamp;
         uint32 fillDeadline;
         uint32 exclusivityDeadline;
-        IAcrossV3Interpreter.Instruction[] instructions;
+        IAcrossV3Interpreter.Instruction instruction;
     }
 
     constructor(address registry_, address author_, address spokePoolV3_) BaseHook(registry_, author_) {
@@ -56,7 +54,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
             target: spokePoolV3,
             value: acrossV3DepositData.value,
             callData: abi.encodeCall(
-                IAcrossSpokePoolV3.depositV3,
+                IAcrossSpokePoolV3.depositV3Now,
                 (
                     _dstContract, // TODO: assume it has the same address on all chains
                     acrossV3DepositData.recipient,
@@ -66,10 +64,9 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                     acrossV3DepositData.outputAmount,
                     acrossV3DepositData.destinationChainId,
                     acrossV3DepositData.exclusiveRelayer,
-                    acrossV3DepositData.quoteTimestamp,
                     acrossV3DepositData.fillDeadline,
                     acrossV3DepositData.exclusivityDeadline,
-                    abi.encode(acrossV3DepositData.instructions)
+                    abi.encode(acrossV3DepositData.instruction)
                 )
             )
         });

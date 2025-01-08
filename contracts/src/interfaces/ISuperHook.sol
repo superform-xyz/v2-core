@@ -2,12 +2,13 @@
 pragma solidity >=0.8.28;
 
 // external
-import { Execution } from "modulekit/Accounts.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
+    //TODO: we might not need return values for `preExecute`
     /// @notice Pre-hook operation
     /// @param data The data to pre-hook
     function preExecute(bytes memory data)

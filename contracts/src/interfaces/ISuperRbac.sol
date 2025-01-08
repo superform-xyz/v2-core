@@ -41,15 +41,15 @@ interface ISuperRbac {
     /// @dev Get the ID of the executor configurator role.
     function EXECUTOR_CONFIGURATOR() external view returns (bytes32);
 
-    /// @dev Get the ID of the hook configurator role.
-    function HOOK_REGISTRY_CONFIGURATOR() external view returns (bytes32);
-
-    /// @dev Get the ID of the strategies registry configurator role.
-    function STRATEGIES_REGISTRY_CONFIGURATOR() external view returns (bytes32);
+    /// @dev Get the ID of the actions configurator role.
+    function SUPER_ACTIONS_CONFIGURATOR() external view returns (bytes32);
 
     /// @dev Get the ID of the bridge gateway role.
     function BRIDGE_GATEWAY() external view returns (bytes32);
 
     /// @dev Get the ID of the sentinel configurator role.
     function SENTINEL_CONFIGURATOR() external view returns (bytes32);
+
+    /// @dev Get the ID of the strategy oracle configurator role.
+    function STRATEGY_ORACLE_CONFIGURATOR() external view returns (bytes32);
 }

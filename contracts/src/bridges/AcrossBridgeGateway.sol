@@ -5,11 +5,10 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "src/utils/SuperRegistryImplementer.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperGatewayExecutorV2 } from "src/interfaces/ISuperGatewayExecutorV2.sol";
-import { IAcrossV3Receiver } from "src/interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
-import { IAcrossV3Interpreter } from "src/interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
+import { IAcrossV3Receiver } from "../interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
+import { IAcrossV3Interpreter } from "../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
 contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
@@ -17,12 +16,10 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
     address public immutable acrossSpokePool;
 
-
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event InstructionProcessed(address indexed account, uint256 amount);
-
+    event InstructionProcessed(address indexed account, bytes strategyData);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -45,35 +42,21 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     {
         if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
 
-        // decode instructions
-        IAcrossV3Interpreter.Instruction[] memory instructions = decodeInstructions(message);
+        // decode instruction
+        IAcrossV3Interpreter.Instruction memory instruction = abi.decode(message, (IAcrossV3Interpreter.Instruction));
 
-        uint256 len = instructions.length; 
-        if (len == 0) return;
+        // send tokens to the smart account
+        IERC20(tokenSent).transfer(instruction.account, instruction.amount);
 
-        for (uint256 i = 0; i < len;) {
-            IAcrossV3Interpreter.Instruction memory _instruction = instructions[i];
-            IERC20(tokenSent).transferFrom(address(this), _instruction.account, _instruction.amount);
-
-            ISuperGatewayExecutorV2(_getSuperGatewayExecutor()).execute(_instruction.strategyData);
-
-            emit InstructionProcessed(_instruction.account, _instruction.amount);
-            unchecked {
-                ++i;
-            }
-        }
+        // emit an event that should be picked up by the orchestrator
+        emit InstructionProcessed(instruction.account, instruction.strategyData);
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function decodeInstructions(bytes memory message) private pure returns (IAcrossV3Interpreter.Instruction[] memory) {
-        return abi.decode(message, (IAcrossV3Interpreter.Instruction[]));
-    }
-
     /// @notice Get the super gateway executor
-    function _getSuperGatewayExecutor() internal view returns (address) {
-        return superRegistry.getAddress(superRegistry.SUPER_GATEWAY_EXECUTOR_ID());
+    function _getSuperExecutor() internal view returns (address) {
+        return superRegistry.getAddress(superRegistry.SUPER_EXECUTOR_ID());
     }
 }

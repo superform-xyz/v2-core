@@ -5,21 +5,30 @@ pragma solidity >=0.8.28;
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 
 // Superform
-import { BaseExecutorModule } from "src/utils/BaseExecutorModule.sol";
+import { BaseExecutorModule } from "./BaseExecutorModule.sol";
 
-import { ISuperHook } from "src/interfaces/ISuperHook.sol";
-import { ISuperExecutorV2 } from "src/interfaces/ISuperExecutorV2.sol";
-import { IStrategiesRegistry } from "src/interfaces/registries/IStrategiesRegistry.sol";
+import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { ISentinel } from "../interfaces/sentinel/ISentinel.sol";
+import { ISuperExecutorV2 } from "../interfaces/ISuperExecutorV2.sol";
+import { ISuperActions } from "../interfaces/strategies/ISuperActions.sol";
 
 contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecutorV2 {
     constructor(address registry_) BaseExecutorModule(registry_) { }
+
+    // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
+    modifier onlyBridgeGateway() {
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
+        _;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperExecutorV2
-    function strategiesRegistry() public view returns (address) {
-        return _strategiesRegistry();
+    function superActions() public view returns (address) {
+        return _superActions();
     }
 
     function isInitialized(address) external pure returns (bool) {
@@ -44,23 +53,131 @@ contract SuperExecutorV2 is BaseExecutorModule, ERC7579ExecutorBase, ISuperExecu
     function onInstall(bytes calldata) external { }
     function onUninstall(bytes calldata) external { }
 
-    function execute(bytes calldata data) external {
-        (address strategyId, bytes[] memory hooksData) = abi.decode(data, (address, bytes[]));
+    function execute(address account, bytes calldata data) external {
+        ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
+        _execute(account, entries);
+    }
 
-        // retrieve hooks for this strategy
-        address[] memory hooks = IStrategiesRegistry(strategiesRegistry()).getHooksForStrategy(strategyId);
+    /// @inheritdoc ISuperExecutorV2
+    function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
+        // check if we need anything else here
+        ExecutorEntry[] memory entries = abi.decode(data, (ExecutorEntry[]));
+        _execute(account, entries);
+    }
 
-        // checks
-        uint256 hooksLength = hooks.length;
-        if (hooksLength == 0 || hooksLength != hooksData.length) revert DATA_NOT_VALID();
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getSuperPositionSentinel() private view returns (address) {
+        return superRegistry.getAddress(superRegistry.SUPER_POSITION_SENTINEL_ID());
+    }
 
-        // execute each hook
-        for (uint256 i; i < hooksLength;) {
-            _execute(ISuperHook(hooks[i]).build(hooksData[i]));
+    function _execute(address account, ExecutorEntry[] memory entries) private {
+        uint256 actionLen = entries.length;
+        if (actionLen == 0) revert DATA_NOT_VALID();
+
+        // execute each strategy
+        for (uint256 i; i < actionLen;) {
+            _executeAction(account, entries[i]);
 
             unchecked {
                 ++i;
             }
+        }
+    }
+
+    function _executeAction(address account, ExecutorEntry memory entry) private {
+        if (entry.actionId == type(uint256).max) {
+            if (entry.finalTarget != address(0)) {
+                revert FINAL_TARGET_NOT_ZERO();
+            }
+            // Process non-main action hooks directly
+            _processNonMainActionHooks(account, entry);
+        } else {
+            ISuperActions.ActionLogic memory actionLogic = ISuperActions(superActions()).getActionLogic(entry.actionId);
+
+            // Process main action hooks
+            _processMainActionHooks(account, entry, actionLogic);
+
+            // Update accounting based on action type
+            _updateAccounting(
+                account,
+                entry.actionId,
+                entry.finalTarget,
+                actionLogic.actionType == ISuperActions.ActionType.INFLOW,
+                shareDelta
+            );
+        }
+
+        shareDelta = 0;
+    }
+
+    // New function for processing hooks with ActionInfo
+    function _processMainActionHooks(
+        address account,
+        ExecutorEntry memory entry,
+        ISuperActions.ActionLogic memory actionLogic
+    )
+        private
+    {
+        uint256 hooksLength = actionLogic.hooks.length;
+        for (uint256 j; j < hooksLength;) {
+            ISuperHook hook = ISuperHook(actionLogic.hooks[j]);
+
+            hook.preExecute(entry.hooksData[j]);
+            _execute(account, hook.build(entry.hooksData[j]));
+
+            (, uint256 shareDelta_,,) = hook.postExecute(entry.hooksData[j]);
+
+            // Only capture shareDelta from designated hook
+            if (j == actionLogic.shareDeltaHookIndex) {
+                shareDelta = shareDelta_;
+            }
+            unchecked {
+                ++j;
+            }
+        }
+    }
+
+    // Modified to handle direct hook array
+    function _processNonMainActionHooks(address account, ExecutorEntry memory entry) private {
+        uint256 hooksLength = entry.nonMainActionHooks.length;
+        for (uint256 j; j < hooksLength;) {
+            ISuperHook hook = ISuperHook(entry.nonMainActionHooks[j]);
+
+            hook.preExecute(entry.hooksData[j]);
+
+            _execute(account, hook.build(entry.hooksData[j]));
+
+            hook.postExecute(entry.hooksData[j]);
+
+            unchecked {
+                ++j;
+            }
+        }
+    }
+
+    function _updateAccounting(
+        address account,
+        uint256 actionId,
+        address finalTarget,
+        bool isDeposit,
+        uint256 amountShares
+    )
+        private
+    {
+        ISuperActions(superActions()).updateAccounting(account, actionId, finalTarget, isDeposit, amountShares);
+    }
+
+    function _notifySuperPosition(ExecutorEntry memory entry, uint256 _spSharesMint, uint256 _spSharesBurn) private {
+        if (_spSharesMint > _spSharesBurn) {
+            ISentinel(_getSuperPositionSentinel()).notify(
+                entry.actionId, entry.finalTarget, abi.encode(_spSharesMint - _spSharesBurn, true)
+            );
+        } else if (_spSharesBurn > _spSharesMint) {
+            ISentinel(_getSuperPositionSentinel()).notify(
+                entry.actionId, entry.finalTarget, abi.encode(_spSharesBurn - _spSharesMint, false)
+            );
         }
     }
 }
