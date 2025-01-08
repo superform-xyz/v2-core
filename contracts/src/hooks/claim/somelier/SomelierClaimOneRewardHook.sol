@@ -17,7 +17,7 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 /// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
 contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -19,7 +19,7 @@ import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract TransferERC20Hook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

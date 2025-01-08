@@ -7,7 +7,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { BaseAccountingHook } from "../../BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
@@ -15,13 +14,13 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 /// @title SomelierStakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
-contract SomelierStakeHook is BaseHook, BaseAccountingHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+contract SomelierStakeHook is BaseHook, ISuperHook {
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -66,7 +65,6 @@ contract SomelierStakeHook is BaseHook, BaseAccountingHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
-        _performAccounting(data, superRegistry, outAmount, true);
     }
 
     /*//////////////////////////////////////////////////////////////

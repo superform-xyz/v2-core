@@ -11,22 +11,21 @@ import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
-import { BaseAccountingHook } from "src/hooks/BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 /// @title Withdraw5115VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 156);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
-contract Withdraw5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+contract Withdraw5115VaultHook is BaseHook, ISuperHook {
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -75,7 +74,6 @@ contract Withdraw5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = outAmount - _getBalance(data);
-        _performAccounting(data, superRegistry, outAmount, false);
     }
 
     /*//////////////////////////////////////////////////////////////

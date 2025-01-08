@@ -9,20 +9,19 @@ import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
 import { BaseHook } from "src/hooks/BaseHook.sol";
-import { BaseAccountingHook } from "src/hooks/BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 /// @title Withdraw4626VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
-contract Withdraw4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+contract Withdraw4626VaultHook is BaseHook, ISuperHook {
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -66,7 +65,6 @@ contract Withdraw4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = outAmount - _getShareBalance(data);
-        _performAccounting(data, superRegistry, outAmount, false);
     }
 
     /*//////////////////////////////////////////////////////////////

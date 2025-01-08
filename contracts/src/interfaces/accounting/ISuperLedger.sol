@@ -29,7 +29,7 @@ interface ISuperLedger {
     struct HookRegistrationConfig {
         address[] mainHooks;
         address yieldSourceOracle;
-        bytes32 yieldSourceId;
+        bytes32 yieldSourceOracleId;
         uint256 feePercent;
         address vaultShareToken;
         address feeRecipient;
@@ -47,7 +47,7 @@ interface ISuperLedger {
         uint256 price
     );
     event YieldSourceOracleConfigSet(
-        bytes32 indexed yieldSourceId,
+        bytes32 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,
         uint256 feePercent,
         address vaultShareToken,
@@ -76,14 +76,14 @@ interface ISuperLedger {
     /// @notice Updates accounting for a user's yield source interaction
     /// @param user The user address
     /// @param yieldSource The yield source address
-    /// @param yieldSourceId The yield source id
+    /// @param yieldSourceOracleId The yield source id
     /// @param isInflow Whether this is an inflow (true) or outflow (false)
     /// @param amount The amount of shares
     /// @return pps The price per share used for the accounting
     function updateAccounting(
         address user,
         address yieldSource,
-        bytes32 yieldSourceId,
+        bytes32 yieldSourceOracleId,
         bool isInflow,
         uint256 amount
     )
@@ -108,17 +108,17 @@ interface ISuperLedger {
         returns (LedgerEntry[] memory entries, uint256 unconsumedEntries);
 
     /// @notice Returns the configuration for a yield source oracle
-    /// @param yieldSourceId The yield source id
+    /// @param yieldSourceOracleId The yield source id
     /// @return The oracle configuration
-    function getYieldSourceOracleConfig(bytes32 yieldSourceId)
+    function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId)
         external
         view
         returns (YieldSourceOracleConfig memory);
 
     /// @notice Returns the configurations for multiple yield source oracles
-    /// @param yieldSourceIds The array of yield source ids
+    /// @param yieldSourceOracleIds The array of yield source ids
     /// @return The array of oracle configurations
-    function getYieldSourceOracleConfigs(bytes32[] calldata yieldSourceIds)
+    function getYieldSourceOracleConfigs(bytes32[] calldata yieldSourceOracleIds)
         external
         view
         returns (YieldSourceOracleConfig[] memory);

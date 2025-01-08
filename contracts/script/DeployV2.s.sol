@@ -379,7 +379,7 @@ contract DeployV2 is Script, Configuration {
         /*
         // Configure ERC4626 yield source
         ISuperLedger.YieldSourceOracleConfig memory erc4626Config = ISuperLedger.YieldSourceOracleConfig({
-            yieldSourceId: "ERC4626",
+            yieldSourceOracleId: "ERC4626",
             metadataOracle: address(oracleAddresses[0]),
             actions: new ISuperLedger.ActionConfig[](2)
         });

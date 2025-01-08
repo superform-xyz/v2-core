@@ -19,7 +19,7 @@ import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 92);
 contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

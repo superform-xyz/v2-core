@@ -15,7 +15,7 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 contract SomelierUnbondHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, ISuperHook.HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

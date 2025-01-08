@@ -16,7 +16,7 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 //      The following hook claims an array of rewards tokens
 //      How we store those to be used in the `postExecute` is the question?
 contract SomelierClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
