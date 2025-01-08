@@ -8,11 +8,11 @@ import { ERC4626 } from "openzeppelin-contracts/contracts/token/ERC20/extensions
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract VaultMock is ERC4626 {
-  using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20;
 
-  constructor(IERC20 asset_, string memory name_, string memory symbol_) ERC4626(asset_) ERC20(name_, symbol_) {}
+    constructor(IERC20 asset_, string memory name_, string memory symbol_) ERC4626(asset_) ERC20(name_, symbol_) { }
 
-  function previewDeposit(uint256 amount) public pure override returns (uint256) {
-    return amount;
-  }
+    function previewDeposit(uint256 amount) public pure override returns (uint256) {
+        return amount;
+    }
 }

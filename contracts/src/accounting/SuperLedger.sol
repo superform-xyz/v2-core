@@ -103,7 +103,11 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     }
 
     /// @inheritdoc ISuperLedger
-    function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId) external view returns (YieldSourceOracleConfig memory) {
+    function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId)
+        external
+        view
+        returns (YieldSourceOracleConfig memory)
+    {
         return yieldSourceOracleConfig[yieldSourceOracleId];
     }
 

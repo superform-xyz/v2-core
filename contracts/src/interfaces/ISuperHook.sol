@@ -46,5 +46,4 @@ interface ISuperHook {
     /// @param prevHook The previous hook
     /// @param data The data to post-hook
     function postExecute(address prevHook, bytes memory data) external;
-
 }

@@ -29,8 +29,11 @@ contract SomelierUnstakeAllHook is BaseHook, ISuperHook {
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(ISomelierCellarStaking.unstakeAll, ()) });
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(ISomelierCellarStaking.unstakeAll, ())
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
