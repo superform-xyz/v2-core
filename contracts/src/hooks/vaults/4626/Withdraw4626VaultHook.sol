@@ -8,9 +8,9 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Withdraw4626VaultHook
 /// @dev data has the following structure
@@ -47,11 +47,14 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0)|| owner == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.redeem, (shares, account, owner)) });
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(IERC4626.redeem, (shares, account, owner))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////

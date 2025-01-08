@@ -7,12 +7,12 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
+import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Withdraw5115VaultHook
 /// @dev data has the following structure
@@ -53,7 +53,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0)|| tokenOut == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || tokenOut == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({

@@ -6,10 +6,10 @@ import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
-import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 /// @title RequestWithdraw7540VaultHook
 /// @dev data has the following structure
@@ -45,7 +45,7 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0)|| owner == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({

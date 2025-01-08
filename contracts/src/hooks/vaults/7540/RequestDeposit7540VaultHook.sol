@@ -6,10 +6,10 @@ import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
-import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 /// @title RequestDeposit7540VaultHook
 /// @dev data has the following structure
@@ -60,5 +60,5 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external view onlyExecutor{ }
+    function postExecute(address, bytes memory) external view onlyExecutor { }
 }

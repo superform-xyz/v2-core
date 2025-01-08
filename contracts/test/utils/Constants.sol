@@ -12,14 +12,9 @@ abstract contract Constants {
     uint256 public constant USER1_KEY = 0x1;
     uint256 public constant USER2_KEY = 0x2;
     uint256 public constant MANAGER_KEY = 0x3;
-    uint256 public constant SUPER_ACTIONS_CONFIGURATOR_KEY = 0x777;
     // registry
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
 
     // ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
-
-
-    // yieldSourceOracleIds
-    bytes32 public constant RANDOM_YIELD_SOURCE_ID = keccak256("RANDOM_YIELD_SOURCE_ID");
 }

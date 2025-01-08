@@ -89,10 +89,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     string[] public underlyingTokens = ["DAI", "USDC", "WETH"];
 
-    address public SUPER_ACTIONS_CONFIGURATOR;
-
     /// @dev mappings
-    mapping(bytes32 name => mapping(uint64 chainId => uint256 actionId)) public ACTION;
 
     mapping(uint64 chainId => mapping(string underlying => address realAddress)) public existingUnderlyingTokens;
 
@@ -273,13 +270,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         rpcURLs[ETH] = ETHEREUM_RPC_URL_QN;
         rpcURLs[OP] = OPTIMISM_RPC_URL_QN;
         rpcURLs[BASE] = BASE_RPC_URL_QN;
-
-        /// @dev setup user accounts
-        for (uint256 i = 0; i < chainIds.length; ++i) {
-            vm.selectFork(FORKS[chainIds[i]]);
-
-            SUPER_ACTIONS_CONFIGURATOR = _deployAccount(SUPER_ACTIONS_CONFIGURATOR_KEY, "SUPER_ACTIONS_CONFIGURATOR");
-        }
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -463,7 +453,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             configs[0] = ISuperLedger.HookRegistrationConfig({
                 mainHooks: mainHooks,
                 yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
-                yieldSourceOracleId: RANDOM_YIELD_SOURCE_ID,
+                yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
                 feePercent: 100,
                 vaultShareToken: address(0), // this is auto set because its standardized yield
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
