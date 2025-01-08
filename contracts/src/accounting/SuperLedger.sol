@@ -142,7 +142,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feePercent > 10_000) revert INVALID_FEE_PERCENT();
-        if (yieldSourceId == bytes20(0)) revert ZERO_ID_NOT_ALLOWED();
+        if (yieldSourceId == bytes32(0)) revert ZERO_ID_NOT_ALLOWED();
 
         // Only allow updates if no config exists or if caller is the manager
         YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceId];
@@ -176,12 +176,13 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         uint256 costBasis;
 
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
-        if (entries.length == 0) return;
+        uint256 len = entries.length;
+        if (len == 0) return;
 
         uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
 
         while (remainingShares > 0) {
-            if (currentIndex >= entries.length) revert INSUFFICIENT_SHARES();
+            if (currentIndex >= len) revert INSUFFICIENT_SHARES();
 
             LedgerEntry storage entry = entries[currentIndex];
             uint256 available = entry.amountSharesAvailableToConsume;
