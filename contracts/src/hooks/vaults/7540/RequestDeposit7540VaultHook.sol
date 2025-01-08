@@ -13,12 +13,12 @@ import { IERC7540 } from "src/interfaces/vendors/vaults/7540/IERC7540.sol";
 
 /// @title RequestDeposit7540VaultHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -33,8 +33,8 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 72);
 
@@ -43,13 +43,13 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: vault,
+            target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.requestDeposit, (amount, receiver))
+            callData: abi.encodeCall(IERC7540.requestDeposit, (amount, account))
         });
     }
 
@@ -57,10 +57,8 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external pure { }
+    function preExecute(address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external {
-        isInflow = true;
-    }
+    function postExecute(address, bytes memory) external view onlyExecutor{ }
 }

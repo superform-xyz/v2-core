@@ -41,15 +41,14 @@ contract SameChainDepositRedeemFlowTest is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         uint256 amount = 1e8;
-        address[] memory hooksAddresses = new address[](3);
+        address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
 
-        bytes[] memory hooksData = new bytes[](3);
+        bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
-        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[1] =
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -61,14 +60,13 @@ contract SameChainDepositRedeemFlowTest is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         uint256 amount = 1e8;
-        address[] memory hooksAddresses = new address[](3);
+        address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
-        bytes[] memory hooksData = new bytes[](3);
+        bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
-        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[1] =
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -82,12 +80,12 @@ contract SameChainDepositRedeemFlowTest is BaseTest {
 
         assertEq(accSharesAfter, vaultInstance.previewDeposit(amount));
 
-        hooksAddresses = new address[](2);
+        hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
-        hooksAddresses[1] = _getHook(ETH, "SuperLedgerHook");
         hooksData = new bytes[](2);
-        hooksData[0] = _createWithdrawHookData(yieldSourceAddress, account, account, accSharesAfter, false);
-        hooksData[1] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[0] = _createWithdrawHookData(
+            account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, account, accSharesAfter, false
+        );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

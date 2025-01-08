@@ -31,17 +31,4 @@ contract SuperPositionSentinel is ISentinel, SuperRegistryImplementer {
             emit SuperPositionBurn(actionId_, finalTarget_, amount);
         }
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _getSharedStateKey(address target_, bytes4 selector_) private view returns (bytes32) {
-        return keccak256(
-            abi.encode(
-                bytes32(
-                    uint256(keccak256(abi.encodePacked(superRegistry.sharedStateNamespace(), target_, selector_))) - 1
-                ) & ~bytes32(uint256(0xff))
-            )
-        );
-    }
 }

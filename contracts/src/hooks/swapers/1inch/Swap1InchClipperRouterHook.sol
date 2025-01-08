@@ -25,7 +25,7 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
         address author_,
         address aggregationRouter_
     )
-        BaseHook(registry_, author_)
+        BaseHook(registry_, author_, HookType.NONACCOUNTING)
         Base1InchHook(aggregationRouter_)
     { }
 

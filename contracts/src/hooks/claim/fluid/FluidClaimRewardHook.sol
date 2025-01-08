@@ -16,7 +16,7 @@ import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/I
 /// @dev data has the following structure
 /// @notice         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -33,12 +33,12 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
     }
 }

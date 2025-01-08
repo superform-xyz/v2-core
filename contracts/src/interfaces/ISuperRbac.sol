@@ -46,4 +46,7 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the sentinel configurator role.
     function SENTINEL_CONFIGURATOR() external view returns (bytes32);
+
+    /// @dev Get the ID of the accounting hook role.
+    function ACCOUNTING_HOOK() external view returns (bytes32); 
 }

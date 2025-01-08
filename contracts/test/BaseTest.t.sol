@@ -12,7 +12,6 @@ import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
 
 // Superform contracts
 import { SuperRbac } from "../src/settings/SuperRbac.sol";
-import { SharedState } from "../src/state/SharedState.sol";
 import { SpokePoolV3Mock } from "./mocks/SpokePoolV3Mock.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
@@ -21,7 +20,6 @@ import { AcrossBridgeGateway } from "../src/bridges/AcrossBridgeGateway.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
 // hooks
-import { SuperLedgerHook } from "../src/hooks/accounting/SuperLedgerHook.sol";
 
 // tokens hooks
 // --- erc20
@@ -54,14 +52,12 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 
 struct Addresses {
     ISuperRbac superRbac;
-    SharedState sharedState;
     ISuperLedger superLedger;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
     SpokePoolV3Mock spokePoolV3Mock;
     AcrossBridgeGateway acrossBridgeGateway;
-    SuperLedgerHook superLedgerHook;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
@@ -168,10 +164,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superRegistry), "superRegistry");
             contractAddresses[chainIds[i]]["SuperRegistry"] = address(A.superRegistry);
 
-            A.sharedState = new SharedState();
-            vm.label(address(A.sharedState), "sharedState");
-            contractAddresses[chainIds[i]]["SharedState"] = address(A.sharedState);
-
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
             vm.label(address(A.superRbac), "superRbac");
             contractAddresses[chainIds[i]]["SuperRbac"] = address(A.superRbac);
@@ -212,10 +204,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]]["ERC5115YieldSourceOracle"] = address(A.erc5115YieldSourceOracle);
 
             /// @dev  hooks
-
-            A.superLedgerHook = new SuperLedgerHook(address(A.superRegistry), address(this));
-            vm.label(address(A.superLedgerHook), "SuperLedgerHook");
-            hookAddresses[chainIds[i]]["SuperLedgerHook"] = address(A.superLedgerHook);
 
             A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
             vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
@@ -441,14 +429,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], "SuperExecutor")
             );
-            SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SHARED_STATE_ID(), _getContract(chainIds[i], "SharedState")
-            );
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
-
-            SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_LEDGER_HOOK_ID(), _getHook(chainIds[i], "SuperLedgerHook")
-            );
         }
     }
 
@@ -472,6 +453,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             configs[0] = ISuperLedger.HookRegistrationConfig({
                 mainHooks: mainHooks,
                 yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
+                yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
                 feePercent: 100,
                 vaultShareToken: address(0), // this is auto set because its standardized yield
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())

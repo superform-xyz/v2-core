@@ -12,7 +12,6 @@ import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/settings/SuperRbac.sol";
-import { SharedState } from "../src/state/SharedState.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
@@ -146,15 +145,6 @@ contract DeployV2 is Script, Configuration {
         // Deploy SuperPositionMock
         _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions, chainId);
 
-        // Deploy SharedState
-        deployedContracts.sharedState = __deployContract(
-            deployer,
-            "SharedState",
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, "SharedState"),
-            type(SharedState).creationCode
-        );
-
         // Deploy SuperPositionSentinel
         deployedContracts.superPositionSentinel = __deployContract(
             deployer,
@@ -211,7 +201,6 @@ contract DeployV2 is Script, Configuration {
         superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, "SuperRbac"));
         superRegistry.setAddress(superRegistry.ACROSS_GATEWAY_ID(), _getContract(chainId, "AcrossBridgeGateway"));
         superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, "SuperExecutor"));
-        superRegistry.setAddress(superRegistry.SHARED_STATE_ID(), _getContract(chainId, "SharedState"));
         superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
     }
 
@@ -381,10 +370,12 @@ contract DeployV2 is Script, Configuration {
         configs[0] = ISuperLedger.HookRegistrationConfig({
             mainHooks: mainHooks,
             yieldSourceOracle: _getContract(chainId, "ERC4626YieldSourceOracle"),
+            yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
             feePercent: 100,
             vaultShareToken: address(0), // this is auto set because its standardized yield
             feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
         });
+
         ISuperLedger(_getContract(chainId, "SuperLedger")).setYieldSourceOracles(configs);
     }
 

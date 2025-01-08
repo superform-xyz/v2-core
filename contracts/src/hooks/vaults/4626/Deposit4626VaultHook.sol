@@ -14,12 +14,13 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 
 /// @title Deposit4626VaultHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract Deposit4626VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -34,44 +35,43 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 72);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: vault, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, receiver)) });
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, bytes memory data) external onlyExecutor {
         // store current balance
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
-        isInflow = true;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        return IERC4626(vault).balanceOf(receiver);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        return IERC4626(yieldSource).balanceOf(account);
     }
 }

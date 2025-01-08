@@ -31,7 +31,7 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
         IAcrossV3Interpreter.Instruction instruction;
     }
 
-    constructor(address registry_, address author_, address spokePoolV3_) BaseHook(registry_, author_) {
+    constructor(address registry_, address author_, address spokePoolV3_) BaseHook(registry_, author_, HookType.NONACCOUNTING) {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
     }
@@ -78,12 +78,12 @@ contract AcrossExecuteOnDestinationHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external pure {}
+    function preExecute(address, bytes memory) external view onlyExecutor {}
             
         
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external pure {}
+    function postExecute(address, bytes memory) external view onlyExecutor {}
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
