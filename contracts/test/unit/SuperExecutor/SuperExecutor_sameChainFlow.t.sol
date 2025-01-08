@@ -39,15 +39,13 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         _getTokens(underlying, account, amount);
 
-        address[] memory hooksAddresses = new address[](3);
+        address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
 
-        bytes[] memory hooksData = new bytes[](3);
+        bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
-        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[1] = _createDepositHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, false);
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -63,19 +61,15 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         external
     {
         amount = _bound(amount);
-        address[] memory hooksAddresses = new address[](5);
+        address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        hooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
-        hooksAddresses[3] = _getHook(ETH, "Withdraw4626VaultHook");
-        hooksAddresses[4] = _getHook(ETH, "SuperLedgerHook");
+        hooksAddresses[2] = _getHook(ETH, "Withdraw4626VaultHook");
 
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
-        hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
-        hooksData[3] = _createWithdrawHookData(yieldSourceAddress, account, account, amount, false);
-        hooksData[4] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        hooksData[1] = _createDepositHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, false);
+        hooksData[2] = _createWithdrawHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, account, amount, false);
         // assure account has tokens
         _getTokens(underlying, account, amount);
 

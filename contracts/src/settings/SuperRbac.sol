@@ -29,6 +29,8 @@ contract SuperRbac is Ownable, ISuperRbac {
     bytes32 public constant EXECUTOR_CONFIGURATOR = keccak256("EXECUTOR_CONFIGURATOR");
     /// @inheritdoc ISuperRbac
     bytes32 public constant SENTINEL_CONFIGURATOR = keccak256("SENTINEL_CONFIGURATOR");
+    /// @inheritdoc ISuperRbac
+    bytes32 public constant ACCOUNTING_HOOK = keccak256("ACCOUNTING_HOOK");
 
     constructor(address owner) Ownable(owner) { }
 

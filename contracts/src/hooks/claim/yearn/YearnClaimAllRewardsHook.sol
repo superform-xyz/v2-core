@@ -16,7 +16,7 @@ import { IYearnStakingRewardsMulti } from "../../../interfaces/vendors/yearn/IYe
 //      The following hook claims an array of rewards tokens
 //      How we store those to be used in the `postExecute` is the question?
 contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -33,8 +33,8 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external pure {}
+    function preExecute(address, bytes memory) external view onlyExecutor {}
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external pure {}
+    function postExecute(address, bytes memory) external view onlyExecutor {}
 }

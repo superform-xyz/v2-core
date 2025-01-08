@@ -5,9 +5,8 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
-
 // Superform
+import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
@@ -17,16 +16,16 @@ import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 /// @title Deposit5115VaultHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool depositFromInternalBalance = _decodeBool(data, 124);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 125);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+/// @notice         bool depositFromInternalBalance = _decodeBool(data, 156);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
 contract Deposit5115VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) {
-        isInflow = true;
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) {
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -42,26 +41,26 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        bool depositFromInternalBalance = _decodeBool(data, 124);
-        bool usePrevHookAmount = _decodeBool(data, 125);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+        bool depositFromInternalBalance = _decodeBool(data, 156);
+        bool usePrevHookAmount = _decodeBool(data, 157);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || receiver == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: vault,
+            target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC5115.redeem, (receiver, amount, tokenIn, minSharesOut, depositFromInternalBalance))
+            callData: abi.encodeCall(IERC5115.redeem, (account, amount, tokenIn, minSharesOut, depositFromInternalBalance))
         });
     }
 
@@ -69,22 +68,21 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
-        isInflow = true;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        return IERC4626(vault).balanceOf(receiver);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        return IERC4626(yieldSource).balanceOf(account);
     }
 }

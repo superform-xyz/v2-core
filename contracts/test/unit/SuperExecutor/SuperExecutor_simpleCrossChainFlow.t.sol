@@ -79,6 +79,7 @@ contract SuperExecutor_simpleCrossChainFlow is BaseTest {
         _;
     }
 
+    
     function test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured(uint256 amount)
         external
         addRole(superRbac, superRbac.BRIDGE_GATEWAY())
@@ -121,13 +122,11 @@ contract SuperExecutor_simpleCrossChainFlow is BaseTest {
             bytes[] memory withdrawHooksData
         )
     {
-        withdrawHooksAddresses = new address[](2);
+        withdrawHooksAddresses = new address[](1);
         withdrawHooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
-        withdrawHooksAddresses[1] = _getHook(ETH, "SuperLedgerHook");
 
-        withdrawHooksData = new bytes[](2);
-        withdrawHooksData[0] = _createWithdrawHookData(yieldSourceAddress, account, account, amount, false);
-        withdrawHooksData[1] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+        withdrawHooksData = new bytes[](1);
+        withdrawHooksData[0] = _createWithdrawHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, account, amount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: withdrawHooksAddresses, hooksData: withdrawHooksData });
@@ -151,18 +150,16 @@ contract SuperExecutor_simpleCrossChainFlow is BaseTest {
             })
         });
 
-        depositHooksAddresses = new address[](5);
+        depositHooksAddresses = new address[](4);
         depositHooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         depositHooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        depositHooksAddresses[2] = _getHook(ETH, "SuperLedgerHook");
-        depositHooksAddresses[3] = _getHook(ETH, "ApproveERC20Hook");
-        depositHooksAddresses[4] = _getHook(ETH, "AcrossExecuteOnDestinationHook");
+        depositHooksAddresses[2] = _getHook(ETH, "ApproveERC20Hook");
+        depositHooksAddresses[3] = _getHook(ETH, "AcrossExecuteOnDestinationHook");
 
-        depositHooksData = new bytes[](5);
+        depositHooksData = new bytes[](4);
         depositHooksData[0] = abi.encodePacked(underlying, yieldSourceAddress, amount, false);
-        depositHooksData[1] = abi.encodePacked(yieldSourceAddress, account, amount, false);
-        depositHooksData[2] = abi.encodePacked(account, yieldSourceOracle, yieldSourceAddress, true, amount);
-        depositHooksData[3] = abi.encodePacked(yieldSourceAddress, address(spokePoolV3Mock), amount, false);
-        depositHooksData[4] = abi.encode(acrossV3DepositData);
+        depositHooksData[1] = abi.encodePacked(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, true);
+        depositHooksData[2] = abi.encodePacked(yieldSourceAddress, address(spokePoolV3Mock), amount, true);
+        depositHooksData[3] = abi.encode(acrossV3DepositData);
     }
 }

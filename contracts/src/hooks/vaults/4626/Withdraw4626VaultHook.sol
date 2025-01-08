@@ -14,13 +14,14 @@ import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 
 /// @title Withdraw4626VaultHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 92);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -35,34 +36,34 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address owner = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 92);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (vault == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)|| owner == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: vault, value: 0, callData: abi.encodeCall(IERC4626.redeem, (shares, receiver, owner)) });
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.redeem, (shares, account, owner)) });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getShareBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = outAmount - _getShareBalance(data);
     }
 
@@ -70,8 +71,8 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getShareBalance(bytes memory data) private view returns (uint256) {
-        address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        return IERC4626(vault).balanceOf(receiver);
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        return IERC4626(yieldSource).balanceOf(account);
     }
 }
