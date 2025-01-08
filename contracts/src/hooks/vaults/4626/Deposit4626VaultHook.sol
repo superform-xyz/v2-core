@@ -13,15 +13,13 @@ import { BaseAccountingHook } from "../../BaseAccountingHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
-import "forge-std/console2.sol";
-
 /// @title Deposit4626VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 92);
+/// @notice         bytes32 yieldSourceId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -39,15 +37,9 @@ contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 92);
-
-
-        console2.log("---------account", account);
-        console2.log("---------yieldSource", yieldSource);
-        console2.log("---------amount", amount);
-        console2.log("---------usePrevHookAmount", usePrevHookAmount);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -81,7 +73,7 @@ contract Deposit4626VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
         return IERC4626(yieldSource).balanceOf(account);
     }
 }

@@ -18,13 +18,13 @@ import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 /// @title Deposit5115VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
-/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-/// @notice         bool depositFromInternalBalance = _decodeBool(data, 144);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 145);
+/// @notice         bytes32 yieldSourceId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+/// @notice         bool depositFromInternalBalance = _decodeBool(data, 156);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
 contract Deposit5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) {
         isInflow = true;
@@ -44,12 +44,12 @@ contract Deposit5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
-        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-        bool depositFromInternalBalance = _decodeBool(data, 144);
-        bool usePrevHookAmount = _decodeBool(data, 145);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+        bool depositFromInternalBalance = _decodeBool(data, 156);
+        bool usePrevHookAmount = _decodeBool(data, 157);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -85,7 +85,7 @@ contract Deposit5115VaultHook is BaseHook, BaseAccountingHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
         return IERC4626(yieldSource).balanceOf(account);
     }
 }

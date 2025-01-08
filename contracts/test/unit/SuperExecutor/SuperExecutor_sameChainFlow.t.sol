@@ -45,7 +45,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(account, yieldSourceOracle, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, false);
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -68,8 +68,8 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(account, yieldSourceOracle, yieldSourceAddress, amount, false);
-        hooksData[2] = _createWithdrawHookData(account, yieldSourceOracle, yieldSourceAddress, account, amount, false);
+        hooksData[1] = _createDepositHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, false);
+        hooksData[2] = _createWithdrawHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, account, amount, false);
         // assure account has tokens
         _getTokens(underlying, account, amount);
 

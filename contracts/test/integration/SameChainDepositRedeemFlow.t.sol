@@ -47,7 +47,7 @@ contract SameChainDepositRedeemFlowTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(account, yieldSourceOracle, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -64,7 +64,7 @@ contract SameChainDepositRedeemFlowTest is BaseTest {
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(account, yieldSourceOracle, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDepositHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -81,7 +81,7 @@ contract SameChainDepositRedeemFlowTest is BaseTest {
         hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
         hooksData = new bytes[](2);
-        hooksData[0] = _createWithdrawHookData(account, yieldSourceOracle, yieldSourceAddress, account, accSharesAfter, false);
+        hooksData[0] = _createWithdrawHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, account, accSharesAfter, false);
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

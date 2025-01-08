@@ -470,6 +470,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             configs[0] = ISuperLedger.HookRegistrationConfig({
                 mainHooks: mainHooks,
                 yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
+                yieldSourceId: RANDOM_YIELD_SOURCE_ID,
                 feePercent: 100,
                 vaultShareToken: address(0), // this is auto set because its standardized yield
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())

@@ -126,7 +126,7 @@ contract SuperExecutor_simpleCrossChainFlow is BaseTest {
         withdrawHooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
 
         withdrawHooksData = new bytes[](1);
-        withdrawHooksData[0] = _createWithdrawHookData(account, yieldSourceOracle, yieldSourceAddress, account, amount, false);
+        withdrawHooksData[0] = _createWithdrawHookData(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, account, amount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: withdrawHooksAddresses, hooksData: withdrawHooksData });
@@ -158,7 +158,7 @@ contract SuperExecutor_simpleCrossChainFlow is BaseTest {
 
         depositHooksData = new bytes[](4);
         depositHooksData[0] = abi.encodePacked(underlying, yieldSourceAddress, amount, false);
-        depositHooksData[1] = abi.encodePacked(account, yieldSourceOracle, yieldSourceAddress, amount, true);
+        depositHooksData[1] = abi.encodePacked(account, RANDOM_YIELD_SOURCE_ID, yieldSourceAddress, amount, true);
         depositHooksData[2] = abi.encodePacked(yieldSourceAddress, address(spokePoolV3Mock), amount, true);
         depositHooksData[3] = abi.encode(acrossV3DepositData);
     }

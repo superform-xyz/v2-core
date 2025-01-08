@@ -15,11 +15,11 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 /// @title SomelierStakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address yieldSourceOracle = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bytes32 yieldSourceId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 contract SomelierStakeHook is BaseHook, BaseAccountingHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_) { }
 
@@ -36,10 +36,10 @@ contract SomelierStakeHook is BaseHook, BaseAccountingHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
-        uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 104);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 136);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -74,7 +74,7 @@ contract SomelierStakeHook is BaseHook, BaseAccountingHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 
         ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(yieldSource).getUserStakes(account);
         uint256 total;

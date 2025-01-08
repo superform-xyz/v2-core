@@ -18,4 +18,8 @@ abstract contract Constants {
 
     // ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
+
+
+    // yieldSourceIds
+    bytes32 public constant RANDOM_YIELD_SOURCE_ID = keccak256("RANDOM_YIELD_SOURCE_ID");
 }

@@ -18,7 +18,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     mapping(address user => mapping(address yieldSource => Ledger ledger)) private userLedger;
 
     /// @notice Yield source oracle configurations
-    mapping(address yieldSourceOracle => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
+    mapping(bytes32 yieldSourceId => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
 
     modifier onlySuperLedgerHook() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
@@ -35,8 +35,8 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     /// @inheritdoc ISuperLedger
     function updateAccounting(
         address user,
-        address yieldSourceOracle,
         address yieldSource,
+        bytes32 yieldSourceId,
         bool isInflow,
         uint256 amount
     )
@@ -44,11 +44,14 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         onlySuperLedgerHook
         returns (uint256 pps)
     {
-        YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracle];
+        YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceId];
+        // no need to process if fee is 0
+        if (config.feePercent == 0) return 0;
+
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
         // Get price from oracle
-        pps = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSource);
+        pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
         if (pps == 0) revert INVALID_PRICE();
 
         if (isInflow) {
@@ -56,10 +59,10 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
                 LedgerEntry({ amountSharesAvailableToConsume: amount, price: pps })
             );
         } else {
-            _processOutflow(user, yieldSource, yieldSourceOracle, amount, pps);
+            _processOutflow(user, yieldSource, yieldSourceId, amount, pps);
         }
 
-        emit AccountingUpdated(user, yieldSourceOracle, yieldSource, isInflow, amount, pps);
+        emit AccountingUpdated(user, config.yieldSourceOracle, yieldSource, isInflow, amount, pps);
     }
 
     /// @inheritdoc ISuperLedger
@@ -70,6 +73,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         for (uint256 i; i < length;) {
             HookRegistrationConfig calldata config = configs[i];
             _setYieldSourceOracleConfig(
+                config.yieldSourceId,
                 config.mainHooks,
                 config.yieldSourceOracle,
                 config.feePercent,
@@ -100,25 +104,21 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     }
 
     /// @inheritdoc ISuperLedger
-    function getYieldSourceOracleConfig(address yieldSourceOracle)
-        external
-        view
-        returns (YieldSourceOracleConfig memory)
-    {
-        return yieldSourceOracleConfig[yieldSourceOracle];
+    function getYieldSourceOracleConfig(bytes32 yieldSourceId) external view returns (YieldSourceOracleConfig memory) {
+        return yieldSourceOracleConfig[yieldSourceId];
     }
 
     /// @inheritdoc ISuperLedger
-    function getYieldSourceOracleConfigs(address[] calldata yieldSourceOracles)
+    function getYieldSourceOracleConfigs(bytes32[] calldata yieldSourceIds)
         external
         view
         returns (YieldSourceOracleConfig[] memory configs)
     {
-        uint256 length = yieldSourceOracles.length;
+        uint256 length = yieldSourceIds.length;
 
         configs = new YieldSourceOracleConfig[](length);
         for (uint256 i; i < length;) {
-            configs[i] = yieldSourceOracleConfig[yieldSourceOracles[i]];
+            configs[i] = yieldSourceOracleConfig[yieldSourceIds[i]];
             unchecked {
                 ++i;
             }
@@ -130,6 +130,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
 
     function _setYieldSourceOracleConfig(
+        bytes32 yieldSourceId,
         address[] calldata mainHooks,
         address yieldSourceOracle,
         uint256 feePercent,
@@ -141,26 +142,30 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feePercent > 10_000) revert INVALID_FEE_PERCENT();
+        if (yieldSourceId == bytes20(0)) revert ZERO_ID_NOT_ALLOWED();
 
         // Only allow updates if no config exists or if caller is the manager
-        YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracle];
+        YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceId];
         if (existingConfig.manager != address(0) && msg.sender != existingConfig.manager) revert NOT_MANAGER();
 
-        yieldSourceOracleConfig[yieldSourceOracle] = YieldSourceOracleConfig({
+        yieldSourceOracleConfig[yieldSourceId] = YieldSourceOracleConfig({
             mainHooks: mainHooks,
+            yieldSourceOracle: yieldSourceOracle,
             feePercent: feePercent,
             vaultShareToken: vaultShareToken,
             feeRecipient: feeRecipient,
             manager: msg.sender
         });
 
-        emit YieldSourceOracleConfigSet(yieldSourceOracle, feePercent, vaultShareToken, msg.sender, feeRecipient);
+        emit YieldSourceOracleConfigSet(
+            yieldSourceId, yieldSourceOracle, feePercent, vaultShareToken, msg.sender, feeRecipient
+        );
     }
 
     function _processOutflow(
         address user,
         address yieldSource,
-        address yieldSourceOracle,
+        bytes32 yieldSourceId,
         uint256 amountShares,
         uint256 pps
     )
@@ -170,8 +175,10 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         uint256 totalValue = amountShares * pps;
         uint256 costBasis;
 
-        uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
+        if (entries.length == 0) return;
+
+        uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
 
         while (remainingShares > 0) {
             if (currentIndex >= entries.length) revert INSUFFICIENT_SHARES();
@@ -202,7 +209,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
         uint256 profit = totalValue > costBasis ? totalValue - costBasis : 0;
         if (profit > 0) {
-            YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracle];
+            YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceId];
             if (config.feePercent == 0) revert FEE_NOT_SET();
 
             uint256 feeAmount = (profit * config.feePercent) / 10_000;
