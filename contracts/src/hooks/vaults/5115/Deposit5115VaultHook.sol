@@ -7,12 +7,12 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
-import { IERC5115 } from "src/interfaces/vendors/vaults/5115/IERC5115.sol";
+import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
-import { BaseHook } from "src/hooks/BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Deposit5115VaultHook
 /// @dev data has the following structure
@@ -25,8 +25,7 @@ import { ISuperHook, ISuperHookResult } from "src/interfaces/ISuperHook.sol";
 /// @notice         bool depositFromInternalBalance = _decodeBool(data, 156);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
 contract Deposit5115VaultHook is BaseHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) {
-    }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
