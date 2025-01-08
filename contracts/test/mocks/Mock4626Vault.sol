@@ -10,12 +10,18 @@ contract Mock4626Vault is ERC4626 {
     uint256 public _totalShares;
     mapping(address => uint256) public amountOf;
 
+    bool public lessAmount;
+
     address public _asset;
     IERC20 private immutable assetInstance;
 
     constructor(IERC20 asset_, string memory name_, string memory symbol_) ERC4626(asset_) ERC20(name_, symbol_) {
         assetInstance = asset_;
         _asset = address(asset_);
+    }
+
+    function setLessAmount(bool lessAmount_) external {
+        lessAmount = lessAmount_;
     }
 
     function decimals() public pure override returns (uint8) {
@@ -38,10 +44,11 @@ contract Mock4626Vault is ERC4626 {
 
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         require(assets > 0, AMOUNT_NOT_VALID());
-        shares = assets; // 1:1 ratio for simplicity
-        _totalAssets += assets;
+        uint256 amount = lessAmount ? assets / 2 : assets;
+        shares = amount; // 1:1 ratio for simplicity in case lessAmount is false
+        _totalAssets += amount;
         _totalShares += shares;
-        amountOf[receiver] += assets;
+        amountOf[receiver] += amount;
         IERC20(_asset).transferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);

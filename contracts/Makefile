@@ -38,7 +38,9 @@ deploy-poc:
 build :; forge build
 ftest :; forge test
 
-test-vvv :; forge test --match-test test_GivenAStrategyDoesNotExist -vvvv
+test-vvv :; forge test --match-test test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured -vvvv
+
+test-integration :; forge test --match-contract test_Deposit_Redeem_4626_Mainnet_Flow -vvvv
 
 .PHONY: generate
 generate: build 
@@ -46,4 +48,4 @@ generate: build
 	./script/utils/retrieve-abis.sh
 
 	# General
-	abigen --abi out/SuperExecutorV2.sol/SuperExecutorV2.abi --pkg contracts --type SuperExecutorV2 --out contract_bindings/SuperExecutorV2.go
+	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
