@@ -244,13 +244,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 new AcrossExecuteOnDestinationHook(address(A.superRegistry), address(this), address(A.spokePoolV3Mock));
             vm.label(address(A.acrossExecuteOnDestinationHook), "AcrossExecuteOnDestinationHook");
             hookAddresses[chainIds[i]]["AcrossExecuteOnDestinationHook"] = address(A.acrossExecuteOnDestinationHook);
-
-
-            // set accounting hooks
-            A.superRbac.setRole(address(A.deposit4626VaultHook), A.superRbac.ACCOUNTING_HOOK(), true);
-            A.superRbac.setRole(address(A.withdraw4626VaultHook), A.superRbac.ACCOUNTING_HOOK(), true);
-            A.superRbac.setRole(address(A.deposit5115VaultHook), A.superRbac.ACCOUNTING_HOOK(), true);
-            A.superRbac.setRole(address(A.withdraw5115VaultHook), A.superRbac.ACCOUNTING_HOOK(), true);  
         }
     }
 
