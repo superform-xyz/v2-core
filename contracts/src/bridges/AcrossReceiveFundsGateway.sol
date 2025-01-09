@@ -10,7 +10,7 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { IAcrossV3Receiver } from "../interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
 import { IAcrossV3Interpreter } from "../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
-contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
+contract AcrossReceiveFundsGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -19,7 +19,7 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event InstructionProcessed(address indexed account, bytes strategyData);
+    event InstructionProcessed(address indexed account, uint64 indexed sourceChainId, bytes32 indexed id);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -34,7 +34,7 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     /// @inheritdoc IAcrossV3Receiver
     function handleV3AcrossMessage(
         address tokenSent,
-        uint256, //amount
+        uint256 amount,
         address, //relayer; not used
         bytes memory message
     )
@@ -43,13 +43,13 @@ contract AcrossBridgeGateway is IAcrossV3Receiver, SuperRegistryImplementer {
         if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
 
         // decode instruction
-        IAcrossV3Interpreter.Instruction memory instruction = abi.decode(message, (IAcrossV3Interpreter.Instruction));
+        (address account, uint64 sourceChainId, bytes32 id) = abi.decode(message, (address, uint64, bytes32));
 
         // send tokens to the smart account
-        IERC20(tokenSent).transfer(instruction.account, instruction.amount);
+        IERC20(tokenSent).transfer(account, amount);
 
-        // emit an event that should be picked up by the orchestrator
-        emit InstructionProcessed(instruction.account, instruction.strategyData);
+        // emit an event that should be picked up by the Super Bundler
+        emit InstructionProcessed(account, sourceChainId, id);
     }
 
     /*//////////////////////////////////////////////////////////////

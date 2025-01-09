@@ -12,7 +12,6 @@ import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
 
 // Superform contracts
 import { SuperRbac } from "../src/settings/SuperRbac.sol";
-import { SpokePoolV3Mock } from "./mocks/SpokePoolV3Mock.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
@@ -88,6 +87,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
 
     string[] public underlyingTokens = ["DAI", "USDC", "WETH"];
+
+    address[] public spokePoolV3Addresses = [
+        0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
+        0x6f26Bf09B1C792e3228e5467807a900A503c0281,
+        0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64
+    ];
+    mapping(uint64 chainId => address spokePoolV3Address) public SPOKE_POOL_V3_ADDRESSES;
 
     /// @dev mappings
 
@@ -184,10 +190,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
 
-            A.spokePoolV3Mock = new SpokePoolV3Mock();
-            vm.label(address(A.spokePoolV3Mock), "spokePoolV3Mock");
-            contractAddresses[chainIds[i]]["SpokePoolV3Mock"] = address(A.spokePoolV3Mock);
-
             A.acrossBridgeGateway = new AcrossBridgeGateway(address(A.superRegistry), address(A.spokePoolV3Mock));
             vm.label(address(A.acrossBridgeGateway), "acrossBridgeGateway");
             contractAddresses[chainIds[i]]["AcrossBridgeGateway"] = address(A.acrossBridgeGateway);
@@ -270,6 +272,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         rpcURLs[ETH] = ETHEREUM_RPC_URL_QN;
         rpcURLs[OP] = OPTIMISM_RPC_URL_QN;
         rpcURLs[BASE] = BASE_RPC_URL_QN;
+
+        mapping(uint64 => address) storage spokePoolV3AddressesMap = SPOKE_POOL_V3_ADDRESSES;
+        spokePoolV3AddressesMap[ETH] = spokePoolV3Addresses[0];
+        spokePoolV3AddressesMap[OP] = spokePoolV3Addresses[1];
+        spokePoolV3AddressesMap[BASE] = spokePoolV3Addresses[2];
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -496,5 +503,80 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _bound(uint256 amount_) internal pure returns (uint256) {
         amount_ = bound(amount_, SMALL, LARGE);
         return amount_;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 HOOK DATA CREATORS
+    //////////////////////////////////////////////////////////////*/
+
+    function _createApproveHookData(
+        address token,
+        address spender,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
+    }
+
+    function _createDepositHookData(
+        address receiver,
+        bytes32 yieldSourceOracleId,
+        address vault,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount);
+    }
+
+    function _createWithdrawHookData(
+        address receiver,
+        bytes32 yieldSourceOracleId,
+        address vault,
+        address owner,
+        uint256 shares,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+    }
+
+    function _createAcrossV3DepositHookData(
+        address account,
+        bytes32 id,
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint256 destinationChainId
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            account,
+            id,
+            0,
+            _getContract(destinationChainId, "AcrossBridgeGateway"),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            destinationChainId,
+            address(0),
+            block.timestamp + 10 minutes,
+            0
+        );
     }
 }

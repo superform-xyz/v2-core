@@ -13,7 +13,7 @@ import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
-contract SameChainDepositRedeemFlowTest is BaseTest {
+contract ERC4626DepositRedeemFlowTest is BaseTest {
     IERC4626 public vaultInstance;
     address public yieldSourceAddress;
     address public yieldSourceOracle;
@@ -99,5 +99,32 @@ contract SameChainDepositRedeemFlowTest is BaseTest {
 
         uint256 accSharesAfterWithdraw = vaultInstance.balanceOf(account);
         assertEq(accSharesAfterWithdraw, 0);
+    }
+
+    function test_Deposit_CrossChain_4626_Mainnet_Flow() public {
+        vm.selectFork(FORKS[ETH]);
+        uint256 acrossIdToFetch = 1;
+        uint256 amount = 1e8;
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "AcrossExecuteOnDestinationHook");
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlying, spokePoolV3AddressesMap[BASE], amount, false);
+        hooksData[1] = _createAcrossV3DepositHookData(
+            account,
+            bytes32(acrossIdToFetch),
+            existingUnderlyingTokens[ETH]["DAI"],
+            existingUnderlyingTokens[BASE]["USDC"],
+            amount,
+            amount,
+            BASE
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
     }
 }

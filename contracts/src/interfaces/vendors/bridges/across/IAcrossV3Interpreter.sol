@@ -17,10 +17,4 @@ interface IAcrossV3Interpreter {
         bytes signature;
         address payable beneficiary;
     }
-
-    struct Instruction {
-        bytes strategyData; // ISuperExecutor.ExecutorEntry[]
-        uint256 amount;
-        address account;
-    }
 }
