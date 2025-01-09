@@ -2,8 +2,8 @@
 pragma solidity >=0.8.28;
 
 // external
-import {ERC7579ValidatorBase} from "modulekit/Modules.sol";
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 
 contract MockValidatorModule is ERC7579ValidatorBase {
     uint256 public val;
@@ -30,10 +30,13 @@ contract MockValidatorModule is ERC7579ValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {}
-    function onUninstall(bytes calldata) external {}
+    function onInstall(bytes calldata) external { }
+    function onUninstall(bytes calldata) external { }
 
-    function validateUserOp(PackedUserOperation calldata _userOp, bytes32 _userOpHash)
+    function validateUserOp(
+        PackedUserOperation calldata _userOp,
+        bytes32 _userOpHash
+    )
         external
         override
         returns (ValidationData)
