@@ -45,11 +45,8 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         }
 
         executions = new Execution[](1);
-        executions[0] = Execution({
-            target: yieldSource,
-            value: 0,
-            callData: abi.encodeCall(IGearboxFarmingPool.withdraw, (amount))
-        });
+        executions[0] =
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IGearboxFarmingPool.withdraw, (amount)) });
     }
 
     /*//////////////////////////////////////////////////////////////

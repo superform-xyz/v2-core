@@ -61,6 +61,7 @@ interface ISomelierCellarStaking {
     function ended() external returns (bool);
     function claimable() external returns (bool);
 
+
     function stake(uint256 amount, Lock lock) external;
     function unbond(uint256 depositId) external;
     function unbondAll() external;

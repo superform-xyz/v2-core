@@ -5,8 +5,8 @@ interface IYearnVault {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function balanceOf(address account) external view returns (uint256);
-
+    function balanceOf(address account) external view returns (uint256);    
+    
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -16,3 +16,4 @@ interface IYearnVault {
     /// @notice Withdraw assets from the vault.
     function withdraw(uint256 maxShares, address receiver, uint256 maxLoss) external returns (uint256 assets);
 }
+

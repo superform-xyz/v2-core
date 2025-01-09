@@ -6,9 +6,10 @@ interface IYieldExit {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     function balanceOf(address account) external view returns (uint256);
-
+    
     /*//////////////////////////////////////////////////////////////
                                 EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function exit() external;
 }
+

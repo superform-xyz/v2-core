@@ -43,16 +43,13 @@ contract ERC4626YieldSourceOracle is IYieldSourceOracle {
 
     // ToDo: Implement this with the metadata library
     /// @inheritdoc IYieldSourceOracle
-    function getYieldSourceMetadata(
-        address[] memory yieldSourceAddresses,
-        bytes32[] memory
-    )
-        external
-        pure
-        returns (bytes[] memory metadata)
+    function getYieldSourceMetadata(address[] memory yieldSourceAddresses, bytes32[] memory) 
+        external 
+        pure 
+        returns (bytes[] memory metadata) 
     {
         return new bytes[](yieldSourceAddresses.length);
-    }
+    }   
 
     // ToDo: Implement this with the metadata library
     /// @inheritdoc IYieldSourceOracle
@@ -63,4 +60,5 @@ contract ERC4626YieldSourceOracle is IYieldSourceOracle {
     {
         return new bytes[](yieldSourceAddresses.length);
     }
+    
 }

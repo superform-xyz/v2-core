@@ -35,13 +35,7 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddresses The vaults to get the metadata for
     /// @param yieldSourceOracleIds The ids of the strategies
     /// @return metadata The array of metadata of the strategies
-    function getYieldSourceMetadata(
-        address[] memory yieldSourceAddresses,
-        bytes32[] memory yieldSourceOracleIds
-    )
-        external
-        view
-        returns (bytes[] memory metadata);
+    function getYieldSourceMetadata(address[] memory yieldSourceAddresses, bytes32[] memory yieldSourceOracleIds) external view returns (bytes[] memory metadata);
 
     /// @notice Gets the metadata of multiple strategies
     /// @param yieldSourceAddresses The vaults to get the metadata for

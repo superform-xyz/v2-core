@@ -3,14 +3,14 @@ pragma solidity >=0.8.28;
 
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+
 
 contract MockValidatorModule is ERC7579ValidatorBase {
     uint256 public val;
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
     function isInitialized(address) external pure returns (bool) {
         return true;
     }
@@ -33,10 +33,7 @@ contract MockValidatorModule is ERC7579ValidatorBase {
     function onInstall(bytes calldata) external { }
     function onUninstall(bytes calldata) external { }
 
-    function validateUserOp(
-        PackedUserOperation calldata _userOp,
-        bytes32 _userOpHash
-    )
+    function validateUserOp(PackedUserOperation calldata _userOp, bytes32 _userOpHash)
         external
         override
         returns (ValidationData)
@@ -45,7 +42,12 @@ contract MockValidatorModule is ERC7579ValidatorBase {
         return _verifySignature(_userOp.sender, _userOpHash, _userOp.signature);
     }
 
-    function isValidSignatureWithSender(address, bytes32, bytes calldata) external pure override returns (bytes4) {
+    function isValidSignatureWithSender(address, bytes32, bytes calldata)
+        external
+        override
+        pure
+        returns (bytes4)
+    {
         return 0x1626ba7e; //ERC1271_MAGIC_VALUE
     }
 
@@ -53,6 +55,6 @@ contract MockValidatorModule is ERC7579ValidatorBase {
         //sigFailed  - True for signature failure, false for success.
         //validUntil - Last timestamp this UserOperation is valid (or zero for infinite)
         //validAfter - First timestamp this UserOperation is valid.
-        return _packValidationData(false, 0, 0);
+        return _packValidationData(false,0,0);
     }
 }
