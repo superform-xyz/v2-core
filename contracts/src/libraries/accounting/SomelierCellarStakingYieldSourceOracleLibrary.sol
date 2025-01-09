@@ -11,6 +11,6 @@ library SomelierCellarStakingYieldSourceOracleLibrary {
     /// @param yieldSourceAddress The address of the yield source
     /// @return pricePerShare The price per share
     function getPricePerShare(address yieldSourceAddress) internal view returns (uint256 pricePerShare) {
-        (pricePerShare, ) = ISomelierCellarStaking(yieldSourceAddress).rewardPerToken();
+        (pricePerShare,) = ISomelierCellarStaking(yieldSourceAddress).rewardPerToken();
     }
 }
