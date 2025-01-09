@@ -49,3 +49,6 @@ generate: build
 
 	# General
 	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
+	abigen --abi out/ISuperExecutor.sol/ISuperExecutor.abi --pkg contracts --type ISuperExecutor --out contract_bindings/ISuperExecutor.go
+	abigen --abi out/AcrossExecuteOnDestinationHook.sol/AcrossExecuteOnDestinationHook.abi --pkg contracts --type AcrossExecuteOnDestinationHook --out contract_bindings/AcrossExecuteOnDestinationHook.go
+
