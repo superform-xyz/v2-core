@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 contract MockSignature {
     // a mock example of an operation
@@ -31,11 +31,7 @@ contract MockSignature {
     }
 
     // view
-    function validateSignature(
-        address smartAccount,
-        Execution[] calldata executions,
-        bytes calldata signature
-    )
+    function validateSignature(address smartAccount, Execution[] calldata executions, bytes calldata signature)
         external
         view
         returns (bool)
