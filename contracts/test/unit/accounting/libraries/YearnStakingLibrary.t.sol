@@ -9,11 +9,11 @@ import { MockStakingProtocol } from "../../../mocks/MockStakingProtocol.sol";
 contract YearnStakingLibraryTest is Helpers {
     MockStakingProtocol public stakingProtocol;
 
-    function setUp() public virtual {
+    function setUp() public {
         stakingProtocol = new MockStakingProtocol();
     }
 
-    function test_getPricePerShare() public view {
+    function test_getYearnPricePerShare() public view {
         uint256 expectedPricePerShare = 1e18;
         uint256 pricePerShare = YearnStakingYieldSourceOracleLibrary.getPricePerShare(address(stakingProtocol));
         assertEq(pricePerShare, expectedPricePerShare);
