@@ -27,9 +27,8 @@ contract YearnStakingYieldSourceOracle {
 
     // ToDo: Implement this with the metadata library
     /// @notice Get the metadata for a yield source
-    /// @param yieldSourceAddress The address of the yield source
     /// @return metadata The metadata
-    function getYieldSourceMetadata(address yieldSourceAddress) external pure returns (bytes memory metadata) {
+    function getYieldSourceMetadata() external pure returns (bytes memory metadata) {
         return "0x0";
     }
 }
