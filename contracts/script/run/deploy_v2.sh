@@ -42,3 +42,17 @@ forge clean && forge script script/DeployV2.s.sol:DeployV2 \
     --broadcast \
     --slow
 wait
+
+
+
+echo Deploy Mocks: ...
+forge clean && forge script script/DeployMocks.s.sol:DeployMocks \
+    --sig 'run(uint64[])' '[1]' \
+    --account testDeployer \
+    --verify \
+    --verifier-url $VIRTUAL_TESTNET_VERIFIER_URL \
+    --rpc-url $V2_TEST_VNET \
+    --etherscan-api-key $TENDERLY_ACCESS_KEY \
+    --broadcast \
+    --slow
+wait

@@ -43,7 +43,7 @@ import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626Yield
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
 // external
-import { console } from "forge-std/console.sol";
+import { console2 } from "forge-std/console2.sol";
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
 } from "modulekit/ModuleKit.sol";

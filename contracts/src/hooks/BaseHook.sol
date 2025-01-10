@@ -12,6 +12,9 @@ abstract contract BaseHook is SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
     // forgefmt: disable-start
     uint256 public transient outAmount;
+    bool public transient hasFundsLock; 
+    bool public transient hasFundsUnlock;
+    address public transient transferredToken;
     // forgefmt: disable-end
     address public immutable author;
     ISuperHook.HookType public hookType;

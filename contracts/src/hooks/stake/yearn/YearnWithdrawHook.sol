@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
 /// @title YearnWithdrawHook
@@ -44,7 +44,7 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            maxShares = ISuperHookResult(prevHook).outAmount();
+            maxShares = ISuperHookMinimal(prevHook).outAmount();
         }
 
         executions = new Execution[](1);

@@ -2,17 +2,26 @@
 pragma solidity >=0.8.28;
 
 // external
-import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MODULE_TYPE_HOOK } from "modulekit/accounts/kernel/types/Constants.sol";
+import { AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
 
+import { LockFundsAccountHook } from "../../../src/account-hooks/LockFundsAccountHook.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
 
 import { console2 } from "forge-std/console2.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest {
+    using ModuleKitHelpers for *;
+    using ExecutionLib for *;
+
+
     IERC4626 public vaultInstance;
     address public yieldSourceAddress;
     address public yieldSourceOracle;
@@ -87,4 +96,41 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
         assertGt(accSharesAfter, 0);
     }
+
+    //TODO: remove
+    /**
+    function test_ExecuteWithMockHook(uint256 amount) external {
+        amount = _bound(amount);
+
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[2] = _getHook(ETH, "Withdraw4626VaultHook");
+
+        bytes[] memory hooksData = new bytes[](5);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] =
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
+        hooksData[2] = _createWithdrawHookData(
+            account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, account, amount, false
+        );
+        // assure account has tokens
+        _getTokens(underlying, account, amount);
+
+        LockFundsAccountHook hook = new LockFundsAccountHook(_getContract(ETH, "SuperRegistry"));
+        vm.label(address(hook), "LockFundsAccountHook");
+        instance.installModule({ moduleTypeId: MODULE_TYPE_HOOK, module: address(hook), data: "" });
+
+
+         // it should execute all hooks
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        emit ISuperLedger.AccountingUpdated(account, yieldSourceOracle, yieldSourceAddress, false, amount, 1e18);
+        executeOp(userOpData);
+
+        uint256 accSharesAfter = vaultInstance.balanceOf(account);
+        assertGt(accSharesAfter, 0);
+    }
+    */
 }

@@ -11,7 +11,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import { IPermit2Batch } from "../../../interfaces/vendors/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/IAllowanceTransfer.sol";
 
@@ -52,7 +52,7 @@ contract TransferBatchWithPermit2Hook is BaseHook, ISuperHook {
         ) = abi.decode(data, (bool, uint256, IAllowanceTransfer.AllowanceTransferDetails[]));
 
         if (usePrevHookAmount) {
-            transferDetails[indexOfAmount].amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            transferDetails[indexOfAmount].amount = ISuperHookMinimal(prevHook).outAmount().toUint160();
         }
 
         executions = new Execution[](1);

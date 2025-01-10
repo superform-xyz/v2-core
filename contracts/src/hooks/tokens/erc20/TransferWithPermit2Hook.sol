@@ -11,7 +11,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import { IPermit2Single } from "../../../interfaces/vendors/uniswap/permit2/IPermit2Single.sol";
 
 /// @title TransferWithPermit2Hook
@@ -54,7 +54,7 @@ contract TransferWithPermit2Hook is BaseHook, ISuperHook {
         bool usePrevHookAmount = _decodeBool(data, 80);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            amount = ISuperHookMinimal(prevHook).outAmount().toUint160();
         }
 
         if (token == address(0) || from == address(0)) revert ADDRESS_NOT_VALID();

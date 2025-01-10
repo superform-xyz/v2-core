@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 
 /// @title TransferERC20Hook
 /// @dev data has the following structure
@@ -40,7 +40,7 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
         bool usePrevHookAmount = _decodeBool(data, 72);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookMinimal(prevHook).outAmount();
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();

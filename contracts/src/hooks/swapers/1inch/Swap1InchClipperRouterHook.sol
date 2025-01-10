@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { Base1InchHook } from "./Base1InchHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import {
     I1InchAggregationRouterV6,
     IClipperExchange,
@@ -61,7 +61,7 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
 
         if (params.usePrevHookAmount) {
             // TODO: how do we handle `outputAmount`?
-            params.inputAmount = ISuperHookResult(prevHook).outAmount();
+            params.inputAmount = ISuperHookMinimal(prevHook).outAmount();
         }
 
         executions = new Execution[](1);

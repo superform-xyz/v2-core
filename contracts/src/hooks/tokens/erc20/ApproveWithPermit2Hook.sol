@@ -9,7 +9,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/IAllowanceTransfer.sol";
 
 /// @title ApproveWithPermit2Hook
@@ -52,7 +52,7 @@ contract ApproveWithPermit2Hook is BaseHook, ISuperHook {
         bool usePrevHookAmount = _decodeBool(data, 66);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            amount = ISuperHookMinimal(prevHook).outAmount().toUint160();
         }
 
         if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();

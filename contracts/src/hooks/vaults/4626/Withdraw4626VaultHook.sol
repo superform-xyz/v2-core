@@ -10,7 +10,7 @@ import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Withdraw4626VaultHook
 /// @dev data has the following structure
@@ -43,7 +43,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResult(prevHook).outAmount();
+            shares = ISuperHookMinimal(prevHook).outAmount();
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();

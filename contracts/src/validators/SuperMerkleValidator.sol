@@ -45,9 +45,7 @@ contract SuperMerkleValidator is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function isInitialized(address account) external view returns (bool) {
-        return _initialized[account];
-    }
+    function isInitialized(address) external pure returns (bool) { return true; }
 
     function namespace() public pure returns (string memory) {
         return "MerkleUserOpValidator-v0.0.1";
@@ -60,14 +58,8 @@ contract SuperMerkleValidator is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {
-        if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
-        _initialized[msg.sender] = true;
-    }
-    function onUninstall(bytes calldata) external {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-        _initialized[msg.sender] = false;
-    }
+    function onInstall(bytes calldata) external pure { }
+    function onUninstall(bytes calldata) external pure { }
 
     /// @notice Validate a user operation
     /// @param _userOp The user operation to validate

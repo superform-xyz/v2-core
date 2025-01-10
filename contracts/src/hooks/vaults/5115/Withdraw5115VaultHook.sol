@@ -12,7 +12,7 @@ import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Withdraw5115VaultHook
 /// @dev data has the following structure
@@ -49,7 +49,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         bool usePrevHookAmount = _decodeBool(data, 157);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResult(prevHook).outAmount();
+            shares = ISuperHookMinimal(prevHook).outAmount();
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();

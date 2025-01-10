@@ -13,14 +13,12 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../interfaces/ISuperHook.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                STORAGE
     //////////////////////////////////////////////////////////////*/
-    mapping(address => bool) internal _initialized;
-
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
@@ -30,44 +28,41 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         _;
     }
 
-    function isInitialized(address account) external view returns (bool) {
-        return _initialized[account];
-    }
-
+    /*//////////////////////////////////////////////////////////////
+                                VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Get the name of the module
     function name() external pure returns (string memory) {
         return "SuperExecutor";
     }
 
+    /// @notice Get the version of the module
     function version() external pure returns (string memory) {
         return "0.0.1";
     }
 
+    /// @notice Check if the module is of a given type
+    /// @param typeID The type to check
     function isModuleType(uint256 typeID) external pure override returns (bool) {
         return typeID == TYPE_EXECUTOR;
     }
 
+    /// @notice Check if the module is initialized
+    function isInitialized(address) external pure returns (bool) { return true;}
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {
-        if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
-        _initialized[msg.sender] = true;
-    }
+    function onInstall(bytes calldata) external pure { }
 
-    function onUninstall(bytes calldata) external {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-        _initialized[msg.sender] = false;
-    }
+    function onUninstall(bytes calldata) external pure { }
 
     function execute(bytes calldata data) external {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
     }
 
     /// @inheritdoc ISuperExecutor
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
-        if (!_initialized[account]) revert NOT_INITIALIZED();
-        // check if we need anything else here
         _execute(account, abi.decode(data, (ExecutorEntry)));
     }
 
@@ -104,7 +99,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         // run hook postExecute
         hook.postExecute(prevHook, hookData);
 
-        ISuperHook.HookType _type = ISuperHookResult(address(hook)).hookType();
+        ISuperHook.HookType _type = ISuperHookMinimal(address(hook)).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
 
@@ -116,7 +111,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
-                ISuperHookResult(address(hook)).outAmount()
+                ISuperHookMinimal(address(hook)).outAmount()
             );
         }
     }

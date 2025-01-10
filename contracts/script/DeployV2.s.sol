@@ -101,8 +101,6 @@ contract DeployV2 is Script, Configuration {
 
     function _deploy(uint64 chainId) internal {
         DeployedContracts memory deployedContracts;
-        // set configuration
-        _setConfiguration(chainId);
 
         // retrieve deployer
         ISuperDeployer deployer = _getDeployer();

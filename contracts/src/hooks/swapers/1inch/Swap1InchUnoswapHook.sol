@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { Base1InchHook } from "./Base1InchHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import {
     I1InchAggregationRouterV6,
     IAggregationExecutor,
@@ -60,7 +60,7 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
 
         if (params.usePrevHookAmount) {
             // TODO: how do we handle `minReturnAmount`?
-            params.amount = ISuperHookResult(prevHook).outAmount();
+            params.amount = ISuperHookMinimal(prevHook).outAmount();
         }
 
         executions = new Execution[](1);

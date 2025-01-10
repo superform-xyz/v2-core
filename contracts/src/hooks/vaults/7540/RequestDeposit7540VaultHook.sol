@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 /// @title RequestDeposit7540VaultHook
@@ -39,7 +39,7 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
         bool usePrevHookAmount = _decodeBool(data, 72);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookMinimal(prevHook).outAmount();
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();

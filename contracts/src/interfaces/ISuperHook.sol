@@ -4,12 +4,21 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-interface ISuperHookResult {
+interface ISuperHookMinimal {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice The amount of tokens processed by the hook
     function outAmount() external view returns (uint256);
+
+    /// @notice Whether the hook has processed a funds lock
+    function hasFundsLock() external view returns (bool);
+
+    /// @notice Whether the hook has processed a funds unlock
+    function hasFundsUnlock() external view returns (bool);
+
+    /// @notice The token that was transferred by the hook
+    function transferredToken() external view returns (address);
 
     /// @notice The type of hook
     function hookType() external view returns (ISuperHook.HookType);
