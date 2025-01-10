@@ -49,4 +49,7 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the accounting hook role.
     function ACCOUNTING_HOOK() external view returns (bytes32); 
+
+    /// @dev Get the ID of the super position manager role.
+    function SUPER_POSITION_MANAGER() external view returns (bytes32);
 }

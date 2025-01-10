@@ -97,8 +97,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         assertGt(accSharesAfter, 0);
     }
 
-    //TODO: remove
-    /**
     function test_ExecuteWithMockHook(uint256 amount) external {
         amount = _bound(amount);
 
@@ -132,5 +130,5 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
         assertGt(accSharesAfter, 0);
     }
-    */
+    
 }
