@@ -44,8 +44,8 @@ test-integration :; forge test --match-contract test_Deposit_Redeem_4626_Mainnet
 
 .PHONY: generate
 generate: build 
-	chmod +x ./script/utils/retrieve-abis.sh
-	./script/utils/retrieve-abis.sh
+	chmod +x ./script/run/retrieve-abis.sh
+	./script/run/retrieve-abis.sh
 
 	# General
 	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go

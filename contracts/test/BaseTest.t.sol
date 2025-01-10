@@ -48,6 +48,8 @@ import { console } from "forge-std/console.sol";
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
 } from "modulekit/ModuleKit.sol";
+
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
@@ -520,7 +522,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return instance.exec(address(superExecutor), abi.encodeCall(superExecutor.execute, (data)));
     }
 
-    function executeOp(UserOpData memory userOpData) public returns (VmSafe.Log[] memory) {
+    function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
         return userOpData.execUserOps();
     }
 
@@ -537,7 +539,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _processAcrossV3Message(
         uint64 srcChainId,
         uint64 dstChainId,
-        VmSafe.Log[] memory logs,
+        ExecutionReturnData memory executionData,
         RELAYER_TYPE relayerType,
         address account
     )
@@ -557,7 +559,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             FORKS[dstChainId],
             dstChainId,
             srcChainId,
-            logs
+            executionData.logs
         );
     }
 
