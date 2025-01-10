@@ -22,3 +22,6 @@
 [submodule "contracts/lib/modulekit"]
 	path = contracts/lib/modulekit
 	url = https://github.com/rhinestonewtf/modulekit
+[submodule "lib/modulekit"]
+	path = lib/modulekit
+	url = https://github.com/rhinestonewtf/modulekit
