@@ -9,7 +9,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { IAcrossV3Receiver } from "../interfaces/vendors/bridges/across/IAcrossV3Receiver.sol";
+import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
 import { IAcrossV3Interpreter } from "../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 
 /// @title AcrossReceiveFundsAndExecuteGateway
@@ -46,14 +46,6 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
     //////////////////////////////////////////////////////////////*/
 
     address public immutable acrossSpokePool;
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-    event AcrossFundsReceivedButNotEnoughBalance(address indexed account);
-    event AcrossFundsReceivedAndExecuted(address indexed account); /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-        //////////////////////////////////////////////////////////////*/
 
     constructor(address registry_, address acrossSpokePool_) SuperRegistryImplementer(registry_) {
         acrossSpokePool = acrossSpokePool_;

@@ -17,6 +17,7 @@ import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
+import { IAcrossV3Receiver } from "../src/bridges/interfaces/IAcrossV3Receiver.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
 // hooks
@@ -148,7 +149,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _setupSuperLedger();
 
         // Fund underlying tokens
-        _fundUnderlyingTokens(10_000);
+        _fundUSDCTokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -415,12 +416,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         //     0x5979D7b546E38E414F7E9822514be443A4800529;
     }
 
-    function _fundUnderlyingTokens(uint256 amount) internal {
+    function _fundUSDCTokens(uint256 amount) internal {
         for (uint256 j = 0; j < underlyingTokens.length - 1; ++j) {
             for (uint256 i = 0; i < chainIds.length; ++i) {
                 vm.selectFork(FORKS[chainIds[i]]);
-                address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
-                deal(token, accountInstances[chainIds[i]].account, 1e18 * amount);
+                if (keccak256(abi.encodePacked(underlyingTokens[j])) == keccak256(abi.encodePacked("USDC"))) {
+                    address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
+                    deal(token, accountInstances[chainIds[i]].account, 1e18 * amount);
+                }
             }
         }
     }
@@ -526,7 +529,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return amount_;
     }
 
-    function _processAcrossV3Message(uint64 srcChainId, uint64 dstChainId, VmSafe.Log[] memory logs) internal {
+    enum RELAYER_TYPE {
+        NOT_ENOUGH_BALANCE,
+        ENOUGH_BALANCE
+    }
+
+    function _processAcrossV3Message(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        VmSafe.Log[] memory logs,
+        RELAYER_TYPE relayerType,
+        address account
+    )
+        internal
+    {
+        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossV3Receiver.AcrossFundsReceivedButNotEnoughBalance(account);
+        } else {
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossV3Receiver.AcrossFundsReceivedAndExecuted(account);
+        }
         AcrossV3Helper(_getContract(srcChainId, "AcrossV3Helper")).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
             SPOKE_POOL_V3_ADDRESSES[dstChainId],
