@@ -172,7 +172,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             previewRedeemAmount,
             BASE,
             true,
-            abi.encode(instanceOnDst.account, dstUserOpData)
+            abi.encode(instanceOnDst.account, 0, dstUserOpData)
         );
 
         ISuperExecutor.ExecutorEntry memory entry =

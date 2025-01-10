@@ -34,10 +34,8 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     // -- sentinels
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_POSITION_SENTINEL_ID = keccak256("SUPER_POSITION_SENTINEL_ID");
-    
+
     // -- bridges
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant ACROSS_RECEIVE_FUNDS_GATEWAY_ID = keccak256("ACROSS_RECEIVE_FUNDS_GATEWAY_ID");
     /// @inheritdoc ISuperRegistry
     bytes32 public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
         keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID");

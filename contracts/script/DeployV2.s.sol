@@ -15,7 +15,6 @@ import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
-import { AcrossReceiveFundsGateway } from "../src/bridges/AcrossReceiveFundsGateway.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 
 import { SuperPositionsMock } from "../src/accounting/SuperPositionsMock.sol";
@@ -40,7 +39,6 @@ import { Withdraw5115VaultHook } from "../src/hooks/vaults/5115/Withdraw5115Vaul
 import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 // ---- | bridges
-import { AcrossSendFundsHook } from "../src/hooks/bridges/across/AcrossSendFundsHook.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -157,18 +155,6 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
-        // Deploy AcrossBridgeGateway
-        deployedContracts.acrossReceiveFundsGateway = __deployContract(
-            deployer,
-            "AcrossReceiveFundsGateway",
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, "AcrossReceiveFundsGateway"),
-            abi.encodePacked(
-                type(AcrossReceiveFundsGateway).creationCode,
-                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3)
-            )
-        );
-
         // Deploy AcrossReceiveFundsAndExecuteGateway
         deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
             deployer,
@@ -214,9 +200,7 @@ contract DeployV2 is Script, Configuration {
             superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, "SuperPositionSentinel")
         );
         superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, "SuperRbac"));
-        superRegistry.setAddress(
-            superRegistry.ACROSS_RECEIVE_FUNDS_GATEWAY_ID(), _getContract(chainId, "AcrossReceiveFundsGateway")
-        );
+
         superRegistry.setAddress(
             superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
             _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
@@ -273,73 +257,67 @@ contract DeployV2 is Script, Configuration {
         uint256 len = 15;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
+
         hooks[0] = HookDeployment(
-            "AcrossSendFundsHook",
-            abi.encodePacked(
-                type(AcrossSendFundsHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3)
-            )
-        );
-        hooks[1] = HookDeployment(
             "AcrossSendFundsAndExecuteOnDstHook",
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
                 abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3)
             )
         );
-        hooks[2] = HookDeployment(
+        hooks[1] = HookDeployment(
             "FluidClaimRewardHook",
             abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[3] = HookDeployment(
+        hooks[2] = HookDeployment(
             "GearboxClaimRewardHook",
             abi.encodePacked(type(GearboxClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[4] = HookDeployment(
+        hooks[3] = HookDeployment(
             "SomelierClaimAllRewardsHook",
             abi.encodePacked(type(SomelierClaimAllRewardsHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[5] = HookDeployment(
+        hooks[4] = HookDeployment(
             "SomelierClaimOneRewardHook",
             abi.encodePacked(type(SomelierClaimOneRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[6] = HookDeployment(
+        hooks[5] = HookDeployment(
             "YearnClaimAllRewardsHook",
             abi.encodePacked(type(YearnClaimAllRewardsHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[7] = HookDeployment(
+        hooks[6] = HookDeployment(
             "YearnClaimOneRewardHook",
             abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[8] = HookDeployment(
+        hooks[7] = HookDeployment(
             "ApproveERC20Hook",
             abi.encodePacked(type(ApproveERC20Hook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[9] = HookDeployment(
+        hooks[8] = HookDeployment(
             "TransferERC20Hook",
             abi.encodePacked(type(TransferERC20Hook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[10] = HookDeployment(
+        hooks[9] = HookDeployment(
             "Deposit4626VaultHook",
             abi.encodePacked(type(Deposit4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[11] = HookDeployment(
+        hooks[10] = HookDeployment(
             "Withdraw4626VaultHook",
             abi.encodePacked(type(Withdraw4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[12] = HookDeployment(
+        hooks[11] = HookDeployment(
             "Deposit5115VaultHook",
             abi.encodePacked(type(Deposit5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[13] = HookDeployment(
+        hooks[12] = HookDeployment(
             "Withdraw5115VaultHook",
             abi.encodePacked(type(Withdraw5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[14] = HookDeployment(
+        hooks[13] = HookDeployment(
             "RequestDeposit7540VaultHook",
             abi.encodePacked(type(RequestDeposit7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[15] = HookDeployment(
+        hooks[14] = HookDeployment(
             "RequestWithdraw7540VaultHook",
             abi.encodePacked(type(RequestWithdraw7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );

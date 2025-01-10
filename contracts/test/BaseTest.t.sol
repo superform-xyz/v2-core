@@ -16,7 +16,6 @@ import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
-import { AcrossReceiveFundsGateway } from "../src/bridges/AcrossReceiveFundsGateway.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
@@ -37,7 +36,6 @@ import { Withdraw4626VaultHook } from "../src/hooks/vaults/4626/Withdraw4626Vaul
 import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 // bridges hooks
-import { AcrossSendFundsHook } from "../src/hooks/bridges/across/AcrossSendFundsHook.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 
 // action oracles
@@ -60,7 +58,6 @@ struct Addresses {
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
-    AcrossReceiveFundsGateway acrossReceiveFundsGateway;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
@@ -70,7 +67,6 @@ struct Addresses {
     Withdraw5115VaultHook withdraw5115VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
-    AcrossSendFundsHook acrossSendFundsHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
@@ -202,11 +198,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
 
-            A.acrossReceiveFundsGateway =
-                new AcrossReceiveFundsGateway(address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]);
-            vm.label(address(A.acrossReceiveFundsGateway), "acrossReceiveFundsGateway");
-            contractAddresses[chainIds[i]]["AcrossReceiveFundsGateway"] = address(A.acrossReceiveFundsGateway);
-
             A.acrossReceiveFundsAndExecuteGateway =
                 new AcrossReceiveFundsAndExecuteGateway(address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]);
             vm.label(address(A.acrossReceiveFundsAndExecuteGateway), "acrossReceiveFundsAndExecuteGateway");
@@ -257,11 +248,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
             hookAddresses[chainIds[i]]["RequestWithdraw7540VaultHook"] = address(A.requestWithdraw7540VaultHook);
-
-            A.acrossSendFundsHook =
-                new AcrossSendFundsHook(address(A.superRegistry), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]);
-            vm.label(address(A.acrossSendFundsHook), "AcrossSendFundsHook");
-            hookAddresses[chainIds[i]]["AcrossSendFundsHook"] = address(A.acrossSendFundsHook);
 
             A.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 address(A.superRegistry), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
@@ -452,11 +438,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SUPER_RBAC_ID(), _getContract(chainIds[i], "SuperRbac")
             );
-
-            SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.ACROSS_RECEIVE_FUNDS_GATEWAY_ID(), _getContract(chainIds[i], "AcrossReceiveFundsGateway")
-            );
-
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
                 _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
@@ -601,35 +582,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
-    }
-
-    function _createAcrossV3SendFundsHookData(
-        address account,
-        bytes32 id,
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount,
-        uint64 destinationChainId
-    )
-        internal
-        view
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(
-            account,
-            id,
-            uint256(0),
-            _getContract(destinationChainId, "AcrossReceiveFundsGateway"),
-            inputToken,
-            outputToken,
-            inputAmount,
-            outputAmount,
-            uint256(destinationChainId),
-            address(0),
-            uint32(10 minutes), // this can be a max of 360 minutes
-            uint32(0)
-        );
     }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData(

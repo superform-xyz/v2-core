@@ -53,9 +53,6 @@ interface ISuperRegistry {
     function SUPER_POSITION_SENTINEL_ID() external view returns (bytes32);
 
     // -- bridges
-    /// @dev Get the ID of the Across receive funds gateway.
-    function ACROSS_RECEIVE_FUNDS_GATEWAY_ID() external view returns (bytes32);
-
     /// @dev Get the ID of the Across receive funds and execute gateway.
     function ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID() external view returns (bytes32);
 
