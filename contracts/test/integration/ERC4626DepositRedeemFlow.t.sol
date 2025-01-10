@@ -182,4 +182,55 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         _processAcrossV3Message(ETH, BASE, executeOp(srcUserOpData));
     }
+
+    function test_sendFundsFromTwoChainsAndDeposit() public {
+        vm.selectFork(FORKS[ETH]);
+
+        uint256 intentAmount = 100e8;
+        uint256 previewRedeemAmount = vaultInstanceSrc.previewRedeem(vaultInstanceSrc.previewDeposit(intentAmount));
+        console.log("previewRedeemAmount", previewRedeemAmount);
+
+        // BASE IS DST
+        vm.selectFork(FORKS[BASE]);
+
+        // PREPARE DST DATA
+        address[] memory dstHooksAddresses = new address[](2);
+        dstHooksAddresses[0] = _getHook(BASE, "ApproveERC20Hook");
+        dstHooksAddresses[1] = _getHook(BASE, "Deposit4626VaultHook");
+
+        bytes[] memory dstHooksData = new bytes[](2);
+        dstHooksData[0] = _createApproveHookData(underlyingDst, yieldSourceAddressDst, previewRedeemAmount, false);
+        dstHooksData[1] = _createDepositHookData(
+            accountDst, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressDst, previewRedeemAmount, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHooksAddresses, hooksData: dstHooksData });
+
+        UserOpData memory dstUserOpData =
+            _getExecOps(instanceOnDst, superExecutorOnDst, abi.encode(entryToExecuteOnDst));
+
+        // ETH is SRC1
+        vm.selectFork(FORKS[ETH]);
+        address[] memory srcHooksAddresses = new address[](1);
+        srcHooksAddresses[0] = _getHook(ETH, "AcrossSendFundsAndExecuteOnDstHook");
+
+        bytes[] memory srcHooksData = new bytes[](1);
+        srcHooksData[0] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            existingUnderlyingTokens[ETH]["USDC"],
+            existingUnderlyingTokens[BASE]["USDC"],
+            intentAmount / 2,
+            intentAmount / 2,
+            BASE,
+            false,
+            abi.encode(instanceOnDst.account, intentAmount, dstUserOpData)
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+
+        UserOpData memory srcUserOpData = _getExecOps(instanceOnSrc, superExecutorOnSrc, abi.encode(entry));
+
+        _processAcrossV3Message(ETH, BASE, executeOp(srcUserOpData));
+    }
 }
