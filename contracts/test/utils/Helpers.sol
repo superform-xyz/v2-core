@@ -12,6 +12,7 @@ abstract contract Helpers is Test, Constants {
     address public user1;
     address public user2;
     address public MANAGER;
+    address public ACROSS_RELAYER;
     /*//////////////////////////////////////////////////////////////
                                  HELPER METHODS
     //////////////////////////////////////////////////////////////*/

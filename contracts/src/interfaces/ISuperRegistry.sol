@@ -53,14 +53,17 @@ interface ISuperRegistry {
     function SUPER_POSITION_SENTINEL_ID() external view returns (bytes32);
 
     // -- bridges
-    /// @dev Get the ID of the Across bridge gateway.
-    function ACROSS_GATEWAY_ID() external view returns (bytes32);
+    /// @dev Get the ID of the Across receive funds gateway.
+    function ACROSS_RECEIVE_FUNDS_GATEWAY_ID() external view returns (bytes32);
 
-    // -- storage
-    /// @dev Get the ID of the shared state.
-    function SHARED_STATE_ID() external view returns (bytes32);
+    /// @dev Get the ID of the Across receive funds and execute gateway.
+    function ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID() external view returns (bytes32);
 
     // -- paymaster
     /// @dev Get the ID of the paymaster.
     function PAYMASTER_ID() external view returns (bytes32);
+
+    // -- SuperBundler
+    /// @dev Get the ID of the super bundler.
+    function SUPER_BUNDLER_ID() external view returns (bytes32);
 }

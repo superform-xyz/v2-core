@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -23,15 +24,18 @@ import { IAcrossV3Interpreter } from "../../../interfaces/vendors/bridges/across
 /// @notice         uint256 outputAmount = BytesLib.toUint256(BytesLib.slice(data, 176, 32), 0);
 /// @notice         uint256 destinationChainId = BytesLib.toUint256(BytesLib.slice(data, 208, 32), 0);
 /// @notice         address exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 240, 20), 0);
-/// @notice         uint32 fillDeadline = BytesLib.toUint32(BytesLib.slice(data, 260, 4), 0);
-/// @notice         uint32 exclusivityDeadline = BytesLib.toUint32(BytesLib.slice(data, 264, 4), 0);
+/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 260, 4), 0);
+/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 264, 4), 0);
 contract AcrossSendFundsHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable spokePoolV3;
+    uint64 public immutable sourceChainId;
 
     struct AcrossV3DepositData {
+        address account;
+        bytes32 id;
         uint256 value;
         address recipient;
         address inputToken;
@@ -40,11 +44,9 @@ contract AcrossSendFundsHook is BaseHook, ISuperHook {
         uint256 outputAmount;
         uint256 destinationChainId;
         address exclusiveRelayer;
-        uint32 fillDeadline;
-        uint32 exclusivityDeadline;
+        uint32 fillDeadlineOffset;
+        uint32 exclusivityPeriod;
     }
-
-    uint64 public immutable sourceChainId;
 
     constructor(
         address registry_,
@@ -55,7 +57,7 @@ contract AcrossSendFundsHook is BaseHook, ISuperHook {
     {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
-        sourceChainId = block.chainid;
+        sourceChainId = uint64(block.chainid);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -63,9 +65,9 @@ contract AcrossSendFundsHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external view override returns (Execution[] memory executions) {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        bytes32 id = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
         AcrossV3DepositData memory acrossV3DepositData;
+        acrossV3DepositData.account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        acrossV3DepositData.id = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
         acrossV3DepositData.value = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
         acrossV3DepositData.recipient = BytesLib.toAddress(BytesLib.slice(data, 84, 20), 0);
         acrossV3DepositData.inputToken = BytesLib.toAddress(BytesLib.slice(data, 104, 20), 0);
@@ -74,12 +76,11 @@ contract AcrossSendFundsHook is BaseHook, ISuperHook {
         acrossV3DepositData.outputAmount = BytesLib.toUint256(BytesLib.slice(data, 176, 32), 0);
         acrossV3DepositData.destinationChainId = BytesLib.toUint256(BytesLib.slice(data, 208, 32), 0);
         acrossV3DepositData.exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 240, 20), 0);
-        acrossV3DepositData.fillDeadline = BytesLib.toUint32(BytesLib.slice(data, 260, 4), 0);
-        acrossV3DepositData.exclusivityDeadline = BytesLib.toUint32(BytesLib.slice(data, 264, 4), 0);
+        acrossV3DepositData.fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 260, 4), 0);
+        acrossV3DepositData.exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 264, 4), 0);
 
         // assume it has the same address on all chains
-        address _dstContract = _getAcrossGatewayExecutor();
-        if (acrossV3DepositData.recipient == address(0) || _dstContract == address(0)) revert ADDRESS_NOT_VALID();
+        if (acrossV3DepositData.recipient == address(0)) revert ADDRESS_NOT_VALID();
 
         // build execution
         executions = new Execution[](1);
@@ -89,7 +90,7 @@ contract AcrossSendFundsHook is BaseHook, ISuperHook {
             callData: abi.encodeCall(
                 IAcrossSpokePoolV3.depositV3Now,
                 (
-                    _dstContract,
+                    _getAcrossGatewayExecutor(),
                     acrossV3DepositData.recipient,
                     acrossV3DepositData.inputToken,
                     acrossV3DepositData.outputToken,
@@ -97,9 +98,9 @@ contract AcrossSendFundsHook is BaseHook, ISuperHook {
                     acrossV3DepositData.outputAmount,
                     acrossV3DepositData.destinationChainId,
                     acrossV3DepositData.exclusiveRelayer,
-                    acrossV3DepositData.fillDeadline,
-                    acrossV3DepositData.exclusivityDeadline,
-                    abi.encode(account, sourceChainId, id)
+                    acrossV3DepositData.fillDeadlineOffset,
+                    acrossV3DepositData.exclusivityPeriod,
+                    abi.encode(acrossV3DepositData.account, sourceChainId, acrossV3DepositData.id)
                 )
             )
         });
@@ -118,6 +119,6 @@ contract AcrossSendFundsHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getAcrossGatewayExecutor() private view returns (address) {
-        return superRegistry.getAddress(superRegistry.ACROSS_GATEWAY_ID());
+        return superRegistry.getAddress(superRegistry.ACROSS_RECEIVE_FUNDS_GATEWAY_ID());
     }
 }
