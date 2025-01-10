@@ -37,6 +37,17 @@ import { Deposit5115VaultHook } from "../src/hooks/vaults/5115/Deposit5115VaultH
 import { Withdraw5115VaultHook } from "../src/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
+// ---- | stake
+import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
+import { GearboxWithdrawHook } from "../src/hooks/stake/gearbox/GearboxWithdrawHook.sol";
+import { SomelierStakeHook } from "../src/hooks/stake/somelier/SomelierStakeHook.sol";
+import { SomelierUnbondAllHook } from "../src/hooks/stake/somelier/SomelierUnbondAllHook.sol";
+import { SomelierUnbondHook } from "../src/hooks/stake/somelier/SomelierUnbondHook.sol";
+import { SomelierUnstakeAllHook } from "../src/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
+import { SomelierUnstakeHook } from "../src/hooks/stake/somelier/SomelierUnstakeHook.sol";
+import { YearnWithdrawHook } from "../src/hooks/stake/yearn/YearnWithdrawHook.sol";
+import { YieldExitHook } from "../src/hooks/stake/YieldExitHook.sol";
+
 // ---- | bridges
 import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
 // -- oracles
@@ -248,7 +259,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 15;
+        uint256 len = 24;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
         hooks[0] = HookDeployment(
@@ -313,6 +324,42 @@ contract DeployV2 is Script, Configuration {
         hooks[14] = HookDeployment(
             "RequestWithdraw7540VaultHook",
             abi.encodePacked(type(RequestWithdraw7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[15] = HookDeployment(
+            "GearboxStakeHook",
+            abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[16] = HookDeployment(
+            "GearboxWithdrawHook",
+            abi.encodePacked(type(GearboxWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[17] = HookDeployment(
+            "SomelierStakeHook",
+            abi.encodePacked(type(SomelierStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[18] = HookDeployment(
+            "SomelierUnbondAllHook",
+            abi.encodePacked(type(SomelierUnbondAllHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[19] = HookDeployment(
+            "SomelierUnbondHook",
+            abi.encodePacked(type(SomelierUnbondHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[20] = HookDeployment(
+            "SomelierUnstakeAllHook",
+            abi.encodePacked(type(SomelierUnstakeAllHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[21] = HookDeployment(
+            "SomelierUnstakeHook",
+            abi.encodePacked(type(SomelierUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[22] = HookDeployment(
+            "YearnWithdrawHook",
+            abi.encodePacked(type(YearnWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[23] = HookDeployment(
+            "YieldExitHook",
+            abi.encodePacked(type(YieldExitHook).creationCode, abi.encode(registry, configuration.owner))
         );
 
         for (uint256 i = 0; i < len;) {
