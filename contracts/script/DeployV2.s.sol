@@ -201,7 +201,9 @@ contract DeployV2 is Script, Configuration {
             }
         }
         // ---- | set deployed contracts roles
-        superRbac.setRole(_getContract(chainId, "AcrossBridgeGateway"), superRbac.BRIDGE_GATEWAY(), true);
+        superRbac.setRole(
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway"), superRbac.BRIDGE_GATEWAY(), true
+        );
         superRbac.setRole(configuration.owner, superRbac.EXECUTOR_CONFIGURATOR(), true);
         superRbac.setRole(configuration.owner, superRbac.SENTINEL_CONFIGURATOR(), true);
 

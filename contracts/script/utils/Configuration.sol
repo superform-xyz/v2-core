@@ -49,7 +49,7 @@ abstract contract Configuration {
     uint64 public constant BASE_SEPOLIA_CHAIN_ID = 84_532;
 
     mapping(uint64 chainId => string chainName) internal chainNames;
-    string internal constant SALT_NAMESPACE = "v2-core.v1.0.2";
+    string internal constant SALT_NAMESPACE = "v2-core.v1.0.6";
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
@@ -86,6 +86,8 @@ abstract contract Configuration {
             configuration.acrossSpokePoolV3 = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
         } else if (chainId == BASE_SEPOLIA_CHAIN_ID) {
             configuration.acrossSpokePoolV3 = 0x82B564983aE7274c86695917BBf8C99ECb6F0F8F;
+        } else if (chainId == BASE_CHAIN_ID) {
+            configuration.acrossSpokePoolV3 = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
         } else {
             revert INVALID_CONFIG();
         }
