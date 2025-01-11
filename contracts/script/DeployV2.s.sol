@@ -15,7 +15,8 @@ import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
-import { AcrossBridgeGateway } from "../src/bridges/AcrossBridgeGateway.sol";
+import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
+
 import { SuperPositionsMock } from "../src/accounting/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
@@ -49,7 +50,7 @@ import { YearnWithdrawHook } from "../src/hooks/stake/yearn/YearnWithdrawHook.so
 import { YieldExitHook } from "../src/hooks/stake/YieldExitHook.sol";
 
 // ---- | bridges
-import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
@@ -74,8 +75,8 @@ contract DeployV2 is Script, Configuration {
         address superRbac;
         address superLedger;
         address superPositionSentinel;
-        address sharedState;
-        address acrossBridgeGateway;
+        address acrossReceiveFundsGateway;
+        address acrossReceiveFundsAndExecuteGateway;
     }
 
     function run(uint64[] memory chainIds) public {
@@ -165,14 +166,14 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
-        // Deploy AcrossBridgeGateway
-        deployedContracts.acrossBridgeGateway = __deployContract(
+        // Deploy AcrossReceiveFundsAndExecuteGateway
+        deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
             deployer,
-            "AcrossBridgeGateway",
+            "AcrossReceiveFundsAndExecuteGateway",
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, "AcrossBridgeGateway"),
+            __getSalt(configuration.owner, configuration.deployer, "AcrossReceiveFundsAndExecuteGateway"),
             abi.encodePacked(
-                type(AcrossBridgeGateway).creationCode,
+                type(AcrossReceiveFundsAndExecuteGateway).creationCode,
                 abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3)
             )
         );
@@ -210,9 +211,14 @@ contract DeployV2 is Script, Configuration {
             superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, "SuperPositionSentinel")
         );
         superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, "SuperRbac"));
-        superRegistry.setAddress(superRegistry.ACROSS_GATEWAY_ID(), _getContract(chainId, "AcrossBridgeGateway"));
+
+        superRegistry.setAddress(
+            superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
+        );
         superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, "SuperExecutor"));
         superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
+        superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -262,10 +268,11 @@ contract DeployV2 is Script, Configuration {
         uint256 len = 24;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
+
         hooks[0] = HookDeployment(
-            "AcrossExecuteOnDestinationHook",
+            "AcrossSendFundsAndExecuteOnDstHook",
             abi.encodePacked(
-                type(AcrossExecuteOnDestinationHook).creationCode,
+                type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
                 abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3)
             )
         );

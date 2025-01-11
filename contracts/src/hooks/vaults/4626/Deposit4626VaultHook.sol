@@ -5,7 +5,7 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";

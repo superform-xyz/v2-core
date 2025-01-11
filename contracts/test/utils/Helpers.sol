@@ -12,6 +12,7 @@ abstract contract Helpers is Test, Constants {
     address public user1;
     address public user2;
     address public MANAGER;
+    address public ACROSS_RELAYER;
     /*//////////////////////////////////////////////////////////////
                                  HELPER METHODS
     //////////////////////////////////////////////////////////////*/
@@ -39,51 +40,5 @@ abstract contract Helpers is Test, Constants {
         vm.deal(_user, LARGE);
         vm.label(_user, name_);
         return _user;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 HOOK DATA CREATORS
-    //////////////////////////////////////////////////////////////*/
-
-    function _createApproveHookData(
-        address token,
-        address spender,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
-    }
-
-    function _createDepositHookData(
-        address receiver,
-        bytes32 yieldSourceOracleId,
-        address vault,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount);
-    }
-
-    function _createWithdrawHookData(
-        address receiver,
-        bytes32 yieldSourceOracleId,
-        address vault,
-        address owner,
-        uint256 shares,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
     }
 }
