@@ -9,9 +9,9 @@ import { ERC4626YieldSourceOracle } from "../../../../src/accounting/oracles/ERC
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract ERC4626YieldSourceOracleTest is Helpers {
-    ERC4626YieldSourceOracle oracle;
-    MockERC20 underlying;
-    Mock4626Vault vault;
+    ERC4626YieldSourceOracle public oracle;
+    MockERC20 public underlying;
+    Mock4626Vault public vault;
 
     function setUp() public virtual {
         oracle = new ERC4626YieldSourceOracle();

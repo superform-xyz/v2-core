@@ -24,6 +24,7 @@ abstract contract Configuration {
         address owner;
         address acrossSpokePoolV3;
         address paymaster;
+        address bundler;
         SuperPositionData[] superPositions;
         RolesData[] externalRoles;
     }
@@ -48,7 +49,7 @@ abstract contract Configuration {
     uint64 public constant BASE_SEPOLIA_CHAIN_ID = 84_532;
 
     mapping(uint64 chainId => string chainName) internal chainNames;
-    string internal constant SALT_NAMESPACE = "v2-core.v1.4";
+    string internal constant SALT_NAMESPACE = "v2-core.v1.0.2";
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
@@ -73,6 +74,8 @@ abstract contract Configuration {
         configuration.owner = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
         // paymaster keeper
         configuration.paymaster = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
+        // bundler keeper
+        configuration.bundler = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
 
         // chain specific configuration
         if (chainId == MAINNET_CHAIN_ID) {

@@ -63,7 +63,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
         emit AccountingUpdated(user, config.yieldSourceOracle, yieldSource, isInflow, amount, pps);
     }
-
+    
     /// @inheritdoc ISuperLedger
     function setYieldSourceOracles(HookRegistrationConfig[] calldata configs) external {
         uint256 length = configs.length;

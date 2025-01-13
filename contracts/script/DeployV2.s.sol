@@ -15,7 +15,8 @@ import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
-import { AcrossBridgeGateway } from "../src/bridges/AcrossBridgeGateway.sol";
+import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
+
 import { SuperPositionsMock } from "../src/accounting/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
@@ -37,8 +38,19 @@ import { Deposit5115VaultHook } from "../src/hooks/vaults/5115/Deposit5115VaultH
 import { Withdraw5115VaultHook } from "../src/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
+// ---- | stake
+import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
+import { GearboxWithdrawHook } from "../src/hooks/stake/gearbox/GearboxWithdrawHook.sol";
+import { SomelierStakeHook } from "../src/hooks/stake/somelier/SomelierStakeHook.sol";
+import { SomelierUnbondAllHook } from "../src/hooks/stake/somelier/SomelierUnbondAllHook.sol";
+import { SomelierUnbondHook } from "../src/hooks/stake/somelier/SomelierUnbondHook.sol";
+import { SomelierUnstakeAllHook } from "../src/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
+import { SomelierUnstakeHook } from "../src/hooks/stake/somelier/SomelierUnstakeHook.sol";
+import { YearnWithdrawHook } from "../src/hooks/stake/yearn/YearnWithdrawHook.sol";
+import { YieldExitHook } from "../src/hooks/stake/YieldExitHook.sol";
+
 // ---- | bridges
-import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
@@ -63,8 +75,8 @@ contract DeployV2 is Script, Configuration {
         address superRbac;
         address superLedger;
         address superPositionSentinel;
-        address sharedState;
-        address acrossBridgeGateway;
+        address acrossReceiveFundsGateway;
+        address acrossReceiveFundsAndExecuteGateway;
     }
 
     function run(uint64[] memory chainIds) public {
@@ -154,14 +166,14 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
-        // Deploy AcrossBridgeGateway
-        deployedContracts.acrossBridgeGateway = __deployContract(
+        // Deploy AcrossReceiveFundsAndExecuteGateway
+        deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
             deployer,
-            "AcrossBridgeGateway",
+            "AcrossReceiveFundsAndExecuteGateway",
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, "AcrossBridgeGateway"),
+            __getSalt(configuration.owner, configuration.deployer, "AcrossReceiveFundsAndExecuteGateway"),
             abi.encodePacked(
-                type(AcrossBridgeGateway).creationCode,
+                type(AcrossReceiveFundsAndExecuteGateway).creationCode,
                 abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3)
             )
         );
@@ -199,9 +211,14 @@ contract DeployV2 is Script, Configuration {
             superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, "SuperPositionSentinel")
         );
         superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, "SuperRbac"));
-        superRegistry.setAddress(superRegistry.ACROSS_GATEWAY_ID(), _getContract(chainId, "AcrossBridgeGateway"));
+
+        superRegistry.setAddress(
+            superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
+        );
         superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, "SuperExecutor"));
         superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
+        superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -248,13 +265,14 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 15;
+        uint256 len = 24;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
+
         hooks[0] = HookDeployment(
-            "AcrossExecuteOnDestinationHook",
+            "AcrossSendFundsAndExecuteOnDstHook",
             abi.encodePacked(
-                type(AcrossExecuteOnDestinationHook).creationCode,
+                type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
                 abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3)
             )
         );
@@ -313,6 +331,42 @@ contract DeployV2 is Script, Configuration {
         hooks[14] = HookDeployment(
             "RequestWithdraw7540VaultHook",
             abi.encodePacked(type(RequestWithdraw7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[15] = HookDeployment(
+            "GearboxStakeHook",
+            abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[16] = HookDeployment(
+            "GearboxWithdrawHook",
+            abi.encodePacked(type(GearboxWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[17] = HookDeployment(
+            "SomelierStakeHook",
+            abi.encodePacked(type(SomelierStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[18] = HookDeployment(
+            "SomelierUnbondAllHook",
+            abi.encodePacked(type(SomelierUnbondAllHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[19] = HookDeployment(
+            "SomelierUnbondHook",
+            abi.encodePacked(type(SomelierUnbondHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[20] = HookDeployment(
+            "SomelierUnstakeAllHook",
+            abi.encodePacked(type(SomelierUnstakeAllHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[21] = HookDeployment(
+            "SomelierUnstakeHook",
+            abi.encodePacked(type(SomelierUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[22] = HookDeployment(
+            "YearnWithdrawHook",
+            abi.encodePacked(type(YearnWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[23] = HookDeployment(
+            "YieldExitHook",
+            abi.encodePacked(type(YieldExitHook).creationCode, abi.encode(registry, configuration.owner))
         );
 
         for (uint256 i = 0; i < len;) {
