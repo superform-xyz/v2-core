@@ -30,7 +30,6 @@ forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
 --rpc-url $ETH_MAINNET \
 --etherscan-api-key $TENDERLY_ACCESS_KEY \
 --broadcast
-
 wait
 
 echo Deploy V2 on network 1: ...
