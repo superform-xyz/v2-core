@@ -16,6 +16,7 @@ import { SuperRbac } from "../src/settings/SuperRbac.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
+import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/bridges/interfaces/IAcrossV3Receiver.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
@@ -73,6 +74,7 @@ struct Addresses {
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
+    SuperMerkleValidator superMerkleValidator;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -208,6 +210,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 address(A.acrossReceiveFundsAndExecuteGateway);
 
             //A.spokePoolV3Mock.setAcrossBridgeGateway(address(A.acrossBridgeGateway));
+
+            A.superMerkleValidator = new SuperMerkleValidator(address(A.superRegistry));
+            vm.label(address(A.superMerkleValidator), "superMerkleValidator");
+            contractAddresses[chainIds[i]]["SuperMerkleValidator"] = address(A.superMerkleValidator);
 
             /// @dev action oracles
             A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();

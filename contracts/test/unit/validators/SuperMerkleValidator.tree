@@ -1,0 +1,13 @@
+SuperMerkleValidator.t.sol
+└── given the contract is initialized
+    └── when validating a user operation
+        ├── given the signature is invalid
+        │   └── it should return validation failure
+        ├── given the merkle proof is invalid
+        │   └── it should return validation failure
+        └── given the signature is valid
+            ├── when timestamp is expired
+            │   └── it should return validation failure
+            └── when timestamp is valid
+                └── it should return validation success
+
