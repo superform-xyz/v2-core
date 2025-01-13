@@ -46,6 +46,15 @@ interface ISuperLedger {
         uint256 amount,
         uint256 price
     );
+
+    event AccountingOutflowSkipped(
+        address indexed user,
+        address indexed yieldSource,
+        bytes32 indexed yieldSourceOracleId,
+        uint256 amount,
+        uint256 price
+    );
+
     event YieldSourceOracleConfigSet(
         bytes32 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,
