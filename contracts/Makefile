@@ -38,14 +38,18 @@ deploy-poc:
 build :; forge build
 ftest :; forge test
 
-test-vvv :; forge test --match-test test_WhenHooksAreDefinedAndExecutionDataIsValidAndSentinelIsConfigured -vvvv
+test-vvv :; forge test --match-test test_sendFundsFromTwoChainsAndDeposit -vvvv
 
 test-integration :; forge test --match-contract test_Deposit_Redeem_4626_Mainnet_Flow -vvvv
 
 .PHONY: generate
 generate: build 
-	chmod +x ./script/utils/retrieve-abis.sh
-	./script/utils/retrieve-abis.sh
+	chmod +x ./script/run/retrieve-abis.sh
+	./script/run/retrieve-abis.sh
 
 	# General
 	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
+	abigen --abi out/ISuperExecutor.sol/ISuperExecutor.abi --pkg contracts --type ISuperExecutor --out contract_bindings/ISuperExecutor.go
+	abigen --abi out/AcrossExecuteOnDestinationHook.sol/AcrossExecuteOnDestinationHook.abi --pkg contracts --type AcrossExecuteOnDestinationHook --out contract_bindings/AcrossExecuteOnDestinationHook.go
+	abigen --abi out/AcrossReceiveFundsAndExecuteGateway.sol/AcrossReceiveFundsAndExecuteGateway.abi --pkg contracts --type AcrossReceiveFundsAndExecuteGateway --out contract_bindings/AcrossReceiveFundsAndExecuteGateway.go
+	abigen --abi out/IAcrossV3Receiver.sol/IAcrossV3Receiver.abi --pkg contracts --type IAcrossV3Receiver --out contract_bindings/IAcrossV3Receiver.go

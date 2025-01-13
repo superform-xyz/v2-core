@@ -11,11 +11,7 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-//import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
-
-contract SuperMerkleValidator is
-    SuperRegistryImplementer,
-    ERC7579ValidatorBase // ISuperValidator {
+contract SuperMerkleValidator is SuperRegistryImplementer, ERC7579ValidatorBase 
 {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -34,18 +30,13 @@ contract SuperMerkleValidator is
         bytes32 accountGasLimits;
     }
 
-    error NOT_INITIALIZED();
-    error ALREADY_INITIALIZED();
-
-    mapping(address => bool) private _initialized;
-
-
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     function isInitialized(address) external pure returns (bool) { return true; }
+
 
     function namespace() public pure returns (string memory) {
         return "MerkleUserOpValidator-v0.0.1";
@@ -72,8 +63,6 @@ contract SuperMerkleValidator is
         override
         returns (ValidationData)
     {
-        if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
-
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
         UserOpData memory userOpData = UserOpData({
@@ -103,8 +92,6 @@ contract SuperMerkleValidator is
         override
         returns (bytes4)
     {
-        if (!_initialized[sender]) revert NOT_INITIALIZED();
-
         // Decode data
         (SignatureData memory sigData, UserOpData memory userOpData) = _decodeSignatureAndUserOpData(data, sender);
 
@@ -128,8 +115,6 @@ contract SuperMerkleValidator is
         virtual
         returns (bool validSig)
     {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-
         // Decode signature and user operation data
         SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
         UserOpData memory userOpData = _decodeUserOpData(userOpDataRaw, msg.sender);

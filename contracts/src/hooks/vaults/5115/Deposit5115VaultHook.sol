@@ -6,7 +6,7 @@ import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform

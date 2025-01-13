@@ -5,7 +5,8 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -62,20 +63,20 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getShareBalance(data);
+        outAmount = _getUnderlyingBalance(data);
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = outAmount - _getShareBalance(data);
+        outAmount = _getUnderlyingBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getShareBalance(bytes memory data) private view returns (uint256) {
+    function _getUnderlyingBalance(bytes memory data) private view returns (uint256) {
         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        return IERC4626(yieldSource).balanceOf(account);
+        return IERC20(IERC4626(yieldSource).asset()).balanceOf(account);
     }
 }

@@ -23,7 +23,7 @@ contract DeployMocks is Script, Configuration {
             // set chain configuration
             _setConfiguration(chainId);
 
-            _deploy(chainId);
+            _deploy();
 
             unchecked {
                 ++i;
@@ -36,7 +36,7 @@ contract DeployMocks is Script, Configuration {
         return ISuperDeployer(configuration.deployer);
     }
 
-    function _deploy(uint64 chainId) internal {
+    function _deploy() internal {
         // retrieve deployer
         ISuperDeployer deployer = _getDeployer();
 
