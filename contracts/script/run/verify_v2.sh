@@ -76,26 +76,26 @@ contract_names=(
 contract_addresses=(
     "0x91f9FeB8Ac34C73d8Cfdce57FdB9FEF74E031911" # SuperRegistry
     "0xD86FA74Fd55197Ffd2881710fE44A82748DD09fb" # SuperExecutor
-    "0x558052Ecbf3B44f9b5d953c882b996e20c75409B" # SuperRbac
-    "0x5d1894042b19476810ae0ea349cd80f838c92f7c" # SuperLedger
-    "0x28B7daDE3BD9993a37Cf3e94e4E7c10154cD5e6a" # SuperPositionSentinel
-    "0x0000000000000000000000000000000000000000" # AcrossReceiveFundsAndExecuteGateway
-    "0x0000000000000000000000000000000000000000" # AcrossSendFundsAndExecuteOnDstHook
-    "0x0000000000000000000000000000000000000000" # FluidClaimRewardHook
-    "0x0000000000000000000000000000000000000000" # GearboxClaimRewardHook
-    "0x0000000000000000000000000000000000000000" # SomelierClaimAllRewardsHook
-    "0x0000000000000000000000000000000000000000" # SomelierClaimOneRewardHook
-    "0x0000000000000000000000000000000000000000" # YearnClaimAllRewardsHook
-    "0x0000000000000000000000000000000000000000" # YearnClaimOneRewardHook
-    "0x0000000000000000000000000000000000000000" # GearboxStakeHook
-    "0x0000000000000000000000000000000000000000" # GearboxWithdrawHook
-    "0x0000000000000000000000000000000000000000" # SomelierStakeHook
-    "0x0000000000000000000000000000000000000000" # SomelierUnbondAllHook
-    "0x0000000000000000000000000000000000000000" # SomelierUnbondHook
-    "0x0000000000000000000000000000000000000000" # SomelierUnstakeAllHook
-    "0x0000000000000000000000000000000000000000" # SomelierUnstakeHook
-    "0x0000000000000000000000000000000000000000" # YearnWithdrawHook
-    "0x0000000000000000000000000000000000000000" # YieldExitHook
+    "0x5f6A49AEF54E10bCeC3551d273024401495e4ee8" # SuperRbac
+    "0x5D1894042B19476810Ae0Ea349CD80f838c92f7c" # SuperLedger
+    "0xfed243AcF089026092C0E556d27C31a38b1Cce80" # SuperPositionSentinel
+    "0x4934d2740C1dE37Af321D2eD6918Df2df1b99039" # AcrossReceiveFundsAndExecuteGateway
+    "0x418d6952443471758F3Ef839Bc616B747911E097" # AcrossSendFundsAndExecuteOnDstHook
+    "0x87CC50221bA088b3FB78a437641a8B3f13deD85C" # FluidClaimRewardHook
+    "0xFa43E739096202D4C6aA0271aEdA9e774E67F1c0" # GearboxClaimRewardHook
+    "0x5533437689f7B7E97Fc7A54Ec177fA44834c9bd7" # SomelierClaimAllRewardsHook
+    "0x2B5423857655d8665Cf898dadABB6926cf3130E0" # SomelierClaimOneRewardHook
+    "0x29E7168DA380133b02CB22694085a3Fb49F45D6d" # YearnClaimAllRewardsHook
+    "0x4D2FCb50847940d515168157F5f4AA92CF8cdD40" # YearnClaimOneRewardHook
+    "0x53f8a594A848258c65fA9E21bAe63438a2412C05" # GearboxStakeHook
+    "0x0a8E782D3996Fa0679b411eDD25bb621A1774641" # GearboxWithdrawHook
+    "0xbef985A2ACE26F22d2c58F07F99D5D14BF86A239" # SomelierStakeHook
+    "0x104C512736Fdba2D32F2be8F93A13786ee0BE20d" # SomelierUnbondAllHook
+    "0x70E5D3e6E28a106C717a45475138a936798d6eF0" # SomelierUnbondHook
+    "0xCdD21e5BDeB66a8623406dfF8548f23A2F5178c0" # SomelierUnstakeAllHook
+    "0xCd88CA042B37285D1105f1B505c3A01cAc19E7F5" # SomelierUnstakeHook
+    "0x066bafD1696A2d94f94c45d12339310daA222f76" # YearnWithdrawHook
+    "0xF675E6e725f272a0BB2f3Cd69E9D6136B50Fa00c" # YieldExitHook
 )
 
 # define constructor args for each contract
@@ -137,9 +137,9 @@ for i in "${!networks[@]}"; do
         # verify contract
         forge verify-contract $contract_address \
             --num-of-optimizations 10000 \
-            --watch --compiler-version v0.8.28+commit.1e15a330 \
-            #--constructor-args "$constructor_arg" \
-            --guess-constructor-args \
+            --watch --compiler-version v0.8.28 \
+            --constructor-args "$constructor_arg" \
+            #--guess-constructor-args \
             "$file_name:$contract_name" \
             --etherscan-api-key "$TENDERLY_ACCESS_KEY" \
             --verifier-url $verifier_url

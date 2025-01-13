@@ -49,7 +49,7 @@ abstract contract Configuration {
     uint64 public constant BASE_SEPOLIA_CHAIN_ID = 84_532;
 
     mapping(uint64 chainId => string chainName) internal chainNames;
-    string internal constant SALT_NAMESPACE = "v2-core.v1.0.6";
+    string internal constant SALT_NAMESPACE = "v2-core.v1.0.1";
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
