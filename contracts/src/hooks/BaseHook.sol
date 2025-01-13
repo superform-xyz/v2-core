@@ -12,16 +12,13 @@ abstract contract BaseHook is SuperRegistryImplementer {
     //////////////////////////////////////////////////////////////*/
     // forgefmt: disable-start
     uint256 public transient outAmount;
+    uint8 public transient lockFlag;
+    address public transient spToken;
     // forgefmt: disable-end
     address public immutable author;
     ISuperHook.HookType public hookType;
 
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error NOT_AUTHORIZED();
-    error AMOUNT_NOT_VALID();
-    error ADDRESS_NOT_VALID();
+    error NOT_SUPER_EXECUTOR();
 
     constructor(address registry_, address author_, ISuperHook.HookType hookType_) SuperRegistryImplementer(registry_) {
         author = author_;
@@ -30,7 +27,7 @@ abstract contract BaseHook is SuperRegistryImplementer {
 
 
     modifier onlyExecutor() {
-        if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_AUTHORIZED();
+        if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_SUPER_EXECUTOR();
         _;
     }
 

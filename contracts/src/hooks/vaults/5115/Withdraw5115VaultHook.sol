@@ -7,6 +7,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 
 // Superform
@@ -69,6 +70,9 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockFlag = BytesLib.toUint8(BytesLib.slice(data, 158, 1), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        spToken = IERC4626(yieldSource).asset(); 
     }
 
     /// @inheritdoc ISuperHook

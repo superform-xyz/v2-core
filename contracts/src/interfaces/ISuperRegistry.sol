@@ -63,4 +63,7 @@ interface ISuperRegistry {
     // -- SuperBundler
     /// @dev Get the ID of the super bundler.
     function SUPER_BUNDLER_ID() external view returns (bytes32);
+
+    /// @dev Get the ID of the lock funds account hook.
+    function LOCK_FUNDS_ACCOUNT_HOOK_ID() external view returns (bytes32);  
 }

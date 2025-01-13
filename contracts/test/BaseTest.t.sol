@@ -597,7 +597,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount, uint8(0));
     }
 
     function _createWithdrawHookData(
@@ -612,7 +612,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, uint8(0));
     }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData(

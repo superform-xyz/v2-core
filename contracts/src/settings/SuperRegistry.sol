@@ -47,6 +47,9 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     // -- SuperBundler
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_BUNDLER_ID = keccak256("SUPER_BUNDLER_ID");
+    
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant LOCK_FUNDS_ACCOUNT_HOOK_ID = keccak256("LOCK_FUNDS_ACCOUNT_HOOK_ID");   
 
     constructor(address owner) Ownable(owner) { }
 

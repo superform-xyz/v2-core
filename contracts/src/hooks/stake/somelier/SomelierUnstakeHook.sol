@@ -17,6 +17,7 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 104, 1), 0);
 contract SomelierUnstakeHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -44,6 +45,9 @@ contract SomelierUnstakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockFlag = BytesLib.toUint8(BytesLib.slice(data, 104, 1), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        spToken = ISomelierCellarStaking(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook

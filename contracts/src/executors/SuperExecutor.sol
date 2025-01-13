@@ -14,6 +14,7 @@ import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperHook, ISuperHookMinimal } from "../interfaces/ISuperHook.sol";
+import { ILockFundsAccountHook } from "../interfaces/account-hooks/ILockFundsAccountHook.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
@@ -48,7 +49,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     }
 
     /// @notice Check if the module is initialized
-    function isInitialized(address) external pure returns (bool) { return true;}
+    function isInitialized(address) external pure returns (bool) {
+        return true;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -60,7 +63,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     function execute(bytes calldata data) external {
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
     }
-    
 
     /// @inheritdoc ISuperExecutor
     function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
@@ -89,6 +91,28 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) private {
         // run hook preExecute
         hook.preExecute(prevHook, hookData);
+
+        uint8 flags = ISuperHookMinimal(address(hook)).lockFlag();
+        // (lock || unlock)
+        if (flags & 3 != 0) {
+            address spToken = ISuperHookMinimal(address(hook)).spToken();
+            uint256 amount = ISuperHookMinimal(address(hook)).outAmount();
+            if (spToken == address(0)) revert ADDRESS_NOT_VALID();
+
+            if (flags & 1 != 0) {
+                //lock
+                ILockFundsAccountHook(superRegistry.getAddress(superRegistry.LOCK_FUNDS_ACCOUNT_HOOK_ID())).lock(
+                    account, spToken, amount
+                );
+            } else if (flags & 2 != 0) {
+                // unlock
+                ILockFundsAccountHook(superRegistry.getAddress(superRegistry.LOCK_FUNDS_ACCOUNT_HOOK_ID())).unlock(
+                    account, spToken, amount
+                );
+            } else {
+                revert LOCK_UNLOCK_FLAG_NOT_VALID();
+            }
+        }
 
         Execution[] memory executions = hook.build(prevHook, hookData);
 

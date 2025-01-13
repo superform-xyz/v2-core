@@ -19,6 +19,7 @@ import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 /// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
+/// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 137, 1), 0);
 contract YearnWithdrawHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -61,6 +62,9 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockFlag = BytesLib.toUint8(BytesLib.slice(data, 137, 1), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        spToken = IYearnVault(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook

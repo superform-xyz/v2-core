@@ -24,6 +24,7 @@ import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.so
 /// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
 /// @notice         bool depositFromInternalBalance = _decodeBool(data, 156);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
+/// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 158, 1), 0);
 contract Deposit5115VaultHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -69,6 +70,9 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockFlag = BytesLib.toUint8(BytesLib.slice(data, 158, 1), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        spToken = IERC4626(yieldSource).asset(); 
     }
 
     /// @inheritdoc ISuperHook

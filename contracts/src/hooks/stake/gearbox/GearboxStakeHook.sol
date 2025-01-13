@@ -18,6 +18,7 @@ import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearbo
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 104, 1), 0);
 contract GearboxStakeHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -55,6 +56,9 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockFlag = BytesLib.toUint8(BytesLib.slice(data, 104, 1), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        spToken = IGearboxFarmingPool(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook

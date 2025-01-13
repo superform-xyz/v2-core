@@ -19,6 +19,7 @@ import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.so
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 105, 1), 0);
 contract Deposit4626VaultHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -59,6 +60,9 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory data) external onlyExecutor {
         // store current balance
         outAmount = _getBalance(data);
+        lockFlag = BytesLib.toUint8(BytesLib.slice(data, 105, 1), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        spToken = IERC4626(yieldSource).asset();
     }
 
     /// @inheritdoc ISuperHook

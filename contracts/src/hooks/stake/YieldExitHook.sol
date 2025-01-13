@@ -17,6 +17,7 @@ import { IYieldExit } from "../../interfaces/vendors/IYieldExit.sol";
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 72, 1), 0);
 contract YieldExitHook is BaseHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -37,6 +38,9 @@ contract YieldExitHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockFlag = BytesLib.toUint8(BytesLib.slice(data, 72, 1), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        spToken = IYieldExit(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook

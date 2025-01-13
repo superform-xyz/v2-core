@@ -12,7 +12,9 @@ interface ISuperExecutor {
     //////////////////////////////////////////////////////////////*/
     error NOT_AUTHORIZED();
     error NOT_INITIALIZED();
+    error ADDRESS_NOT_VALID();
     error ALREADY_INITIALIZED();
+    error LOCK_UNLOCK_FLAG_NOT_VALID();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
