@@ -137,3 +137,22 @@ jobs:
         run: |
           echo "## Tests result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
+          
+  deploy-testnet:
+    needs: ["test"]
+    if: github.event_name == 'pull_request'
+    runs-on: "SuperformCore3"
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Make deploy script executable"
+        run: chmod +x ./v2-core/contracts/script/run/deploy_v2_vnet_copy.sh
+
+      - name: "Run deploy script"
+        run: ./script/run/deploy_v2_vnet_copy.sh ${{ github.event.pull_request.number }}
+        env:
+          TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
