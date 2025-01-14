@@ -8,10 +8,21 @@ if [ -z "$PR_NUMBER" ]; then
     exit 1
 fi
 
+# Check if running locally by testing for op command
+if command -v op >/dev/null 2>&1; then
+    # Running locally, use op to get access key
+    TENDERLY_ACCESS_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential)
+else
+    source .env
+    # Not running locally, use environment variable
+    if [ -z "$TENDERLY_ACCESS_KEY" ]; then
+        echo "Error: TENDERLY_ACCESS_KEY environment variable is required"
+        exit 1
+    fi
+fi
 
 API_BASE_URL="https://api.tenderly.co/api/v1"
 # Load environment variables
-TENDERLY_ACCESS_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential)
 TENDERLY_ACCOUNT="superform"
 TENDERLY_PROJECT="v2"
 

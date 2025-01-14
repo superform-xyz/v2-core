@@ -136,7 +136,10 @@ jobs:
 
   deploy-testnet:
     needs: ["build"]
-    if: github.event_name == 'pull_request'
+    if: |
+      github.event_name == 'pull_request' && 
+      startsWith(github.head_ref, 'feat') && 
+      endsWith(github.head_ref, 'vnet')
     runs-on: "SuperformCore3"
     steps:
       - name: "Check out the repo"
