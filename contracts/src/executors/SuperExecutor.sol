@@ -105,6 +105,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                     account, spToken, amount
                 );
             } else if (flags & 2 != 0) {
+                //TODO: unlock flag cannot be passed by orchestrator like this
+                //       because otherwise the user would be able to unlock his shares and SuperPositions are still available on SupeformChain
+                //       Decide in ST
                 // unlock
                 ILockFundsAccountHook(superRegistry.getAddress(superRegistry.LOCK_FUNDS_ACCOUNT_HOOK_ID())).unlock(
                     account, spToken, amount

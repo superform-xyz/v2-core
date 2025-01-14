@@ -84,9 +84,9 @@ contract LockFundsAccountHook is ERC7579HookBase, SuperRegistryImplementer {
     /// @param asset The asset to lock the funds for
     /// @param amount The amount of funds to lock
     function lock(address account, address asset, uint256 amount) external onlyExecutor {
-        lockedAmounts[account][asset] += amount;
-        lockedTokens[account].push(asset);
-        emit LockFunds(account, asset, amount);
+        lockedAmounts[account][asset] += amount; // ~20k gas
+        lockedTokens[account].push(asset); // ~20k gas
+        emit LockFunds(account, asset, amount); // 375 + 375 + 375 + 375 = 1500 gas
     }
 
     /// @notice Unlock the given amount of funds for the given account
