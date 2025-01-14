@@ -78,7 +78,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             HookRegistrationConfig calldata config = configs[i];
             _setYieldSourceOracleConfig(
                 config.yieldSourceOracleId,
-                config.mainHooks,
                 config.yieldSourceOracle,
                 config.feePercent,
                 config.vaultShareToken,
@@ -139,7 +138,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
     function _setYieldSourceOracleConfig(
         bytes32 yieldSourceOracleId,
-        address[] calldata mainHooks,
         address yieldSourceOracle,
         uint256 feePercent,
         address vaultShareToken,
@@ -157,7 +155,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         if (existingConfig.manager != address(0) && msg.sender != existingConfig.manager) revert NOT_MANAGER();
 
         yieldSourceOracleConfig[yieldSourceOracleId] = YieldSourceOracleConfig({
-            mainHooks: mainHooks,
             yieldSourceOracle: yieldSourceOracle,
             feePercent: feePercent,
             vaultShareToken: vaultShareToken,

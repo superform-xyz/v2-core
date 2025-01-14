@@ -415,14 +415,9 @@ contract DeployV2 is Script, Configuration {
     }
 
     function _setupSuperLedger(uint64 chainId) private {
-        address[] memory mainHooks = new address[](2);
-
-        mainHooks[0] = _getContract(chainId, "Deposit4626VaultHook");
-        mainHooks[1] = _getContract(chainId, "Withdraw4626VaultHook");
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, "SuperRegistry"));
         ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
         configs[0] = ISuperLedger.HookRegistrationConfig({
-            mainHooks: mainHooks,
             yieldSourceOracle: _getContract(chainId, "ERC4626YieldSourceOracle"),
             yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
             feePercent: 100,
