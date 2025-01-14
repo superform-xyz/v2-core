@@ -11,6 +11,8 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+
 /// @title YearnWithdrawHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
@@ -20,6 +22,8 @@ import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 /// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 contract YearnWithdrawHook is BaseHook, ISuperHook {
+    using HookDataDecoder for bytes;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -35,8 +39,8 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address recipient = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 136);
@@ -51,7 +55,7 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IYearnVault.withdraw, (maxShares, recipient, maxLoss))
+            callData: abi.encodeCall(IYearnVault.withdraw, (maxShares, account, maxLoss))
         });
     }
 
@@ -72,8 +76,8 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address recipient = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        return IYearnVault(yieldSource).balanceOf(recipient);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
+        return IYearnVault(yieldSource).balanceOf(account);
     }
 }

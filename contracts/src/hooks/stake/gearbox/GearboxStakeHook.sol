@@ -11,6 +11,8 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
 
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+
 /// @title GearboxStakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
@@ -19,6 +21,8 @@ import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearbo
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract GearboxStakeHook is BaseHook, ISuperHook {
+    using HookDataDecoder for bytes;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -34,7 +38,7 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address yieldSource = data.extractYieldSource();
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
@@ -66,8 +70,8 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
         return IGearboxFarmingPool(yieldSource).balanceOf(account);
     }
 }

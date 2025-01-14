@@ -11,6 +11,8 @@ import { BaseHook } from "../BaseHook.sol";
 import { ISuperHook } from "../../interfaces/ISuperHook.sol";
 import { IYieldExit } from "../../interfaces/vendors/IYieldExit.sol";
 
+import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
+
 /// @title YieldExitHook
 /// @dev can be used for Gearbox, Fluid
 /// @dev data has the following structure
@@ -18,6 +20,8 @@ import { IYieldExit } from "../../interfaces/vendors/IYieldExit.sol";
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 contract YieldExitHook is BaseHook, ISuperHook {
+    using HookDataDecoder for bytes;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -25,7 +29,7 @@ contract YieldExitHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address yieldSource = data.extractYieldSource();
 
         executions = new Execution[](1);
         executions[0] = Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IYieldExit.exit, ()) });
@@ -48,8 +52,8 @@ contract YieldExitHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
         return IYieldExit(yieldSource).balanceOf(account);
     }
 }
