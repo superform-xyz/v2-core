@@ -7,17 +7,6 @@ abstract contract Configuration {
     //////////////////////////////////////////////////////////////*/
     error INVALID_CONFIG();
 
-    struct SuperPositionData {
-        string name;
-        string symbol;
-        uint8 decimals;
-    }
-
-    struct RolesData {
-        bytes32 role;
-        address addr;
-    }
-
     struct EnvironmentData {
         address deployer;
         uint64 chainId;
@@ -25,14 +14,6 @@ abstract contract Configuration {
         address acrossSpokePoolV3;
         address paymaster;
         address bundler;
-        SuperPositionData[] superPositions;
-        RolesData[] externalRoles;
-    }
-
-    enum DeployChain {
-        MAINNET,
-        TESTNET1,
-        TESTNET2
     }
 
     EnvironmentData public configuration;

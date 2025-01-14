@@ -29,8 +29,8 @@ forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
 --verifier-url $ETH_MAINNET_VERIFIER_URL \
 --rpc-url $ETH_MAINNET \
 --etherscan-api-key $TENDERLY_ACCESS_KEY \
---broadcast
-wait
+--broadcast \
+--slow
 
 echo Deploy V2 on network 1: ...
 forge script script/DeployV2.s.sol:DeployV2 \
@@ -68,7 +68,8 @@ forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     --verifier-url $BASE_MAINNET_VERIFIER_URL \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast
+    --broadcast \
+    --slow
 
 wait
 
