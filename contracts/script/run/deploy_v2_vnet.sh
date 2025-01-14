@@ -6,7 +6,6 @@ export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_MAINNET_VNET/
 export ETH_MAINNET_VERIFIER_URL=$ETH_MAINNET/verify/etherscan
 export BASE_MAINNET_VERIFIER_URL=$BASE_MAINNET/verify/etherscan
 
-
 curl $ETH_MAINNET \
     -X POST \
     -H "Content-Type: application/json" \
@@ -24,13 +23,13 @@ curl $ETH_MAINNET \
 
 echo Deploy SuperDeployer on network 1: ...
 forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
---account testDeployer \
---verify \
---verifier-url $ETH_MAINNET_VERIFIER_URL \
---rpc-url $ETH_MAINNET \
---etherscan-api-key $TENDERLY_ACCESS_KEY \
---broadcast \
---slow
+    --account testDeployer \
+    --verify \
+    --verifier-url $ETH_MAINNET_VERIFIER_URL \
+    --rpc-url $ETH_MAINNET \
+    --etherscan-api-key $TENDERLY_ACCESS_KEY \
+    --broadcast \
+    --slow
 
 echo Deploy V2 on network 1: ...
 forge script script/DeployV2.s.sol:DeployV2 \

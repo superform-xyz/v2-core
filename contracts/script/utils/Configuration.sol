@@ -7,6 +7,17 @@ abstract contract Configuration {
     //////////////////////////////////////////////////////////////*/
     error INVALID_CONFIG();
 
+    struct SuperPositionData {
+        string name;
+        string symbol;
+        uint8 decimals;
+    }
+
+    struct RolesData {
+        bytes32 role;
+        address addr;
+    }
+
     struct EnvironmentData {
         address deployer;
         uint64 chainId;
@@ -14,6 +25,8 @@ abstract contract Configuration {
         address acrossSpokePoolV3;
         address paymaster;
         address bundler;
+        SuperPositionData[] superPositions;
+        RolesData[] externalRoles;
     }
 
     EnvironmentData public configuration;
@@ -28,6 +41,7 @@ abstract contract Configuration {
     uint64 public constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 public constant ARB_SEPOLIA_CHAIN_ID = 421_613;
     uint64 public constant BASE_SEPOLIA_CHAIN_ID = 84_532;
+    uint64 public constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
     mapping(uint64 chainId => string chainName) internal chainNames;
     string internal constant SALT_NAMESPACE = "v2-core.v1.0.1";
@@ -44,6 +58,7 @@ abstract contract Configuration {
         chainNames[SEPOLIA_CHAIN_ID] = "Sepolia";
         chainNames[ARB_SEPOLIA_CHAIN_ID] = "Arbitrum_Sepolia";
         chainNames[BASE_SEPOLIA_CHAIN_ID] = "Base_Sepolia";
+        chainNames[OP_SEPOLIA_CHAIN_ID] = "OP_Sepolia";
     }
 
     function _setConfiguration(uint64 chainId) internal {
@@ -67,6 +82,8 @@ abstract contract Configuration {
             configuration.acrossSpokePoolV3 = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
         } else if (chainId == BASE_SEPOLIA_CHAIN_ID) {
             configuration.acrossSpokePoolV3 = 0x82B564983aE7274c86695917BBf8C99ECb6F0F8F;
+        } else if (chainId == OP_SEPOLIA_CHAIN_ID) {
+            configuration.acrossSpokePoolV3 = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
         } else if (chainId == BASE_CHAIN_ID) {
             configuration.acrossSpokePoolV3 = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
         } else {
