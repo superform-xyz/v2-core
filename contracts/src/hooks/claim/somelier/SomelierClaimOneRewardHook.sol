@@ -14,8 +14,8 @@ import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISo
 
 /// @title SomelierClaimOneRewardHook
 /// @dev data has the following structure
-/// @notice         address vault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
@@ -25,7 +25,7 @@ contract SomelierClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 60, 32), 0);
+        uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(yieldSource, abi.encodeCall(ISomelierCellarStaking.claim, (depositId)));

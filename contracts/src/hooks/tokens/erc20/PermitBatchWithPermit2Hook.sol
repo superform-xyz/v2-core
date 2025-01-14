@@ -42,14 +42,30 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        //TODO: use BytesLib to decode data
-        (
-            address account,
-            bool usePrevHookAmount,
-            uint256 indexOfAmount,
-            IAllowanceTransfer.PermitBatch memory permitBatch,
-            bytes memory signature
-        ) = abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        bool usePrevHookAmount = _decodeBool(data, 20);
+        uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 21, 32), 0);
+
+        IAllowanceTransfer.PermitBatch memory permitBatch;
+        permitBatch.spender = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
+        permitBatch.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
+
+        uint256 detailsCount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
+        uint256 offset = 137; // Start of PermitDetails array
+
+        permitBatch.details = new IAllowanceTransfer.PermitDetails[](detailsCount);
+        for (uint256 i = 0; i < detailsCount; ) {
+            permitBatch.details[i].token = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+            permitBatch.details[i].amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 20, 32), 0));
+            permitBatch.details[i].expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 52, 32), 0));
+            permitBatch.details[i].nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 84, 32), 0));
+            offset += 116; // Each PermitDetails struct takes 116 bytes
+
+            unchecked { ++i; }
+        }
+
+        uint256 signatureOffset = offset;
+        bytes memory signature = BytesLib.slice(data, signatureOffset, data.length - signatureOffset);
 
         if (usePrevHookAmount) {
             permitBatch.details[indexOfAmount].amount = ISuperHookResult(prevHook).outAmount().toUint160();

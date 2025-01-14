@@ -44,12 +44,27 @@ contract TransferBatchWithPermit2Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        //TODO: use BytesLib to decode data
-        (
-            bool usePrevHookAmount,
-            uint256 indexOfAmount,
-            IAllowanceTransfer.AllowanceTransferDetails[] memory transferDetails
-        ) = abi.decode(data, (bool, uint256, IAllowanceTransfer.AllowanceTransferDetails[]));
+        bool usePrevHookAmount = _decodeBool(data, 0);
+        uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+
+        uint256 offset = 33;
+        uint256 transferDetailsLength = BytesLib.toUint256(BytesLib.slice(data, offset, 32), 0);
+        offset += 32;
+
+        IAllowanceTransfer.AllowanceTransferDetails[] memory transferDetails = new IAllowanceTransfer.AllowanceTransferDetails[](transferDetailsLength);
+        for (uint256 i = 0; i < transferDetailsLength; i++) {
+            transferDetails[i].from = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+            offset += 20;
+            
+            transferDetails[i].to = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+            offset += 20;
+            
+            transferDetails[i].amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset, 32), 0));
+            offset += 32;
+            
+            transferDetails[i].token = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+            offset += 20;
+        }
 
         if (usePrevHookAmount) {
             transferDetails[indexOfAmount].amount = ISuperHookResult(prevHook).outAmount().toUint160();
