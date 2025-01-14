@@ -2,8 +2,9 @@
 pragma solidity >=0.8.28;
 
 // external
-import { PackedUserOperation } from "modulekit/ModuleKit.sol";
-import { IEntryPoint } from "modulekit/external/ERC4337.sol";
+import {
+    IMinimalEntryPoint, PackedUserOperation
+} from "../interfaces/vendors/account-abstraction/IMinimalEntryPoint.sol";
 import { BytesLib } from "../libraries/BytesLib.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -127,7 +128,7 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
         // Execute the userOp through EntryPoint
-        IEntryPoint(entrypoint).handleOps(userOps, _getSuperBundler());
+        IMinimalEntryPoint(entrypoint).handleOps(userOps, _getSuperBundler());
 
         emit AcrossFundsReceivedAndExecuted(account);
     }
