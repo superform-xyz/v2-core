@@ -19,7 +19,7 @@ generate_slug() {
     local testnet_name=$1
     # Convert to lowercase, replace spaces with hyphens, remove special chars
     local base_slug=$(echo "$testnet_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
-    echo "${base_slug}-PR${PR_NUMBER}"
+    echo "${base_slug}-pr${PR_NUMBER}"
 }
 
 create_virtual_testnet() {
