@@ -109,7 +109,6 @@ contract SuperMerkleValidatorTest is BaseTest {
         uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
         bool sigFailed = (rawResult >> 255) & 1 == 1; 
         uint48 validUntil = uint48(rawResult >> 160); 
-        uint48 validAfter = uint48(rawResult);
 
         assertFalse(sigFailed);
         assertGt(validUntil, block.timestamp);
