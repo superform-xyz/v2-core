@@ -182,7 +182,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             previewRedeemAmount,
             BASE,
             true,
-            abi.encode(instanceOnBase.account, 0, dstUserOpData)
+            instanceOnBase.account,
+            0,
+            dstUserOpData
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -244,7 +246,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             vars.intentAmount / 2,
             BASE,
             true,
-            abi.encode(instanceOnBase.account, vars.intentAmount, dstUserOpData)
+            instanceOnBase.account,
+            vars.intentAmount,
+            dstUserOpData
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -271,7 +275,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             vars.intentAmount / 2,
             BASE,
             true,
-            abi.encode(instanceOnBase.account, vars.intentAmount, dstUserOpData)
+            instanceOnBase.account,
+            vars.intentAmount,
+            dstUserOpData
         );
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.srcHooksAddresses, hooksData: vars.srcHooksData });
