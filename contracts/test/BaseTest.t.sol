@@ -473,13 +473,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.selectFork(FORKS[chainIds[i]]);
 
             vm.startPrank(MANAGER);
-            address[] memory mainHooks = new address[](2);
-            mainHooks[0] = _getHook(chainIds[i], "Deposit4626VaultHook");
-            mainHooks[1] = _getHook(chainIds[i], "Withdraw4626VaultHook");
+
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
             ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
             configs[0] = ISuperLedger.HookRegistrationConfig({
-                mainHooks: mainHooks,
                 yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
                 yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
                 feePercent: 100,
