@@ -6,6 +6,11 @@ export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_MAINNET_VNET/
 export ETH_MAINNET_VERIFIER_URL="$ETH_MAINNET/verify/etherscan"
 export BASE_MAINNET_VERIFIER_URL="$BASE_MAINNET/verify/etherscan"
 
+#ETH_MAINNET="https://eth-mainnet.g.alchemy.com/v2/demo"
+#BASE_MAINNET="https://base-mainnet.g.alchemy.com/v2/demo"  
+#ETH_MAINNET_VERIFIER_URL="$ETH_MAINNET/verify/etherscan"
+#BASE_MAINNET_VERIFIER_URL="$BASE_MAINNET/verify/etherscan"
+
 # constructor args
 empty_arg="$(cast abi-encode "constructor()")"
 owner_arg="$(cast abi-encode "constructor(address)" "0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA")"
@@ -19,6 +24,9 @@ networks=(1 8453)  # ETH Mainnet, Base Mainnet
 
 # verifier urls
 verifier_urls=("$ETH_MAINNET_VERIFIER_URL" "$BASE_MAINNET_VERIFIER_URL")
+
+# rpc urls
+rpc_urls=("$ETH_MAINNET" "$BASE_MAINNET")
 
 # define files to verify
 files_to_verify=(
@@ -128,20 +136,25 @@ constructor_args=(
 for i in "${!networks[@]}"; do
     network="${networks[$i]}"
     verifier_url="${verifier_urls[$i]}"
+    rpc_url="${rpc_urls[$i]}"
 
     for j in "${!files_to_verify[@]}"; do
         file_name="${files_to_verify[$j]}"
         contract_name="${contract_names[$j]}"
         constructor_arg="${constructor_args[$j]}"
         contract_address="${contract_addresses[$j]}"
+
         # verify contract
-        forge verify-contract $contract_address \
-            --num-of-optimizations 10000 \
-            --watch --compiler-version v0.8.28 \
+        forge verify-contract $contract_address $contract_name\
+            #--num-of-optimizations 10000 \
+            #--watch --compiler-version v0.8.28+commit.7893614a \
             --constructor-args "$constructor_arg" \
             #--guess-constructor-args \
-            "$file_name:$contract_name" \
+            #"$file_name:$contract_name" \
+            --rpc-url "$rpc_url" \
+            --verifier-url "$verifier_url" \
             --etherscan-api-key "$TENDERLY_ACCESS_KEY" \
-            --verifier-url $verifier_url
+            --slow
+        return
     done
 done
