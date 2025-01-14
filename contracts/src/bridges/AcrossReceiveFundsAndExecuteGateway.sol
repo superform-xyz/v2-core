@@ -44,12 +44,16 @@ import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
 /// @notice  uint256 intentAmount = BytesLib.toUint256(BytesLib.slice(message, 20, 32), 0);
 /// @notice  userOp.sender = BytesLib.toAddress(BytesLib.slice(message, 52, 20), 0);
 /// @notice  userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, 72, 32), 0);
-/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 104, 32), 0);
-/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 136, 32), 0);
+/// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 104, 32), 0);
+/// @notice  userOp.initCode = BytesLib.slice(message, 104, codeLength);
+/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 136, 32), 0);
+/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 168, 32), 0);
 /// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 168, 32), 0);
-/// @notice  address entrypoint = BytesLib.toAddress(BytesLib.slice(message, 200, 20), 0);
-/// @notice  (userOp.initCode, userOp.callData, userOp.paymasterAndData, userOp.signature) =
-/// @notice      abi.decode(BytesLib.slice(message, 220, message.length - 220), (bytes, bytes, bytes, bytes));
+/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 200, 32), 0);
+/// @notice  userOp.paymasterAndData = BytesLib.slice(message, 200, codeLength);
+/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 232, 32), 0);
+/// @notice  userOp.signature = BytesLib.slice(message, 232, codeLength);
+/// @notice  address entrypoint = BytesLib.toAddress(BytesLib.slice(message, 264, 20), 0);
 contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
