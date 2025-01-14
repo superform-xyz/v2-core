@@ -139,7 +139,7 @@ jobs:
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
 
   deploy-testnet:
-    needs: ["test"]
+    needs: ["build"]
     if: github.event_name == 'pull_request'
     runs-on: "SuperformCore3"
     steps:
