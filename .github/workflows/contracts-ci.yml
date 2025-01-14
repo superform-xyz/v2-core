@@ -142,6 +142,15 @@ jobs:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
 
+      - name: "Install node"
+        uses: "actions/setup-node@v3"
+        with:
+          node-version: "latest"
+          working-directory: "./contracts"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
       - name: "Install Foundry dependencies"
         run: forge install
         working-directory: "./contracts"
