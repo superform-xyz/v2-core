@@ -635,14 +635,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             intentAmount,
             userOpData.userOp.sender,
             userOpData.userOp.nonce,
-            userOpData.userOp.initCode,
-            userOpData.userOp.callData,
             userOpData.userOp.accountGasLimits,
             userOpData.userOp.preVerificationGas,
             userOpData.userOp.gasFees,
-            userOpData.userOp.paymasterAndData,
-            userOpData.userOp.signature,
-            address(userOpData.entrypoint)
+            address(userOpData.entrypoint),
+            abi.encode(
+                userOpData.userOp.initCode,
+                userOpData.userOp.callData,
+                userOpData.userOp.paymasterAndData,
+                userOpData.userOp.signature
+            )
         );
         hookData = abi.encodePacked(
             uint256(0),
