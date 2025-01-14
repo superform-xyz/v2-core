@@ -88,20 +88,27 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         offset += 20;
         userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
-
+        uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        offset += 32;
+        userOp.initCode = BytesLib.slice(message, offset, codeLength);
+        offset += codeLength;
         userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
-
         userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
-
         userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+        codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        offset += 32;
+        userOp.paymasterAndData = BytesLib.slice(message, offset, codeLength);
+        offset += codeLength;
+        codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        offset += 32;
+        userOp.signature = BytesLib.slice(message, offset, codeLength);
+        offset += codeLength;
 
         address entrypoint = BytesLib.toAddress(BytesLib.slice(message, offset, 20), 0);
         offset += 20;
-        (userOp.initCode, userOp.callData, userOp.paymasterAndData, userOp.signature) =
-            abi.decode(BytesLib.slice(message, offset, message.length - offset), (bytes, bytes, bytes, bytes));
 
         IERC20 token = IERC20(tokenSent);
 
