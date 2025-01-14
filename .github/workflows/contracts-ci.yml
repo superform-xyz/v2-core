@@ -96,10 +96,6 @@ jobs:
           node-version: "latest"
           working-directory: "./contracts"
 
-      - name: Install Dependencies
-        run: yarn install
-        working-directory: "./contracts"
-
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
@@ -146,14 +142,30 @@ jobs:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
 
-      - name: "Install Foundry"
-        uses: "foundry-rs/foundry-toolchain@v1"
+      - name: "Install Foundry dependencies"
+        run: forge install
+        working-directory: "./contracts"
+
+      - name: "Install pnpm"
+        run: npm install -g pnpm
+
+      - name: "Check pnpm version"
+        run: pnpm --version
+
+      - name: "Install ModuleKit"
+        run: pnpm install
+        working-directory: "./contracts/lib/modulekit"
+
+      - name: "Show the Foundry config"
+        working-directory: "./contracts"
+        run: "forge config"
 
       - name: "Install Tenderly CLI"
         run: curl https://raw.githubusercontent.com/Tenderly/tenderly-cli/master/scripts/install-linux.sh | sudo sh
 
       - name: "Make deploy script executable"
         run: chmod +x ./script/run/deploy_v2_vnet.sh
+        working-directory: "./contracts"
 
       - name: "Create deployment status check"
         uses: "actions/github-script@v7"
@@ -172,6 +184,7 @@ jobs:
         run: ./script/run/deploy_v2_vnet.sh ${{ github.event.pull_request.number }}
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
+        working-directory: "./contracts"
 
 
       - name: "Update deployment status"
