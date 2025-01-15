@@ -8,20 +8,20 @@ OPTIMISM_CHAIN_ID=10
 
 # Add branch name as first argument and commit hash as second argument
 BRANCH_NAME=$1
-COMMIT_HASH=$2
 
 if [ -z "$BRANCH_NAME" ]; then
     echo "Error: Branch name is required"
     exit 1
 fi
 
-if [ -z "$COMMIT_HASH" ]; then
-    echo "Error: Commit hash is required"
-    exit 1
-fi
+# Helper function to check if running locally
+is_local_run() {
+    command -v op >/dev/null 2>&1
+    return $?
+}
 
-# Check if running locally by testing for op command
-if command -v op >/dev/null 2>&1; then
+# Check if running locally
+if is_local_run; then
     # Running locally, use op to get access key
     TENDERLY_ACCESS_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential)
 else
@@ -34,7 +34,6 @@ else
 fi
 
 API_BASE_URL="https://api.tenderly.co/api/v1"
-# Load environment variables
 TENDERLY_ACCOUNT="superform"
 TENDERLY_PROJECT="v2"
 
@@ -59,10 +58,82 @@ cleanup_vnets() {
 # Set up trap to cleanup VNETs on script exit due to error
 trap 'cleanup_vnets' ERR
 
+update_counter() {
+    local slug=$1
+    local vnet_id=$2
+    
+    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/script/output/vnet_counters.json")
+    
+    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+        content="{\"slugs\":{}}"
+        sha=""
+    else
+        content=$(echo "$response" | jq -r '.content' | base64 --decode)
+        sha=$(echo "$response" | jq -r '.sha')
+    fi
+
+    current_counter=$(echo "$content" | jq -r ".slugs[\"$slug\"].counter // 0")
+    new_counter=$((current_counter + 1))
+    
+    new_content=$(echo "$content" | jq \
+        --arg slug "$slug" \
+        --arg vnet "$vnet_id" \
+        --arg counter "$new_counter" \
+        '.slugs[$slug] = {"counter": ($counter|tonumber), "vnet_id": $vnet}')
+
+    update_response=$(curl -s -X PUT \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/script/output/vnet_counters.json" \
+        -d @- << EOF
+{
+    "message": "Update VNET counter for $slug",
+    "content": "$(echo "$new_content" | base64)",
+    "sha": "$sha",
+    "branch": "$GITHUB_REF_NAME"
+}
+EOF
+    )
+
+    if [ "$(echo "$update_response" | jq -r '.message // empty')" != "" ]; then
+        return 1
+    fi
+
+    echo "$new_counter"
+    return 0
+}
+
+check_existing_vnet() {
+    local slug=$1
+    local response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/script/output/vnet_counters.json")
+    
+    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+        return 1
+    fi
+
+    local content=$(echo "$response" | jq -r '.content' | base64 --decode)
+    local vnet_id=$(echo "$content" | jq -r ".slugs[\"$slug\"].vnet_id // empty")
+    
+    if [ -n "$vnet_id" ]; then
+        # Check if VNET still exists in Tenderly
+        local tenderly_response=$(curl -s -X GET \
+            "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
+            -H "X-Access-Key: ${TENDERLY_ACCESS_KEY}")
+        
+        if [ "$(echo "$tenderly_response" | jq -r '.id')" == "$vnet_id" ]; then
+            echo "$vnet_id"
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
 generate_slug() {
     local network=$1
-    local short_hash=$(echo "$COMMIT_HASH" | cut -c1-8)
-    local output="${BRANCH_NAME//\//-}-${short_hash}-${network}"
+    local output="${BRANCH_NAME//\//-}-${network}"
     # Convert to lowercase, replace spaces with hyphens, remove special chars
     local output=$(echo "$output" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
     echo "$output"
@@ -70,13 +141,12 @@ generate_slug() {
 
 create_virtual_testnet() {
     local testnet_name=$1
-    local network_id=$2
-    local chain_id=$3
+    local slug=$2
+    local network_id=$3
     local account_name=$4
     local project_name=$5
     local access_key=$6
     
-    local slug=$(generate_slug "$testnet_name")
     echo "---------------------------------" >&2
     echo "Creating TestNet with slug: $slug" >&2
     
@@ -91,7 +161,7 @@ create_virtual_testnet() {
     },
     "virtual_network_config": {
         "chain_config": {
-            "chain_id": $chain_id
+            "chain_id": $network_id
         }
     },
     "sync_state_config": {
@@ -146,52 +216,82 @@ set_initial_balance() {
         }'
 }
 
-# Create all VNETs first
-echo "Creating Ethereum Mainnet Virtual Network for PR #${PR_NUMBER}..."
-ETH_RESPONSE=$(create_virtual_testnet \
-    "eth" \
-    "$ETH_CHAIN_ID" \
-    "$ETH_CHAIN_ID" \
-    "$TENDERLY_ACCOUNT" \
-    "$TENDERLY_PROJECT" \
-    "$TENDERLY_ACCESS_KEY")
-ETH_MAINNET=$(echo "$ETH_RESPONSE" | cut -d'|' -f1)
-ETH_VNET_ID=$(echo "$ETH_RESPONSE" | cut -d'|' -f2)
-VNET_IDS+=("$ETH_VNET_ID")
+get_salt() {
+    local slug=$1
+    local vnet_id=$2
 
-echo "Creating Base Mainnet Virtual Network for PR #${PR_NUMBER}..."
-BASE_RESPONSE=$(create_virtual_testnet \
-    "base" \
-    "$BASE_CHAIN_ID" \
-    "$BASE_CHAIN_ID" \
-    "$TENDERLY_ACCOUNT" \
-    "$TENDERLY_PROJECT" \
-    "$TENDERLY_ACCESS_KEY")
-BASE_MAINNET=$(echo "$BASE_RESPONSE" | cut -d'|' -f1)
-BASE_VNET_ID=$(echo "$BASE_RESPONSE" | cut -d'|' -f2)
-VNET_IDS+=("$BASE_VNET_ID")
+    # If running locally, always return 1
+    if is_local_run; then
+        echo "1"
+        return 0
+    fi
 
-echo "Creating Optimism Mainnet Virtual Network for PR #${PR_NUMBER}..."
-OPTIMISM_RESPONSE=$(create_virtual_testnet \
-    "op" \
-    "$OPTIMISM_CHAIN_ID" \
-    "$OPTIMISM_CHAIN_ID" \
-    "$TENDERLY_ACCOUNT" \
-    "$TENDERLY_PROJECT" \
-    "$TENDERLY_ACCESS_KEY")
-OPTIMISM_MAINNET=$(echo "$OPTIMISM_RESPONSE" | cut -d'|' -f1)
-OPTIMISM_VNET_ID=$(echo "$OPTIMISM_RESPONSE" | cut -d'|' -f2)
-VNET_IDS+=("$OPTIMISM_VNET_ID")
+    # CI environment - handle counter logic
+    MAX_RETRIES=3
+    retry_count=0
+    while [ $retry_count -lt $MAX_RETRIES ]; do
+        if counter=$(update_counter "$slug" "$vnet_id"); then
+            echo "$counter"
+            return 0
+        fi
+        retry_count=$((retry_count + 1))
+        sleep 1
+    done
+    
+    return 1
+}
 
-# Verify all VNETs were created successfully
-if [ -z "$ETH_MAINNET" ] || [ -z "$BASE_MAINNET" ] || [ -z "$OPTIMISM_MAINNET" ]; then
-    echo "Error: Failed to create one or more VNETs"
-    [ -z "$ETH_MAINNET" ] && echo "- Ethereum Mainnet VNET creation failed"
-    [ -z "$BASE_MAINNET" ] && echo "- Base Mainnet VNET creation failed"
-    [ -z "$OPTIMISM_MAINNET" ] && echo "- Optimism Mainnet VNET creation failed"
-    cleanup_vnets
-    exit 1
-fi
+# Create VNETs and get salts for each network
+for network in 1 8453 10; do
+    slug=$(generate_slug "$network")
+    
+    if is_local_run; then
+        # Local run - create new VNET and use salt=1
+        response=$(create_virtual_testnet "$network" "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+        vnet_id=$(echo "$response" | cut -d'|' -f2)
+        salt="1"
+    else
+        # CI run - check existing VNET and handle counter
+        existing_vnet_id=$(check_existing_vnet "$slug")
+        if [ -n "$existing_vnet_id" ]; then
+            vnet_id="$existing_vnet_id"
+            response=$(create_virtual_testnet "$network" "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+            vnet_id=$(echo "$response" | cut -d'|' -f2)
+        else
+            response=$(create_virtual_testnet "$network" "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+            vnet_id=$(echo "$response" | cut -d'|' -f2)
+        fi
+        
+        salt=$(get_salt "$slug" "$vnet_id")
+        if [ $? -ne 0 ]; then
+            echo "Failed to get salt for $slug"
+            cleanup_vnets
+            exit 1
+        fi
+    fi
+
+    # Store variables based on network
+    case "$network" in
+        1)
+            ETH_VNET_ID="$vnet_id"
+            ETH_SALT="$salt"
+            ETH_MAINNET=$(echo "$response" | cut -d'|' -f1)
+            VNET_IDS+=("$vnet_id")
+            ;;
+        8453)
+            BASE_VNET_ID="$vnet_id"
+            BASE_SALT="$salt"
+            BASE_MAINNET=$(echo "$response" | cut -d'|' -f1)
+            VNET_IDS+=("$vnet_id")
+            ;;
+        10)
+            OPTIMISM_VNET_ID="$vnet_id"
+            OPTIMISM_SALT="$salt"
+            OPTIMISM_MAINNET=$(echo "$response" | cut -d'|' -f1)
+            VNET_IDS+=("$vnet_id")
+            ;;
+    esac
+done
 
 # Set up verifier URLs
 ETH_MAINNET_VERIFIER_URL="$ETH_MAINNET/verify/etherscan"
@@ -222,7 +322,7 @@ fi
 
 echo Deploy V2 on Ethereum: ...
 if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $ETH_CHAIN_ID "$COMMIT_HASH" \
+    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $ETH_CHAIN_ID "$ETH_SALT" \
     --verify \
     --verifier-url $ETH_MAINNET_VERIFIER_URL \
     --rpc-url $ETH_MAINNET \
@@ -253,7 +353,7 @@ fi
 
 echo Deploy V2 on Base: ...
 if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $BASE_CHAIN_ID "$COMMIT_HASH" \
+    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $BASE_CHAIN_ID "$BASE_SALT" \
     --verify \
     --verifier-url $BASE_MAINNET_VERIFIER_URL \
     --rpc-url $BASE_MAINNET \
@@ -284,7 +384,7 @@ fi
 
 echo Deploy V2 on Optimism: ...
 if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $OPTIMISM_CHAIN_ID "$COMMIT_HASH" \
+    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
     --verify \
     --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
     --rpc-url $OPTIMISM_MAINNET \
