@@ -43,14 +43,15 @@ abstract contract Configuration {
     uint64 public constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
     mapping(uint64 chainId => string chainName) internal chainNames;
-    string internal constant SALT_NAMESPACE = "v2-core.v1.0.10";
+    bytes internal SALT_NAMESPACE;
     string internal constant MNEMONIC = "test test test test test test test test test test test junk";
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    function _setConfiguration(uint256 env) internal {
+    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+        SALT_NAMESPACE = bytes(saltNamespace);
         chainNames[MAINNET_CHAIN_ID] = "Ethereum";
         chainNames[BASE_CHAIN_ID] = "Base";
         chainNames[OPTIMISM_CHAIN_ID] = "Optimism";
@@ -77,10 +78,10 @@ abstract contract Configuration {
 
         // chain specific configuration
         configuration.acrossSpokePoolV3s[MAINNET_CHAIN_ID] = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
-        configuration.acrossSpokePoolV3s[ARB_SEPOLIA_CHAIN_ID] = 0xE248B1deEb12828788eB0e27F3BF8f0e18cfd362;
+        configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
+        configuration.acrossSpokePoolV3s[OPTIMISM_CHAIN_ID] = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
         configuration.acrossSpokePoolV3s[ARB_SEPOLIA_CHAIN_ID] = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
         configuration.acrossSpokePoolV3s[BASE_SEPOLIA_CHAIN_ID] = 0x82B564983aE7274c86695917BBf8C99ECb6F0F8F;
         configuration.acrossSpokePoolV3s[OP_SEPOLIA_CHAIN_ID] = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
-        configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     }
 }

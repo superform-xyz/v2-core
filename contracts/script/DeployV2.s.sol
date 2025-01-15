@@ -93,9 +93,8 @@ contract DeployV2 is Script, Configuration {
         }
     }
 
-    function run(uint256 env, uint64 chainId) public broadcast(env) {
-        _setConfiguration(env);
-
+    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
+        _setConfiguration(env, saltNamespace);
         console2.log("Deploying on chainId: ", chainId);
 
         // deploy contracts
@@ -114,8 +113,6 @@ contract DeployV2 is Script, Configuration {
 
     function _deploy(uint64 chainId) internal {
         DeployedContracts memory deployedContracts;
-        // set configuration
-        _setConfiguration(chainId);
 
         // retrieve deployer
         ISuperDeployer deployer = _getDeployer();
@@ -256,8 +253,8 @@ contract DeployV2 is Script, Configuration {
         return deployedAddr;
     }
 
-    function __getSalt(address eoa, address deployer, string memory name) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(eoa, deployer, bytes(SALT_NAMESPACE), bytes(string.concat(name, ".v0.1"))));
+    function __getSalt(address eoa, address deployer, string memory name) private view returns (bytes32) {
+        return keccak256(abi.encodePacked(eoa, deployer, SALT_NAMESPACE, bytes(string.concat(name, ".v0.1"))));
     }
 
     function _deployHooks(

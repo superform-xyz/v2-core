@@ -40,10 +40,14 @@ on:
   push:
     branches:
       - dev
-      - main
+      - 'feat/**'
+
 jobs:
   build:
     runs-on: "SuperformCore3"
+    defaults:
+      run:
+        working-directory: ./contracts
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -52,20 +56,15 @@ jobs:
         uses: "actions/setup-node@v3"
         with:
           node-version: "latest"
-          working-directory: "./contracts"
 
       - name: Install Dependencies
         run: yarn install
-        working-directory: "./contracts"
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
-        with:
-          working-directory: "./contracts"
 
       - name: "Install Foundry dependencies"
         run: forge install
-        working-directory: "./contracts"
 
       - name: "Install pnpm"
         run: npm install -g pnpm
@@ -74,15 +73,13 @@ jobs:
         run: pnpm --version
 
       - name: "Install ModuleKit"
+        working-directory: ./contracts/lib/modulekit
         run: pnpm install
-        working-directory: "./contracts/lib/modulekit"
 
       - name: "Build the contracts and print their size"
-        working-directory: "./contracts"
         run: "forge build"
 
       - name: "Add build summary"
-        working-directory: "./contracts"
         run: |
           echo "## Build result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
@@ -90,6 +87,9 @@ jobs:
   test:
     needs: ["build"]
     runs-on: "SuperformCore3"
+    defaults:
+      run:
+        working-directory: ./contracts
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -98,14 +98,12 @@ jobs:
         uses: "actions/setup-node@v3"
         with:
           node-version: "latest"
-          working-directory: "./contracts"
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
       - name: "Install Foundry dependencies"
         run: forge install
-        working-directory: "./contracts"
 
       - name: "Install pnpm"
         run: npm install -g pnpm
@@ -114,76 +112,108 @@ jobs:
         run: pnpm --version
 
       - name: "Install ModuleKit"
+        working-directory: ./contracts/lib/modulekit
         run: pnpm install
-        working-directory: "./contracts/lib/modulekit"
 
       - name: "Show the Foundry config"
-        working-directory: "./contracts"
         run: "forge config"
 
       - name: "Generate a fuzz seed that changes weekly to avoid burning through RPC allowance"
-        working-directory: "./contracts"
         run: >
           echo "FOUNDRY_FUZZ_SEED=$(
             echo $(($EPOCHSECONDS - $EPOCHSECONDS % 604800))
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        working-directory: "./contracts"
         run: "forge test"
 
       - name: "Add test summary"
-        working-directory: "./contracts"
         run: |
           echo "## Tests result" >> $GITHUB_STEP_SUMMARY
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
 
-  deploy-testnet:
-    needs: ["build"]
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+  vnet-deploy:
+    needs: ["test"]
+    if: |
+      (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'feat/') || github.base_ref == 'dev')) ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/')))
     runs-on: "SuperformCore3"
+    defaults:
+      run:
+        working-directory: ./contracts
+    outputs:
+      eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
+      base_mainnet_addresses: ${{ steps.get-addresses-base.outputs.addresses }}
+      optimism_mainnet_addresses: ${{ steps.get-addresses-optimism.outputs.addresses }}
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
-        with:
-          ref: ${{ github.ref_name }}
-          
-      - name: "Install node"
-        uses: "actions/setup-node@v3"
-        with:
-          node-version: "latest"
-          working-directory: "./contracts"
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
 
       - name: "Install Foundry dependencies"
         run: forge install
-        working-directory: "./contracts"
 
       - name: "Install pnpm"
         run: npm install -g pnpm
 
-      - name: "Check pnpm version"
-        run: pnpm --version
-
       - name: "Install ModuleKit"
+        working-directory: ./contracts/lib/modulekit
         run: pnpm install
-        working-directory: "./contracts/lib/modulekit"
-
-      - name: "Show the Foundry config"
-        working-directory: "./contracts"
-        run: "forge config"
 
       - name: "Install Tenderly CLI"
         run: curl https://raw.githubusercontent.com/Tenderly/tenderly-cli/master/scripts/install-linux.sh | sudo sh
 
       - name: "Make deploy script executable"
         run: chmod +x ./script/run/deploy_v2_vnet.sh
-        working-directory: "./contracts"
+
+      - name: Get PR number and commit hash
+        id: pr-info
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+            echo "COMMIT_HASH=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+          else
+            echo "PR_NUMBER=0" >> $GITHUB_ENV
+            echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
+          fi
 
       - name: "Run deploy script"
-        run: ./script/run/deploy_v2_vnet.sh ${{ github.event.pull_request.number }}
+        run: ./script/run/deploy_v2_vnet.sh $PR_NUMBER $COMMIT_HASH
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
-        working-directory: "./contracts"
+
+      - name: Get deployed addresses for Ethereum
+        id: get-addresses-eth
+        run: |
+          ADDRESSES=$(cat ./script/output/1/Ethereum-latest.json)
+          echo "addresses=$ADDRESSES" >> $GITHUB_OUTPUT
+
+      - name: Get deployed addresses for Base
+        id: get-addresses-base
+        run: |
+          ADDRESSES=$(cat ./script/output/8453/Base-latest.json)
+          echo "addresses=$ADDRESSES" >> $GITHUB_OUTPUT
+
+      - name: Get deployed addresses for Optimism
+        id: get-addresses-optimism
+        run: |
+          ADDRESSES=$(cat ./script/output/10/Optimism-latest.json)
+          echo "addresses=$ADDRESSES" >> $GITHUB_OUTPUT
+
+      - name: Add deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "### Ethereum Mainnet (Chain ID: 1)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat ./script/output/1/Ethereum-latest.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "### Base (Chain ID: 8453)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat ./script/output/8453/Base-latest.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "### Optimism (Chain ID: 10)" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat ./script/output/10/Optimism-latest.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
