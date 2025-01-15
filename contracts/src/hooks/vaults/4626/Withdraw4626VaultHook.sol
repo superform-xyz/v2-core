@@ -79,8 +79,8 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getUnderlyingBalance(bytes memory data) private view returns (uint256) {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
         return IERC20(IERC4626(yieldSource).asset()).balanceOf(account);
     }
 }

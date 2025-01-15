@@ -13,18 +13,18 @@ import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title RequestWithdraw7540VaultHook
+/// @title Deposit7540VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
-contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
+contract Deposit7540VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -42,21 +42,21 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).outAmount();
         }
 
-        if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || controller == address(0)) revert ADDRESS_NOT_VALID();
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0) || controller == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.requestRedeem, (shares, controller, account))
+            callData: abi.encodeCall(IERC7540.deposit, (amount, account, controller))
         });
     }
 
@@ -64,8 +64,22 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external view onlyExecutor { }
+    function preExecute(address, bytes memory data) external onlyExecutor {
+        // store current balance
+        outAmount = _getBalance(data);
+    }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external view onlyExecutor { }
+    function postExecute(address, bytes memory data) external onlyExecutor {
+        outAmount = _getBalance(data) - outAmount;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getBalance(bytes memory data) private view returns (uint256) {
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
+        return IERC7540(yieldSource).balanceOf(account);
+    }
 }
