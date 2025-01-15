@@ -62,7 +62,10 @@ trap 'cleanup_vnets' ERR
 generate_slug() {
     local network=$1
     local short_hash=$(echo "$COMMIT_HASH" | cut -c1-8)
-    echo "${BRANCH_NAME//\//-}-${short_hash}-${network}"
+    local output="${BRANCH_NAME//\//-}-${short_hash}-${network}"
+    # Convert to lowercase, replace spaces with hyphens, remove special chars
+    local output=$(echo "$output" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
+    echo "$output"
 }
 
 create_virtual_testnet() {
