@@ -129,9 +129,7 @@ jobs:
 
   vnet-deploy:
     needs: ["test"]
-    if: |
-      (github.event_name == 'pull_request' && (startsWith(github.head_ref, 'feat/') || github.base_ref == 'dev')) ||
-      (github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/')))
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
     runs-on: "SuperformCore3"
     defaults:
       run:
@@ -160,41 +158,40 @@ jobs:
       - name: "Install Tenderly CLI"
         run: curl https://raw.githubusercontent.com/Tenderly/tenderly-cli/master/scripts/install-linux.sh | sudo sh
 
+      - name: "Install jq"
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: "Make deploy script executable"
         run: chmod +x ./script/run/deploy_v2_vnet.sh
 
-      - name: Get PR number and commit hash
-        id: pr-info
+      - name: Get branch name and commit hash
+        id: branch-info
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-            echo "COMMIT_HASH=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
-          else
-            echo "PR_NUMBER=0" >> $GITHUB_ENV
-            echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
-          fi
+          BRANCH_NAME=${GITHUB_REF#refs/heads/}
+          echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
+          echo "COMMIT_HASH=${{ github.sha }}" >> $GITHUB_ENV
 
       - name: "Run deploy script"
-        run: ./script/run/deploy_v2_vnet.sh $PR_NUMBER $COMMIT_HASH
+        run: ./script/run/deploy_v2_vnet.sh "$BRANCH_NAME" $COMMIT_HASH
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
 
       - name: Get deployed addresses for Ethereum
         id: get-addresses-eth
         run: |
-          ADDRESSES=$(cat ./script/output/1/Ethereum-latest.json)
+          ADDRESSES=$(cat ./script/output/1/Ethereum-latest.json | jq -c .)
           echo "addresses=$ADDRESSES" >> $GITHUB_OUTPUT
 
       - name: Get deployed addresses for Base
         id: get-addresses-base
         run: |
-          ADDRESSES=$(cat ./script/output/8453/Base-latest.json)
+          ADDRESSES=$(cat ./script/output/8453/Base-latest.json | jq -c .)
           echo "addresses=$ADDRESSES" >> $GITHUB_OUTPUT
 
       - name: Get deployed addresses for Optimism
         id: get-addresses-optimism
         run: |
-          ADDRESSES=$(cat ./script/output/10/Optimism-latest.json)
+          ADDRESSES=$(cat ./script/output/10/Optimism-latest.json | jq -c .)
           echo "addresses=$ADDRESSES" >> $GITHUB_OUTPUT
 
       - name: Add deployment summary
@@ -202,13 +199,13 @@ jobs:
           echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "### Ethereum Mainnet (Chain ID: 1)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-          cat ./script/output/1/Ethereum-latest.json >> $GITHUB_STEP_SUMMARY
+          cat ./script/output/1/Ethereum-latest.json | jq . >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "### Base (Chain ID: 8453)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-          cat ./script/output/8453/Base-latest.json >> $GITHUB_STEP_SUMMARY
+          cat ./script/output/8453/Base-latest.json | jq . >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "### Optimism (Chain ID: 10)" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-          cat ./script/output/10/Optimism-latest.json >> $GITHUB_STEP_SUMMARY
+          cat ./script/output/10/Optimism-latest.json | jq . >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

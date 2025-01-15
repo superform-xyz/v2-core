@@ -6,12 +6,12 @@ ETH_CHAIN_ID=1
 BASE_CHAIN_ID=8453
 OPTIMISM_CHAIN_ID=10
 
-# Add PR number as first argument and commit hash as second argument
-PR_NUMBER=$1
+# Add branch name as first argument and commit hash as second argument
+BRANCH_NAME=$1
 COMMIT_HASH=$2
 
-if [ -z "$PR_NUMBER" ]; then
-    echo "Error: PR number is required"
+if [ -z "$BRANCH_NAME" ]; then
+    echo "Error: Branch name is required"
     exit 1
 fi
 
@@ -60,12 +60,9 @@ cleanup_vnets() {
 trap 'cleanup_vnets' ERR
 
 generate_slug() {
-    local testnet_name=$1
-    # Convert to lowercase, replace spaces with hyphens, remove special chars
-    local base_slug=$(echo "$testnet_name" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g')
-    # Take first 8 characters of commit hash
+    local network=$1
     local short_hash=$(echo "$COMMIT_HASH" | cut -c1-8)
-    echo "${base_slug}-pr${PR_NUMBER}-${short_hash}"
+    echo "${BRANCH_NAME//\//-}-${short_hash}-${network}"
 }
 
 create_virtual_testnet() {
@@ -78,7 +75,7 @@ create_virtual_testnet() {
     
     local slug=$(generate_slug "$testnet_name")
     echo "---------------------------------" >&2
-    echo "Creating TestNet with slug: $slug" >&2 
+    echo "Creating TestNet with slug: $slug" >&2
     
     # Construct JSON payload
     local json_data=$(cat <<EOF
