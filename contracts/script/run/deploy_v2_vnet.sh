@@ -219,6 +219,7 @@ check_existing_vnet() {
     local slug=$1
     log "INFO" "Checking for existing VNET with slug: $slug"
     
+    log "DEBUG" "GitHub API URL: https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json"
     local response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json")
     
