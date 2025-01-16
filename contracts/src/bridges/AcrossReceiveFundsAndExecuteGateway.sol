@@ -54,7 +54,6 @@ import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
 /// @notice  userOp.paymasterAndData = BytesLib.slice(message, 200, codeLength);
 /// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 232, 32), 0);
 /// @notice  userOp.signature = BytesLib.slice(message, 232, codeLength);
-/// @notice  address entrypoint = BytesLib.toAddress(BytesLib.slice(message, 264, 20), 0);
 contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
@@ -62,9 +61,17 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
     //////////////////////////////////////////////////////////////*/
 
     address public immutable acrossSpokePool;
+    address public immutable entryPointAddress; // can be a constant, but better to set it in constructor
 
-    constructor(address registry_, address acrossSpokePool_) SuperRegistryImplementer(registry_) {
+    constructor(
+        address registry_,
+        address acrossSpokePool_,
+        address entryPointAddress_
+    )
+        SuperRegistryImplementer(registry_)
+    {
         acrossSpokePool = acrossSpokePool_;
+        entryPointAddress = entryPointAddress_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -112,9 +119,6 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         userOp.signature = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
 
-        address entrypoint = BytesLib.toAddress(BytesLib.slice(message, offset, 20), 0);
-        offset += 20;
-
         IERC20 token = IERC20(tokenSent);
 
         // send tokens to the smart account
@@ -128,7 +132,7 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
         // Execute the userOp through EntryPoint
-        IMinimalEntryPoint(entrypoint).handleOps(userOps, _getSuperBundler());
+        IMinimalEntryPoint(entryPointAddress).handleOps(userOps, _getSuperBundler());
 
         emit AcrossFundsReceivedAndExecuted(account);
     }
