@@ -14,7 +14,6 @@ import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
 contract DeployMocks is Script, Configuration {
     function run(uint64[] memory chainIds) public {
         vm.startBroadcast();
-        _setAllChainsConfiguration();
         uint256 len = chainIds.length;
         for (uint256 i; i < len;) {
             uint64 chainId = chainIds[i];
