@@ -14,7 +14,7 @@ import { IYearnStakingRewardsMulti } from "../../../interfaces/vendors/yearn/IYe
 
 /// @title YearnClaimOneRewardHook
 /// @dev data has the following structure
-/// @notice         address yearnVault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
@@ -24,11 +24,11 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        address yearnVault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        if (yearnVault == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
-        return _build(yearnVault, abi.encodeCall(IYearnStakingRewardsMulti.getOneReward, (rewardToken)));
+        return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getOneReward, (rewardToken)));
     }
 
     /*//////////////////////////////////////////////////////////////

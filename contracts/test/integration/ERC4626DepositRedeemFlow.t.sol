@@ -13,8 +13,8 @@ import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
-/// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 
+/// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 contract ERC4626DepositRedeemFlowTest is BaseTest {
     IERC4626 public vaultInstanceEth;
     IERC4626 public vaultInstanceBase;
@@ -182,7 +182,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             previewRedeemAmount,
             BASE,
             true,
-            abi.encode(instanceOnBase.account, 0, dstUserOpData)
+            instanceOnBase.account,
+            0,
+            dstUserOpData
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -244,7 +246,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             vars.intentAmount / 2,
             BASE,
             true,
-            abi.encode(instanceOnBase.account, vars.intentAmount, dstUserOpData)
+            instanceOnBase.account,
+            vars.intentAmount,
+            dstUserOpData
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -271,7 +275,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             vars.intentAmount / 2,
             BASE,
             true,
-            abi.encode(instanceOnBase.account, vars.intentAmount, dstUserOpData)
+            instanceOnBase.account,
+            vars.intentAmount,
+            dstUserOpData
         );
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.srcHooksAddresses, hooksData: vars.srcHooksData });

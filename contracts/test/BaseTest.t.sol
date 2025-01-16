@@ -89,6 +89,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
 
+    address constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+
+
     uint64[] public chainIds = [ETH, OP, BASE];
 
     string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
@@ -204,7 +207,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
 
             A.acrossReceiveFundsAndExecuteGateway =
-                new AcrossReceiveFundsAndExecuteGateway(address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]);
+                new AcrossReceiveFundsAndExecuteGateway(address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR);
             vm.label(address(A.acrossReceiveFundsAndExecuteGateway), "acrossReceiveFundsAndExecuteGateway");
             contractAddresses[chainIds[i]]["AcrossReceiveFundsAndExecuteGateway"] =
                 address(A.acrossReceiveFundsAndExecuteGateway);
@@ -473,13 +476,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.selectFork(FORKS[chainIds[i]]);
 
             vm.startPrank(MANAGER);
-            address[] memory mainHooks = new address[](2);
-            mainHooks[0] = _getHook(chainIds[i], "Deposit4626VaultHook");
-            mainHooks[1] = _getHook(chainIds[i], "Withdraw4626VaultHook");
+
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
             ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
             configs[0] = ISuperLedger.HookRegistrationConfig({
-                mainHooks: mainHooks,
                 yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
                 yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
                 feePercent: 100,
@@ -623,12 +623,29 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 outputAmount,
         uint64 destinationChainId,
         bool usePrevHookAmount,
-        bytes memory message
+        address account,
+        uint256 intentAmount,
+        UserOpData memory userOpData
     )
         internal
         view
         returns (bytes memory hookData)
     {
+        bytes memory dstUserOpData = abi.encodePacked(
+            account,
+            intentAmount,
+            userOpData.userOp.sender,
+            userOpData.userOp.nonce,
+            userOpData.userOp.initCode.length,
+            userOpData.userOp.initCode,
+            userOpData.userOp.accountGasLimits,
+            userOpData.userOp.preVerificationGas,
+            userOpData.userOp.gasFees,
+            userOpData.userOp.paymasterAndData.length,
+            userOpData.userOp.paymasterAndData,
+            userOpData.userOp.signature.length,
+            userOpData.userOp.signature
+        );
         hookData = abi.encodePacked(
             uint256(0),
             _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
@@ -641,7 +658,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             uint32(10 minutes), // this can be a max of 360 minutes
             uint32(0),
             usePrevHookAmount,
-            message
+            dstUserOpData
         );
     }
 }

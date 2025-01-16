@@ -42,13 +42,20 @@ contract PermitWithPermit2Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        //TODO: use BytesLib to decode data
-        (
-            address account,
-            bool usePrevHookAmount,
-            IAllowanceTransfer.PermitSingle memory permitSingle,
-            bytes memory signature
-        ) = abi.decode(data, (address, bool, IAllowanceTransfer.PermitSingle, bytes));
+        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        bool usePrevHookAmount = _decodeBool(data, 20);
+
+        IAllowanceTransfer.PermitSingle memory permitSingle;
+        permitSingle.details.token = BytesLib.toAddress(BytesLib.slice(data, 21, 20), 0);
+        permitSingle.details.amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 41, 32), 0));
+        permitSingle.details.expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0));
+        permitSingle.details.nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0));
+
+        permitSingle.spender = BytesLib.toAddress(BytesLib.slice(data, 137, 20), 0);
+        permitSingle.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+
+        uint256 signatureOffset = 189;
+        bytes memory signature = BytesLib.slice(data, signatureOffset, data.length - signatureOffset);
 
         if (usePrevHookAmount) {
             permitSingle.details.amount = ISuperHookMinimal(prevHook).outAmount().toUint160();

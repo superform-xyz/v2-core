@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
@@ -56,7 +57,14 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        Swap1InchUnoswapHookParams memory params = abi.decode(data, (Swap1InchUnoswapHookParams));
+        Swap1InchUnoswapHookParams memory params;
+        params.usePrevHookAmount = _decodeBool(data, 0);
+        params.msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+        params.recipient = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+        params.token = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
+        params.amount = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
+        params.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
+        params.dex = BytesLib.toAddress(BytesLib.slice(data, 137, 20), 0);
 
         if (params.usePrevHookAmount) {
             // TODO: how do we handle `minReturnAmount`?

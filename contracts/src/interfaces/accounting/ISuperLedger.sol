@@ -18,7 +18,6 @@ interface ISuperLedger {
     }
 
     struct YieldSourceOracleConfig {
-        address[] mainHooks;
         address yieldSourceOracle;
         uint256 feePercent;
         address vaultShareToken;
@@ -27,7 +26,6 @@ interface ISuperLedger {
     }
 
     struct HookRegistrationConfig {
-        address[] mainHooks;
         address yieldSourceOracle;
         bytes32 yieldSourceOracleId;
         uint256 feePercent;
@@ -46,6 +44,15 @@ interface ISuperLedger {
         uint256 amount,
         uint256 price
     );
+
+    event AccountingOutflowSkipped(
+        address indexed user,
+        address indexed yieldSource,
+        bytes32 indexed yieldSourceOracleId,
+        uint256 amount,
+        uint256 price
+    );
+
     event YieldSourceOracleConfigSet(
         bytes32 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,

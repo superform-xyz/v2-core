@@ -14,6 +14,8 @@ import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+
 /// @title Deposit5115VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
@@ -26,6 +28,8 @@ import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.so
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
 /// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 158, 1), 0);
 contract Deposit5115VaultHook is BaseHook, ISuperHook {
+    using HookDataDecoder for bytes;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -41,8 +45,8 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);

@@ -13,6 +13,8 @@ import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+
 /// @title Withdraw4626VaultHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
@@ -23,6 +25,8 @@ import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.so
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         uint8 lockFlags = BytesLib.toUint8(BytesLib.slice(data, 125, 1), 0);
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
+    using HookDataDecoder for bytes;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -38,8 +42,8 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 124);
@@ -79,8 +83,8 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getUnderlyingBalance(bytes memory data) private view returns (uint256) {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address account = data.extractAccount();
+        address yieldSource = data.extractYieldSource();
         return IERC20(IERC4626(yieldSource).asset()).balanceOf(account);
     }
 }

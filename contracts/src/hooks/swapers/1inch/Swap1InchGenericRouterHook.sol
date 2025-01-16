@@ -2,9 +2,8 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -13,7 +12,8 @@ import { Base1InchHook } from "./Base1InchHook.sol";
 import { ISuperHook, ISuperHookMinimal } from "../../../interfaces/ISuperHook.sol";
 import {
     I1InchAggregationRouterV6,
-    IAggregationExecutor
+    IAggregationExecutor,
+    IERC20
 } from "../../../interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
 
 /// @title Swap1InchGenericRouterHook
@@ -51,7 +51,26 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        Swap1InchGenericRouterHookParams memory params = abi.decode(data, (Swap1InchGenericRouterHookParams));
+        Swap1InchGenericRouterHookParams memory params;
+        params.usePrevHookAmount = _decodeBool(data, 0);
+        params.msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+
+        params.description.srcToken = IERC20(BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0));
+        params.description.dstToken = IERC20(BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0));
+        params.description.srcReceiver = payable(BytesLib.toAddress(BytesLib.slice(data, 73, 20), 0));
+        params.description.dstReceiver = payable(BytesLib.toAddress(BytesLib.slice(data, 93, 20), 0));
+        params.description.amount = BytesLib.toUint256(BytesLib.slice(data, 113, 32), 0);
+        params.description.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
+        params.description.flags = BytesLib.toUint256(BytesLib.slice(data, 177, 32), 0);
+        params.aggregationExecutor = BytesLib.toAddress(BytesLib.slice(data, 209, 20), 0);
+
+        uint256 permitDataLength = BytesLib.toUint256(BytesLib.slice(data, 229, 32), 0);
+        params.permitData = BytesLib.slice(data, 261, permitDataLength);
+
+        uint256 swapDataOffset = 261 + permitDataLength;
+        params.swapData = BytesLib.slice(data, swapDataOffset, data.length - swapDataOffset);
+
+
         if (params.description.srcReceiver == address(0) || params.description.dstReceiver == address(0)) {
             revert ADDRESS_NOT_VALID();
         }

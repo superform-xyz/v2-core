@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -57,7 +58,19 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        Swap1InchClipperRouterHookParams memory params = abi.decode(data, (Swap1InchClipperRouterHookParams));
+        Swap1InchClipperRouterHookParams memory params;
+        params.usePrevHookAmount = _decodeBool(data, 0);
+        params.msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+        params.clipperExchange = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+        params.recipient = payable(BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0));
+        params.srcToken = BytesLib.toAddress(BytesLib.slice(data, 73, 20), 0);
+        params.dstToken = BytesLib.toAddress(BytesLib.slice(data, 93, 20), 0);
+        params.inputAmount = BytesLib.toUint256(BytesLib.slice(data, 113, 32), 0);
+        params.outputAmount = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
+        params.expiryWithFlags = BytesLib.toUint256(BytesLib.slice(data, 177, 32), 0);
+        params.r = BytesLib.toBytes32(BytesLib.slice(data, 209, 32), 0);
+        params.vs = BytesLib.toBytes32(BytesLib.slice(data, 241, 32), 0);
+        params.permitData = BytesLib.slice(data, 273, data.length - 273);
 
         if (params.usePrevHookAmount) {
             // TODO: how do we handle `outputAmount`?

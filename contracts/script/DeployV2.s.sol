@@ -79,32 +79,33 @@ contract DeployV2 is Script, Configuration {
         address acrossReceiveFundsAndExecuteGateway;
     }
 
-    function run(uint64[] memory chainIds) public {
-        vm.startBroadcast();
-        _setAllChainsConfiguration();
-        uint256 len = chainIds.length;
-        for (uint256 i; i < len;) {
-            uint64 chainId = chainIds[i];
-            console2.log("Deploying on chainId: ", chainId);
-
-            // set chain configuration
-            _setConfiguration(chainId);
-
-            // deploy contracts
-            _deploy(chainId);
-
-            // Configure contracts
-            _configure(chainId);
-
-            // Setup SuperLedger
-            _setupSuperLedger(chainId);
-
-            unchecked {
-                ++i;
-            }
+    modifier broadcast(uint256 env) {
+        if (env == 1) {
+            (address deployer,) = deriveRememberKey(MNEMONIC, 0);
+            console2.log("Deployer: ", deployer);
+            vm.startBroadcast(deployer);
+            _;
+            vm.stopBroadcast();
+        } else {
+            vm.startBroadcast();
+            _;
+            vm.stopBroadcast();
         }
+    }
 
-        vm.stopBroadcast();
+    function run(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env);
+
+        console2.log("Deploying on chainId: ", chainId);
+
+        // deploy contracts
+        _deploy(chainId);
+
+        // Configure contracts
+        _configure(chainId);
+
+        // Setup SuperLedger
+        _setupSuperLedger(chainId);
     }
 
     function _getDeployer() internal view returns (ISuperDeployer deployer) {
@@ -172,7 +173,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, "AcrossReceiveFundsAndExecuteGateway"),
             abi.encodePacked(
                 type(AcrossReceiveFundsAndExecuteGateway).creationCode,
-                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3)
+                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId])
             )
         );
 
@@ -199,7 +200,9 @@ contract DeployV2 is Script, Configuration {
             }
         }
         // ---- | set deployed contracts roles
-        superRbac.setRole(_getContract(chainId, "AcrossBridgeGateway"), superRbac.BRIDGE_GATEWAY(), true);
+        superRbac.setRole(
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway"), superRbac.BRIDGE_GATEWAY(), true
+        );
         superRbac.setRole(configuration.owner, superRbac.EXECUTOR_CONFIGURATOR(), true);
         superRbac.setRole(configuration.owner, superRbac.SENTINEL_CONFIGURATOR(), true);
 
@@ -271,7 +274,7 @@ contract DeployV2 is Script, Configuration {
             "AcrossSendFundsAndExecuteOnDstHook",
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3)
+                abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3s[chainId])
             )
         );
         hooks[1] = HookDeployment(
@@ -413,14 +416,9 @@ contract DeployV2 is Script, Configuration {
     }
 
     function _setupSuperLedger(uint64 chainId) private {
-        address[] memory mainHooks = new address[](2);
-
-        mainHooks[0] = _getContract(chainId, "Deposit4626VaultHook");
-        mainHooks[1] = _getContract(chainId, "Withdraw4626VaultHook");
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, "SuperRegistry"));
         ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
         configs[0] = ISuperLedger.HookRegistrationConfig({
-            mainHooks: mainHooks,
             yieldSourceOracle: _getContract(chainId, "ERC4626YieldSourceOracle"),
             yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
             feePercent: 100,
