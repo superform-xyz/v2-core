@@ -404,57 +404,121 @@ fi
 # Main Deployment Logic
 ###################################################################################
 
-# Create VNETs and get salts for each network
+# First phase: Create or get VNETs for all networks
+declare -A NETWORK_VNETS  # Associate array to store network -> vnet_id,admin_rpc mapping
 for network in 1 8453 10; do
     network_slug=$(get_network_slug "$network")
     slug=$(generate_slug "$network_slug")
     
     if is_local_run; then
-        # Local run - create new VNET and use salt=1
+        # Local run - create new VNET
         response=$(create_virtual_testnet "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-        vnet_id=$(echo "$response" | cut -d'|' -f2)
-        salt="1"
+        NETWORK_VNETS[$network]="$response"
     else
-        # CI run - check existing VNET and handle counter
+        # CI run - check existing VNET
         response=$(check_existing_vnet "$slug")
-        if [ $? -eq 0 ]; then
+        if [ -n "$response" ]; then
             # VNET exists, use existing one
-            vnet_id=$(echo "$response" | cut -d'|' -f2)
+            NETWORK_VNETS[$network]="$response"
         else
             # VNET doesn't exist, create new one
             response=$(create_virtual_testnet "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-            vnet_id=$(echo "$response" | cut -d'|' -f2)
-        fi
-        
-        salt=$(get_salt "$slug" "$vnet_id")
-        if [ $? -ne 0 ]; then
-            log "ERROR" "Failed to get salt for $slug"
-            cleanup_vnets
-            exit 1
+            NETWORK_VNETS[$network]="$response"
         fi
     fi
+done
 
-    # Store variables based on network
+# Second phase: Update counters and get salts for all networks in a single operation
+if ! is_local_run; then
+    log "INFO" "Updating counters for all networks"
+    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME")
+    
+    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+        content="{\"slugs\":{}}"
+        sha=""
+    else
+        content=$(echo "$response" | jq -r '.content' | base64 --decode)
+        sha=$(echo "$response" | jq -r '.sha')
+    fi
+
+    # Update content for all networks
+    for network in 1 8453 10; do
+        network_slug=$(get_network_slug "$network")
+        slug=$(generate_slug "$network_slug")
+        vnet_id=$(echo "${NETWORK_VNETS[$network]}" | cut -d'|' -f2)
+        
+        current_counter=$(echo "$content" | jq -r ".slugs[\"$slug\"].counter // 0")
+        new_counter=$((current_counter + 1))
+        
+        content=$(echo "$content" | jq \
+            --arg slug "$slug" \
+            --arg vnet "$vnet_id" \
+            --arg counter "$new_counter" \
+            '.slugs[$slug] = {"counter": ($counter|tonumber), "vnet_id": $vnet}')
+        
+        # Store salt for this network
+        case "$network" in
+            1)
+                ETH_SALT="$new_counter"
+                ;;
+            8453)
+                BASE_SALT="$new_counter"
+                ;;
+            10)
+                OPTIMISM_SALT="$new_counter"
+                ;;
+        esac
+    done
+
+    # Single PUT request to update all counters
+    update_response=$(curl -s -X PUT \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME" \
+        -d @- << EOF
+{
+    "message": "Update VNET counters for all networks",
+    "content": "$(echo "$content" | base64)",
+    "sha": "$sha",
+    "branch": "$GITHUB_REF_NAME"
+}
+EOF
+    )
+
+    if [ "$(echo "$update_response" | jq -r '.message // empty')" != "" ]; then
+        log "ERROR" "Failed to update counters: $(echo "$update_response" | jq -r '.message')"
+        cleanup_vnets
+        exit 1
+    fi
+else
+    # Local run - use salt=1 for all networks
+    ETH_SALT="1"
+    BASE_SALT="1"
+    OPTIMISM_SALT="1"
+fi
+
+# Third phase: Store network-specific variables
+for network in 1 8453 10; do
+    vnet_response="${NETWORK_VNETS[$network]}"
+    vnet_id=$(echo "$vnet_response" | cut -d'|' -f2)
+    admin_rpc=$(echo "$vnet_response" | cut -d'|' -f1)
+    
     case "$network" in
         1)
             ETH_VNET_ID="$vnet_id"
-            ETH_SALT="$salt"
-            ETH_MAINNET=$(echo "$response" | cut -d'|' -f1)
-            VNET_IDS+=("$vnet_id")
+            ETH_MAINNET="$admin_rpc"
             ;;
         8453)
             BASE_VNET_ID="$vnet_id"
-            BASE_SALT="$salt"
-            BASE_MAINNET=$(echo "$response" | cut -d'|' -f1)
-            VNET_IDS+=("$vnet_id")
+            BASE_MAINNET="$admin_rpc"
             ;;
         10)
             OPTIMISM_VNET_ID="$vnet_id"
-            OPTIMISM_SALT="$salt"
-            OPTIMISM_MAINNET=$(echo "$response" | cut -d'|' -f1)
-            VNET_IDS+=("$vnet_id")
+            OPTIMISM_MAINNET="$admin_rpc"
             ;;
     esac
+    VNET_IDS+=("$vnet_id")
 done
 
 ###################################################################################
