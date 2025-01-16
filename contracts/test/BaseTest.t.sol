@@ -591,13 +591,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        uint8 lockFlag
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount, uint8(0));
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount, lockFlag);
     }
 
     function _createWithdrawHookData(

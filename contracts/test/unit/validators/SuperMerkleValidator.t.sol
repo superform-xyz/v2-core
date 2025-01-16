@@ -139,7 +139,8 @@ contract SuperMerkleValidatorTest is BaseTest {
             bytes32("ERC4626YieldSourceOracle"), 
             yieldSourceAddress, 
             amount, 
-            false
+            false,
+            uint8(0)
         );
         hooksData[0] = approveData;
         hooksData[1] = depositData;

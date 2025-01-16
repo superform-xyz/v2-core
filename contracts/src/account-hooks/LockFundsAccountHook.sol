@@ -36,8 +36,11 @@ contract LockFundsAccountHook is ERC7579HookBase, SuperRegistryImplementer {
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
-    modifier onlyExecutor() {
-        if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_AUTHORIZED();
+    modifier onlyExecutorOrSuperPositionManager() {
+        ISuperRbac rbac = ISuperRbac(_getAddress(superRegistry.SUPER_RBAC_ID()));
+        bool hasRole = rbac.hasRole(msg.sender, rbac.SUPER_POSITION_MANAGER());
+        bool isExecutor = _getAddress(superRegistry.SUPER_EXECUTOR_ID()) == msg.sender;
+        if (!hasRole && !isExecutor) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -83,7 +86,7 @@ contract LockFundsAccountHook is ERC7579HookBase, SuperRegistryImplementer {
     /// @param account The account to lock the funds for
     /// @param asset The asset to lock the funds for
     /// @param amount The amount of funds to lock
-    function lock(address account, address asset, uint256 amount) external onlyExecutor {
+    function lock(address account, address asset, uint256 amount) external onlyExecutorOrSuperPositionManager {
         lockedAmounts[account][asset] += amount; // ~20k gas
         lockedTokens[account].push(asset); // ~20k gas
         emit LockFunds(account, asset, amount); // 375 + 375 + 375 + 375 = 1500 gas
@@ -94,7 +97,7 @@ contract LockFundsAccountHook is ERC7579HookBase, SuperRegistryImplementer {
     /// @param account The account to unlock the funds for
     /// @param asset The asset to unlock the funds for
     /// @param amount The amount of funds to unlock
-    function unlock(address account, address asset, uint256 amount) external onlyExecutor {
+    function unlock(address account, address asset, uint256 amount) external onlyExecutorOrSuperPositionManager {
         if (lockedAmounts[account][asset] < amount) revert NOT_ENOUGH_LOCKED_AMOUNT();
         lockedAmounts[account][asset] -= amount;
 

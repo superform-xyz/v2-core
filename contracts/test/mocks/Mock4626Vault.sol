@@ -42,6 +42,22 @@ contract Mock4626Vault is ERC4626 {
         return shares;
     }
 
+    function depositSimple(uint256 assets, address receiver) public {
+        IERC20(_asset).transferFrom(msg.sender, address(this), assets);
+    }
+
+    function redeemSimple(uint256 assets, address receiver) public {
+        IERC20(_asset).transfer(receiver, assets);
+    }
+
+    function depositBatchSimple(uint256[] memory assets) public {
+        uint256 length = assets.length;
+        for(uint256 i; i < length;) {
+            IERC20(_asset).transferFrom(msg.sender, address(this), assets[i]);
+            unchecked { ++i; }
+        }
+    }
+
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         require(assets > 0, AMOUNT_NOT_VALID());
         uint256 amount = lessAmount ? assets / 2 : assets;
