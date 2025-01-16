@@ -222,6 +222,8 @@ check_existing_vnet() {
     local response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json")
     
+    log "DEBUG" "GitHub API Response: $response"  # Add this line to log the response
+
     if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
         log "INFO" "No vnet counter file found"
         return 1
