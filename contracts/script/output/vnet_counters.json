@@ -1,3 +1,8 @@
 {
-    "slugs": {}
+  "slugs": {
+    "feat-tryvnet-eth": {
+      "counter": 1,
+      "vnet_id": ""
+    }
+  }
 }
