@@ -136,15 +136,40 @@ update_counter() {
     
     log "INFO" "Updating counter for slug: $slug"
     response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json")
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME")
     
     if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+        log "INFO" "Creating initial vnet counter file"
         content="{\"slugs\":{}}"
-        sha=""
-    else
-        content=$(echo "$response" | jq -r '.content' | base64 --decode)
-        sha=$(echo "$response" | jq -r '.sha')
+        new_content=$(echo "$content" | jq \
+            --arg slug "$slug" \
+            --arg vnet "$vnet_id" \
+            '.slugs[$slug] = {"counter": 1, "vnet_id": $vnet}')
+        
+        create_response=$(curl -s -X PUT \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME" \
+            -d @- << EOF
+{
+    "message": "Create VNET counter file with initial counter for $slug",
+    "content": "$(echo "$new_content" | base64)",
+    "branch": "$GITHUB_REF_NAME"
+}
+EOF
+        )
+
+        if [ "$(echo "$create_response" | jq -r '.message // empty')" != "" ]; then
+            log "ERROR" "Failed to create counter file: $(echo "$create_response" | jq -r '.message')"
+            return 1
+        fi
+
+        echo "1"
+        return 0
     fi
+
+    content=$(echo "$response" | jq -r '.content' | base64 --decode)
+    sha=$(echo "$response" | jq -r '.sha')
 
     current_counter=$(echo "$content" | jq -r ".slugs[\"$slug\"].counter // 0")
     new_counter=$((current_counter + 1))
@@ -158,7 +183,7 @@ update_counter() {
     update_response=$(curl -s -X PUT \
         -H "Authorization: token $GITHUB_TOKEN" \
         -H "Accept: application/vnd.github.v3+json" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME" \
         -d @- << EOF
 {
     "message": "Update VNET counter for $slug",
@@ -170,7 +195,7 @@ EOF
     )
 
     if [ "$(echo "$update_response" | jq -r '.message // empty')" != "" ]; then
-        log "ERROR" "Failed to update counter"
+        log "ERROR" "Failed to update counter: $(echo "$update_response" | jq -r '.message')"
         return 1
     fi
 
@@ -219,9 +244,9 @@ check_existing_vnet() {
     local slug=$1
     log "INFO" "Checking for existing VNET with slug: $slug"
     
-    log "DEBUG" "GitHub API URL: https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json"
+    log "DEBUG" "GitHub API URL: https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME"
     local response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json")
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME")
     
     log "DEBUG" "GitHub API Response: $response"  # Add this line to log the response
 
