@@ -89,6 +89,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
 
+    address constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+
+
     uint64[] public chainIds = [ETH, OP, BASE];
 
     string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
@@ -204,7 +207,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
 
             A.acrossReceiveFundsAndExecuteGateway =
-                new AcrossReceiveFundsAndExecuteGateway(address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]);
+                new AcrossReceiveFundsAndExecuteGateway(address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR);
             vm.label(address(A.acrossReceiveFundsAndExecuteGateway), "acrossReceiveFundsAndExecuteGateway");
             contractAddresses[chainIds[i]]["AcrossReceiveFundsAndExecuteGateway"] =
                 address(A.acrossReceiveFundsAndExecuteGateway);
@@ -640,8 +643,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             userOpData.userOp.paymasterAndData.length,
             userOpData.userOp.paymasterAndData,
             userOpData.userOp.signature.length,
-            userOpData.userOp.signature,
-            address(userOpData.entrypoint)
+            userOpData.userOp.signature
         );
         hookData = abi.encodePacked(
             uint256(0),
