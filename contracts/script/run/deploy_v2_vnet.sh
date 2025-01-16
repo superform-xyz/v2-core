@@ -12,13 +12,17 @@
 #   - Handling cleanup of resources on failure
 #
 # Usage:
-#   ./deploy_v2_vnet.sh <branch_name>
+#   ./deploy_v2_vnet.sh <branch_name> [local]
+#   
+#   Parameters:
+#     branch_name: Name of the branch (required)
+#     local: Optional parameter. If set to any value, script runs in local mode
 #
 # Requirements:
 #   - jq: For JSON processing
 #   - curl: For API calls
 #   - forge: For contract deployment
-#   - GitHub environment (for CI) or 1Password CLI (for local)
+#   - GitHub environment (for CI) or environment file (for local)
 #
 # Environment Variables:
 #   Required:
@@ -52,6 +56,7 @@ TENDERLY_PROJECT="v2"
 
 # Script Arguments
 BRANCH_NAME=$1
+IS_LOCAL=${2:-""}  # Optional second parameter for local mode
 
 # Validation
 if [ -z "$BRANCH_NAME" ]; then
@@ -72,7 +77,7 @@ log() {
 
 # Environment detection
 is_local_run() {
-    command -v op >/dev/null 2>&1
+    [ -n "$IS_LOCAL" ]
     return $?
 }
 
@@ -218,6 +223,7 @@ check_existing_vnet() {
         "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json")
     
     if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+        log "INFO" "No vnet counter file found"
         return 1
     fi
 
@@ -324,10 +330,42 @@ set_initial_balance() {
 
 if is_local_run; then
     log "INFO" "Running in local environment"
-    TENDERLY_ACCESS_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential)
+    # For local runs, always source .env
+    if [ ! -f .env ]; then
+        log "ERROR" ".env file is required for local runs"
+        exit 1
+    fi
+    source .env
+    if [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
+        log "ERROR" "TENDERLY_ACCESS_KEY environment variable is required in .env file"
+        exit 1
+    fi
 else
     log "INFO" "Running in CI environment"
-    if [ -z "$TENDERLY_ACCESS_KEY" ]; then
+    # Only source .env if any required variable is missing
+    if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_REF_NAME:-}" ] || [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
+        if [ ! -f .env ]; then
+            log "ERROR" ".env file is required when environment variables are missing"
+            exit 1
+        fi
+        log "INFO" "Loading missing variables from .env file"
+        source .env
+    fi
+
+    # Final check for required variables
+    if [ -z "${GITHUB_TOKEN:-}" ]; then
+        log "ERROR" "GITHUB_TOKEN environment variable is required"
+        exit 1
+    fi
+    if [ -z "${GITHUB_REPOSITORY:-}" ]; then
+        log "ERROR" "GITHUB_REPOSITORY environment variable is required"
+        exit 1
+    fi
+    if [ -z "${GITHUB_REF_NAME:-}" ]; then
+        log "ERROR" "GITHUB_REF_NAME environment variable is required"
+        exit 1
+    fi
+    if [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
         log "ERROR" "TENDERLY_ACCESS_KEY environment variable is required"
         exit 1
     fi
