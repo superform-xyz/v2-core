@@ -327,7 +327,6 @@ if is_local_run; then
     TENDERLY_ACCESS_KEY=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential)
 else
     log "INFO" "Running in CI environment"
-    source .env
     if [ -z "$TENDERLY_ACCESS_KEY" ]; then
         log "ERROR" "TENDERLY_ACCESS_KEY environment variable is required"
         exit 1
