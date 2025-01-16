@@ -244,17 +244,16 @@ check_existing_vnet() {
     local slug=$1
     log "INFO" "Checking for existing VNET with slug: $slug"
     
-    log "DEBUG" "GitHub API URL: https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME"
     local response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME")
-    
-    log "DEBUG" "GitHub API Response: $response"  # Add this line to log the response
 
+    # If file doesn't exist or response has an error return error
     if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
         log "INFO" "No vnet counter file found"
         return 1
     fi
 
+    # Try to decode content and get VNET ID
     local content=$(echo "$response" | jq -r '.content' | base64 --decode)
     local vnet_id=$(echo "$content" | jq -r ".slugs[\"$slug\"].vnet_id // empty")
     
@@ -272,10 +271,12 @@ check_existing_vnet() {
                 return 0
             fi
         fi
+        log "INFO" "VNET ID exists in counter file but not in Tenderly"
+        return 1
     fi
     
     log "INFO" "No existing VNET found"
-    return 1
+    return 0
 }
 
 create_virtual_testnet() {
