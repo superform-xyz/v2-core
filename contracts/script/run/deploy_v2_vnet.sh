@@ -627,12 +627,6 @@ read_and_validate_contracts() {
         return 1
     fi
     
-    # Validate that we have at least some contract addresses
-    if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
-        log "ERROR" "No contract addresses found in file for $network_name"
-        return 1
-    fi
-    
     echo "$contracts"
     return 0
 }
@@ -663,7 +657,7 @@ if ! is_local_run; then
         contracts_file="$BRANCH_DIR/$network/${network_slug^}-latest.json"
         contracts=$(read_and_validate_contracts "$contracts_file" "$network_slug")
         if [ $? -ne 0 ]; then
-            log "ERROR" "Failed to validate contract addresses for $network_slug"
+            log "ERROR" "Failed to validate contract file for $network_slug"
             cleanup_vnets
             exit 1
         fi
