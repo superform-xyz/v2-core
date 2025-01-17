@@ -426,6 +426,32 @@ set_initial_balance() {
 }
 
 ###################################################################################
+# Initialize Output Directories and Files
+###################################################################################
+
+# Initialize output files
+initialize_output_files() {
+    log "INFO" "Initializing output directories and files..."
+    for network in 1 8453 10; do
+        network_slug=$(get_network_slug "$network")
+        output_dir="$BRANCH_DIR/$network"
+        output_file="$output_dir/${network_slug^}-latest.json"
+        
+        # Create directory if it doesn't exist
+        mkdir -p "$output_dir"
+        
+        # Create initial JSON file if it doesn't exist
+        if [ ! -f "$output_file" ]; then
+            log "INFO" "Creating initial JSON file for $network_slug"
+            echo "{}" > "$output_file"
+        fi
+    done
+}
+
+# Initialize before deployments
+initialize_output_files
+
+###################################################################################
 # Main Deployment Logic
 ###################################################################################
 

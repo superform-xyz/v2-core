@@ -1,17 +1,17 @@
 {
   "networks": {
     "Ethereum": {
-      "counter": 2,
+      "counter": 3,
       "vnet_id": "085790df-2775-4ec5-afd9-72bcc16560a1",
       "contracts": {}
     },
     "Base": {
-      "counter": 2,
+      "counter": 3,
       "vnet_id": "5c06077e-3649-4fb0-8ec9-f995bc096e04",
       "contracts": {}
     },
     "Optimism": {
-      "counter": 2,
+      "counter": 3,
       "vnet_id": "93f9b0b0-e9d0-45c4-a4e2-0f7ec45e6f83",
       "contracts": {}
     }
