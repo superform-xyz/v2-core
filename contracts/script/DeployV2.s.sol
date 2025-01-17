@@ -262,7 +262,7 @@ contract DeployV2 is Script, Configuration {
         address deployedAddr = deployer.deploy(salt, creationCode);
         console2.log("  [+] %s deployed at:", contractName, deployedAddr);
         contractAddresses[chainId][contractName] = deployedAddr;
-        _exportContract(contractName, contractName, deployedAddr, chainId);
+        _exportContract(chainNames[chainId], contractName, deployedAddr, chainId);
 
         return deployedAddr;
     }
@@ -468,89 +468,35 @@ contract DeployV2 is Script, Configuration {
         }
     }
 
-    function _exportContract(string memory name, string memory label, address addr, uint64 chainId) private {
-        string memory json = vm.serializeAddress("EXPORTS", label, addr);
+    function _exportContract(
+        string memory chainName,
+        string memory contractName,
+        address addr,
+        uint64 chainId
+    )
+        private
+    {
+        string memory json = vm.serializeAddress("EXPORTS", contractName, addr);
         string memory root = vm.projectRoot();
         string memory chainOutputFolder = string(abi.encodePacked("/script/output/"));
 
-        // Get branch name from environment or use "local"
-        string memory branchName = vm.envOr("GITHUB_REF_NAME", string("local"));
-
-        // Handle branch path structure
-        if (vm.envOr("CI", false)) {
-            // For CI runs, handle feat/ branches differently
-            if (_startsWith(branchName, "feat/")) {
-                // For feat branches, split into nested directories
-                chainOutputFolder = string(
-                    abi.encodePacked(
-                        chainOutputFolder,
-                        "feat/",
-                        _sliceString(branchName, 5), // Remove "feat/" prefix
-                        "/",
-                        vm.toString(uint256(chainId)),
-                        "/"
-                    )
-                );
-            } else {
-                // For other branches (dev, main), use single directory
-                chainOutputFolder =
-                    string(abi.encodePacked(chainOutputFolder, branchName, "/", vm.toString(uint256(chainId)), "/"));
-            }
-        } else {
-            // For local runs, use local directory
+        // For local runs, use local directory
+        if (!vm.envOr("CI", false)) {
             chainOutputFolder =
                 string(abi.encodePacked(chainOutputFolder, "local/", vm.toString(uint256(chainId)), "/"));
+        } else {
+            // For CI runs, use branch-specific directory
+            string memory branchName = vm.envString("GITHUB_REF_NAME");
+
+            chainOutputFolder =
+                string(abi.encodePacked(chainOutputFolder, branchName, "/", vm.toString(uint256(chainId)), "/"));
         }
 
         // Create directory if it doesn't exist
         vm.createDir(string(abi.encodePacked(root, chainOutputFolder)), true);
 
-        // Get chain name for the file
-        string memory chainName;
-        if (chainId == 1) {
-            chainName = "Ethereum";
-        } else if (chainId == 8453) {
-            chainName = "Base";
-        } else if (chainId == 10) {
-            chainName = "Optimism";
-        } else {
-            revert("Unknown chain ID");
-        }
-
-        // Write the file
-        if (vm.envOr("FOUNDRY_EXPORTS_OVERWRITE_LATEST", false)) {
-            vm.writeJson(json, string(abi.encodePacked(root, chainOutputFolder, chainName, "-latest.json")));
-        } else {
-            vm.writeJson(
-                json,
-                string(abi.encodePacked(root, chainOutputFolder, chainName, "-", vm.toString(block.timestamp), ".json"))
-            );
-        }
-    }
-
-    // Helper function to slice a string starting from a given index
-    function _sliceString(string memory str, uint256 start) private pure returns (string memory) {
-        bytes memory strBytes = bytes(str);
-        require(start <= strBytes.length, "Start index out of bounds");
-
-        bytes memory result = new bytes(strBytes.length - start);
-        for (uint256 i = start; i < strBytes.length; i++) {
-            result[i - start] = strBytes[i];
-        }
-        return string(result);
-    }
-
-    // Helper function to check if a string starts with a prefix
-    function _startsWith(string memory str, string memory prefix) private pure returns (bool) {
-        bytes memory strBytes = bytes(str);
-        bytes memory prefixBytes = bytes(prefix);
-
-        if (strBytes.length < prefixBytes.length) return false;
-
-        for (uint256 i = 0; i < prefixBytes.length; i++) {
-            if (strBytes[i] != prefixBytes[i]) return false;
-        }
-
-        return true;
+        // Write to {ChainName}-latest.json
+        string memory outputPath = string(abi.encodePacked(root, chainOutputFolder, chainName, "-latest.json"));
+        vm.writeJson(json, outputPath);
     }
 }

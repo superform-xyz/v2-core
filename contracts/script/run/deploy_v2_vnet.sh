@@ -144,7 +144,7 @@ fi
 
 
 # Base output directory
-OUTPUT_BASE_DIR="contracts/script/output"
+OUTPUT_BASE_DIR="script/output"
 
 ###################################################################################
 # Authentication Setup
@@ -437,7 +437,7 @@ initialize_output_files() {
     for network in 1 8453 10; do
         network_slug=$(get_network_slug "$network")
         output_dir="$BRANCH_DIR/$network"
-        output_file="$output_dir/${network_slug^}-latest.json"
+        output_file="$output_dir/${network_slug}-latest.json"
         
         # Create directory if it doesn't exist
         mkdir -p "$output_dir"
@@ -650,19 +650,29 @@ read_and_validate_contracts() {
 }
 
 # Update the branch latest file section to use validation
-if ! is_local_run; then
-    log "INFO" "All deployments successful. Updating branch latest file..."
+update_latest_file() {
+    local is_local=$1
+    log "INFO" "All deployments successful. Updating latest file..."
     
-    # Read current latest file and get its SHA
-    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
+    local content="{\"networks\":{},\"updated_at\":null}"
+    local latest_file
     
-    initial_sha=""
-    if [ "$(echo "$response" | jq -r '.message')" != "Not Found" ]; then
-        initial_sha=$(echo "$response" | jq -r '.sha')
-        content=$(echo "$response" | jq -r '.content' | base64 --decode)
+    if [ "$is_local" = true ]; then
+        latest_file="script/output/latest.json"
+        # Create the file if it doesn't exist
+        if [ ! -f "$latest_file" ]; then
+            echo "$content" > "$latest_file"
+        else
+            content=$(cat "$latest_file")
+        fi
     else
-        content="{\"networks\":{},\"updated_at\":null}"
+        # Original GitHub API logic for CI mode
+        response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
+        
+        if [ "$(echo "$response" | jq -r '.message')" != "Not Found" ]; then
+            content=$(echo "$response" | jq -r '.content' | base64 --decode)
+        fi
     fi
     
     # Update content with new deployment info
@@ -672,10 +682,28 @@ if ! is_local_run; then
         vnet_id=$(echo "${VNET_RESPONSES[$i]}" | cut -d'|' -f2)
         
         # Read and validate deployed contracts
-        contracts_file="$BRANCH_DIR/$network/${network_slug^}-latest.json"
-        contracts=$(read_and_validate_contracts "$contracts_file" "$network_slug")
-        if [ $? -ne 0 ]; then
-            log "ERROR" "Failed to validate contract file for $network_slug"
+        local network_dir
+        if [ "$is_local" = true ]; then
+            network_dir="script/output/local/$network"
+        else
+            network_dir="$BRANCH_DIR/$network"
+        fi
+        
+        contracts_file="$network_dir/${network_slug}-latest.json"
+        log "INFO" "Reading contracts from: $contracts_file"
+        
+        if [ ! -f "$contracts_file" ]; then
+            log "ERROR" "Contract file not found for $network_slug: $contracts_file"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        contracts=$(cat "$contracts_file")
+        log "INFO" "Contract file contents for $network_slug: $contracts"
+        
+        # Validate JSON format
+        if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
+            log "ERROR" "Invalid JSON in contract file for $network_slug"
             cleanup_vnets
             exit 1
         fi
@@ -707,36 +735,42 @@ if ! is_local_run; then
         i=$((i + 1))
     done
     
-    # Add metadata
-    content=$(echo "$content" | jq \
-        --arg timestamp "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
-        '. + {
-            "updated_at": $timestamp
-        }')
+    # Update timestamp
+    content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time')
     
-    # Try to update with optimistic locking
-    max_retries=3
-    retry_count=0
-    
-    while [ $retry_count -lt $max_retries ]; do
-        if update_branch_latest "$content" "$initial_sha"; then
-            log "SUCCESS" "Successfully updated branch latest file"
-            break
-        else
-            retry_count=$((retry_count + 1))
-            if [ $retry_count -eq $max_retries ]; then
-                log "ERROR" "Failed to update branch latest file after $max_retries attempts"
-                cleanup_vnets
-                exit 1
-            fi
-            
-            # Re-read latest file for next attempt
-            response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-                "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
-            initial_sha=$(echo "$response" | jq -r '.sha')
-            log "WARN" "Retrying update with new SHA: $initial_sha (attempt $retry_count of $max_retries)"
+    if [ "$is_local" = true ]; then
+        echo "$content" | jq '.' > "$latest_file"
+        log "SUCCESS" "Successfully updated local latest file"
+    else
+        # Original GitHub API update logic for CI mode
+        encoded_content=$(echo "$content" | base64)
+        update_data="{\"message\":\"Update branch latest file\",\"content\":\"$encoded_content\""
+        if [ -n "$initial_sha" ]; then
+            update_data="$update_data,\"sha\":\"$initial_sha\""
         fi
-    done
+        update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
+        
+        update_response=$(curl -s -X PUT \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE" \
+            -d "$update_data")
+            
+        if [ "$(echo "$update_response" | jq -r '.content.sha')" != "null" ]; then
+            log "SUCCESS" "Successfully updated branch latest file"
+        else
+            log "ERROR" "Failed to update branch latest file: $(echo "$update_response" | jq -r '.message')"
+            cleanup_vnets
+            exit 1
+        fi
+    fi
+}
+
+# After all deployments are done, update the latest file
+if is_local_run; then
+    update_latest_file true
+else
+    update_latest_file false
 fi
 
 log "SUCCESS" "All deployments completed successfully!"
