@@ -20,6 +20,8 @@ import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiv
 import { SuperPositionsMock } from "../src/accounting/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
+import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
+
 // -- hooks
 // ---- | tokens
 import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -77,6 +79,7 @@ contract DeployV2 is Script, Configuration {
         address superPositionSentinel;
         address acrossReceiveFundsGateway;
         address acrossReceiveFundsAndExecuteGateway;
+        address mockValidatorModule;
     }
 
     modifier broadcast(uint256 env) {
@@ -174,6 +177,15 @@ contract DeployV2 is Script, Configuration {
                 type(AcrossReceiveFundsAndExecuteGateway).creationCode,
                 abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId])
             )
+        );
+
+        // Deploy MockValidatorModule
+        deployedContracts.mockValidatorModule = __deployContract(
+            deployer,
+            "MockValidatorModule",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "MockValidatorModule"),
+            type(MockValidatorModule).creationCode
         );
 
         // Deploy Hooks
