@@ -482,6 +482,7 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    --silent \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Ethereum"
     cleanup_vnets
@@ -495,6 +496,7 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    --silent \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Ethereum"
     cleanup_vnets
@@ -511,6 +513,7 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    --silent \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Base"
     cleanup_vnets
@@ -524,6 +527,7 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    --silent \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Base"
     cleanup_vnets
@@ -540,6 +544,7 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    --silent \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Optimism"
     cleanup_vnets
@@ -553,6 +558,7 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    --silent \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Optimism"
     cleanup_vnets
