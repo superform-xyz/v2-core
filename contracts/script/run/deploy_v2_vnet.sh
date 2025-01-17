@@ -656,6 +656,7 @@ update_latest_file() {
     
     local content="{\"networks\":{},\"updated_at\":null}"
     local latest_file
+    local initial_sha=""
     
     if [ "$is_local" = true ]; then
         latest_file="script/output/latest.json"
@@ -672,6 +673,8 @@ update_latest_file() {
         
         if [ "$(echo "$response" | jq -r '.message')" != "Not Found" ]; then
             content=$(echo "$response" | jq -r '.content' | base64 --decode)
+            initial_sha=$(echo "$response" | jq -r '.sha')
+            log "INFO" "Found existing file with SHA: $initial_sha"
         fi
     fi
     
@@ -745,11 +748,16 @@ update_latest_file() {
         # Original GitHub API update logic for CI mode
         encoded_content=$(echo "$content" | base64)
         update_data="{\"message\":\"Update branch latest file\",\"content\":\"$encoded_content\""
+        
+        # Only include SHA if we have one (for existing files)
         if [ -n "$initial_sha" ]; then
+            log "INFO" "Including SHA in update request: $initial_sha"
             update_data="$update_data,\"sha\":\"$initial_sha\""
         fi
+        
         update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
         
+        log "INFO" "Sending update request to GitHub API"
         update_response=$(curl -s -X PUT \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
