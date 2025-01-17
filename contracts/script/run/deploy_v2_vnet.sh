@@ -599,13 +599,13 @@ read_and_validate_contracts() {
     if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
         log "ERROR" "Invalid JSON in contract file for $network_name"
         return 1
-    }
+    fi
     
     # Validate that we have at least some contract addresses
     if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
         log "ERROR" "No contract addresses found in file for $network_name"
         return 1
-    }
+    fi
     
     echo "$contracts"
     return 0
