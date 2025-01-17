@@ -437,7 +437,7 @@ initialize_output_files() {
     for network in 1 8453 10; do
         network_slug=$(get_network_slug "$network")
         output_dir="$BRANCH_DIR/$network"
-        output_file="$output_dir/${network_slug}-latest.json"
+        output_file="$output_dir/$network_slug-latest.json"
         
         # Create directory if it doesn't exist
         mkdir -p "$output_dir"
@@ -692,11 +692,18 @@ update_latest_file() {
             network_dir="$BRANCH_DIR/$network"
         fi
         
-        contracts_file="$network_dir/${network_slug}-latest.json"
-        log "INFO" "Reading contracts from: $contracts_file"
+        contracts_file="$network_dir/$network_slug-latest.json"
+        log "INFO" "Looking for contracts at: $contracts_file"
+        
+        # List directory contents for debugging
+        log "DEBUG" "Directory contents of $network_dir:"
+        ls -la "$network_dir" || true
         
         if [ ! -f "$contracts_file" ]; then
             log "ERROR" "Contract file not found for $network_slug: $contracts_file"
+            log "DEBUG" "Current working directory: $(pwd)"
+            log "DEBUG" "Listing parent directory:"
+            ls -la "$(dirname "$network_dir")" || true
             cleanup_vnets
             exit 1
         fi
@@ -709,6 +716,11 @@ update_latest_file() {
             log "ERROR" "Invalid JSON in contract file for $network_slug"
             cleanup_vnets
             exit 1
+        fi
+        
+        # Check if contracts is empty
+        if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+            log "WARN" "No contracts found in file for $network_slug"
         fi
         
         # Use the salts we generated earlier
