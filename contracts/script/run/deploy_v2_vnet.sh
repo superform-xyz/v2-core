@@ -746,7 +746,14 @@ update_latest_file() {
         log "SUCCESS" "Successfully updated local latest file"
     else
         # Original GitHub API update logic for CI mode
-        encoded_content=$(echo "$content" | base64)
+        # Properly format JSON before base64 encoding
+        content=$(echo "$content" | jq -c '.')
+        log "DEBUG" "Content to be encoded: $content"
+        
+        # Use -w 0 to avoid line wrapping in base64 output
+        encoded_content=$(echo -n "$content" | base64 -w 0)
+        log "DEBUG" "Base64 encoded content length: ${#encoded_content}"
+        
         update_data="{\"message\":\"Update branch latest file\",\"content\":\"$encoded_content\""
         
         # Only include SHA if we have one (for existing files)
@@ -756,6 +763,7 @@ update_latest_file() {
         fi
         
         update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
+        log "DEBUG" "Update request data: $update_data"
         
         log "INFO" "Sending update request to GitHub API"
         update_response=$(curl -s -X PUT \
@@ -767,7 +775,9 @@ update_latest_file() {
         if [ "$(echo "$update_response" | jq -r '.content.sha')" != "null" ]; then
             log "SUCCESS" "Successfully updated branch latest file"
         else
-            log "ERROR" "Failed to update branch latest file: $(echo "$update_response" | jq -r '.message')"
+            error_message=$(echo "$update_response" | jq -r '.message')
+            log "ERROR" "Failed to update branch latest file: $error_message"
+            log "ERROR" "Full response: $update_response"
             cleanup_vnets
             exit 1
         fi
