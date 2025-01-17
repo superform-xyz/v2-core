@@ -746,13 +746,11 @@ update_latest_file() {
         log "SUCCESS" "Successfully updated local latest file"
     else
         # Original GitHub API update logic for CI mode
-        # Properly format JSON before base64 encoding
-        content=$(echo "$content" | jq -c '.')
-        log "DEBUG" "Content to be encoded: $content"
+        # Format JSON nicely before base64 encoding
+        content=$(echo "$content" | jq '.')
         
         # Use -w 0 to avoid line wrapping in base64 output
         encoded_content=$(echo -n "$content" | base64 -w 0)
-        log "DEBUG" "Base64 encoded content length: ${#encoded_content}"
         
         update_data="{\"message\":\"Update branch latest file\",\"content\":\"$encoded_content\""
         
@@ -763,7 +761,6 @@ update_latest_file() {
         fi
         
         update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
-        log "DEBUG" "Update request data: $update_data"
         
         log "INFO" "Sending update request to GitHub API"
         update_response=$(curl -s -X PUT \
