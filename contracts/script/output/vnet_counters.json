@@ -11,18 +11,6 @@
     "feat-tryvnet-op": {
       "counter": 1,
       "vnet_id": "0db0a27a-d8be-4407-bc84-335a87904c3d"
-    },
-    "feat-sup-10330-mock-validator-eth": {
-      "counter": 1,
-      "vnet_id": "726b1650-98db-4e9e-b63f-683c4ec2fa59"
-    },
-    "feat-sup-10330-mock-validator-base": {
-      "counter": 1,
-      "vnet_id": "b514bc75-23b8-469a-874e-ea36cca66108"
-    },
-    "feat-sup-10330-mock-validator-op": {
-      "counter": 1,
-      "vnet_id": "dce771eb-d81a-4f07-b542-c6b5db305fe2"
     }
   }
 }
