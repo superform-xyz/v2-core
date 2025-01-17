@@ -291,12 +291,17 @@ generate_slug() {
     echo "$output"
 }
 
-# Check for existing VNET in branch latest file
-check_existing_vnet() {
+# Check for existing VNET in branch latest file and create if not found
+check_vnets() {
     local network_slug=$1
+    local network_id=$2
     
     if is_local_run; then
-        return 1
+        # For local runs, always create new VNET
+        slug=$(generate_slug "$network_slug")
+        response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+        echo "$response"
+        return 0
     fi
     
     log "INFO" "Checking for existing VNET for network: $network_slug"
@@ -322,7 +327,12 @@ check_existing_vnet() {
         log "INFO" "VNET ID exists in branch file but not in Tenderly"
     fi
     
-    return 1
+    # No valid existing VNET found, create new one
+    log "INFO" "Creating new VNET for $network_slug"
+    slug=$(generate_slug "$network_slug")
+    response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+    echo "$response"
+    return 0
 }
 
 create_virtual_testnet() {
@@ -409,20 +419,7 @@ declare -a VNET_RESPONSES
 
 for network in 1 8453 10; do
     network_slug=$(get_network_slug "$network")
-    slug=$(generate_slug "$network_slug")
-    
-    if ! is_local_run; then
-        # CI run - check existing VNET
-        response=$(check_existing_vnet "$network_slug")
-        if [ -n "$response" ]; then
-            # VNET exists, use existing one
-            VNET_RESPONSES+=("$response")
-            continue
-        fi
-    fi
-    
-    # No existing VNET found or local run - create new one
-    response=$(create_virtual_testnet "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+    response=$(check_vnets "$network_slug" "$network")
     VNET_RESPONSES+=("$response")
 done
 
