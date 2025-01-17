@@ -432,6 +432,8 @@ set_initial_balance() {
 # Initialize output files
 initialize_output_files() {
     log "INFO" "Initializing output directories and files..."
+    log "INFO" "Branch directory: $BRANCH_DIR"
+    
     for network in 1 8453 10; do
         network_slug=$(get_network_slug "$network")
         output_dir="$BRANCH_DIR/$network"
@@ -439,11 +441,18 @@ initialize_output_files() {
         
         # Create directory if it doesn't exist
         mkdir -p "$output_dir"
+        log "INFO" "Created directory: $output_dir"
         
         # Create initial JSON file if it doesn't exist
         if [ ! -f "$output_file" ]; then
-            log "INFO" "Creating initial JSON file for $network_slug"
+            log "INFO" "Creating initial JSON file: $output_file"
             echo "{}" > "$output_file"
+            # Verify file was created
+            if [ -f "$output_file" ]; then
+                log "INFO" "Successfully created file: $output_file"
+            else
+                log "ERROR" "Failed to create file: $output_file"
+            fi
         fi
     done
 }
@@ -613,6 +622,8 @@ read_and_validate_contracts() {
     local file_path=$1
     local network_name=$2
     
+    log "INFO" "Reading contracts from: $file_path"
+    
     if [ ! -f "$file_path" ]; then
         log "ERROR" "Contract file not found for $network_name: $file_path"
         return 1
@@ -620,10 +631,17 @@ read_and_validate_contracts() {
     
     local contracts
     contracts=$(cat "$file_path")
+    log "INFO" "Contract file contents for $network_name: $contracts"
     
     # Validate JSON format
     if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
         log "ERROR" "Invalid JSON in contract file for $network_name"
+        return 1
+    fi
+    
+    # Validate that we have at least some contract addresses
+    if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+        log "ERROR" "No contract addresses found in file for $network_name"
         return 1
     fi
     
