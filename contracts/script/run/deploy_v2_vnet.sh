@@ -195,10 +195,26 @@ fi
 
 # CI-specific directory configuration
 if ! is_local_run; then
-    BRANCH_DIR="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME"
+    # Handle feature branches differently
+    if [[ "$GITHUB_REF_NAME" == feat/* ]]; then
+        # Extract feature name without feat/ prefix
+        FEATURE_NAME=${GITHUB_REF_NAME#feat/}
+        BRANCH_DIR="$OUTPUT_BASE_DIR/feat/$FEATURE_NAME"
+    else
+        # For dev, main branches
+        BRANCH_DIR="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME"
+    fi
+    
     BRANCH_LATEST_FILE="$BRANCH_DIR/latest.json"
     
     # Create branch output directories
+    for network in 1 8453 10; do
+        mkdir -p "$BRANCH_DIR/$network"
+    done
+else
+    # For local runs
+    BRANCH_DIR="$OUTPUT_BASE_DIR/local"
+    # Create local output directories
     for network in 1 8453 10; do
         mkdir -p "$BRANCH_DIR/$network"
     done
@@ -482,7 +498,7 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    --silent \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Ethereum"
     cleanup_vnets
@@ -496,7 +512,7 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    --silent \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Ethereum"
     cleanup_vnets
@@ -513,7 +529,7 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    --silent \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Base"
     cleanup_vnets
@@ -527,7 +543,7 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    --silent \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Base"
     cleanup_vnets
@@ -544,7 +560,7 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    --silent \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Optimism"
     cleanup_vnets
@@ -558,7 +574,7 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    --silent \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Optimism"
     cleanup_vnets
@@ -566,7 +582,36 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
 fi
 wait
 
-# After all deployments succeed, update the branch latest file
+# Read deployed contracts from output file and validate
+read_and_validate_contracts() {
+    local file_path=$1
+    local network_name=$2
+    
+    if [ ! -f "$file_path" ]; then
+        log "ERROR" "Contract file not found for $network_name: $file_path"
+        return 1
+    fi
+    
+    local contracts
+    contracts=$(cat "$file_path")
+    
+    # Validate JSON format
+    if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON in contract file for $network_name"
+        return 1
+    }
+    
+    # Validate that we have at least some contract addresses
+    if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+        log "ERROR" "No contract addresses found in file for $network_name"
+        return 1
+    }
+    
+    echo "$contracts"
+    return 0
+}
+
+# Update the branch latest file section to use validation
 if ! is_local_run; then
     log "INFO" "All deployments successful. Updating branch latest file..."
     
@@ -588,12 +633,13 @@ if ! is_local_run; then
         network_slug=$(get_network_slug "$network")
         vnet_id=$(echo "${VNET_RESPONSES[$i]}" | cut -d'|' -f2)
         
-        # Read deployed contracts from output file
+        # Read and validate deployed contracts
         contracts_file="$BRANCH_DIR/$network/${network_slug^}-latest.json"
-        if [ -f "$contracts_file" ]; then
-            contracts=$(cat "$contracts_file")
-        else
-            contracts="{}"
+        contracts=$(read_and_validate_contracts "$contracts_file" "$network_slug")
+        if [ $? -ne 0 ]; then
+            log "ERROR" "Failed to validate contract addresses for $network_slug"
+            cleanup_vnets
+            exit 1
         fi
         
         # Use the salts we generated earlier
