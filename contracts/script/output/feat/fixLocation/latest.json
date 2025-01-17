@@ -1,20 +1,20 @@
 {
   "networks": {
     "Ethereum": {
-      "counter": 1,
+      "counter": 2,
       "vnet_id": "a7581a47-0e78-46a5-b889-bf0a82fb100d",
       "contracts": {}
     },
     "Base": {
-      "counter": 1,
+      "counter": 2,
       "vnet_id": "a116f58b-a1f1-4060-8de3-07f96b0fcca9",
       "contracts": {}
     },
     "Optimism": {
-      "counter": 1,
+      "counter": 2,
       "vnet_id": "cc86b889-d2df-49b3-aa19-f5049e6694ee",
       "contracts": {}
     }
   },
-  "updated_at": "2025-01-17T20:22:49Z"
+  "updated_at": "2025-01-17T20:49:09Z"
 }
