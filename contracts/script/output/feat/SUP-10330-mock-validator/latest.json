@@ -1,20 +1,20 @@
 {
   "networks": {
     "Ethereum": {
-      "counter": 3,
-      "vnet_id": "085790df-2775-4ec5-afd9-72bcc16560a1",
+      "counter": 4,
+      "vnet_id": "dd7d111c-971c-4ee1-b730-f7baeaaaf6c3",
       "contracts": {}
     },
     "Base": {
-      "counter": 3,
-      "vnet_id": "5c06077e-3649-4fb0-8ec9-f995bc096e04",
+      "counter": 4,
+      "vnet_id": "fb2063ea-ca2c-46ed-b46a-dbcbe4f5c9a3",
       "contracts": {}
     },
     "Optimism": {
-      "counter": 3,
-      "vnet_id": "93f9b0b0-e9d0-45c4-a4e2-0f7ec45e6f83",
+      "counter": 4,
+      "vnet_id": "50631cd8-af24-44cf-bdcd-763a2b27341f",
       "contracts": {}
     }
   },
-  "updated_at": "2025-01-17T11:18:36Z"
+  "updated_at": "2025-01-17T13:50:06Z"
 }
