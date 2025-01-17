@@ -60,6 +60,8 @@ import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115Yield
 contract DeployV2 is Script, Configuration {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
+    address public constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+
     struct HookDeployment {
         string name;
         bytes creationCode;
@@ -175,7 +177,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, "AcrossReceiveFundsAndExecuteGateway"),
             abi.encodePacked(
                 type(AcrossReceiveFundsAndExecuteGateway).creationCode,
-                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], ENTRY_POINT)
             )
         );
 
