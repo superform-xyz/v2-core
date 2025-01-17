@@ -577,6 +577,7 @@ if ! is_local_run; then
     fi
     
     # Update content with new deployment info
+    i=0
     for network in 1 8453 10; do
         network_slug=$(get_network_slug "$network")
         vnet_id=$(echo "${VNET_RESPONSES[$i]}" | cut -d'|' -f2)
@@ -612,6 +613,8 @@ if ! is_local_run; then
                 "vnet_id": $vnet,
                 "contracts": $contracts
             }')
+            
+        i=$((i + 1))
     done
     
     # Add metadata
