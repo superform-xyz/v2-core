@@ -143,8 +143,11 @@ if [ -z "$BRANCH_NAME" ]; then
 fi
 
 
-# Base output directory
+# Base output directory for local file operations
 OUTPUT_BASE_DIR="script/output"
+
+# GitHub API path (relative to repo root)
+GITHUB_API_PATH="contracts/script/output"
 
 ###################################################################################
 # Authentication Setup
@@ -437,7 +440,7 @@ initialize_output_files() {
     for network in 1 8453 10; do
         network_slug=$(get_network_slug "$network")
         output_dir="$BRANCH_DIR/$network"
-        output_file="$output_dir/${network_slug}-latest.json"
+        output_file="$output_dir/$network_slug-latest.json"
         
         # Create directory if it doesn't exist
         mkdir -p "$output_dir"
@@ -659,7 +662,7 @@ update_latest_file() {
     local initial_sha=""
     
     if [ "$is_local" = true ]; then
-        latest_file="script/output/latest.json"
+        latest_file="$OUTPUT_BASE_DIR/latest.json"
         # Create the file if it doesn't exist
         if [ ! -f "$latest_file" ]; then
             echo "$content" > "$latest_file"
@@ -669,7 +672,7 @@ update_latest_file() {
     else
         # Original GitHub API logic for CI mode
         response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json?ref=$GITHUB_REF_NAME")
         
         if [ "$(echo "$response" | jq -r '.message')" != "Not Found" ]; then
             content=$(echo "$response" | jq -r '.content' | base64 --decode)
@@ -687,16 +690,23 @@ update_latest_file() {
         # Read and validate deployed contracts
         local network_dir
         if [ "$is_local" = true ]; then
-            network_dir="script/output/local/$network"
+            network_dir="$OUTPUT_BASE_DIR/local/$network"
         else
-            network_dir="$BRANCH_DIR/$network"
+            network_dir="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME/$network"
         fi
         
-        contracts_file="$network_dir/${network_slug}-latest.json"
-        log "INFO" "Reading contracts from: $contracts_file"
+        contracts_file="$network_dir/$network_slug-latest.json"
+        log "INFO" "Looking for contracts at: $contracts_file"
+        
+        # List directory contents for debugging
+        log "DEBUG" "Directory contents of $network_dir:"
+        ls -la "$network_dir" || true
         
         if [ ! -f "$contracts_file" ]; then
             log "ERROR" "Contract file not found for $network_slug: $contracts_file"
+            log "DEBUG" "Current working directory: $(pwd)"
+            log "DEBUG" "Listing parent directory:"
+            ls -la "$(dirname "$network_dir")" || true
             cleanup_vnets
             exit 1
         fi
@@ -709,6 +719,11 @@ update_latest_file() {
             log "ERROR" "Invalid JSON in contract file for $network_slug"
             cleanup_vnets
             exit 1
+        fi
+        
+        # Check if contracts is empty
+        if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+            log "WARN" "No contracts found in file for $network_slug"
         fi
         
         # Use the salts we generated earlier
@@ -745,7 +760,6 @@ update_latest_file() {
         echo "$content" | jq '.' > "$latest_file"
         log "SUCCESS" "Successfully updated local latest file"
     else
-        # Original GitHub API update logic for CI mode
         # Format JSON nicely before base64 encoding
         content=$(echo "$content" | jq '.')
         
@@ -766,7 +780,7 @@ update_latest_file() {
         update_response=$(curl -s -X PUT \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json" \
             -d "$update_data")
             
         if [ "$(echo "$update_response" | jq -r '.content.sha')" != "null" ]; then
