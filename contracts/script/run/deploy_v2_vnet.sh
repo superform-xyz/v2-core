@@ -143,8 +143,11 @@ if [ -z "$BRANCH_NAME" ]; then
 fi
 
 
-# Base output directory
-OUTPUT_BASE_DIR="contracts/script/output"
+# Base output directory for local file operations
+OUTPUT_BASE_DIR="script/output"
+
+# GitHub API path (relative to repo root)
+GITHUB_API_PATH="contracts/script/output"
 
 ###################################################################################
 # Authentication Setup
@@ -659,7 +662,7 @@ update_latest_file() {
     local initial_sha=""
     
     if [ "$is_local" = true ]; then
-        latest_file="script/output/latest.json"
+        latest_file="$OUTPUT_BASE_DIR/latest.json"
         # Create the file if it doesn't exist
         if [ ! -f "$latest_file" ]; then
             echo "$content" > "$latest_file"
@@ -669,7 +672,7 @@ update_latest_file() {
     else
         # Original GitHub API logic for CI mode
         response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json?ref=$GITHUB_REF_NAME")
         
         if [ "$(echo "$response" | jq -r '.message')" != "Not Found" ]; then
             content=$(echo "$response" | jq -r '.content' | base64 --decode)
@@ -687,9 +690,9 @@ update_latest_file() {
         # Read and validate deployed contracts
         local network_dir
         if [ "$is_local" = true ]; then
-            network_dir="script/output/local/$network"
+            network_dir="$OUTPUT_BASE_DIR/local/$network"
         else
-            network_dir="$BRANCH_DIR/$network"
+            network_dir="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME/$network"
         fi
         
         contracts_file="$network_dir/$network_slug-latest.json"
@@ -757,7 +760,6 @@ update_latest_file() {
         echo "$content" | jq '.' > "$latest_file"
         log "SUCCESS" "Successfully updated local latest file"
     else
-        # Original GitHub API update logic for CI mode
         # Format JSON nicely before base64 encoding
         content=$(echo "$content" | jq '.')
         
@@ -778,7 +780,7 @@ update_latest_file() {
         update_response=$(curl -s -X PUT \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Content-Type: application/json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json" \
             -d "$update_data")
             
         if [ "$(echo "$update_response" | jq -r '.content.sha')" != "null" ]; then
