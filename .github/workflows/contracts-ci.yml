@@ -31,11 +31,10 @@ env:
   LINEA_RPC_URL_QN: ${{ secrets.LINEA_RPC_URL }}
   BLAST_RPC_URL_QN: ${{ secrets.BLAST_RPC_URL }}
   TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
-  TENDERLY_PROJECT_SLUG: "v1" # your project slug
-  TENDERLY_ACCOUNT_ID: "superform" # your username or organization name
+  TENDERLY_PROJECT_SLUG: "v2"
+  TENDERLY_ACCOUNT_ID: "superform"
   FOUNDRY_EXPORTS_OVERWRITE_LATEST: "true"
-  OWNER_ADDRESS: ${{ secrets.OWNER_ADDRESS }}
-  DEBUG_MODE: "false"
+  CI: "true"
 
 on:
   workflow_dispatch:
