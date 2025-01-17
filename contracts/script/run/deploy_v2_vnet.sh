@@ -144,7 +144,7 @@ fi
 
 
 # Base output directory
-OUTPUT_BASE_DIR="script/output"
+OUTPUT_BASE_DIR="contracts/script/output"
 
 ###################################################################################
 # Authentication Setup
