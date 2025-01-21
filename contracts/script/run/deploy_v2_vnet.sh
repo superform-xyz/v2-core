@@ -293,12 +293,12 @@ delete_vnet() {
 cleanup_vnets() {
     log "INFO" "Cleaning up VNETs..."
     for vnet_id in "${VNET_IDS[@]}"; do
-        delete_vnet "$vnet_id"
+        #delete_vnet "$vnet_id"
     done
 }
 
 # Set up trap to cleanup VNETs on script exit due to error
-#trap 'cleanup_vnets' ERR
+trap 'cleanup_vnets' ERR
 
 generate_slug() {
     local network=$1
