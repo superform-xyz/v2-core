@@ -298,7 +298,7 @@ cleanup_vnets() {
 }
 
 # Set up trap to cleanup VNETs on script exit due to error
-trap 'cleanup_vnets' ERR
+#trap 'cleanup_vnets' ERR
 
 generate_slug() {
     local network=$1
