@@ -363,6 +363,23 @@ create_virtual_testnet() {
     
     log "INFO" "Creating TestNet with slug: $slug"
     
+    # Determine custom chain ID based on network_id
+    local custom_chain_id
+    case "$network_id" in
+        1)
+            custom_chain_id=101
+            ;;
+        8453)
+            custom_chain_id=102
+            ;;
+        10)
+            custom_chain_id=103
+            ;;
+        *)
+            custom_chain_id=$network_id
+            ;;
+    esac
+
     # Construct JSON payload
     local json_data=$(cat <<EOF
 {
@@ -374,7 +391,7 @@ create_virtual_testnet() {
     },
     "virtual_network_config": {
         "chain_config": {
-            "chain_id": $network_id
+            "chain_id": $custom_chain_id
         }
     },
     "sync_state_config": {
