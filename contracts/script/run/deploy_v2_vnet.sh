@@ -275,8 +275,6 @@ get_salt() {
     echo $((current_counter + 1))
 }
 
-
-
 ###################################################################################
 # VNET Management Functions
 ###################################################################################
@@ -514,20 +512,29 @@ for network in 1 8453 10; do
     case "$network" in
         1)
             ETH_VNET_ID="$vnet_id"
-            ETH_MAINNET="$admin_rpc"
+            export ETH_MAINNET="$admin_rpc"
             ;;
         8453)
             BASE_VNET_ID="$vnet_id"
-            BASE_MAINNET="$admin_rpc"
+            export BASE_MAINNET="$admin_rpc"
             ;;
         10)
             OPTIMISM_VNET_ID="$vnet_id"
-            OPTIMISM_MAINNET="$admin_rpc"
+            export OPTIMISM_MAINNET="$admin_rpc"
             ;;
     esac
+    
     VNET_IDS+=("$vnet_id")
     i=$((i + 1))
 done
+
+# Export TENDERLY_ACCESS_KEY if it's not already exported
+if [ -n "$TENDERLY_ACCESS_KEY" ]; then
+    export TENDERLY_ACCESS_KEY
+fi
+
+log "INFO" "Environment variables exported"
+
 
 ###################################################################################
 # Contract Deployment
