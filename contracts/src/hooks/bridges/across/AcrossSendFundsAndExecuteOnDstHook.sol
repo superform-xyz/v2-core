@@ -13,7 +13,6 @@ import { IAcrossSpokePoolV3 } from "../../../interfaces/vendors/bridges/across/I
 import { IAcrossV3Interpreter } from "../../../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
-import { console } from "forge-std/console.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @dev data has the following structure

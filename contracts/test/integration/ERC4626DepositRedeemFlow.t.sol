@@ -7,12 +7,11 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { ISuperExecutor } from "src/interfaces/ISuperExecutor.sol";
-import { console } from "forge-std/console.sol";
-import { BaseTest } from "../BaseTest.t.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
-import { VmSafe } from "forge-std/Vm.sol";
-import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
+import { IDeBridgeGate } from "../../src/interfaces/vendors/bridges/debridge/IDeBridgeGate.sol";
+
+import { BaseTest } from "../BaseTest.t.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 contract ERC4626DepositRedeemFlowTest is BaseTest {
@@ -133,7 +132,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         uint256 amount = 1e8;
         uint256 previewRedeemAmount = vaultInstanceEth.previewRedeem(vaultInstanceEth.previewDeposit(amount));
-        console.log("previewRedeemAmount", previewRedeemAmount);
 
         // BASE IS DST
         vm.selectFork(FORKS[BASE]);
@@ -286,4 +284,68 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // balance is received and everything is executed
         _processAcrossV3Message(OP, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
     }
+
+
+    function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
+        vm.selectFork(FORKS[ETH]);
+
+        uint256 amount = 1e10;
+
+        // BASE IS DST
+        vm.selectFork(FORKS[BASE]);
+
+        // PREPARE DST DATA
+        address[] memory dstHooksAddresses = new address[](2);
+        dstHooksAddresses[0] = _getHook(BASE, "ApproveERC20Hook");
+        dstHooksAddresses[1] = _getHook(BASE, "Deposit4626VaultHook");
+
+        bytes[] memory dstHooksData = new bytes[](2);
+        dstHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, amount, false);
+        dstHooksData[1] = _createDepositHookData(
+            accountBase, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressBase, amount, false
+        );
+
+        //ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
+        //    ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHooksAddresses, hooksData: dstHooksData });
+
+        // ETH is SRC
+        vm.selectFork(FORKS[ETH]);
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        srcHooksAddresses[1] = _getHook(ETH, "DeBridgeSendFundsAndExecuteOnDstHook");
+
+
+        IDeBridgeGate.SubmissionAutoParamsTo memory autoParams = IDeBridgeGate.SubmissionAutoParamsTo({
+            executionFee: 0,
+            flags: 0,
+            fallbackAddress: abi.encodePacked(instanceOnBase.account),
+            data: ""
+        });
+        bytes memory autoParamsBytes = abi.encode(autoParams);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(underlyingEth_USDC, DEBRIDGE_GATE_ADDRESSES[ETH], amount, false);
+        srcHooksData[1] = _createDebridgeSendFundsAndExecuteHookData(
+            1 ether,
+            instanceOnBase.account,
+            existingUnderlyingTokens[ETH]["USDC"],
+            amount,
+            chainIds[2], //Base
+            0,
+            false, // use asset fee
+            false, // use prev hook amount
+            autoParamsBytes.length,
+            autoParamsBytes,
+            ""
+        );
+
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+
+        UserOpData memory srcUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        _processDebridgeMessage(ETH, BASE, executeOp(srcUserOpData));
+    }
+
 }

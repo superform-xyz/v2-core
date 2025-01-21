@@ -56,6 +56,9 @@ interface ISuperRegistry {
     /// @dev Get the ID of the Across receive funds and execute gateway.
     function ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID() external view returns (bytes32);
 
+    /// @dev Get the ID of the DeBridge receive funds and execute gateway.
+    function DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID() external view returns (bytes32);
+
     // -- paymaster
     /// @dev Get the ID of the paymaster.
     function PAYMASTER_ID() external view returns (bytes32);
@@ -63,4 +66,4 @@ interface ISuperRegistry {
     // -- SuperBundler
     /// @dev Get the ID of the super bundler.
     function SUPER_BUNDLER_ID() external view returns (bytes32);
-}
+   }

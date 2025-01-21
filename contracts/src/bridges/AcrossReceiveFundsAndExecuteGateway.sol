@@ -63,6 +63,8 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
     address public immutable acrossSpokePool;
     address public immutable entryPointAddress; // can be a constant, but better to set it in constructor
 
+    error ADDRESS_NOT_VALID();
+
     constructor(
         address registry_,
         address acrossSpokePool_,
@@ -70,6 +72,8 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
     )
         SuperRegistryImplementer(registry_)
     {
+        if (acrossSpokePool_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (entryPointAddress_ == address(0)) revert ADDRESS_NOT_VALID();
         acrossSpokePool = acrossSpokePool_;
         entryPointAddress = entryPointAddress_;
     }
