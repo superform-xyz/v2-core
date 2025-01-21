@@ -2,6 +2,8 @@
   "AcrossReceiveFundsAndExecuteGateway": "0xe6d6a5C182abA3Af67201994a2370234e8775134",
   "AcrossSendFundsAndExecuteOnDstHook": "0xc446d97cF4887b14F4d35B514C92249f8d0946e9",
   "ApproveERC20Hook": "0x6BaA82A4Bbcf7747a2c253Fb7a55AD635896170b",
+  "DeBridgeReceiveFundsAndExecuteGateway": "0xD7ca75f6838B7De60F0f295b4ce94CB4a9E3aE78",
+  "DeBridgeSendFundsAndExecuteOnDstHook": "0xfc72c91cA24475C9906697b3BBb8D78Fe1E58C17",
   "Deposit4626VaultHook": "0x65e2bD6a61b81E620a893BDa93827D12e18dd396",
   "Deposit5115VaultHook": "0xEC29b754C160930D9BaDBb689f6c91282f7939fb",
   "ERC4626YieldSourceOracle": "0x37C8c7c6fBAc64d42cbbEa5dA5b81f5e6FA8E819",
