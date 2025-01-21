@@ -95,7 +95,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         hook.preExecute(prevHook, hookData);
 
         Execution[] memory executions = hook.build(prevHook, hookData);
-
         // run hook execute
         if (executions.length > 0) {
             _execute(account, executions);
@@ -107,7 +106,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         ISuperHook.HookType _type = ISuperHookResult(address(hook)).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
-
             bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
             address yieldSource = BytesLib.toAddress(BytesLib.slice(hookData, 52, 20), 0);
 

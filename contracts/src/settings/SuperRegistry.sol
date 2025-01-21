@@ -40,6 +40,10 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     bytes32 public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
         keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID");
 
+    /// @inheritdoc ISuperRegistry
+    bytes32 public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
+        keccak256("DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID");
+
     // -- paymaster
     /// @inheritdoc ISuperRegistry
     bytes32 public constant PAYMASTER_ID = keccak256("PAYMASTER_ID");

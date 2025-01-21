@@ -18,6 +18,7 @@ import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
+import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/bridges/interfaces/IAcrossV3Receiver.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
@@ -39,13 +40,14 @@ import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDep
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { DeBridgeSendFundsAndExecuteOnDstHook } from
+    "../src/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
 // external
-import { console } from "forge-std/console.sol";
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
 } from "modulekit/ModuleKit.sol";
@@ -55,6 +57,7 @@ import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
+import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 
 struct Addresses {
     ISuperRbac superRbac;
@@ -63,6 +66,7 @@ struct Addresses {
     ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
+    DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
@@ -72,6 +76,7 @@ struct Addresses {
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
+    DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     SuperMerkleValidator superMerkleValidator;
@@ -91,7 +96,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     address constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
-
     uint64[] public chainIds = [ETH, OP, BASE];
 
     string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
@@ -103,7 +107,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         0x6f26Bf09B1C792e3228e5467807a900A503c0281,
         0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64
     ];
-    mapping(uint64 chainId => address spokePoolV3Address) public SPOKE_POOL_V3_ADDRESSES;
+    address[] public deBridgeGateAddresses = [
+        0x43dE2d77BF8027e25dBD179B491e8d64f38398aA,
+        0x43dE2d77BF8027e25dBD179B491e8d64f38398aA,
+        0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF
+    ];
+    address[] public deBridgeGateAdminAddresses = [
+        0x6bec1faF33183e1Bc316984202eCc09d46AC92D5,
+        0xA52842cD43fA8c4B6660E443194769531d45b265,
+        0xF0A9d50F912D64D1105b276526e21881bF48A29e
+    ];
+    mapping(uint64 chainId => address) public SPOKE_POOL_V3_ADDRESSES;
+    mapping(uint64 chainId => address) public DEBRIDGE_GATE_ADDRESSES;
+    mapping(uint64 chainId => address) public DEBRIDGE_ADMIN_ADDRESSES;
 
     /// @dev mappings
 
@@ -180,6 +196,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.makePersistent(acrossV3Helper);
             contractAddresses[chainIds[i]]["AcrossV3Helper"] = acrossV3Helper;
 
+            address debridgeHelper = address(new DebridgeHelper());
+            vm.allowCheatcodes(debridgeHelper);
+            vm.makePersistent(debridgeHelper);
+            contractAddresses[chainIds[i]]["DebridgeHelper"] = debridgeHelper;
+
             Addresses memory A;
             /// @dev main contracts
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
@@ -206,13 +227,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
 
-            A.acrossReceiveFundsAndExecuteGateway =
-                new AcrossReceiveFundsAndExecuteGateway(address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR);
+            A.acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
+                address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
+            );
             vm.label(address(A.acrossReceiveFundsAndExecuteGateway), "acrossReceiveFundsAndExecuteGateway");
             contractAddresses[chainIds[i]]["AcrossReceiveFundsAndExecuteGateway"] =
                 address(A.acrossReceiveFundsAndExecuteGateway);
 
-            //A.spokePoolV3Mock.setAcrossBridgeGateway(address(A.acrossBridgeGateway));
+            A.deBridgeReceiveFundsAndExecuteGateway = new DeBridgeReceiveFundsAndExecuteGateway(
+                address(A.superRegistry), DEBRIDGE_GATE_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
+            );
+            vm.label(address(A.deBridgeReceiveFundsAndExecuteGateway), "deBridgeReceiveFundsAndExecuteGateway");
+            contractAddresses[chainIds[i]]["DeBridgeReceiveFundsAndExecuteGateway"] =
+                address(A.deBridgeReceiveFundsAndExecuteGateway);
 
             A.superMerkleValidator = new SuperMerkleValidator(address(A.superRegistry));
             vm.label(address(A.superMerkleValidator), "superMerkleValidator");
@@ -267,6 +294,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.acrossSendFundsAndExecuteOnDstHook), "AcrossSendFundsAndExecuteOnDstHook");
             hookAddresses[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] =
                 address(A.acrossSendFundsAndExecuteOnDstHook);
+
+            A.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
+                address(A.superRegistry), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
+            );
+            vm.label(address(A.deBridgeSendFundsAndExecuteOnDstHook), "DeBridgeSendFundsAndExecuteOnDstHook");
+            vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], "DEBRIDGE_GATE_ADDRESS");
+            hookAddresses[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] =
+                address(A.deBridgeSendFundsAndExecuteOnDstHook);
         }
     }
 
@@ -304,6 +339,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(spokePoolV3AddressesMap[OP], "SpokePoolV3OP");
         spokePoolV3AddressesMap[BASE] = spokePoolV3Addresses[2];
         vm.label(spokePoolV3AddressesMap[BASE], "SpokePoolV3BASE");
+
+        mapping(uint64 => address) storage deBridgeGateAddressesMap = DEBRIDGE_GATE_ADDRESSES;
+        deBridgeGateAddressesMap[ETH] = deBridgeGateAddresses[0];
+        vm.label(deBridgeGateAddressesMap[ETH], "DeBridgeGateETH");
+        deBridgeGateAddressesMap[OP] = deBridgeGateAddresses[1];
+        vm.label(deBridgeGateAddressesMap[OP], "DeBridgeGateOP");
+        deBridgeGateAddressesMap[BASE] = deBridgeGateAddresses[2];
+        vm.label(deBridgeGateAddressesMap[BASE], "DeBridgeGateBASE");
+
+        mapping(uint64 => address) storage deBridgeGateAdminAddressesMap = DEBRIDGE_ADMIN_ADDRESSES;
+        deBridgeGateAdminAddressesMap[ETH] = deBridgeGateAdminAddresses[0];
+        vm.label(deBridgeGateAdminAddressesMap[ETH], "DeBridgeGateAdminETH");
+        deBridgeGateAdminAddressesMap[OP] = deBridgeGateAdminAddresses[1];
+        vm.label(deBridgeGateAdminAddressesMap[OP], "DeBridgeGateAdminOP");
+        deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
+        vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -569,6 +620,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
+    function _processDebridgeMessage(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        ExecutionReturnData memory executionData
+    )
+        internal
+    {
+        DebridgeHelper(_getContract(srcChainId, "DebridgeHelper")).help(
+            DEBRIDGE_ADMIN_ADDRESSES[dstChainId],
+            DEBRIDGE_GATE_ADDRESSES[srcChainId],
+            DEBRIDGE_GATE_ADDRESSES[dstChainId],
+            FORKS[dstChainId],
+            dstChainId,
+            executionData.logs
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  HOOK DATA CREATORS
     //////////////////////////////////////////////////////////////*/
@@ -613,6 +681,38 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+    }
+
+    function _createDebridgeSendFundsAndExecuteHookData(
+        uint256 value,
+        address account,
+        address inputToken,
+        uint256 inputAmount,
+        uint256 chainIdTo,
+        uint32 referralCode,
+        bool useAssetFee,
+        bool usePrevHookAmount,
+        uint256 autoParamsLength,
+        bytes memory autoParams,
+        bytes memory permit
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            value,
+            account,
+            inputToken,
+            inputAmount,
+            chainIdTo,
+            referralCode,
+            useAssetFee,
+            usePrevHookAmount,
+            autoParamsLength,
+            autoParams,
+            permit
+        );
     }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData(

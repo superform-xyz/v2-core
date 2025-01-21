@@ -24,6 +24,7 @@ abstract contract Configuration {
         address paymaster;
         address bundler;
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
+        mapping(uint64 chainId => address debridgeGate) debridgeGates;
         SuperPositionData[] superPositions;
         RolesData[] externalRoles;
     }
@@ -83,5 +84,12 @@ abstract contract Configuration {
         configuration.acrossSpokePoolV3s[ARB_SEPOLIA_CHAIN_ID] = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
         configuration.acrossSpokePoolV3s[BASE_SEPOLIA_CHAIN_ID] = 0x82B564983aE7274c86695917BBf8C99ECb6F0F8F;
         configuration.acrossSpokePoolV3s[OP_SEPOLIA_CHAIN_ID] = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
+
+        configuration.debridgeGates[MAINNET_CHAIN_ID] = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
+        configuration.debridgeGates[BASE_CHAIN_ID] = 0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF;
+        configuration.debridgeGates[OPTIMISM_CHAIN_ID] = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
+        configuration.debridgeGates[ARB_SEPOLIA_CHAIN_ID] = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
+        configuration.debridgeGates[BASE_SEPOLIA_CHAIN_ID] = 0x0000000000000000000000000000000000000000;
+        configuration.debridgeGates[OP_SEPOLIA_CHAIN_ID] = 0x0000000000000000000000000000000000000000;
     }
 }

@@ -3,7 +3,8 @@ pragma solidity >=0.8.28;
 
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockStakingProtocol } from "../../../mocks/MockStakingProtocol.sol";
-import { SomelierStakingYieldSourceOracle } from "../../../../src/accounting/oracles/SomelierStakingYieldSourceOracle.sol";
+import { SomelierStakingYieldSourceOracle } from
+    "../../../../src/accounting/oracles/SomelierStakingYieldSourceOracle.sol";
 
 contract SomelierStakingYieldSourceOracleTest is Helpers {
     SomelierStakingYieldSourceOracle public oracle;
