@@ -293,7 +293,7 @@ delete_vnet() {
 cleanup_vnets() {
     log "INFO" "Cleaning up VNETs..."
     for vnet_id in "${VNET_IDS[@]}"; do
-        #delete_vnet "$vnet_id"
+        delete_vnet "$vnet_id"
     done
 }
 
@@ -563,7 +563,6 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Ethereum"
-    cleanup_vnets
     exit 1
 fi
 
@@ -577,7 +576,6 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Ethereum"
-    cleanup_vnets
     exit 1
 fi
 wait
@@ -594,7 +592,6 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Base"
-    cleanup_vnets
     exit 1
 fi
 
@@ -608,7 +605,6 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Base"
-    cleanup_vnets
     exit 1
 fi
 wait
@@ -625,7 +621,6 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
     $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Optimism"
-    cleanup_vnets
     exit 1
 fi
 
@@ -639,7 +634,6 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Optimism"
-    cleanup_vnets
     exit 1
 fi
 wait
