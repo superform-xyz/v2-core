@@ -11,33 +11,109 @@
 #   - Supporting both local development and CI environments
 #   - Handling cleanup of resources on failure
 #
+# Directory Structure:
+#   script/output/
+#   ├── dev/                      # Development branch deployments
+#   │   ├── latest.json          # Latest deployment info for dev branch
+#   │   ├── 1/                   # Ethereum deployment outputs
+#   │   ├── 8453/               # Base deployment outputs
+#   │   └── 10/                 # Optimism deployment outputs
+#   ├── feat-xyz/                # Feature branch deployments
+#   │   └── ...                 # Same structure as dev/
+#   └── main/                    # Main branch deployments
+#       └── ...                 # Same structure as dev/
+#
+# File Organization:
+#   - latest.json: Contains network-specific deployment info including:
+#     - VNET IDs for active deployments
+#     - Salt counters for deterministic addresses
+#     - Contract addresses and metadata
+#     - Timestamps for tracking deployment history
+#
 # Usage:
-#   ./deploy_v2_vnet.sh <branch_name> [local]
+#   ./deploy_v2_vnet.sh <branch_name>
 #   
 #   Parameters:
 #     branch_name: Name of the branch (required)
-#     local: Optional parameter. If set to any value, script runs in local mode
+#
+# Execution Modes:
+#   1. Local Development:
+#      - Detected by presence of 'op' command
+#      - Uses 1Password for secrets
+#      - Creates new VNETs for each run
+#      - Does not maintain deployment history
+#
+#   2. CI Environment:
+#      - Uses GitHub environment variables
+#      - Maintains deployment history in branch-specific directories
+#      - Reuses existing VNETs when possible
+#      - Updates deployment records in latest.json
 #
 # Requirements:
 #   - jq: For JSON processing
 #   - curl: For API calls
 #   - forge: For contract deployment
-#   - GitHub environment (for CI) or environment file (for local)
+#   - op: For local secret management (local mode only)
+#   - GitHub environment variables (CI mode only)
 #
 # Environment Variables:
-#   Required:
+#   Required for all modes:
 #   - TENDERLY_ACCESS_KEY: Access key for Tenderly API
 #   
-#   Required for CI:
+#   Required for CI mode:
 #   - GITHUB_TOKEN: GitHub API token
 #   - GITHUB_REPOSITORY: Repository name (owner/repo)
 #   - GITHUB_REF_NAME: Branch name
+#   - GITHUB_RUN_ID: Unique identifier for the workflow run
+#
+# Error Handling:
+#   - Automatic cleanup of VNETs on failure
+#   - Retries for API operations with exponential backoff
+#   - Optimistic locking for file updates
+#   - Comprehensive logging and error reporting
 #
 # Author: Superform Team
 # Version: 1.0.0
 ###################################################################################
 
 set -euo pipefail  # Exit on error, undefined var, pipe failure
+
+###################################################################################
+# Helper Functions
+###################################################################################
+
+# Logging function for consistent output
+log() {
+    local level=$1
+    shift
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
+}
+
+# Environment detection
+is_local_run() {
+    command -v op >/dev/null 2>&1
+    return $?
+}
+
+# Network name mapping
+get_network_slug() {
+    local network_id=$1
+    case "$network_id" in
+        1)
+            echo "Ethereum"
+            ;;
+        8453)
+            echo "Base"
+            ;;
+        10)
+            echo "Optimism"
+            ;;
+        *)
+            log "ERROR" "Unknown network ID: $network_id"
+            return 1
+            ;;
+    esac
+}
 
 ###################################################################################
 # Configuration
@@ -56,7 +132,9 @@ TENDERLY_PROJECT="v2"
 
 # Script Arguments
 BRANCH_NAME=$1
-IS_LOCAL=${2:-""}  # Optional second parameter for local mode
+
+# Set environment for forge scripts
+FORGE_ENV=1  # Default to environment 1 for both local and CI
 
 # Validation
 if [ -z "$BRANCH_NAME" ]; then
@@ -64,42 +142,140 @@ if [ -z "$BRANCH_NAME" ]; then
     exit 1
 fi
 
+
+# Base output directory for local file operations
+OUTPUT_BASE_DIR="script/output"
+
+# GitHub API path (relative to repo root)
+GITHUB_API_PATH="contracts/script/output"
+
 ###################################################################################
-# Helper Functions
+# Authentication Setup
 ###################################################################################
 
-# Logging function for consistent output
-log() {
-    local level=$1
-    shift
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
+if is_local_run; then
+    log "INFO" "Running in local environment"
+    # For local runs, get TENDERLY_ACCESS_KEY from 1Password
+    TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential")
+else
+    log "INFO" "Running in CI environment"
+    # Only source .env if any required variable is missing
+    if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_REF_NAME:-}" ] || [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
+        if [ ! -f .env ]; then
+            log "ERROR" ".env file is required when environment variables are missing"
+            exit 1
+        fi
+        log "INFO" "Loading missing variables from .env file"
+        source .env
+    fi
+fi
+
+###################################################################################
+# Environment Validation
+###################################################################################
+
+# Validate Tenderly access key for all modes
+if [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
+    log "ERROR" "TENDERLY_ACCESS_KEY environment variable is required"
+    exit 1
+fi
+
+# Validate CI-specific environment variables
+if ! is_local_run; then
+    if [ -z "${GITHUB_TOKEN:-}" ]; then
+        log "ERROR" "GITHUB_TOKEN environment variable is required for CI mode"
+        exit 1
+    fi
+    if [ -z "${GITHUB_REPOSITORY:-}" ]; then
+        log "ERROR" "GITHUB_REPOSITORY environment variable is required for CI mode"
+        exit 1
+    fi
+    if [ -z "${GITHUB_REF_NAME:-}" ]; then
+        log "ERROR" "GITHUB_REF_NAME environment variable is required for CI mode"
+        exit 1
+    fi
+fi
+
+# CI-specific directory configuration
+if ! is_local_run; then
+    # Handle feature branches differently
+    if [[ "$GITHUB_REF_NAME" == feat/* ]]; then
+        # Extract feature name without feat/ prefix
+        FEATURE_NAME=${GITHUB_REF_NAME#feat/}
+        BRANCH_DIR="$OUTPUT_BASE_DIR/feat/$FEATURE_NAME"
+    else
+        # For dev, main branches
+        BRANCH_DIR="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME"
+    fi
+    
+    BRANCH_LATEST_FILE="$BRANCH_DIR/latest.json"
+    
+    # Create branch output directories
+    for network in 1 8453 10; do
+        mkdir -p "$BRANCH_DIR/$network"
+    done
+else
+    # For local runs
+    BRANCH_DIR="$OUTPUT_BASE_DIR/local"
+    # Create local output directories
+    for network in 1 8453 10; do
+        mkdir -p "$BRANCH_DIR/$network"
+    done
+fi
+
+# Function to read branch-level latest file
+read_branch_latest() {
+    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
+    
+    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+        echo "{\"networks\":{},\"updated_at\":null}"
+    else
+        echo "$response" | jq -r '.content' | base64 --decode
+    fi
 }
 
-# Environment detection
-is_local_run() {
-    [ -n "$IS_LOCAL" ]
-    return $?
+# Function to update branch-level latest file with optimistic locking
+update_branch_latest() {
+    local content=$1
+    local initial_sha=$2
+    
+    update_response=$(curl -s -X PUT \
+        -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Accept: application/vnd.github.v3+json" \
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME" \
+        -d @- << EOF
+{
+    "message": "Update deployment info for job $GITHUB_RUN_ID",
+    "content": "$(echo "$content" | base64)",
+    "sha": "$initial_sha",
+    "branch": "$GITHUB_REF_NAME"
+}
+EOF
+    )
+    
+    if [ "$(echo "$update_response" | jq -r '.message // empty')" != "" ]; then
+        return 1
+    fi
+    return 0
 }
 
-# Network name mapping
-get_network_slug() {
-    local network_id=$1
-    case "$network_id" in
-        1)
-            echo "eth"
-            ;;
-        8453)
-            echo "base"
-            ;;
-        10)
-            echo "op"
-            ;;
-        *)
-            log "ERROR" "Unknown network ID: $network_id"
-            return 1
-            ;;
-    esac
+# Generate salt for a network
+get_salt() {
+    local network_slug=$1
+    
+    if is_local_run; then
+        echo "1"
+        return 0
+    fi
+    
+    # Read current latest file
+    content=$(read_branch_latest)
+    current_counter=$(echo "$content" | jq -r ".networks[\"$network_slug\"].counter // 0")
+    echo $((current_counter + 1))
 }
+
+
 
 ###################################################################################
 # VNET Management Functions
@@ -126,112 +302,6 @@ cleanup_vnets() {
 # Set up trap to cleanup VNETs on script exit due to error
 trap 'cleanup_vnets' ERR
 
-###################################################################################
-# Counter Management Functions
-###################################################################################
-
-update_counter() {
-    local slug=$1
-    local vnet_id=$2
-    
-    log "INFO" "Updating counter for slug: $slug"
-    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME")
-    
-    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
-        log "INFO" "Creating initial vnet counter file"
-        content="{\"slugs\":{}}"
-        new_content=$(echo "$content" | jq \
-            --arg slug "$slug" \
-            --arg vnet "$vnet_id" \
-            '.slugs[$slug] = {"counter": 1, "vnet_id": $vnet}')
-        
-        create_response=$(curl -s -X PUT \
-            -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME" \
-            -d @- << EOF
-{
-    "message": "Create VNET counter file with initial counter for $slug",
-    "content": "$(echo "$new_content" | base64)",
-    "branch": "$GITHUB_REF_NAME"
-}
-EOF
-        )
-
-        if [ "$(echo "$create_response" | jq -r '.message // empty')" != "" ]; then
-            log "ERROR" "Failed to create counter file: $(echo "$create_response" | jq -r '.message')"
-            return 1
-        fi
-
-        echo "1"
-        return 0
-    fi
-
-    content=$(echo "$response" | jq -r '.content' | base64 --decode)
-    sha=$(echo "$response" | jq -r '.sha')
-
-    current_counter=$(echo "$content" | jq -r ".slugs[\"$slug\"].counter // 0")
-    new_counter=$((current_counter + 1))
-    
-    new_content=$(echo "$content" | jq \
-        --arg slug "$slug" \
-        --arg vnet "$vnet_id" \
-        --arg counter "$new_counter" \
-        '.slugs[$slug] = {"counter": ($counter|tonumber), "vnet_id": $vnet}')
-
-    update_response=$(curl -s -X PUT \
-        -H "Authorization: token $GITHUB_TOKEN" \
-        -H "Accept: application/vnd.github.v3+json" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME" \
-        -d @- << EOF
-{
-    "message": "Update VNET counter for $slug",
-    "content": "$(echo "$new_content" | base64)",
-    "sha": "$sha",
-    "branch": "$GITHUB_REF_NAME"
-}
-EOF
-    )
-
-    if [ "$(echo "$update_response" | jq -r '.message // empty')" != "" ]; then
-        log "ERROR" "Failed to update counter: $(echo "$update_response" | jq -r '.message')"
-        return 1
-    fi
-
-    echo "$new_counter"
-    return 0
-}
-
-get_salt() {
-    local slug=$1
-    local vnet_id=$2
-
-    # If running locally, always return 1
-    if is_local_run; then
-        echo "1"
-        return 0
-    fi
-
-    # CI environment - handle counter logic
-    MAX_RETRIES=3
-    retry_count=0
-    while [ $retry_count -lt $MAX_RETRIES ]; do
-        if counter=$(update_counter "$slug" "$vnet_id"); then
-            echo "$counter"
-            return 0
-        fi
-        retry_count=$((retry_count + 1))
-        sleep 1
-    done
-    
-    return 1
-}
-
-###################################################################################
-# VNET Creation and Management
-###################################################################################
-
 generate_slug() {
     local network=$1
     local output="${BRANCH_NAME//\//-}-${network}"
@@ -240,22 +310,24 @@ generate_slug() {
     echo "$output"
 }
 
-check_existing_vnet() {
-    local slug=$1
-    log "INFO" "Checking for existing VNET with slug: $slug"
+# Check for existing VNET in branch latest file and create if not found
+check_vnets() {
+    local network_slug=$1
+    local network_id=$2
     
-    local response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME")
-
-    # If file doesn't exist or response has an error return error
-    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
-        log "INFO" "No vnet counter file found"
-        return 1
+    if is_local_run; then
+        # For local runs, always create new VNET
+        slug=$(generate_slug "$network_slug")
+        response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+        echo "$response"
+        return 0
     fi
-
-    # Try to decode content and get VNET ID
-    local content=$(echo "$response" | jq -r '.content' | base64 --decode)
-    local vnet_id=$(echo "$content" | jq -r ".slugs[\"$slug\"].vnet_id // empty")
+    
+    log "INFO" "Checking for existing VNET for network: $network_slug"
+    
+    # Read from branch latest file
+    content=$(read_branch_latest)
+    vnet_id=$(echo "$content" | jq -r ".networks[\"$network_slug\"].vnet_id // empty")
     
     if [ -n "$vnet_id" ]; then
         log "INFO" "Found existing VNET ID: $vnet_id"
@@ -271,11 +343,14 @@ check_existing_vnet() {
                 return 0
             fi
         fi
-        log "INFO" "VNET ID exists in counter file but not in Tenderly"
-        return 1
+        log "INFO" "VNET ID exists in branch file but not in Tenderly"
     fi
     
-    log "INFO" "No existing VNET found"
+    # No valid existing VNET found, create new one
+    log "INFO" "Creating new VNET for $network_slug"
+    slug=$(generate_slug "$network_slug")
+    response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+    echo "$response"
     return 0
 }
 
@@ -354,153 +429,68 @@ set_initial_balance() {
 }
 
 ###################################################################################
-# Authentication Setup
+# Initialize Output Directories and Files
 ###################################################################################
 
-if is_local_run; then
-    log "INFO" "Running in local environment"
-    # For local runs, always source .env
-    if [ ! -f .env ]; then
-        log "ERROR" ".env file is required for local runs"
-        exit 1
-    fi
-    source .env
-    if [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
-        log "ERROR" "TENDERLY_ACCESS_KEY environment variable is required in .env file"
-        exit 1
-    fi
-else
-    log "INFO" "Running in CI environment"
-    # Only source .env if any required variable is missing
-    if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_REF_NAME:-}" ] || [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
-        if [ ! -f .env ]; then
-            log "ERROR" ".env file is required when environment variables are missing"
-            exit 1
+# Initialize output files
+initialize_output_files() {
+    log "INFO" "Initializing output directories and files..."
+    log "INFO" "Branch directory: $BRANCH_DIR"
+    
+    for network in 1 8453 10; do
+        network_slug=$(get_network_slug "$network")
+        output_dir="$BRANCH_DIR/$network"
+        output_file="$output_dir/$network_slug-latest.json"
+        
+        # Create directory if it doesn't exist
+        mkdir -p "$output_dir"
+        log "INFO" "Created directory: $output_dir"
+        
+        # Create initial JSON file if it doesn't exist
+        if [ ! -f "$output_file" ]; then
+            log "INFO" "Creating initial JSON file: $output_file"
+            echo "{}" > "$output_file"
+            # Verify file was created
+            if [ -f "$output_file" ]; then
+                log "INFO" "Successfully created file: $output_file"
+            else
+                log "ERROR" "Failed to create file: $output_file"
+            fi
         fi
-        log "INFO" "Loading missing variables from .env file"
-        source .env
-    fi
+    done
+}
 
-    # Final check for required variables
-    if [ -z "${GITHUB_TOKEN:-}" ]; then
-        log "ERROR" "GITHUB_TOKEN environment variable is required"
-        exit 1
-    fi
-    if [ -z "${GITHUB_REPOSITORY:-}" ]; then
-        log "ERROR" "GITHUB_REPOSITORY environment variable is required"
-        exit 1
-    fi
-    if [ -z "${GITHUB_REF_NAME:-}" ]; then
-        log "ERROR" "GITHUB_REF_NAME environment variable is required"
-        exit 1
-    fi
-    if [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
-        log "ERROR" "TENDERLY_ACCESS_KEY environment variable is required"
-        exit 1
-    fi
-fi
+# Initialize before deployments
+initialize_output_files
 
 ###################################################################################
 # Main Deployment Logic
 ###################################################################################
 
 # First phase: Create or get VNETs for all networks
-declare -A NETWORK_VNETS  # Associate array to store network -> vnet_id,admin_rpc mapping
+# Store responses in indexed arrays matching the network order
+declare -a VNET_RESPONSES
+
 for network in 1 8453 10; do
     network_slug=$(get_network_slug "$network")
-    slug=$(generate_slug "$network_slug")
-    
-    if is_local_run; then
-        # Local run - create new VNET
-        response=$(create_virtual_testnet "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-        NETWORK_VNETS[$network]="$response"
-    else
-        # CI run - check existing VNET
-        response=$(check_existing_vnet "$slug")
-        if [ -n "$response" ]; then
-            # VNET exists, use existing one
-            NETWORK_VNETS[$network]="$response"
-        else
-            # VNET doesn't exist, create new one
-            response=$(create_virtual_testnet "$slug" "$network" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-            NETWORK_VNETS[$network]="$response"
-        fi
-    fi
+    response=$(check_vnets "$network_slug" "$network")
+    VNET_RESPONSES+=("$response")
 done
 
-# Second phase: Update counters and get salts for all networks in a single operation
-if ! is_local_run; then
-    log "INFO" "Updating counters for all networks"
-    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME")
-    
-    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
-        content="{\"slugs\":{}}"
-        sha=""
-    else
-        content=$(echo "$response" | jq -r '.content' | base64 --decode)
-        sha=$(echo "$response" | jq -r '.sha')
-    fi
+# Second phase: Generate salts for each network
+network_slug=$(get_network_slug "1")
+ETH_SALT=$(get_salt "$network_slug")
 
-    # Update content for all networks
-    for network in 1 8453 10; do
-        network_slug=$(get_network_slug "$network")
-        slug=$(generate_slug "$network_slug")
-        vnet_id=$(echo "${NETWORK_VNETS[$network]}" | cut -d'|' -f2)
-        
-        current_counter=$(echo "$content" | jq -r ".slugs[\"$slug\"].counter // 0")
-        new_counter=$((current_counter + 1))
-        
-        content=$(echo "$content" | jq \
-            --arg slug "$slug" \
-            --arg vnet "$vnet_id" \
-            --arg counter "$new_counter" \
-            '.slugs[$slug] = {"counter": ($counter|tonumber), "vnet_id": $vnet}')
-        
-        # Store salt for this network
-        case "$network" in
-            1)
-                ETH_SALT="$new_counter"
-                ;;
-            8453)
-                BASE_SALT="$new_counter"
-                ;;
-            10)
-                OPTIMISM_SALT="$new_counter"
-                ;;
-        esac
-    done
+network_slug=$(get_network_slug "8453")
+BASE_SALT=$(get_salt "$network_slug")
 
-    # Single PUT request to update all counters
-    update_response=$(curl -s -X PUT \
-        -H "Authorization: token $GITHUB_TOKEN" \
-        -H "Accept: application/vnd.github.v3+json" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/contracts/script/output/vnet_counters.json?ref=$GITHUB_REF_NAME" \
-        -d @- << EOF
-{
-    "message": "Update VNET counters for all networks",
-    "content": "$(echo "$content" | base64)",
-    "sha": "$sha",
-    "branch": "$GITHUB_REF_NAME"
-}
-EOF
-    )
-
-    if [ "$(echo "$update_response" | jq -r '.message // empty')" != "" ]; then
-        log "ERROR" "Failed to update counters: $(echo "$update_response" | jq -r '.message')"
-        cleanup_vnets
-        exit 1
-    fi
-else
-    # Local run - use salt=1 for all networks
-    ETH_SALT="1"
-    BASE_SALT="1"
-    OPTIMISM_SALT="1"
-fi
+network_slug=$(get_network_slug "10")
+OPTIMISM_SALT=$(get_salt "$network_slug")
 
 # Third phase: Store network-specific variables
+i=0
 for network in 1 8453 10; do
-    vnet_response="${NETWORK_VNETS[$network]}"
+    vnet_response="${VNET_RESPONSES[$i]}"
     vnet_id=$(echo "$vnet_response" | cut -d'|' -f2)
     admin_rpc=$(echo "$vnet_response" | cut -d'|' -f1)
     
@@ -519,6 +509,7 @@ for network in 1 8453 10; do
             ;;
     esac
     VNET_IDS+=("$vnet_id")
+    i=$((i + 1))
 done
 
 ###################################################################################
@@ -539,12 +530,13 @@ set_initial_balance "$OPTIMISM_MAINNET"
 # Deploy on Ethereum Mainnet
 log "INFO" "Deploying on Ethereum Mainnet..."
 if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
-    --sig 'run(uint256)' $ENVIRONMENT \
+    --sig 'run(uint256)' $FORGE_ENV \
     --verify \
     --verifier-url $ETH_MAINNET_VERIFIER_URL \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Ethereum"
     cleanup_vnets
@@ -552,12 +544,13 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
 fi
 
 if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $ETH_CHAIN_ID "$ETH_SALT" \
+    --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
     --verify \
     --verifier-url $ETH_MAINNET_VERIFIER_URL \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Ethereum"
     cleanup_vnets
@@ -568,12 +561,13 @@ wait
 # Deploy on Base Mainnet
 log "INFO" "Deploying on Base Mainnet..."
 if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
-    --sig 'run(uint256)' $ENVIRONMENT \
+    --sig 'run(uint256)' $FORGE_ENV \
     --verify \
     --verifier-url $BASE_MAINNET_VERIFIER_URL \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Base"
     cleanup_vnets
@@ -581,12 +575,13 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
 fi
 
 if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $BASE_CHAIN_ID "$BASE_SALT" \
+    --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
     --verify \
     --verifier-url $BASE_MAINNET_VERIFIER_URL \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Base"
     cleanup_vnets
@@ -597,12 +592,13 @@ wait
 # Deploy on Optimism Mainnet
 log "INFO" "Deploying on Optimism Mainnet..."
 if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
-    --sig 'run(uint256)' $ENVIRONMENT \
+    --sig 'run(uint256)' $FORGE_ENV \
     --verify \
     --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy SuperDeployer on Optimism"
     cleanup_vnets
@@ -610,12 +606,13 @@ if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
 fi
 
 if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $ENVIRONMENT $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
+    --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
     --verify \
     --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Optimism"
     cleanup_vnets
@@ -623,4 +620,187 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
 fi
 wait
 
+# Read deployed contracts from output file and validate
+read_and_validate_contracts() {
+    local file_path=$1
+    local network_name=$2
+    
+    log "INFO" "Reading contracts from: $file_path"
+    
+    if [ ! -f "$file_path" ]; then
+        log "ERROR" "Contract file not found for $network_name: $file_path"
+        return 1
+    fi
+    
+    local contracts
+    contracts=$(cat "$file_path")
+    log "INFO" "Contract file contents for $network_name: $contracts"
+    
+    # Validate JSON format
+    if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON in contract file for $network_name"
+        return 1
+    fi
+    
+    # Validate that we have at least some contract addresses
+    if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+        log "ERROR" "No contract addresses found in file for $network_name"
+        return 1
+    fi
+    
+    echo "$contracts"
+    return 0
+}
+
+# Update the branch latest file section to use validation
+update_latest_file() {
+    local is_local=$1
+    log "INFO" "All deployments successful. Updating latest file..."
+    
+    local content="{\"networks\":{},\"updated_at\":null}"
+    local latest_file
+    local initial_sha=""
+    
+    if [ "$is_local" = true ]; then
+        latest_file="$OUTPUT_BASE_DIR/latest.json"
+        # Create the file if it doesn't exist
+        if [ ! -f "$latest_file" ]; then
+            echo "$content" > "$latest_file"
+        else
+            content=$(cat "$latest_file")
+        fi
+    else
+        # Original GitHub API logic for CI mode
+        response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json?ref=$GITHUB_REF_NAME")
+        
+        if [ "$(echo "$response" | jq -r '.message')" != "Not Found" ]; then
+            content=$(echo "$response" | jq -r '.content' | base64 --decode)
+            initial_sha=$(echo "$response" | jq -r '.sha')
+            log "INFO" "Found existing file with SHA: $initial_sha"
+        fi
+    fi
+    
+    # Update content with new deployment info
+    i=0
+    for network in 1 8453 10; do
+        network_slug=$(get_network_slug "$network")
+        vnet_id=$(echo "${VNET_RESPONSES[$i]}" | cut -d'|' -f2)
+        
+        # Read and validate deployed contracts
+        local network_dir
+        if [ "$is_local" = true ]; then
+            network_dir="$OUTPUT_BASE_DIR/local/$network"
+        else
+            network_dir="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME/$network"
+        fi
+        
+        contracts_file="$network_dir/$network_slug-latest.json"
+        log "INFO" "Looking for contracts at: $contracts_file"
+        
+        # List directory contents for debugging
+        log "DEBUG" "Directory contents of $network_dir:"
+        ls -la "$network_dir" || true
+        
+        if [ ! -f "$contracts_file" ]; then
+            log "ERROR" "Contract file not found for $network_slug: $contracts_file"
+            log "DEBUG" "Current working directory: $(pwd)"
+            log "DEBUG" "Listing parent directory:"
+            ls -la "$(dirname "$network_dir")" || true
+            cleanup_vnets
+            exit 1
+        fi
+        
+        contracts=$(cat "$contracts_file")
+        log "INFO" "Contract file contents for $network_slug: $contracts"
+        
+        # Validate JSON format
+        if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
+            log "ERROR" "Invalid JSON in contract file for $network_slug"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        # Check if contracts is empty
+        if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+            log "WARN" "No contracts found in file for $network_slug"
+        fi
+        
+        # Use the salts we generated earlier
+        case "$network" in
+            1)
+                new_counter="$ETH_SALT"
+                ;;
+            8453)
+                new_counter="$BASE_SALT"
+                ;;
+            10)
+                new_counter="$OPTIMISM_SALT"
+                ;;
+        esac
+        
+        content=$(echo "$content" | jq \
+            --arg slug "$network_slug" \
+            --arg vnet "$vnet_id" \
+            --arg counter "$new_counter" \
+            --argjson contracts "$contracts" \
+            '.networks[$slug] = {
+                "counter": ($counter|tonumber),
+                "vnet_id": $vnet,
+                "contracts": $contracts
+            }')
+            
+        i=$((i + 1))
+    done
+    
+    # Update timestamp
+    content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time')
+    
+    if [ "$is_local" = true ]; then
+        echo "$content" | jq '.' > "$latest_file"
+        log "SUCCESS" "Successfully updated local latest file"
+    else
+        # Format JSON nicely before base64 encoding
+        content=$(echo "$content" | jq '.')
+        
+        # Use -w 0 to avoid line wrapping in base64 output
+        encoded_content=$(echo -n "$content" | base64 -w 0)
+        
+        update_data="{\"message\":\"Update branch latest file\",\"content\":\"$encoded_content\""
+        
+        # Only include SHA if we have one (for existing files)
+        if [ -n "$initial_sha" ]; then
+            log "INFO" "Including SHA in update request: $initial_sha"
+            update_data="$update_data,\"sha\":\"$initial_sha\""
+        fi
+        
+        update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
+        
+        log "INFO" "Sending update request to GitHub API"
+        update_response=$(curl -s -X PUT \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json" \
+            -d "$update_data")
+            
+        if [ "$(echo "$update_response" | jq -r '.content.sha')" != "null" ]; then
+            log "SUCCESS" "Successfully updated branch latest file"
+        else
+            error_message=$(echo "$update_response" | jq -r '.message')
+            log "ERROR" "Failed to update branch latest file: $error_message"
+            log "ERROR" "Full response: $update_response"
+            cleanup_vnets
+            exit 1
+        fi
+    fi
+}
+
+# After all deployments are done, update the latest file
+if is_local_run; then
+    update_latest_file true
+else
+    update_latest_file false
+fi
+
 log "SUCCESS" "All deployments completed successfully!"
+

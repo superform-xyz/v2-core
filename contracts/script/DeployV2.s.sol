@@ -20,6 +20,8 @@ import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiv
 import { SuperPositionsMock } from "../src/accounting/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
 
+import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
+
 // -- hooks
 // ---- | tokens
 import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -58,6 +60,8 @@ import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115Yield
 contract DeployV2 is Script, Configuration {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
+    address public constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+
     struct HookDeployment {
         string name;
         bytes creationCode;
@@ -77,6 +81,7 @@ contract DeployV2 is Script, Configuration {
         address superPositionSentinel;
         address acrossReceiveFundsGateway;
         address acrossReceiveFundsAndExecuteGateway;
+        address mockValidatorModule;
     }
 
     modifier broadcast(uint256 env) {
@@ -172,8 +177,17 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, "AcrossReceiveFundsAndExecuteGateway"),
             abi.encodePacked(
                 type(AcrossReceiveFundsAndExecuteGateway).creationCode,
-                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], ENTRY_POINT)
             )
+        );
+
+        // Deploy MockValidatorModule
+        deployedContracts.mockValidatorModule = __deployContract(
+            deployer,
+            "MockValidatorModule",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "MockValidatorModule"),
+            type(MockValidatorModule).creationCode
         );
 
         // Deploy Hooks
@@ -454,19 +468,35 @@ contract DeployV2 is Script, Configuration {
         }
     }
 
-    function _exportContract(string memory name, string memory label, address addr, uint64 chainId) private {
-        string memory json = vm.serializeAddress("EXPORTS", label, addr);
+    function _exportContract(
+        string memory chainName,
+        string memory contractName,
+        address addr,
+        uint64 chainId
+    )
+        private
+    {
+        string memory json = vm.serializeAddress("EXPORTS", contractName, addr);
         string memory root = vm.projectRoot();
+        string memory chainOutputFolder = string(abi.encodePacked("/script/output/"));
 
-        string memory chainOutputFolder =
-            string(abi.encodePacked("/script/output/", vm.toString(uint256(chainId)), "/"));
-        if (vm.envOr("FOUNDRY_EXPORTS_OVERWRITE_LATEST", false)) {
-            vm.writeJson(json, string(abi.encodePacked(root, chainOutputFolder, name, "-latest.json")));
+        // For local runs, use local directory
+        if (!vm.envOr("CI", false)) {
+            chainOutputFolder =
+                string(abi.encodePacked(chainOutputFolder, "local/", vm.toString(uint256(chainId)), "/"));
         } else {
-            vm.writeJson(
-                json,
-                string(abi.encodePacked(root, chainOutputFolder, name, "-", vm.toString(block.timestamp), ".json"))
-            );
+            // For CI runs, use branch-specific directory
+            string memory branchName = vm.envString("GITHUB_REF_NAME");
+
+            chainOutputFolder =
+                string(abi.encodePacked(chainOutputFolder, branchName, "/", vm.toString(uint256(chainId)), "/"));
         }
+
+        // Create directory if it doesn't exist
+        vm.createDir(string(abi.encodePacked(root, chainOutputFolder)), true);
+
+        // Write to {ChainName}-latest.json
+        string memory outputPath = string(abi.encodePacked(root, chainOutputFolder, chainName, "-latest.json"));
+        vm.writeJson(json, outputPath);
     }
 }

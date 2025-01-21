@@ -141,9 +141,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     mapping(uint64 chainId => string forkUrl) public RPC_URLS;
 
-    string public ETHEREUM_RPC_URL_QN = vm.envString("ETHEREUM_RPC_URL_QN"); // Native token: ETH
-    string public OPTIMISM_RPC_URL_QN = vm.envString("OPTIMISM_RPC_URL_QN"); // Native token: ETH
-    string public BASE_RPC_URL_QN = vm.envString("BASE_RPC_URL_QN"); // Native token: ETH
+    string public ETHEREUM_RPC_URL = vm.envString("ETHEREUM_RPC_URL"); // Native token: ETH
+    string public OPTIMISM_RPC_URL = vm.envString("OPTIMISM_RPC_URL"); // Native token: ETH
+    string public BASE_RPC_URL = vm.envString("BASE_RPC_URL"); // Native token: ETH
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -323,14 +323,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL_QN);
-        forks[OP] = vm.createFork(OPTIMISM_RPC_URL_QN);
-        forks[BASE] = vm.createFork(BASE_RPC_URL_QN);
+        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL);
+        forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
+        forks[BASE] = vm.createFork(BASE_RPC_URL);
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
-        rpcURLs[ETH] = ETHEREUM_RPC_URL_QN;
-        rpcURLs[OP] = OPTIMISM_RPC_URL_QN;
-        rpcURLs[BASE] = BASE_RPC_URL_QN;
+        rpcURLs[ETH] = ETHEREUM_RPC_URL;
+        rpcURLs[OP] = OPTIMISM_RPC_URL;
+        rpcURLs[BASE] = BASE_RPC_URL;
 
         mapping(uint64 => address) storage spokePoolV3AddressesMap = SPOKE_POOL_V3_ADDRESSES;
         spokePoolV3AddressesMap[ETH] = spokePoolV3Addresses[0];
