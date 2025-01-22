@@ -365,13 +365,13 @@ create_virtual_testnet() {
     local custom_chain_id
     case "$network_id" in
         1)
-            custom_chain_id=101
+            custom_chain_id=1
             ;;
         8453)
-            custom_chain_id=102
+            custom_chain_id=8453
             ;;
         10)
-            custom_chain_id=103
+            custom_chain_id=10
             ;;
         *)
             custom_chain_id=$network_id
