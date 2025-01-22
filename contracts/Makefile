@@ -14,7 +14,7 @@ endif
 deploy-poc:
 	forge script script/PoC/Deploy.s.sol --broadcast --legacy --multi --verify
 
-build :; forge build
+build :; forge build && $(MAKE) generate
 ftest :; forge test
 
 test-vvv :; forge test --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -vvvv
@@ -22,13 +22,10 @@ test-vvv :; forge test --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -
 test-integration :; forge test --match-contract test_Deposit_Redeem_4626_Mainnet_Flow -vvvv
 
 .PHONY: generate
-generate: build 
-	chmod +x ./script/run/retrieve-abis.sh
+generate:
 	./script/run/retrieve-abis.sh
-
-	# General
 	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
 	abigen --abi out/ISuperExecutor.sol/ISuperExecutor.abi --pkg contracts --type ISuperExecutor --out contract_bindings/ISuperExecutor.go
-	abigen --abi out/AcrossExecuteOnDestinationHook.sol/AcrossExecuteOnDestinationHook.abi --pkg contracts --type AcrossExecuteOnDestinationHook --out contract_bindings/AcrossExecuteOnDestinationHook.go
+	abigen --abi out/AcrossSendFundsAndExecuteOnDstHook.sol/AcrossSendFundsAndExecuteOnDstHook.abi --pkg contracts --type AcrossSendFundsAndExecuteOnDstHook --out contract_bindings/AcrossSendFundsAndExecuteOnDstHook.go
 	abigen --abi out/AcrossReceiveFundsAndExecuteGateway.sol/AcrossReceiveFundsAndExecuteGateway.abi --pkg contracts --type AcrossReceiveFundsAndExecuteGateway --out contract_bindings/AcrossReceiveFundsAndExecuteGateway.go
 	abigen --abi out/IAcrossV3Receiver.sol/IAcrossV3Receiver.abi --pkg contracts --type IAcrossV3Receiver --out contract_bindings/IAcrossV3Receiver.go

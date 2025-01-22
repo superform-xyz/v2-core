@@ -13,7 +13,6 @@ import { IAcrossSpokePoolV3 } from "../../../interfaces/vendors/bridges/across/I
 import { IAcrossV3Interpreter } from "../../../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
-
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @dev data has the following structure
 /// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
@@ -34,7 +33,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable spokePoolV3;
-    uint64 public immutable sourceChainId;
 
     struct AcrossV3DepositAndExecuteData {
         uint256 value;
@@ -60,7 +58,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
-        sourceChainId = uint64(block.chainid);
     }
 
     /*//////////////////////////////////////////////////////////////

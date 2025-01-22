@@ -24,3 +24,4 @@ for contract_dir in */; do
     fi
   done
 done
+

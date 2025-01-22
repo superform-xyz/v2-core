@@ -275,8 +275,6 @@ get_salt() {
     echo $((current_counter + 1))
 }
 
-
-
 ###################################################################################
 # VNET Management Functions
 ###################################################################################
@@ -363,6 +361,23 @@ create_virtual_testnet() {
     
     log "INFO" "Creating TestNet with slug: $slug"
     
+    # Determine custom chain ID based on network_id
+    local custom_chain_id
+    case "$network_id" in
+        1)
+            custom_chain_id=1
+            ;;
+        8453)
+            custom_chain_id=8453
+            ;;
+        10)
+            custom_chain_id=10
+            ;;
+        *)
+            custom_chain_id=$network_id
+            ;;
+    esac
+
     # Construct JSON payload
     local json_data=$(cat <<EOF
 {
@@ -374,7 +389,7 @@ create_virtual_testnet() {
     },
     "virtual_network_config": {
         "chain_config": {
-            "chain_id": $network_id
+            "chain_id": $custom_chain_id
         }
     },
     "sync_state_config": {
@@ -497,20 +512,29 @@ for network in 1 8453 10; do
     case "$network" in
         1)
             ETH_VNET_ID="$vnet_id"
-            ETH_MAINNET="$admin_rpc"
+            export ETH_MAINNET="$admin_rpc"
             ;;
         8453)
             BASE_VNET_ID="$vnet_id"
-            BASE_MAINNET="$admin_rpc"
+            export BASE_MAINNET="$admin_rpc"
             ;;
         10)
             OPTIMISM_VNET_ID="$vnet_id"
-            OPTIMISM_MAINNET="$admin_rpc"
+            export OPTIMISM_MAINNET="$admin_rpc"
             ;;
     esac
+    
     VNET_IDS+=("$vnet_id")
     i=$((i + 1))
 done
+
+# Export TENDERLY_ACCESS_KEY if it's not already exported
+if [ -n "$TENDERLY_ACCESS_KEY" ]; then
+    export TENDERLY_ACCESS_KEY
+fi
+
+log "INFO" "Environment variables exported"
+
 
 ###################################################################################
 # Contract Deployment
@@ -803,4 +827,3 @@ else
 fi
 
 log "SUCCESS" "All deployments completed successfully!"
-

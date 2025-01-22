@@ -11,8 +11,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IDeBridgeGate } from "../../../interfaces/vendors/bridges/debridge/IDeBridgeGate.sol";
 
-import "forge-std/console2.sol";
-
 /// @title DeBridgeSendFundsAndExecuteOnDstHook
 /// @dev data has the following structure
 /// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
@@ -32,7 +30,6 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable deBridgeGate;
-    uint64 public immutable sourceChainId;
 
     struct DeBridgeDepositAndExecuteData {
         uint256 value;
@@ -46,13 +43,13 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
         uint256 autoParamsLength;
         bytes autoParams;
         /**
-            autoParams structure:
-            {
-                uint256 executionFee // = 0 for a manual claim flow
-                uint256 flags
-                bytes fallbackAddress
-                bytes data 
-            }
+         * autoParams structure:
+         *     {
+         *         uint256 executionFee // = 0 for a manual claim flow
+         *         uint256 flags
+         *         bytes fallbackAddress
+         *         bytes data
+         *     }
          */
         bytes permit;
     }
@@ -66,7 +63,6 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     {
         if (deBridgeGate_ == address(0)) revert ADDRESS_NOT_VALID();
         deBridgeGate = deBridgeGate_;
-        sourceChainId = uint64(block.chainid);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -128,7 +124,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                     deBridgeDepositAndExecuteData.permit,
                     deBridgeDepositAndExecuteData.useAssetFee,
                     deBridgeDepositAndExecuteData.referralCode,
-                    deBridgeDepositAndExecuteData.autoParams 
+                    deBridgeDepositAndExecuteData.autoParams
                 )
             )
         });
@@ -138,10 +134,10 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external view onlyExecutor {}
+    function preExecute(address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external view onlyExecutor {}
+    function postExecute(address, bytes memory) external view onlyExecutor { }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
