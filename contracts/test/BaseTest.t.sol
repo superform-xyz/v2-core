@@ -47,6 +47,7 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
+import { SuperCollectiveVault } from "../src/superPositions/SuperCollectiveVault.sol";
 // external
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
@@ -80,6 +81,7 @@ struct Addresses {
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     SuperMerkleValidator superMerkleValidator;
+    SuperCollectiveVault superCollectiveVault;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -206,6 +208,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
             vm.label(address(A.superRegistry), "superRegistry");
             contractAddresses[chainIds[i]]["SuperRegistry"] = address(A.superRegistry);
+
+            A.superCollectiveVault = new SuperCollectiveVault(address(A.superRegistry));
+            vm.label(address(A.superCollectiveVault), "superCollectiveVault");
+            contractAddresses[chainIds[i]]["SuperCollectiveVault"] = address(A.superCollectiveVault);
 
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
             vm.label(address(A.superRbac), "superRbac");
@@ -518,7 +524,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _setRoles() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            //ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
+            ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
+            superRbac.setRole(address(this), superRbac.SUPER_COLLECTIVE_VAULT_MANAGER(), true);
         }
     }
 

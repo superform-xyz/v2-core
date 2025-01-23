@@ -1,0 +1,245 @@
+// SPDX-License-Identifier: MIT
+pragma solidity >=0.8.28;
+
+// external
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol";
+
+// Superform
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
+
+
+
+interface ISuperCollectiveVault {
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error CLAIM_FAILED();
+    error INVALID_VALUE();
+    error NOT_AUTHORIZED();
+    error INVALID_AMOUNT();
+    error INVALID_ACCOUNT();
+    error TOKEN_NOT_FOUND();
+    error NO_LOCKED_ASSETS();
+    error NOTHING_TO_CLAIM();
+    error INVALID_CLAIM_TARGET();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event Lock(address indexed account, address indexed token, uint256 amount);
+    event Unlock(address indexed account, address indexed token, uint256 amount);
+    event ClaimRewards(address indexed target, bytes result);
+    event BatchClaimRewards(address[] targets);
+    event DistributeRewards(address indexed account, address indexed rewardToken, uint256 amount);
+    event MerkleRootUpdated(bytes32 merkleRoot);
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Get the merkle root
+    function merkleRoot() external view returns (bytes32);
+    /// @notice Get the locked amount of an account for a token
+    function viewLockedAmount(address account, address token) external view returns (uint256);  
+    /// @notice Get all the locked assets of an account
+    function viewAllLockedAssets(address account) external view returns (address[] memory);
+    /// @notice Check if an account can claim any reward
+    function canClaim(address account, address rewardToken, uint256 amount, bytes32[] calldata proof) external view returns (bool);
+
+    /*//////////////////////////////////////////////////////////////
+                                 OWNER METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Update the merkle root
+    function updateMerkleRoot(bytes32 merkleRoot) external;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Lock an asset for an account
+    /// @param account The account to lock the asset for
+    /// @param token The asset to lock
+    /// @param amount The amount of the asset to lock
+    function lock(address account, address token, uint256 amount) external;
+    /// @notice Unlock an asset for an account
+    /// @param account The account to unlock the asset for
+    /// @param token The asset to unlock
+    /// @param amount The amount of the asset to unlock
+    function unlock(address account, address token, uint256 amount) external;
+    /// @notice Claim rewards for an account
+    /// @param target The target to claim rewards from
+    /// @param gasLimit The gas limit for the claim
+    /// @param maxReturnDataCopy The maximum return data copy
+    /// @param data The data to pass to the target
+    function claim(address target, uint256 gasLimit, uint16 maxReturnDataCopy, bytes calldata data) external payable;
+    /// @notice Batch claim rewards for multiple accounts
+    /// @param targets The targets to claim rewards from
+    /// @param gasLimit The gas limit for the claim
+    /// @param val The values to claim
+    /// @param maxReturnDataCopy The maximum return data copy
+    /// @param data The data to pass to the targets
+    function batchClaim(address[] calldata targets, uint256[] calldata gasLimit, uint256[] calldata val, uint16 maxReturnDataCopy,  bytes calldata data) external payable;
+    /// @notice Distribute rewards to an account
+    /// @param account The account to distribute the rewards to
+    /// @param rewardToken The reward token to distribute
+    /// @param proof The proof to distribute the rewards
+    function distributeRewards(address account, address rewardToken, uint256 amount, bytes32[] calldata proof) external {
+}
+
+
+// TODO: remove abstract
+abstract contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer {
+    using ExcessivelySafeCall for address;
+    using SafeERC20 for IERC20;
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    bytes32 public merkleRoot;
+
+    // locked assets
+    mapping (address => address[]) private _lockedAssets;
+    mapping (address => mapping (address => uint256)) private _lockedAmounts;
+    mapping (address => mapping (address => bool)) private _hasBeenDistributed;
+
+    constructor(address registry_) SuperRegistryImplementer(registry_) {}   
+
+    modifier onlyExecutor() {
+        if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_AUTHORIZED();
+        _;
+    }
+
+    modifier onlySuperCollectiveVaultManager() {
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperCollectiveVault
+    function viewLockedAmount(address account, address token) external view returns (uint256) {
+        return _lockedAmounts[account][token];
+    }
+
+    /// @inheritdoc ISuperCollectiveVault
+    function viewAllLockedAssets(address account) external view returns (address[] memory) {
+        return _lockedAssets[account];
+    }
+
+    /// @inheritdoc ISuperCollectiveVault
+    function canClaim(address account, address rewardToken, uint256 amount, bytes32[] calldata proof) public view returns (bool) {
+        bytes32 leaf = keccak256(abi.encodePacked(account, rewardToken, amount));
+        return MerkleProof.verify(proof, merkleRoot, leaf);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 OWNER METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperCollectiveVault
+    function updateMerkleRoot(bytes32 merkleRoot_) external onlySuperCollectiveVaultManager {
+        merkleRoot = merkleRoot_;
+        emit MerkleRootUpdated(merkleRoot_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperCollectiveVault
+    function lock(address account, address token, uint256 amount) external onlyExecutor {
+        if (account == address(0)) revert INVALID_ACCOUNT();
+        _lockedAmounts[msg.sender][token] += amount;
+        _lockedAssets[msg.sender].push(token);
+
+        IERC20(token).safeTransferFrom(account, address(this), amount);
+        emit Lock(msg.sender, token, amount);
+    }
+
+    /// @inheritdoc ISuperCollectiveVault
+    function unlock(address account, address token, uint256 amount) external onlySuperCollectiveVaultManager {
+        if (account == address(0)) revert INVALID_ACCOUNT();
+        if (amount > _lockedAmounts[account][token]) revert INVALID_AMOUNT();
+        _lockedAmounts[account][token] -= amount;
+        _removeFromLockedAssets(account, token);
+
+        IERC20(token).safeTransfer(account, amount);
+        emit Unlock(account, token, amount);
+    }
+
+    /// @inheritdoc ISuperCollectiveVault
+    function claim(address target, uint256 gasLimit, uint16 maxReturnDataCopy, bytes calldata data) external payable {
+        bytes memory result = _claim(target, gasLimit, msg.value, maxReturnDataCopy, data);
+        emit ClaimRewards(target, result);
+    }
+
+    /// @inheritdoc ISuperCollectiveVault
+    function batchClaim(address[] calldata targets, uint256[] calldata gasLimit, uint256[] calldata val, uint16 maxReturnDataCopy, bytes calldata data) external payable {
+        uint256 len = targets.length;
+
+        uint256 totalValue;
+        for (uint256 i = 0; i < len;) {
+            totalValue += val[i];
+            unchecked { ++i; }
+        }
+        if (msg.value < totalValue) revert INVALID_VALUE();
+
+        for (uint256 i = 0; i < len;) {
+            bytes memory result = _claim(targets[i], gasLimit[i], val[i], maxReturnDataCopy, data);
+            emit ClaimRewards(targets[i], result);
+            unchecked { ++i; }
+        }
+
+        emit BatchClaimRewards(targets);
+    }   
+
+    /// @inheritdoc ISuperCollectiveVault
+    function distributeRewards(address account, address rewardToken, uint256 amount, bytes32[] calldata proof) external {
+        if (!canClaim(account, rewardToken, amount, proof)) revert NOTHING_TO_CLAIM();
+        if (_hasBeenDistributed[account][rewardToken]) revert ALREADY_DISTRIBUTED();
+
+        IERC20(rewardToken).safeTransfer(account, amount);
+        _hasBeenDistributed[account][rewardToken] = true;
+        emit DistributeRewards(account, rewardToken, amount);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getAddress(bytes32 id_) internal view returns (address) {
+        return superRegistry.getAddress(id_);
+    }
+
+    function _claim(address target, uint256 gasLimit, uint256 value, uint16 maxReturnDataCopy, bytes calldata data) private returns (bytes memory) {
+        if (target == address(0) || target == address(this)) revert INVALID_CLAIM_TARGET();
+        (bool success, bytes memory result) = target.excessivelySafeCall(gasLimit, value, maxReturnDataCopy, data);
+        if (!success) revert CLAIM_FAILED();
+        return result;
+    }
+
+    function _removeFromLockedAssets(address account, address token) private {
+        uint256 len = _lockedAssets[account].length;
+        if (len == 0) revert NO_LOCKED_ASSETS();
+
+        uint256 index;
+        bool found = false;
+        for (uint256 i = 0; i < len;) {
+            if (_lockedAssets[account][i] == token) {
+                index = i;
+                found = true;
+                break;
+            }
+
+            unchecked { ++i; }
+        }
+
+        if (!found) revert TOKEN_NOT_FOUND();
+
+        if (index != len - 1) {
+            _lockedAssets[account][index] = _lockedAssets[account][len - 1];
+        }
+        _lockedAssets[account].pop();
+    }
+}   
