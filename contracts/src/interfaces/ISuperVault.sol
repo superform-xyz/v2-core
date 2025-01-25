@@ -193,5 +193,8 @@ interface ISuperVault is IERC4626 {
     function getActiveYieldSources() external view returns (address[] memory);
 
     /// @notice Get hooks for a yield source
-    function getYieldSourceHooks(address yieldSource) external view returns (address[] memory);
+    /// @param yieldSource The yield source address
+    /// @param isDeposit If true, returns deposit hooks, otherwise returns redeem hooks
+    /// @return The array of hook addresses
+    function getYieldSourceHooks(address yieldSource, bool isDeposit) external view returns (address[] memory);
 } 

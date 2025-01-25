@@ -9,12 +9,12 @@ import { ISuperVault } from "../interfaces/ISuperVault.sol";
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
-import { IHookDataEncoder } from "../interfaces/encoders/IHookDataEncoder.sol";
+import { IHookDataEncoderRegistry } from "../interfaces/IHookDataEncoderRegistry.sol";
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { HookWhitelist } from "../utils/HookWhitelist.sol";
 import { YieldSourceOracleLibrary } from "../libraries/YieldSourceOracleLibrary.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IHookDataEncoderRegistry } from "../interfaces/IHookDataEncoderRegistry.sol";
+
 
 /**
  * @title SuperVault
@@ -281,9 +281,9 @@ contract SuperVault is ISuperVault, ERC4626, SuperRegistryImplementer, HookWhite
         }
     }
 
-    function getYieldSourceHooks(address yieldSource) external view override returns (address[] memory) {
+    function getYieldSourceHooks(address yieldSource, bool isDeposit) external view override returns (address[] memory) {
         YieldSourceConfig storage config = yieldSourceConfigs[yieldSource];
-        return config.depositHooks;
+        return isDeposit ? config.depositHooks : config.redeemHooks;
     }
 
     function maxDeposit(address receiver) public view override(IERC4626, ERC4626) returns (uint256) {
@@ -370,7 +370,7 @@ contract SuperVault is ISuperVault, ERC4626, SuperRegistryImplementer, HookWhite
                     depositAmounts[i],
                     true
                 );
-                executeHookPathway(activeYieldSources[i], config.depositHooks, hookData);
+                _executeHookPathway(activeYieldSources[i], config.depositHooks, hookData);
             }
             unchecked { ++i; }
         }
@@ -401,7 +401,7 @@ contract SuperVault is ISuperVault, ERC4626, SuperRegistryImplementer, HookWhite
                     withdrawAmounts[i],
                     false
                 );
-                executeHookPathway(activeYieldSources[i], config.redeemHooks, hookData);
+                _executeHookPathway(activeYieldSources[i], config.redeemHooks, hookData);
             }
             unchecked { ++i; }
         }
@@ -540,5 +540,50 @@ contract SuperVault is ISuperVault, ERC4626, SuperRegistryImplementer, HookWhite
         uint256 amount
     ) internal pure returns (bytes memory) {
         return abi.encode(user, oracle, yieldSource, amount);
+    }
+
+    /// @notice Execute a sequence of hooks for a yield source
+    /// @param yieldSource Address of the yield source
+    /// @param hooks Array of hook addresses to execute
+    /// @param hookData Array of encoded data for each hook
+    /// @return success Whether the execution was successful
+    function _executeHookPathway(
+        address yieldSource,
+        address[] memory hooks,
+        bytes[] memory hookData
+    ) internal returns (bool) {
+        YieldSourceConfig storage config = yieldSourceConfigs[yieldSource];
+        if (config.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+        if (hookData.length != hooks.length) revert INVALID_HOOKS();
+        
+        // Verify all hooks are whitelisted and match either deposit or redeem pathway
+        _validateHookSequence(yieldSource, hooks);
+        
+        // Execute hooks in sequence
+        for (uint256 i = 0; i < hooks.length;) {
+            address prevHook = i > 0 ? hooks[i-1] : address(0);
+            
+            ISuperHook hook = ISuperHook(hooks[i]);
+            
+            // Pre-execution
+            hook.preExecute(prevHook, hookData[i]);
+            
+            // Build and execute
+            Execution[] memory executions = hook.build(prevHook, hookData[i]);
+            if (executions.length > 0) {
+                ISuperExecutor executor = ISuperExecutor(superRegistry.getAddress("SUPER_EXECUTOR"));
+                try executor.execute(abi.encode(executions)) {
+                } catch {
+                    revert EXECUTION_FAILED();
+                }
+            }
+            
+            // Post-execution
+            hook.postExecute(prevHook, hookData[i]);
+            
+            unchecked { ++i; }
+        }
+        
+        return true;
     }
 } 
