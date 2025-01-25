@@ -39,7 +39,7 @@ interface ISuperVault is IERC4626 {
      * @param redeemHooks Ordered sequence of hooks executed during redemptions
      * @param allocation Current allocation percentage in basis points
      * @param isActive Flag indicating if the yield source is currently active
-     * @dev The last hook in both deposit and redeem pathways must be SuperLedgerHook
+     * @dev The last hook in both deposit and redeem pathways must be SuperLedger
      */
     struct YieldSourceConfig {
         address oracle;           
@@ -49,6 +49,28 @@ interface ISuperVault is IERC4626 {
         uint256 allocation;        
         bool isActive;            
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Address authorized to manage yield sources and allocation strategies
+    function strategist() external view returns (address);
+
+    /// @notice Immutable configuration parameters set at deployment
+    function vaultConfig() external view returns (VaultConfig memory);
+
+    /// @notice List of yield sources currently integrated with the vault
+    function activeYieldSources(uint256) external view returns (address);
+
+    /// @notice Mapping of yield source to its configuration
+    function yieldSourceConfigs(address) external view returns (YieldSourceConfig memory);
+
+    /// @notice Registry for standardizing hook data encoding across different vault types
+    function encoderRegistry() external view returns (IHookDataEncoderRegistry);
+
+    /// @notice Central registry for contract addresses and configurations
+    function superRegistry() external view returns (ISuperRegistry);
 
     /*//////////////////////////////////////////////////////////////
                             EVENTS
@@ -111,16 +133,22 @@ interface ISuperVault is IERC4626 {
                         EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Transfer strategist role to a new address
-    /// @param newStrategist Address of the new strategist
+    /**
+     * @notice Transfers strategist role to a new address
+     * @dev Emits StrategistTransferred event on successful transfer
+     * @param newStrategist Address of the new strategist
+     */
     function transferStrategist(address newStrategist) external;
 
-    /// @notice Add a new yield source with its configuration
-    /// @param yieldSource Address of the yield source to add
-    /// @param oracle Address of the price oracle for this yield source
-    /// @param vaultType Type identifier of the vault
-    /// @param depositHooks Array of hook addresses for deposits
-    /// @param redeemHooks Array of hook addresses for redemptions
+    /**
+     * @notice Adds a new yield source to the vault
+     * @dev Performs validation checks and sets up hook pathways
+     * @param yieldSource Address of the yield source to add
+     * @param oracle Price oracle for the yield source
+     * @param vaultType Type identifier for the yield source
+     * @param depositHooks Sequence of hooks for deposits
+     * @param redeemHooks Sequence of hooks for redemptions
+     */
     function addYieldSource(
         address yieldSource,
         address oracle,
@@ -129,19 +157,39 @@ interface ISuperVault is IERC4626 {
         address[] calldata redeemHooks
     ) external;
 
-    /// @notice Remove a yield source (must have 0 allocation)
-    /// @param yieldSource Address of the yield source to remove
+    /**
+     * @notice Removes a yield source from the vault
+     * @dev Can only remove yield sources with 0 allocation
+     * @param yieldSource Address of the yield source to remove
+     */
     function removeYieldSource(address yieldSource) external;
 
-    /// @notice Set target proportions for yield sources
-    /// @param proportions Array of allocation percentages in basis points (must sum to 10000)
+    /**
+     * @notice Updates the hook pathways for a yield source
+     * @param yieldSource Address of the yield source to update
+     * @param depositHooks New sequence of hooks for deposits
+     * @param redeemHooks New sequence of hooks for redemptions
+     */
+    function updateYieldSourcePathway(
+        address yieldSource,
+        address[] calldata depositHooks,
+        address[] calldata redeemHooks
+    ) external;
+
+    /**
+     * @notice Set target proportions for yield sources and rebalance
+     * @dev Proportions are in basis points (100% = 10000)
+     * @param proportions Array of allocation percentages in basis points
+     */
     function setTargetProportions(uint256[] calldata proportions) external;
 
-    /// @notice Execute a sequence of hooks for a yield source
-    /// @param yieldSource Address of the yield source
-    /// @param hooks Array of hook addresses to execute
-    /// @param hookData Array of encoded data for each hook
-    /// @return success Whether the execution was successful
+    /**
+     * @notice Execute a sequence of hooks for a yield source
+     * @param yieldSource Address of the yield source
+     * @param hooks Array of hook addresses to execute
+     * @param hookData Array of encoded data for each hook
+     * @return success Whether the execution was successful
+     */
     function executeHookPathway(
         address yieldSource,
         address[] memory hooks,
@@ -152,18 +200,37 @@ interface ISuperVault is IERC4626 {
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Get configuration for a yield source
-    /// @param yieldSource Address of the yield source
-    /// @return The yield source configuration
+    /**
+     * @notice Get configuration for a yield source
+     * @param yieldSource Address of the yield source
+     * @return The yield source configuration
+     */
     function getYieldSourceConfig(address yieldSource) external view returns (YieldSourceConfig memory);
 
-    /// @notice Get list of active yield sources
-    /// @return active Array of active yield source addresses
+    /**
+     * @notice Get list of active yield sources
+     * @return active Array of active yield source addresses
+     */
     function getActiveYieldSources() external view returns (address[] memory active);
 
-    /// @notice Get hooks for a yield source
-    /// @param yieldSource Address of the yield source
-    /// @param isDeposit Whether to get deposit or redeem hooks
-    /// @return Array of hook addresses
+    /**
+     * @notice Get hooks for a yield source based on operation type
+     * @param yieldSource Address of the yield source
+     * @param isDeposit Whether to return deposit hooks (true) or redeem hooks (false)
+     * @return Array of hook addresses
+     */
     function getYieldSourceHooks(address yieldSource, bool isDeposit) external view returns (address[] memory);
+
+    /**
+     * @notice Returns the maximum amount of assets that can be deposited
+     * @param receiver Address receiving the deposit shares
+     * @return Maximum deposit amount based on vault cap
+     */
+    function maxDeposit(address receiver) external view returns (uint256);
+
+    /**
+     * @notice Returns the total assets managed by the vault across all yield sources
+     * @return Total assets in underlying token
+     */
+    function totalAssets() external view returns (uint256);
 } 

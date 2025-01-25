@@ -23,6 +23,7 @@ import { ISuperHook } from "../interfaces/ISuperHook.sol";
  *      2. Automated accounting via SuperLedger integration
  *      3. Flexible allocation strategies with safety bounds
  *      4. Whitelisted hooks for security
+ * @dev TODO: override preview functions, ensure conformance
  */
 contract SuperVault is 
     ISuperVault,
@@ -36,30 +37,23 @@ contract SuperVault is
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Address authorized to manage yield sources and allocation strategies
     address public strategist;
 
-    /// @notice Immutable configuration parameters set at deployment
     VaultConfig public immutable vaultConfig;
 
-    /// @notice List of yield sources currently integrated with the vault
     address[] public activeYieldSources;
     
-    /// @notice Mapping of yield source to its configuration
     mapping(address => YieldSourceConfig) public yieldSourceConfigs;
 
-    /// @notice Registry for standardizing hook data encoding across different vault types
     IHookDataEncoderRegistry public immutable encoderRegistry;
 
-    /// @notice Central registry for contract addresses and configurations
     ISuperRegistry public immutable superRegistry;
 
     /*//////////////////////////////////////////////////////////////
                               MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Ensures only the strategist can call protected functions
+    /// @inheritdoc ISuperVault
     modifier onlyStrategist() override(VaultHookWhitelist, VaultEncoderRegistry) {
         if (msg.sender != strategist) revert ONLY_STRATEGIST();
         _;
@@ -107,27 +101,15 @@ contract SuperVault is
                         EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @notice Transfers strategist role to a new address
-     * @dev Emits StrategistTransferred event on successful transfer
-     * @param newStrategist Address of the new strategist
-     */
-    function transferStrategist(address newStrategist) external onlyStrategist {
+    /// @inheritdoc ISuperVault
+    function transferStrategist(address newStrategist) external override onlyStrategist {
         if (newStrategist == address(0)) revert INVALID_STRATEGIST();
         address oldStrategist = strategist;
         strategist = newStrategist;
         emit StrategistTransferred(oldStrategist, newStrategist);
     }
 
-    /**
-     * @notice Adds a new yield source to the vault
-     * @dev Performs validation checks and sets up hook pathways
-     * @param yieldSource Address of the yield source to add
-     * @param oracle Price oracle for the yield source
-     * @param vaultType Type identifier for the yield source
-     * @param depositHooks Sequence of hooks for deposits
-     * @param redeemHooks Sequence of hooks for redemptions
-     */
+    /// @inheritdoc ISuperVault
     function addYieldSource(
         address yieldSource,
         address oracle,
@@ -160,6 +142,7 @@ contract SuperVault is
         emit YieldSourceAdded(yieldSource, oracle, vaultType, depositHooks, redeemHooks);
     }
 
+    /// @inheritdoc ISuperVault
     function removeYieldSource(address yieldSource) external override onlyStrategist {
         YieldSourceConfig storage config = yieldSourceConfigs[yieldSource];
         if (!config.isActive) revert INVALID_YIELD_SOURCE();
@@ -179,6 +162,7 @@ contract SuperVault is
         emit YieldSourceRemoved(yieldSource);
     }
 
+    /// @inheritdoc ISuperVault
     function updateYieldSourcePathway(
         address yieldSource,
         address[] calldata depositHooks,
@@ -195,6 +179,7 @@ contract SuperVault is
         emit HooksUpdated(yieldSource, depositHooks, redeemHooks);
     }
 
+    /// @inheritdoc ISuperVault
     function executeHookPathway(
         address yieldSource,
         address[] memory hooks,
@@ -235,7 +220,9 @@ contract SuperVault is
         return true;
     }
 
+    /// @inheritdoc ISuperVault
     function setTargetProportions(uint256[] calldata proportions) external override onlyStrategist {
+        
         if (proportions.length != activeYieldSources.length) revert INVALID_ALLOCATION();
         
         uint256 total;
@@ -245,27 +232,76 @@ contract SuperVault is
             unchecked { ++i; }
         }
         if (total != 10000) revert INVALID_ALLOCATION();
-        
+
+        // First calculate current total assets and store new proportions
+        uint256 totalAssets_ = totalAssets();
         for (uint256 i = 0; i < proportions.length;) {
+            YieldSourceConfig storage config = yieldSourceConfigs[activeYieldSources[i]];
+            if (config.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+            
+            config.allocation = proportions[i];
+            unchecked { ++i; }
+        }
+
+        // Then rebalance each yield source to match new proportions
+        for (uint256 i = 0; i < activeYieldSources.length;) {
             address yieldSource = activeYieldSources[i];
             YieldSourceConfig storage config = yieldSourceConfigs[yieldSource];
-            if (config.isActive) {
-                config.allocation = proportions[i];
+
+            // Calculate target assets for this yield source
+            uint256 targetAssets = (totalAssets_ * config.allocation) / 10000;
+            
+            // Get current assets in this yield source
+            uint256 currentAssets = YieldSourceOracleLibrary.getTVL(config.oracle, yieldSource);
+            
+            if (currentAssets > targetAssets) {
+                // Need to withdraw excess
+                uint256 withdrawAmount = currentAssets - targetAssets;
+                if (withdrawAmount > 0) {
+                    // Get withdraw hooks for this yield source
+                    address[] memory hooks = config.redeemHooks;
+                    bytes[] memory hookData = getHookData(
+                        yieldSource,
+                        address(this), // receiver
+                        address(this), // owner
+                        withdrawAmount,
+                        false // isDeposit
+                    );
+                    executeHookPathway(yieldSource, hooks, hookData);
+                }
+            } else if (currentAssets < targetAssets) {
+                // Need to deposit more
+                uint256 depositAmount = targetAssets - currentAssets;
+                if (depositAmount > 0) {
+                    // Get deposit hooks for this yield source
+                    address[] memory hooks = config.depositHooks;
+                    bytes[] memory hookData = getHookData(
+                        yieldSource,
+                        address(this), // receiver
+                        address(this), // owner
+                        depositAmount,
+                        true // isDeposit
+                    );
+                    executeHookPathway(yieldSource, hooks, hookData);
+                }
             }
             unchecked { ++i; }
         }
-        
+
         emit TargetProportionsSet(proportions);
     }
 
+    /// @inheritdoc ISuperVault
     function getVaultConfig() external view override returns (VaultConfig memory) {
         return vaultConfig;
     }
 
+    /// @inheritdoc ISuperVault
     function getYieldSourceConfig(address yieldSource) external view override returns (YieldSourceConfig memory) {
         return yieldSourceConfigs[yieldSource];
     }
 
+    /// @inheritdoc ISuperVault
     function getActiveYieldSources() external view override returns (address[] memory active) {
         uint256 count;
         for (uint256 i = 0; i < activeYieldSources.length;) {
@@ -286,17 +322,19 @@ contract SuperVault is
         }
     }
 
+    /// @inheritdoc ISuperVault
     function getYieldSourceHooks(address yieldSource, bool isDeposit) external view override returns (address[] memory) {
         YieldSourceConfig storage config = yieldSourceConfigs[yieldSource];
         return isDeposit ? config.depositHooks : config.redeemHooks;
     }
 
+    /// @inheritdoc ISuperVault
     function maxDeposit(address receiver) public view override(IERC4626, ERC4626) returns (uint256) {
-        // Only limit based on the total SuperVault cap
         return vaultConfig.superVaultCap - totalAssets();
     }
 
-    function totalAssets() public view virtual override returns (uint256) {
+    /// @inheritdoc ISuperVault
+    function totalAssets() public view virtual override(IERC4626, ERC4626) returns (uint256) {
         uint256 total;
         for (uint256 i = 0; i < activeYieldSources.length;) {
             address yieldSource = activeYieldSources[i];
