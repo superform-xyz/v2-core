@@ -5,9 +5,15 @@ pragma solidity >=0.8.28;
 /// @author Superform Labs
 /// @notice Interface for Yield Source Oracles
 interface IYieldSourceOracle {
+    
     /*//////////////////////////////////////////////////////////////
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Derives the TVL in a yield source
+    /// @param yieldSourceAddress The yield source to derive TVL for
+    function getTVL(address yieldSourceAddress) external view returns (uint256 tvl);
+
 
     /// @notice Derives the price of an action
     /// @param yieldSourceAddress The yield source to derive the price for

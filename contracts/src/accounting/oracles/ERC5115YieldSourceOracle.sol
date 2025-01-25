@@ -17,6 +17,13 @@ contract ERC5115YieldSourceOracle {
                            VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
+    /// @inheritdoc IYieldSourceOracle
+    /// @param asset The address of the asset
+    /// @param yieldSourceAddress The address of the yield source
+    function getTVL(address asset, address yieldSourceAddress) public view returns (uint256 tvl) {
+        tvl = ERC5115YieldSourceOracleLibrary.getTVL(asset,yieldSourceAddress);
+    }
+
     /// @notice Get the price per share for a deposit into a yield source
     /// @param asset The address of the asset
     /// @param yieldSourceAddress The address of the yield source

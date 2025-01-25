@@ -19,6 +19,11 @@ contract ERC4626YieldSourceOracle is IYieldSourceOracle {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IYieldSourceOracle
+    function getTVL(address yieldSourceAddress) public view returns (uint256 tvl) {
+        tvl = ERC4626YieldSourceOracleLibrary.getTVL(yieldSourceAddress);
+    }
+
+    /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view returns (uint256 price) {
         price = ERC4626YieldSourceOracleLibrary.getPricePerShare(yieldSourceAddress);
     }
