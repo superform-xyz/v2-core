@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
-import { IHookWhitelist } from "../interfaces/IHookWhitelist.sol";
+import { IVaultHookWhitelist } from "../interfaces/IVaultHookWhitelist.sol";
 
-abstract contract HookWhitelist is IHookWhitelist, AccessControl {
+/**
+ * @title VaultHookWhitelist
+ * @notice Manages hook whitelisting and arbitrary calls for a specific vault
+ * @dev Controlled by the vault's strategist with timelock protection
+ */
+abstract contract VaultHookWhitelist is IVaultHookWhitelist {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Role for managing whitelisted hooks
-    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
 
     /// @notice Timelock duration for whitelisting hooks and arbitrary calls
     uint256 public immutable TIMELOCK_DURATION;
@@ -33,11 +34,11 @@ abstract contract HookWhitelist is IHookWhitelist, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            EXTERNAL FUNCTIONS
+                        HOOK WHITELISTING
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IHookWhitelist
-    function proposeHook(address hook) external onlyRole(MANAGER_ROLE) {
+    /// @inheritdoc IVaultHookWhitelist
+    function proposeHook(address hook) external onlyStrategist {
         if (whitelistedHooks[hook]) revert HOOK_ALREADY_WHITELISTED();
         if (hook == address(0)) revert INVALID_HOOK();
 
@@ -50,8 +51,8 @@ abstract contract HookWhitelist is IHookWhitelist, AccessControl {
         emit HookProposed(hook, block.timestamp);
     }
 
-    /// @inheritdoc IHookWhitelist
-    function executeHook(address hook) external onlyRole(MANAGER_ROLE) {
+    /// @inheritdoc IVaultHookWhitelist
+    function executeHook(address hook) external onlyStrategist {
         HookProposal storage proposal = hookProposals[hook];
         if (proposal.hook == address(0)) revert INVALID_HOOK();
         if (proposal.executed) revert HOOK_ALREADY_WHITELISTED();
@@ -63,8 +64,8 @@ abstract contract HookWhitelist is IHookWhitelist, AccessControl {
         emit HookWhitelisted(hook);
     }
 
-    /// @inheritdoc IHookWhitelist
-    function revokeHook(address hook) external onlyRole(MANAGER_ROLE) {
+    /// @inheritdoc IVaultHookWhitelist
+    function revokeHook(address hook) external onlyStrategist {
         if (!whitelistedHooks[hook]) revert HOOK_NOT_WHITELISTED();
 
         whitelistedHooks[hook] = false;
@@ -73,8 +74,12 @@ abstract contract HookWhitelist is IHookWhitelist, AccessControl {
         emit HookRevoked(hook);
     }
 
-    /// @inheritdoc IHookWhitelist
-    function proposeArbitraryCall(address target, bytes calldata data) external onlyRole(MANAGER_ROLE) {
+    /*//////////////////////////////////////////////////////////////
+                        ARBITRARY CALLS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IVaultHookWhitelist
+    function proposeArbitraryCall(address target, bytes calldata data) external onlyStrategist {
         if (target == address(0)) revert INVALID_CALL();
         if (data.length < 4) revert INVALID_CALL();
 
@@ -93,14 +98,14 @@ abstract contract HookWhitelist is IHookWhitelist, AccessControl {
         emit ArbitraryCallProposed(target, selector, data, block.timestamp);
     }
 
-    /// @inheritdoc IHookWhitelist
-    function executeArbitraryCall(address target, bytes calldata data) external onlyRole(MANAGER_ROLE) {
+    /// @inheritdoc IVaultHookWhitelist
+    function executeArbitraryCall(address target, bytes calldata data) external onlyStrategist {
         if (data.length < 4) revert INVALID_CALL();
         bytes4 selector = bytes4(data[:4]);
 
         ArbitraryCall storage proposal = arbitraryCallProposals[target][selector];
         if (proposal.proposalTime == 0) revert CALL_NOT_PROPOSED();
-        if (proposal.executed) revert CALL_ALREADY_PROPOSED();
+        if (proposal.executed) revert CALL_ALREADY_EXECUTED();
         if (block.timestamp < proposal.proposalTime + TIMELOCK_DURATION) revert TIMELOCK_NOT_EXPIRED();
         if (keccak256(proposal.data) != keccak256(data)) revert INVALID_CALL();
 
@@ -112,28 +117,24 @@ abstract contract HookWhitelist is IHookWhitelist, AccessControl {
         emit ArbitraryCallExecuted(target, selector);
     }
 
-    /// @inheritdoc IHookWhitelist
+    /*//////////////////////////////////////////////////////////////
+                            VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IVaultHookWhitelist
     function isHookWhitelisted(address hook) external view returns (bool) {
         return whitelistedHooks[hook];
     }
 
-    /// @inheritdoc IHookWhitelist
+    /// @inheritdoc IVaultHookWhitelist
     function getHookProposal(address hook) external view returns (HookProposal memory) {
         return hookProposals[hook];
     }
 
-    /// @inheritdoc IHookWhitelist
-    function getArbitraryCallProposal(address target, bytes4 selector) external view returns (ArbitraryCall memory) {
-        return arbitraryCallProposals[target][selector];
-    }
-
     /*//////////////////////////////////////////////////////////////
-                            INTERNAL FUNCTIONS
+                            MODIFIERS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Modifier to check if a hook is whitelisted
-    modifier onlyWhitelistedHook(address hook) {
-        if (!whitelistedHooks[hook]) revert HOOK_NOT_WHITELISTED();
-        _;
-    }
+    /// @notice Only allow the strategist to call this function
+    modifier onlyStrategist() virtual;
 } 

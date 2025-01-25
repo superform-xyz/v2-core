@@ -2,6 +2,8 @@
 pragma solidity =0.8.28;
 
 import { IERC4626 } from "@openzeppelin/contracts/token/ERC4626/extensions/IERC4626.sol";
+import { IVaultHookWhitelist } from "./IVaultHookWhitelist.sol";
+import { IVaultEncoderRegistry } from "./IVaultEncoderRegistry.sol";
 
 /**
  * @title ISuperVault
@@ -12,7 +14,7 @@ import { IERC4626 } from "@openzeppelin/contracts/token/ERC4626/extensions/IERC4
  *      3. Setting allocation proportions across yield sources
  *      4. Maintaining vault-wide configuration and limits
  */
-interface ISuperVault is IERC4626 {
+interface ISuperVault is IERC4626, IVaultHookWhitelist, IVaultEncoderRegistry {
     /*//////////////////////////////////////////////////////////////
                           DATA TYPES
     //////////////////////////////////////////////////////////////*/
@@ -89,20 +91,14 @@ interface ISuperVault is IERC4626 {
     /// @notice Cannot transfer strategist to zero address
     error INVALID_STRATEGIST();
 
+    /// @notice Invalid vault configuration parameters
+    error INVALID_CONFIG();
+
     /// @notice Invalid yield source address
     error INVALID_YIELD_SOURCE();
 
-    /// @notice Invalid oracle address
-    error INVALID_ORACLE();
-
-    /// @notice Invalid vault type
-    error INVALID_TYPE();
-
-    /// @notice Yield source already exists
-    error YIELD_SOURCE_ALREADY_ADDED();
-
-    /// @notice Yield source not found
-    error YIELD_SOURCE_NOT_FOUND();
+    /// @notice Invalid allocation parameters
+    error INVALID_ALLOCATION();
 
     /// @notice Invalid hooks configuration
     error INVALID_HOOKS();
@@ -110,52 +106,27 @@ interface ISuperVault is IERC4626 {
     /// @notice Duplicate hooks in pathway
     error DUPLICATE_HOOKS();
 
-    /// @notice Hook not whitelisted
-    error HOOK_NOT_WHITELISTED();
-
-    /// @notice Invalid proportions
-    error INVALID_PROPORTIONS();
-
-    /// @notice Encoder not found
-    error ENCODER_NOT_FOUND();
-
-    /// @notice Invalid configuration parameters
-    error INVALID_CONFIG();
-
-    /// @notice Hook execution failed
+    /// @notice Execution failed
     error EXECUTION_FAILED();
 
-    /// @notice Invalid allocation
-    error INVALID_ALLOCATION();
-
     /*//////////////////////////////////////////////////////////////
-                          EXTERNAL FUNCTIONS
+                        EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Transfer strategist role to a new address
     /// @param newStrategist Address of the new strategist
     function transferStrategist(address newStrategist) external;
 
-    /// @notice Add a new yield source
-    /// @param yieldSource Address of the yield source
-    /// @param oracle Address of the price oracle
-    /// @param vaultType Type of the vault
-    /// @param depositHooks Ordered list of hooks for deposits (last must be SuperLedgerHook)
-    /// @param redeemHooks Ordered list of hooks for redemptions (last must be SuperLedgerHook)
+    /// @notice Add a new yield source with its configuration
+    /// @param yieldSource Address of the yield source to add
+    /// @param oracle Address of the price oracle for this yield source
+    /// @param vaultType Type identifier of the vault
+    /// @param depositHooks Array of hook addresses for deposits
+    /// @param redeemHooks Array of hook addresses for redemptions
     function addYieldSource(
         address yieldSource,
         address oracle,
         string calldata vaultType,
-        address[] calldata depositHooks,
-        address[] calldata redeemHooks
-    ) external;
-
-    /// @notice Update hooks for a yield source
-    /// @param yieldSource Address of the yield source
-    /// @param depositHooks New ordered list of hooks for deposits (last must be SuperLedgerHook)
-    /// @param redeemHooks New ordered list of hooks for redemptions (last must be SuperLedgerHook)
-    function updateYieldSourcePathway(
-        address yieldSource,
         address[] calldata depositHooks,
         address[] calldata redeemHooks
     ) external;
@@ -183,18 +154,18 @@ interface ISuperVault is IERC4626 {
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Get the current vault configuration
-    function getVaultConfig() external view returns (VaultConfig memory);
-
-    /// @notice Get yield source configuration
+    /// @notice Get configuration for a yield source
+    /// @param yieldSource Address of the yield source
+    /// @return The yield source configuration
     function getYieldSourceConfig(address yieldSource) external view returns (YieldSourceConfig memory);
 
-    /// @notice Get active yield sources
-    function getActiveYieldSources() external view returns (address[] memory);
+    /// @notice Get list of active yield sources
+    /// @return active Array of active yield source addresses
+    function getActiveYieldSources() external view returns (address[] memory active);
 
     /// @notice Get hooks for a yield source
-    /// @param yieldSource The yield source address
-    /// @param isDeposit If true, returns deposit hooks, otherwise returns redeem hooks
-    /// @return The array of hook addresses
+    /// @param yieldSource Address of the yield source
+    /// @param isDeposit Whether to get deposit or redeem hooks
+    /// @return Array of hook addresses
     function getYieldSourceHooks(address yieldSource, bool isDeposit) external view returns (address[] memory);
 } 

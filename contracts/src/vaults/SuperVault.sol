@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity =0.8.28;
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ERC4626 } from "@openzeppelin/contracts/token/ERC4626/extensions/ERC4626.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ISuperVault } from "../interfaces/ISuperVault.sol";
-import { ISuperHook } from "../interfaces/ISuperHook.sol";
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
-import { IHookDataEncoderRegistry } from "../interfaces/IHookDataEncoderRegistry.sol";
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-import { HookWhitelist } from "../utils/HookWhitelist.sol";
+import { VaultHookWhitelist } from "./VaultHookWhitelist.sol";
+import { VaultEncoderRegistry } from "./VaultEncoderRegistry.sol";
 import { YieldSourceOracleLibrary } from "../libraries/YieldSourceOracleLibrary.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC4626 } from "@openzeppelin/contracts/token/ERC4626/extensions/ERC4626.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ISuperHook } from "../interfaces/ISuperHook.sol";
 
 /**
  * @title SuperVault
@@ -25,7 +24,13 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      3. Flexible allocation strategies with safety bounds
  *      4. Whitelisted hooks for security
  */
-contract SuperVault is ISuperVault, ERC4626, SuperRegistryImplementer, HookWhitelist {
+contract SuperVault is 
+    ISuperVault, 
+    ERC4626, 
+    SuperRegistryImplementer,
+    VaultHookWhitelist,
+    VaultEncoderRegistry
+{
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -55,7 +60,7 @@ contract SuperVault is ISuperVault, ERC4626, SuperRegistryImplementer, HookWhite
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Ensures only the strategist can call protected functions
-    modifier onlyStrategist() {
+    modifier onlyStrategist() override(VaultHookWhitelist, VaultEncoderRegistry) {
         if (msg.sender != strategist) revert ONLY_STRATEGIST();
         _;
     }
@@ -81,7 +86,7 @@ contract SuperVault is ISuperVault, ERC4626, SuperRegistryImplementer, HookWhite
         ISuperRegistry superRegistry_,
         VaultConfig memory vaultConfig_,
         uint256 timelockDuration_
-    ) ERC4626(asset_) ERC20(name_, symbol_) SuperRegistryImplementer(superRegistry_) HookWhitelist(timelockDuration_) {
+    ) ERC4626(asset_) ERC20(name_, symbol_) SuperRegistryImplementer(superRegistry_) VaultHookWhitelist(timelockDuration_) VaultEncoderRegistry() {
         if (
             vaultConfig_.vaultThreshold == 0 || 
             vaultConfig_.maxAllocationRate > 10000 ||
