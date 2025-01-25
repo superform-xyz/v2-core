@@ -26,6 +26,7 @@ remappings = [
   "@solady/=lib/solady/",
   "@layerzerolabs/oapp-evm/=lib/devtools/packages/oapp-evm/",
   "@layerzerolabs/lz-evm-protocol-v2/=lib/layerzero-v2/packages/layerzero-v2/evm/protocol",
+  "@pigeon/=lib/pigeon/src/",
 ]
 
 [profile.ci]
@@ -46,5 +47,6 @@ wrap_comments = true
 path = "test/mocks/TransientStorageExecutor.sol"
 
 [etherscan]
-#                   Paste TENDERLY_ACCESS_TOKEN            Chain ID         Verifier URL: RPC_URL/verify/etherscan
-unknown_chain = { key = "${TENDERLY_ACCESS_KEY}", chain = 1, url = "${V2_TEST_VNET}/verify/etherscan" }
+ethereum = { key = "${TENDERLY_ACCESS_KEY}", chain = 101, url = "${ETH_MAINNET}/verify/etherscan" }
+base = { key = "${TENDERLY_ACCESS_KEY}", chain = 102, url = "${BASE_MAINNET}/verify/etherscan" }
+optimism = { key = "${TENDERLY_ACCESS_KEY}", chain = 103, url = "${OPTIMISM_MAINNET}/verify/etherscan" }

@@ -5,14 +5,15 @@ pragma solidity >=0.8.28;
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+import { BytesLib } from "../libraries/BytesLib.sol";
+
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperHook } from "../interfaces/ISuperHook.sol";
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
-
-import { console2 } from "forge-std/console2.sol";
+import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
@@ -79,7 +80,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         for (uint256 i; i < hooksLen;) {
             // fill prevHook
             address prevHook = (i != 0) ? entry.hooksAddresses[i - 1] : address(0);
-            console2.log("prevHook", prevHook);
             // execute current hook
             _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
 
@@ -95,7 +95,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         hook.preExecute(prevHook, hookData);
 
         Execution[] memory executions = hook.build(prevHook, hookData);
-
         // run hook execute
         if (executions.length > 0) {
             _execute(account, executions);
@@ -103,5 +102,20 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
         // run hook postExecute
         hook.postExecute(prevHook, hookData);
+
+        ISuperHook.HookType _type = ISuperHookResult(address(hook)).hookType();
+        if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
+            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
+            bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
+            address yieldSource = BytesLib.toAddress(BytesLib.slice(hookData, 52, 20), 0);
+
+            ledger.updateAccounting(
+                account,
+                yieldSource,
+                yieldSourceOracleId,
+                _type == ISuperHook.HookType.INFLOW,
+                ISuperHookResult(address(hook)).outAmount()
+            );
+        }
     }
 }

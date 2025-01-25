@@ -9,10 +9,11 @@ interface IYieldSourceOracle {
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
+
     /// @notice Derives the TVL in a yield source
     /// @param yieldSourceAddress The yield source to derive TVL for
     function getTVL(address yieldSourceAddress) external view returns (uint256 tvl);
-
+    
     /// @notice Derives the price of an action
     /// @param yieldSourceAddress The yield source to derive the price for
     /// @return price The price of the action
@@ -34,6 +35,15 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddress The vault to get the metadata for
     /// @return metadata The metadata of the strategy
     function getYieldSourceMetadata(address yieldSourceAddress) external view returns (bytes memory metadata);
+
+    /// @notice Gets the metadata of a strategy
+    /// @param yieldSourceAddresses The vaults to get the metadata for
+    /// @param yieldSourceOracleIds The ids of the strategies
+    /// @return metadata The array of metadata of the strategies
+    function getYieldSourceMetadata(
+        address[] memory yieldSourceAddresses, 
+        bytes32[] memory yieldSourceOracleIds
+    ) external view returns (bytes[] memory metadata);
 
     /// @notice Gets the metadata of multiple strategies
     /// @param yieldSourceAddresses The vaults to get the metadata for

@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { Helpers } from "./utils/Helpers.sol";
+import { VmSafe } from "forge-std/Vm.sol";
 
 // Superform interfaces
 import { ISuperRbac } from "../src/interfaces/ISuperRbac.sol";
@@ -12,6 +13,7 @@ import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
 
 // Superform contracts
 import { SuperRbac } from "../src/settings/SuperRbac.sol";
+<<<<<<< HEAD
 import { SharedState } from "../src/state/SharedState.sol";
 import { SpokePoolV3Mock } from "./mocks/SpokePoolV3Mock.sol";
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
@@ -22,6 +24,18 @@ import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.so
 
 // hooks
 import { SuperLedgerHook } from "../src/hooks/accounting/SuperLedgerHook.sol";
+=======
+import { SuperLedger } from "../src/accounting/SuperLedger.sol";
+import { SuperRegistry } from "../src/settings/SuperRegistry.sol";
+import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
+import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
+import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
+import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
+import { IAcrossV3Receiver } from "../src/bridges/interfaces/IAcrossV3Receiver.sol";
+import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
+
+// hooks
+>>>>>>> dev
 
 // tokens hooks
 // --- erc20
@@ -38,13 +52,16 @@ import { Withdraw4626VaultHook } from "../src/hooks/vaults/4626/Withdraw4626Vaul
 import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 // bridges hooks
-import { AcrossExecuteOnDestinationHook } from "../src/hooks/bridges/across/AcrossExecuteOnDestinationHook.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { DeBridgeSendFundsAndExecuteOnDstHook } from
+    "../src/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
 // external
+<<<<<<< HEAD
 import { console } from "forge-std/console.sol";
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
@@ -55,13 +72,33 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 struct Addresses {
     ISuperRbac superRbac;
     SharedState sharedState;
+=======
+import {
+    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
+} from "modulekit/ModuleKit.sol";
+
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+
+import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
+import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
+
+struct Addresses {
+    ISuperRbac superRbac;
+>>>>>>> dev
     ISuperLedger superLedger;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
+<<<<<<< HEAD
     SpokePoolV3Mock spokePoolV3Mock;
     AcrossBridgeGateway acrossBridgeGateway;
     SuperLedgerHook superLedgerHook;
+=======
+    AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
+    DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
+>>>>>>> dev
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
@@ -70,9 +107,17 @@ struct Addresses {
     Withdraw5115VaultHook withdraw5115VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
+<<<<<<< HEAD
     AcrossExecuteOnDestinationHook acrossExecuteOnDestinationHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
+=======
+    AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
+    DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
+    ERC4626YieldSourceOracle erc4626YieldSourceOracle;
+    ERC5115YieldSourceOracle erc5115YieldSourceOracle;
+    SuperMerkleValidator superMerkleValidator;
+>>>>>>> dev
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -86,6 +131,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     uint64 public constant ETH = 1;
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
+<<<<<<< HEAD
 
     uint64[] public chainIds = [ETH, OP, BASE];
 
@@ -105,6 +151,45 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             => mapping(string vaultKind => mapping(string vaultName => mapping(string underlying => address realVault)))
     ) public realVaultAddresses;
 
+=======
+
+    address constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+
+    uint64[] public chainIds = [ETH, OP, BASE];
+
+    string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
+
+    string[] public underlyingTokens = ["DAI", "USDC", "WETH"];
+
+    address[] public spokePoolV3Addresses = [
+        0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
+        0x6f26Bf09B1C792e3228e5467807a900A503c0281,
+        0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64
+    ];
+    address[] public deBridgeGateAddresses = [
+        0x43dE2d77BF8027e25dBD179B491e8d64f38398aA,
+        0x43dE2d77BF8027e25dBD179B491e8d64f38398aA,
+        0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF
+    ];
+    address[] public deBridgeGateAdminAddresses = [
+        0x6bec1faF33183e1Bc316984202eCc09d46AC92D5,
+        0xA52842cD43fA8c4B6660E443194769531d45b265,
+        0xF0A9d50F912D64D1105b276526e21881bF48A29e
+    ];
+    mapping(uint64 chainId => address) public SPOKE_POOL_V3_ADDRESSES;
+    mapping(uint64 chainId => address) public DEBRIDGE_GATE_ADDRESSES;
+    mapping(uint64 chainId => address) public DEBRIDGE_ADMIN_ADDRESSES;
+
+    /// @dev mappings
+
+    mapping(uint64 chainId => mapping(string underlying => address realAddress)) public existingUnderlyingTokens;
+
+    mapping(
+        uint64 chainId
+            => mapping(string vaultKind => mapping(string vaultName => mapping(string underlying => address realVault)))
+    ) public realVaultAddresses;
+
+>>>>>>> dev
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
     mapping(uint64 chainId => mapping(string hookName => address hook)) public hookAddresses;
@@ -116,9 +201,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     mapping(uint64 chainId => string forkUrl) public RPC_URLS;
 
+<<<<<<< HEAD
     string public ETHEREUM_RPC_URL_QN = vm.envString("ETHEREUM_RPC_URL_QN"); // Native token: ETH
     string public OPTIMISM_RPC_URL_QN = vm.envString("OPTIMISM_RPC_URL_QN"); // Native token: ETH
     string public BASE_RPC_URL_QN = vm.envString("BASE_RPC_URL_QN"); // Native token: ETH
+=======
+    string public ETHEREUM_RPC_URL = vm.envString("ETHEREUM_RPC_URL"); // Native token: ETH
+    string public OPTIMISM_RPC_URL = vm.envString("OPTIMISM_RPC_URL"); // Native token: ETH
+    string public BASE_RPC_URL = vm.envString("BASE_RPC_URL"); // Native token: ETH
+>>>>>>> dev
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -127,6 +218,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function setUp() public virtual {
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
+<<<<<<< HEAD
 
         // Setup forks
         _preDeploymentSetup();
@@ -140,6 +232,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
 
+=======
+        ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
+        // Setup forks
+        _preDeploymentSetup();
+
+        // Deploy contracts
+        _deployContracts();
+
+        // Initialize accounts
+        _initializeAccounts();
+
+        // Register on SuperRegistry
+        _setSuperRegistryAddresses();
+
+>>>>>>> dev
         // Set roles
         _setRoles();
 
@@ -147,7 +254,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _setupSuperLedger();
 
         // Fund underlying tokens
+<<<<<<< HEAD
         _fundUnderlyingTokens(10_000);
+=======
+        _fundUSDCTokens(10_000);
+>>>>>>> dev
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -165,16 +276,33 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _deployContracts() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
+<<<<<<< HEAD
+=======
+
+            address acrossV3Helper = address(new AcrossV3Helper());
+            vm.allowCheatcodes(acrossV3Helper);
+            vm.makePersistent(acrossV3Helper);
+            contractAddresses[chainIds[i]]["AcrossV3Helper"] = acrossV3Helper;
+
+            address debridgeHelper = address(new DebridgeHelper());
+            vm.allowCheatcodes(debridgeHelper);
+            vm.makePersistent(debridgeHelper);
+            contractAddresses[chainIds[i]]["DebridgeHelper"] = debridgeHelper;
+
+>>>>>>> dev
             Addresses memory A;
             /// @dev main contracts
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
             vm.label(address(A.superRegistry), "superRegistry");
             contractAddresses[chainIds[i]]["SuperRegistry"] = address(A.superRegistry);
 
+<<<<<<< HEAD
             A.sharedState = new SharedState();
             vm.label(address(A.sharedState), "sharedState");
             contractAddresses[chainIds[i]]["SharedState"] = address(A.sharedState);
 
+=======
+>>>>>>> dev
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
             vm.label(address(A.superRbac), "superRbac");
             contractAddresses[chainIds[i]]["SuperRbac"] = address(A.superRbac);
@@ -195,6 +323,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
 
+<<<<<<< HEAD
             A.spokePoolV3Mock = new SpokePoolV3Mock();
             vm.label(address(A.spokePoolV3Mock), "spokePoolV3Mock");
             contractAddresses[chainIds[i]]["SpokePoolV3Mock"] = address(A.spokePoolV3Mock);
@@ -204,6 +333,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]]["AcrossBridgeGateway"] = address(A.acrossBridgeGateway);
 
             A.spokePoolV3Mock.setAcrossBridgeGateway(address(A.acrossBridgeGateway));
+=======
+            A.acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
+                address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
+            );
+            vm.label(address(A.acrossReceiveFundsAndExecuteGateway), "acrossReceiveFundsAndExecuteGateway");
+            contractAddresses[chainIds[i]]["AcrossReceiveFundsAndExecuteGateway"] =
+                address(A.acrossReceiveFundsAndExecuteGateway);
+
+            A.deBridgeReceiveFundsAndExecuteGateway = new DeBridgeReceiveFundsAndExecuteGateway(
+                address(A.superRegistry), DEBRIDGE_GATE_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
+            );
+            vm.label(address(A.deBridgeReceiveFundsAndExecuteGateway), "deBridgeReceiveFundsAndExecuteGateway");
+            contractAddresses[chainIds[i]]["DeBridgeReceiveFundsAndExecuteGateway"] =
+                address(A.deBridgeReceiveFundsAndExecuteGateway);
+
+            A.superMerkleValidator = new SuperMerkleValidator(address(A.superRegistry));
+            vm.label(address(A.superMerkleValidator), "superMerkleValidator");
+            contractAddresses[chainIds[i]]["SuperMerkleValidator"] = address(A.superMerkleValidator);
+>>>>>>> dev
 
             /// @dev action oracles
             A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
@@ -216,10 +364,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             /// @dev  hooks
 
+<<<<<<< HEAD
             A.superLedgerHook = new SuperLedgerHook(address(A.superRegistry), address(this));
             vm.label(address(A.superLedgerHook), "SuperLedgerHook");
             hookAddresses[chainIds[i]]["SuperLedgerHook"] = address(A.superLedgerHook);
 
+=======
+>>>>>>> dev
             A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
             vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
             hookAddresses[chainIds[i]]["ApproveERC20Hook"] = address(A.approveErc20Hook);
@@ -252,10 +403,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
             hookAddresses[chainIds[i]]["RequestWithdraw7540VaultHook"] = address(A.requestWithdraw7540VaultHook);
 
+<<<<<<< HEAD
             A.acrossExecuteOnDestinationHook =
                 new AcrossExecuteOnDestinationHook(address(A.superRegistry), address(this), address(A.spokePoolV3Mock));
             vm.label(address(A.acrossExecuteOnDestinationHook), "AcrossExecuteOnDestinationHook");
             hookAddresses[chainIds[i]]["AcrossExecuteOnDestinationHook"] = address(A.acrossExecuteOnDestinationHook);
+=======
+            A.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
+                address(A.superRegistry), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
+            );
+            vm.label(address(A.acrossSendFundsAndExecuteOnDstHook), "AcrossSendFundsAndExecuteOnDstHook");
+            hookAddresses[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] =
+                address(A.acrossSendFundsAndExecuteOnDstHook);
+
+            A.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
+                address(A.superRegistry), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
+            );
+            vm.label(address(A.deBridgeSendFundsAndExecuteOnDstHook), "DeBridgeSendFundsAndExecuteOnDstHook");
+            vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], "DEBRIDGE_GATE_ADDRESS");
+            hookAddresses[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] =
+                address(A.deBridgeSendFundsAndExecuteOnDstHook);
+>>>>>>> dev
         }
     }
 
@@ -277,6 +445,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
+<<<<<<< HEAD
         forks[ETH] = vm.createFork(ETHEREUM_RPC_URL_QN);
         forks[OP] = vm.createFork(OPTIMISM_RPC_URL_QN);
         forks[BASE] = vm.createFork(BASE_RPC_URL_QN);
@@ -292,6 +461,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             SUPER_ACTIONS_CONFIGURATOR = _deployAccount(SUPER_ACTIONS_CONFIGURATOR_KEY, "SUPER_ACTIONS_CONFIGURATOR");
         }
+=======
+        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL);
+        forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
+        forks[BASE] = vm.createFork(BASE_RPC_URL);
+
+        mapping(uint64 => string) storage rpcURLs = RPC_URLS;
+        rpcURLs[ETH] = ETHEREUM_RPC_URL;
+        rpcURLs[OP] = OPTIMISM_RPC_URL;
+        rpcURLs[BASE] = BASE_RPC_URL;
+
+        mapping(uint64 => address) storage spokePoolV3AddressesMap = SPOKE_POOL_V3_ADDRESSES;
+        spokePoolV3AddressesMap[ETH] = spokePoolV3Addresses[0];
+        vm.label(spokePoolV3AddressesMap[ETH], "SpokePoolV3ETH");
+        spokePoolV3AddressesMap[OP] = spokePoolV3Addresses[1];
+        vm.label(spokePoolV3AddressesMap[OP], "SpokePoolV3OP");
+        spokePoolV3AddressesMap[BASE] = spokePoolV3Addresses[2];
+        vm.label(spokePoolV3AddressesMap[BASE], "SpokePoolV3BASE");
+
+        mapping(uint64 => address) storage deBridgeGateAddressesMap = DEBRIDGE_GATE_ADDRESSES;
+        deBridgeGateAddressesMap[ETH] = deBridgeGateAddresses[0];
+        vm.label(deBridgeGateAddressesMap[ETH], "DeBridgeGateETH");
+        deBridgeGateAddressesMap[OP] = deBridgeGateAddresses[1];
+        vm.label(deBridgeGateAddressesMap[OP], "DeBridgeGateOP");
+        deBridgeGateAddressesMap[BASE] = deBridgeGateAddresses[2];
+        vm.label(deBridgeGateAddressesMap[BASE], "DeBridgeGateBASE");
+
+        mapping(uint64 => address) storage deBridgeGateAdminAddressesMap = DEBRIDGE_ADMIN_ADDRESSES;
+        deBridgeGateAdminAddressesMap[ETH] = deBridgeGateAdminAddresses[0];
+        vm.label(deBridgeGateAdminAddressesMap[ETH], "DeBridgeGateAdminETH");
+        deBridgeGateAdminAddressesMap[OP] = deBridgeGateAdminAddresses[1];
+        vm.label(deBridgeGateAdminAddressesMap[OP], "DeBridgeGateAdminOP");
+        deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
+        vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
+>>>>>>> dev
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -415,12 +618,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         //     0x5979D7b546E38E414F7E9822514be443A4800529;
     }
 
+<<<<<<< HEAD
     function _fundUnderlyingTokens(uint256 amount) internal {
         for (uint256 j = 0; j < underlyingTokens.length - 1; ++j) {
             for (uint256 i = 0; i < chainIds.length; ++i) {
                 vm.selectFork(FORKS[chainIds[i]]);
                 address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
                 deal(token, accountInstances[chainIds[i]].account, 1e18 * amount);
+=======
+    function _fundUSDCTokens(uint256 amount) internal {
+        for (uint256 j = 0; j < underlyingTokens.length - 1; ++j) {
+            for (uint256 i = 0; i < chainIds.length; ++i) {
+                vm.selectFork(FORKS[chainIds[i]]);
+                if (keccak256(abi.encodePacked(underlyingTokens[j])) == keccak256(abi.encodePacked("USDC"))) {
+                    address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
+                    deal(token, accountInstances[chainIds[i]].account, 1e18 * amount);
+                }
+>>>>>>> dev
             }
         }
     }
@@ -438,6 +652,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SUPER_RBAC_ID(), _getContract(chainIds[i], "SuperRbac")
             );
+<<<<<<< HEAD
 
             SpokePoolV3Mock spokePoolV3Mock = SpokePoolV3Mock(_getContract(chainIds[i], "SpokePoolV3Mock"));
             AcrossBridgeGateway acrossBridgeGateway =
@@ -447,10 +662,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             spokePoolV3Mock.setAcrossBridgeGateway(address(acrossBridgeGateway));
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.ACROSS_GATEWAY_ID(), _getContract(chainIds[i], "AcrossBridgeGateway")
+=======
+            SuperRegistry(address(superRegistry)).setAddress(
+                superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
+                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
+>>>>>>> dev
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], "SuperExecutor")
             );
+<<<<<<< HEAD
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SHARED_STATE_ID(), _getContract(chainIds[i], "SharedState")
             );
@@ -459,6 +680,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.SUPER_LEDGER_HOOK_ID(), _getHook(chainIds[i], "SuperLedgerHook")
             );
+=======
+            SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_BUNDLER_ID(), address(0x11111));
+>>>>>>> dev
         }
     }
 
@@ -474,6 +699,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.selectFork(FORKS[chainIds[i]]);
 
             vm.startPrank(MANAGER);
+<<<<<<< HEAD
             address[] memory mainHooks = new address[](2);
             mainHooks[0] = _getHook(chainIds[i], "Deposit4626VaultHook");
             mainHooks[1] = _getHook(chainIds[i], "Withdraw4626VaultHook");
@@ -482,6 +708,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             configs[0] = ISuperLedger.HookRegistrationConfig({
                 mainHooks: mainHooks,
                 yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
+=======
+
+            SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
+            ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
+            configs[0] = ISuperLedger.HookRegistrationConfig({
+                yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
+                yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
+>>>>>>> dev
                 feePercent: 100,
                 vaultShareToken: address(0), // this is auto set because its standardized yield
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
@@ -517,12 +751,204 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
+<<<<<<< HEAD
     function executeOp(UserOpData memory userOpData) public {
         userOpData.execUserOps();
+=======
+    function exec(
+        AccountInstance memory instance,
+        ISuperExecutor superExecutor,
+        bytes memory data
+    )
+        internal
+        returns (UserOpData memory)
+    {
+        return instance.exec(address(superExecutor), abi.encodeCall(superExecutor.execute, (data)));
+    }
+
+    function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
+        return userOpData.execUserOps();
+>>>>>>> dev
     }
 
     function _bound(uint256 amount_) internal pure returns (uint256) {
         amount_ = bound(amount_, SMALL, LARGE);
         return amount_;
     }
+<<<<<<< HEAD
+=======
+
+    enum RELAYER_TYPE {
+        NOT_ENOUGH_BALANCE,
+        ENOUGH_BALANCE
+    }
+
+    function _processAcrossV3Message(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        ExecutionReturnData memory executionData,
+        RELAYER_TYPE relayerType,
+        address account
+    )
+        internal
+    {
+        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossV3Receiver.AcrossFundsReceivedButNotEnoughBalance(account);
+        } else {
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossV3Receiver.AcrossFundsReceivedAndExecuted(account);
+        }
+        AcrossV3Helper(_getContract(srcChainId, "AcrossV3Helper")).help(
+            SPOKE_POOL_V3_ADDRESSES[srcChainId],
+            SPOKE_POOL_V3_ADDRESSES[dstChainId],
+            ACROSS_RELAYER,
+            FORKS[dstChainId],
+            dstChainId,
+            srcChainId,
+            executionData.logs
+        );
+    }
+
+    function _processDebridgeMessage(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        ExecutionReturnData memory executionData
+    )
+        internal
+    {
+        DebridgeHelper(_getContract(srcChainId, "DebridgeHelper")).help(
+            DEBRIDGE_ADMIN_ADDRESSES[dstChainId],
+            DEBRIDGE_GATE_ADDRESSES[srcChainId],
+            DEBRIDGE_GATE_ADDRESSES[dstChainId],
+            FORKS[dstChainId],
+            dstChainId,
+            executionData.logs
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 HOOK DATA CREATORS
+    //////////////////////////////////////////////////////////////*/
+
+    function _createApproveHookData(
+        address token,
+        address spender,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
+    }
+
+    function _createDepositHookData(
+        address receiver,
+        bytes32 yieldSourceOracleId,
+        address vault,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount);
+    }
+
+    function _createWithdrawHookData(
+        address receiver,
+        bytes32 yieldSourceOracleId,
+        address vault,
+        address owner,
+        uint256 shares,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+    }
+
+    function _createDebridgeSendFundsAndExecuteHookData(
+        uint256 value,
+        address account,
+        address inputToken,
+        uint256 inputAmount,
+        uint256 chainIdTo,
+        uint32 referralCode,
+        bool useAssetFee,
+        bool usePrevHookAmount,
+        uint256 autoParamsLength,
+        bytes memory autoParams,
+        bytes memory permit
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            value,
+            account,
+            inputToken,
+            inputAmount,
+            chainIdTo,
+            referralCode,
+            useAssetFee,
+            usePrevHookAmount,
+            autoParamsLength,
+            autoParams,
+            permit
+        );
+    }
+
+    function _createAcrossV3ReceiveFundsAndExecuteHookData(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        address account,
+        uint256 intentAmount,
+        UserOpData memory userOpData
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        bytes memory dstUserOpData = abi.encodePacked(
+            account,
+            intentAmount,
+            userOpData.userOp.sender,
+            userOpData.userOp.nonce,
+            userOpData.userOp.initCode.length,
+            userOpData.userOp.initCode,
+            userOpData.userOp.accountGasLimits,
+            userOpData.userOp.preVerificationGas,
+            userOpData.userOp.gasFees,
+            userOpData.userOp.paymasterAndData.length,
+            userOpData.userOp.paymasterAndData,
+            userOpData.userOp.signature.length,
+            userOpData.userOp.signature
+        );
+        hookData = abi.encodePacked(
+            uint256(0),
+            _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            dstUserOpData
+        );
+    }
+>>>>>>> dev
 }

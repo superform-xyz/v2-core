@@ -4,6 +4,10 @@ pragma solidity >=0.8.28;
 // external
 import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+<<<<<<< HEAD
+=======
+
+>>>>>>> dev
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
@@ -39,6 +43,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         _getTokens(underlying, account, amount);
 
+<<<<<<< HEAD
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
@@ -48,6 +53,16 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDepositHookData(yieldSourceAddress, account, amount, false);
         hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+=======
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] =
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
+>>>>>>> dev
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -63,6 +78,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         external
     {
         amount = _bound(amount);
+<<<<<<< HEAD
         address[] memory hooksAddresses = new address[](5);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
@@ -76,6 +92,20 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         hooksData[2] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
         hooksData[3] = _createWithdrawHookData(yieldSourceAddress, account, account, amount, false);
         hooksData[4] = _createSuperLedgerHookData(account, yieldSourceOracle, yieldSourceAddress);
+=======
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[2] = _getHook(ETH, "Withdraw4626VaultHook");
+
+        bytes[] memory hooksData = new bytes[](5);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] =
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
+        hooksData[2] = _createWithdrawHookData(
+            account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, account, amount, false
+        );
+>>>>>>> dev
         // assure account has tokens
         _getTokens(underlying, account, amount);
 

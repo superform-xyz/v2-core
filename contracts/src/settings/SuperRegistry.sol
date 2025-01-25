@@ -13,8 +13,6 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
 
-    string public sharedStateNamespace;
-
     // ids
     // -- executors
     /// @inheritdoc ISuperRegistry
@@ -36,25 +34,25 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     // -- sentinels
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_POSITION_SENTINEL_ID = keccak256("SUPER_POSITION_SENTINEL_ID");
+
     // -- bridges
     /// @inheritdoc ISuperRegistry
-    bytes32 public constant ACROSS_GATEWAY_ID = keccak256("ACROSS_GATEWAY_ID");
+    bytes32 public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
+        keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID");
 
-    // -- storage
     /// @inheritdoc ISuperRegistry
-    bytes32 public constant SHARED_STATE_ID = keccak256("SHARED_STATE_ID");
+    bytes32 public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
+        keccak256("DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID");
 
     // -- paymaster
     /// @inheritdoc ISuperRegistry
     bytes32 public constant PAYMASTER_ID = keccak256("PAYMASTER_ID");
 
-    // -- hooks
+    // -- SuperBundler
     /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_LEDGER_HOOK_ID = keccak256("SUPER_LEDGER_HOOK_ID");
+    bytes32 public constant SUPER_BUNDLER_ID = keccak256("SUPER_BUNDLER_ID");
 
-    constructor(address owner) Ownable(owner) {
-        sharedStateNamespace = "Superform.SharedState.v1";
-    }
+    constructor(address owner) Ownable(owner) { }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER
@@ -66,17 +64,12 @@ contract SuperRegistry is Ownable, ISuperRegistry {
         emit AddressSet(id_, address_);
     }
 
-    /// @inheritdoc ISuperRegistry
-    function setSharedStateNamespace(string memory namespace_) external onlyOwner {
-        sharedStateNamespace = namespace_;
-        emit SharedStateNamespaceSet(namespace_);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperRegistry
-    function getAddress(bytes32 id_) external view override returns (address) {
-        return addresses[id_];
+    function getAddress(bytes32 id_) external view override returns (address address_) {
+        address_ = addresses[id_];
+        if (address_ == address(0)) revert INVALID_ADDRESS();
     }
 }

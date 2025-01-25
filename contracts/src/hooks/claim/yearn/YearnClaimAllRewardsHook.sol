@@ -15,26 +15,27 @@ import { IYearnStakingRewardsMulti } from "../../../interfaces/vendors/yearn/IYe
 //TODO: We might need to add a non-transient option
 //      The following hook claims an array of rewards tokens
 //      How we store those to be used in the `postExecute` is the question?
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        address yearnVault = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        if (yearnVault == address(0)) revert ADDRESS_NOT_VALID();
+        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
-        return _build(yearnVault, abi.encodeCall(IYearnStakingRewardsMulti.getReward, ()));
+        return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getReward, ()));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external pure {}
+    function preExecute(address, bytes memory) external view onlyExecutor {}
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external pure {}
+    function postExecute(address, bytes memory) external view onlyExecutor {}
 }
