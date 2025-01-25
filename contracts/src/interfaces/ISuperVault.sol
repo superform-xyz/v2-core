@@ -2,8 +2,6 @@
 pragma solidity =0.8.28;
 
 import { IERC4626 } from "@openzeppelin/contracts/token/ERC4626/extensions/IERC4626.sol";
-import { IVaultHookWhitelist } from "./IVaultHookWhitelist.sol";
-import { IVaultEncoderRegistry } from "./IVaultEncoderRegistry.sol";
 
 /**
  * @title ISuperVault
@@ -14,7 +12,7 @@ import { IVaultEncoderRegistry } from "./IVaultEncoderRegistry.sol";
  *      3. Setting allocation proportions across yield sources
  *      4. Maintaining vault-wide configuration and limits
  */
-interface ISuperVault is IERC4626, IVaultHookWhitelist, IVaultEncoderRegistry {
+interface ISuperVault is IERC4626 {
     /*//////////////////////////////////////////////////////////////
                           DATA TYPES
     //////////////////////////////////////////////////////////////*/

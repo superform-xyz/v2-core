@@ -25,8 +25,8 @@ import { ISuperHook } from "../interfaces/ISuperHook.sol";
  *      4. Whitelisted hooks for security
  */
 contract SuperVault is 
-    ISuperVault, 
-    ERC4626, 
+    ISuperVault,
+    ERC4626,
     SuperRegistryImplementer,
     VaultHookWhitelist,
     VaultEncoderRegistry
