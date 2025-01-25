@@ -9,6 +9,10 @@ interface IYieldSourceOracle {
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Derives the TVL in a yield source
+    /// @param yieldSourceAddress The yield source to derive TVL for
+    function getTVL(address yieldSourceAddress) external view returns (uint256 tvl);
+
     /// @notice Derives the price of an action
     /// @param yieldSourceAddress The yield source to derive the price for
     /// @return price The price of the action
