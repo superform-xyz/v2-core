@@ -64,8 +64,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         uint256 amount = 1e8;
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
@@ -84,8 +84,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         uint256 amount = 1e8;
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
         hooksData[1] = _createDepositHookData(
@@ -105,7 +105,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         assertEq(accSharesAfter, vaultInstanceEth.previewDeposit(amount));
 
         hooksAddresses = new address[](1);
-        hooksAddresses[0] = _getHook(ETH, "Withdraw4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, "Withdraw4626VaultHook");
         hooksData = new bytes[](2);
         hooksData[0] = _createWithdrawHookData(
             accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, accountEth, accSharesAfter, false
@@ -138,8 +138,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](2);
-        dstHooksAddresses[0] = _getHook(BASE, "ApproveERC20Hook");
-        dstHooksAddresses[1] = _getHook(BASE, "Deposit4626VaultHook");
+        dstHooksAddresses[0] = _getHookAddress(BASE, "ApproveERC20Hook");
+        dstHooksAddresses[1] = _getHookAddress(BASE, "Deposit4626VaultHook");
 
         bytes[] memory dstHooksData = new bytes[](2);
         dstHooksData[0] =
@@ -157,11 +157,11 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // ETH is SRC
         vm.selectFork(FORKS[ETH]);
         address[] memory srcHooksAddresses = new address[](5);
-        srcHooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        srcHooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        srcHooksAddresses[2] = _getHook(ETH, "Withdraw4626VaultHook");
-        srcHooksAddresses[3] = _getHook(ETH, "ApproveERC20Hook");
-        srcHooksAddresses[4] = _getHook(ETH, "AcrossSendFundsAndExecuteOnDstHook");
+        srcHooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        srcHooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
+        srcHooksAddresses[2] = _getHookAddress(ETH, "Withdraw4626VaultHook");
+        srcHooksAddresses[3] = _getHookAddress(ETH, "ApproveERC20Hook");
+        srcHooksAddresses[4] = _getHookAddress(ETH, "AcrossSendFundsAndExecuteOnDstHook");
 
         bytes[] memory srcHooksData = new bytes[](5);
         srcHooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
@@ -212,8 +212,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         // PREPARE DST DATA
         vars.dstHooksAddresses = new address[](2);
-        vars.dstHooksAddresses[0] = _getHook(BASE, "ApproveERC20Hook");
-        vars.dstHooksAddresses[1] = _getHook(BASE, "Deposit4626VaultHook");
+        vars.dstHooksAddresses[0] = _getHookAddress(BASE, "ApproveERC20Hook");
+        vars.dstHooksAddresses[1] = _getHookAddress(BASE, "Deposit4626VaultHook");
 
         vars.dstHooksData = new bytes[](2);
         vars.dstHooksData[0] =
@@ -231,8 +231,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // ETH is SRC1
         vm.selectFork(FORKS[ETH]);
         vars.srcHooksAddresses = new address[](2);
-        vars.srcHooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        vars.srcHooksAddresses[1] = _getHook(ETH, "AcrossSendFundsAndExecuteOnDstHook");
+        vars.srcHooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        vars.srcHooksAddresses[1] = _getHookAddress(ETH, "AcrossSendFundsAndExecuteOnDstHook");
 
         vars.srcHooksData = new bytes[](2);
         vars.srcHooksData[0] =
@@ -260,8 +260,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vm.selectFork(FORKS[OP]);
 
         vars.srcHooksAddresses = new address[](2);
-        vars.srcHooksAddresses[0] = _getHook(OP, "ApproveERC20Hook");
-        vars.srcHooksAddresses[1] = _getHook(OP, "AcrossSendFundsAndExecuteOnDstHook");
+        vars.srcHooksAddresses[0] = _getHookAddress(OP, "ApproveERC20Hook");
+        vars.srcHooksAddresses[1] = _getHookAddress(OP, "AcrossSendFundsAndExecuteOnDstHook");
 
         vars.srcHooksData = new bytes[](2);
         vars.srcHooksData[0] =
@@ -296,8 +296,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](2);
-        dstHooksAddresses[0] = _getHook(BASE, "ApproveERC20Hook");
-        dstHooksAddresses[1] = _getHook(BASE, "Deposit4626VaultHook");
+        dstHooksAddresses[0] = _getHookAddress(BASE, "ApproveERC20Hook");
+        dstHooksAddresses[1] = _getHookAddress(BASE, "Deposit4626VaultHook");
 
         bytes[] memory dstHooksData = new bytes[](2);
         dstHooksData[0] =
@@ -312,8 +312,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // ETH is SRC
         vm.selectFork(FORKS[ETH]);
         address[] memory srcHooksAddresses = new address[](2);
-        srcHooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        srcHooksAddresses[1] = _getHook(ETH, "DeBridgeSendFundsAndExecuteOnDstHook");
+        srcHooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        srcHooksAddresses[1] = _getHookAddress(ETH, "DeBridgeSendFundsAndExecuteOnDstHook");
 
 
         IDeBridgeGate.SubmissionAutoParamsTo memory autoParams = IDeBridgeGate.SubmissionAutoParamsTo({
