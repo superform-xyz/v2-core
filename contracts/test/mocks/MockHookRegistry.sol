@@ -76,6 +76,10 @@ contract MockHookRegistry is BaseTest {
         return hooks[chainId][name];
     }
 
+    function getHookDependancy(uint64 chainId, string memory name) public view returns (HookCategory) {
+        return hooks[chainId][name].dependancy;
+    }
+
     function _deployAdditionalHooks() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
