@@ -77,7 +77,11 @@ contract MockHookRegistry is BaseTest {
     }
 
     function getHookDependancy(uint64 chainId, string memory name) public view returns (HookCategory) {
-        return hooks[chainId][name].dependancy;
+        return hooks[chainId][name].dependency;
+    }
+
+    function getHookByCategory(uint64 chainId, HookCategory category) public view returns (Hook[] memory) {
+        return hooksByCategory[chainId][category];
     }
 
     function _deployAdditionalHooks() internal {
@@ -102,6 +106,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.approveWithPermit2Hook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["ApproveWithPermit2Hook"]);
 
             A.permitWithPermit2Hook = 
             new PermitWithPermit2Hook(
@@ -119,7 +124,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.permitWithPermit2Hook), 
                 ""
             );
-
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["PermitWithPermit2Hook"]);
             A.deposit7540VaultHook = new Deposit7540VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.deposit7540VaultHook), "Deposit7540VaultHook");
             hookAddresses[chainIds[i]]["Deposit7540VaultHook"] = address(A.deposit7540VaultHook);
@@ -131,6 +136,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.deposit7540VaultHook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit7540VaultHook"]);
 
             A.withdraw7540VaultHook = new Withdraw7540VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.withdraw7540VaultHook), "Withdraw7540VaultHook");
@@ -143,7 +149,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.withdraw7540VaultHook), 
                 ""
             );
-
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["Withdraw7540VaultHook"]);
             A.swap1InchClipperRouterHook = 
             new Swap1InchClipperRouterHook(
                 address(A.superRegistry), 
@@ -160,6 +166,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.swap1InchClipperRouterHook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]]["Swap1InchClipperRouterHook"]);
 
             A.swap1InchGenericRouterHook 
             = new Swap1InchGenericRouterHook(
@@ -177,7 +184,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.swap1InchGenericRouterHook), 
                 ""
             );
-
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]]["Swap1InchGenericRouterHook"]);
             A.swap1InchUnoswapHook 
             = new Swap1InchUnoswapHook(
                 address(A.superRegistry), 
@@ -194,6 +201,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.swap1InchUnoswapHook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]]["Swap1InchUnoswapHook"]);
 
             A.gearboxStakeHook = new GearboxStakeHook(address(A.superRegistry), address(this));
             vm.label(address(A.gearboxStakeHook), "GearboxStakeHook");
@@ -206,7 +214,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.gearboxStakeHook), 
                 ""
             );
-
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]]["GearboxStakeHook"]);
             A.gearboxWithdrawHook = new GearboxWithdrawHook(address(A.superRegistry), address(this));
             vm.label(address(A.gearboxWithdrawHook), "GearboxWithdrawHook");
             hookAddresses[chainIds[i]]["GearboxWithdrawHook"] = address(A.gearboxWithdrawHook);
@@ -218,6 +226,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.gearboxWithdrawHook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["GearboxWithdrawHook"]);
 
             A.somelierStakeHook = new SomelierStakeHook(address(A.superRegistry), address(this));
             vm.label(address(A.somelierStakeHook), "SomelierStakeHook");
@@ -230,7 +239,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.somelierStakeHook), 
                 ""
             );
-
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]]["SomelierStakeHook"]);
             A.somelierUnbondAllHook = new SomelierUnbondAllHook(address(A.superRegistry), address(this));
             vm.label(address(A.somelierUnbondAllHook), "SomelierUnbondAllHook");
             hookAddresses[chainIds[i]]["SomelierUnbondAllHook"] = address(A.somelierUnbondAllHook);
@@ -242,6 +251,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.somelierUnbondAllHook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnbondAllHook"]);
 
             A.somelierUnbondHook = new SomelierUnbondHook(address(A.superRegistry), address(this));
             vm.label(address(A.somelierUnbondHook), "SomelierUnbondHook");
@@ -254,7 +264,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.somelierUnbondHook), 
                 ""
             );
-
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnbondHook"]);
             A.somelierUnstakeAllHook = new SomelierUnstakeAllHook(address(A.superRegistry), address(this));
             vm.label(address(A.somelierUnstakeAllHook), "SomelierUnstakeAllHook");
             hookAddresses[chainIds[i]]["SomelierUnstakeAllHook"] = address(A.somelierUnstakeAllHook);
@@ -266,6 +276,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.somelierUnstakeAllHook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnstakeAllHook"]);
 
             A.yearnClaimOneRewardHook = new YearnClaimOneRewardHook(address(A.superRegistry), address(this));
             vm.label(address(A.yearnClaimOneRewardHook), "YearnClaimOneRewardHook");
@@ -278,7 +289,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.yearnClaimOneRewardHook), 
                 ""
             );
-
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["YearnClaimOneRewardHook"]);
             A.yearnClaimAllRewardsHook = new YearnClaimAllRewardsHook(address(A.superRegistry), address(this));
             vm.label(address(A.yearnClaimAllRewardsHook), "YearnClaimAllRewardsHook");
             hookAddresses[chainIds[i]]["YearnClaimAllRewardsHook"] = address(A.yearnClaimAllRewardsHook);
@@ -290,6 +301,7 @@ contract MockHookRegistry is BaseTest {
                 address(A.yearnClaimAllRewardsHook), 
                 ""
             );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["YearnClaimAllRewardsHook"]);
         }
     }
 
