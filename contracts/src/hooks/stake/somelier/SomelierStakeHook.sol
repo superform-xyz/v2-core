@@ -21,6 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
+/// @notice         bool lockForSP = _decodeBool(data, 137);
 contract SomelierStakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -64,6 +65,9 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockForSP = _decodeBool(data, 137);
+        address yieldSource = data.extractYieldSource();
+        spToken = ISomelierCellarStaking(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook

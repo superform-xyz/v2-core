@@ -518,6 +518,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_BUNDLER_ID(), address(0x11111));
+
+            SuperRegistry(address(superRegistry)).setAddress(
+                superRegistry.SUPER_COLLECTIVE_VAULT_ID(), _getContract(chainIds[i], "SuperCollectiveVault")
+            );
         }
     }
 
@@ -666,13 +670,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool lockSP
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
     }
 
     function _createWithdrawHookData(
@@ -687,7 +692,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, uint8(0));
     }
 
     function _createDebridgeSendFundsAndExecuteHookData(

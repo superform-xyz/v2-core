@@ -13,6 +13,10 @@ interface ISuperHookResult {
 
     /// @notice The type of hook
     function hookType() external view returns (ISuperHook.HookType);
+    /// @notice The lock flag of the hook
+    function lockForSP() external view returns (bool);
+    /// @notice The lock token of the hook
+    function spToken() external view returns (address);
 }
 
 interface ISuperHook {

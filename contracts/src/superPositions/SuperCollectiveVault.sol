@@ -91,6 +91,7 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
     /// @inheritdoc ISuperCollectiveVault
     function lock(address account, address token, uint256 amount) external onlyExecutor {
         if (account == address(0)) revert INVALID_ACCOUNT();
+        if (amount == 0) revert INVALID_AMOUNT();
         _lockedAmounts[account][token] += amount;
         _lockedAssets[account].push(token);
 
@@ -107,6 +108,8 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
 
         IERC20(token).safeTransfer(account, amount);
         emit Unlock(account, token, amount);
+
+        // TODO: should we perform `SuperExecutor` here? Or do unlock + execution async? 
     }
 
     /// @inheritdoc ISuperCollectiveVault
@@ -126,9 +129,9 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
         external
         payable
     {
-        uint256 len = targets.length;
 
         uint256 totalValue;
+        uint256 len = targets.length;
         for (uint256 i = 0; i < len;) {
             totalValue += val[i];
             unchecked {

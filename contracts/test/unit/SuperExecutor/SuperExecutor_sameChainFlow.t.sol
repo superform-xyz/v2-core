@@ -8,6 +8,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
+import { SuperCollectiveVault } from "../../../src/superPositions/SuperCollectiveVault.sol";
 
 import { BaseTest } from "../../BaseTest.t.sol";
 
@@ -21,6 +22,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
     address public account;
     AccountInstance public instance;
     ISuperExecutor public superExecutor;
+    SuperCollectiveVault public vault;
 
     function setUp() public override {
         super.setUp();
@@ -33,9 +35,10 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         account = accountInstances[ETH].account;
         instance = accountInstances[ETH];
         superExecutor = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
+        vault = SuperCollectiveVault(_getContract(ETH, "SuperCollectiveVault"));
     }
 
-    function test_ShouldExecuteAll(uint256 amount) external {
+    function test_ShouldExecuteDeposit4626Hook(uint256 amount) external {
         amount = _bound(amount);
 
         _getTokens(underlying, account, amount);
@@ -47,7 +50,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] =
-            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false, false);
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -71,7 +74,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] =
-            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false, false);
         hooksData[2] = _createWithdrawHookData(
             account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, account, amount, false
         );
@@ -88,4 +91,32 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
         assertGt(accSharesAfter, 0);
     }
+
+    function test_ShouldExecuteDeposit4626Hook_And_Lock_Assets(uint256 amount) external {
+        amount = _bound(amount);
+
+        _getTokens(underlying, account, amount);
+        uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
+
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHook(ETH, "ApproveERC20Hook");
+        hooksAddresses[2] = _getHook(ETH, "Deposit4626VaultHook");
+
+        bytes[] memory hooksData = new bytes[](3);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createApproveHookData(yieldSourceAddress, address(vault), sharesPreviewed, false);
+        hooksData[2] = 
+            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false, true);
+
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        uint256 accSharesAfter = vault.viewLockedAmount(account, yieldSourceAddress);
+        assertEq(accSharesAfter, sharesPreviewed);
+    }
+
 }

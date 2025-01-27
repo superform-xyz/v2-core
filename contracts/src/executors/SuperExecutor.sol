@@ -14,6 +14,9 @@ import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
+import { ISuperCollectiveVault } from "../interfaces/vault/ISuperCollectiveVault.sol";
+
+import "forge-std/console2.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
@@ -82,7 +85,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             address prevHook = (i != 0) ? entry.hooksAddresses[i - 1] : address(0);
             // execute current hook
             _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
-
             // go to next hook
             unchecked {
                 ++i;
@@ -103,7 +105,16 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         // run hook postExecute
         hook.postExecute(prevHook, hookData);
 
-        ISuperHook.HookType _type = ISuperHookResult(address(hook)).hookType();
+        // update accounting
+        _updateAccounting(account, address(hook), hookData);
+
+        // check SP minting and lock assets
+        _lockForSuperPositions(account, address(hook));
+    }
+    
+
+    function _updateAccounting(address account, address hook, bytes memory hookData) private {
+        ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
             bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
@@ -116,6 +127,24 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 _type == ISuperHook.HookType.INFLOW,
                 ISuperHookResult(address(hook)).outAmount()
             );
+        }
+    }
+
+    function _lockForSuperPositions(address account, address hook) private {
+        bool lockForSP = ISuperHookResult(address(hook)).lockForSP();
+        if (lockForSP) {
+            address spToken = ISuperHookResult(hook).spToken();
+            uint256 amount = ISuperHookResult(hook).outAmount();
+
+            if (spToken == address(0)) revert ADDRESS_NOT_VALID();
+
+            ISuperCollectiveVault vault = ISuperCollectiveVault(
+                superRegistry.getAddress(superRegistry.SUPER_COLLECTIVE_VAULT_ID())
+            );
+
+            vault.lock(account, spToken, amount);
+
+            emit SuperPositionLocked(account, spToken, amount);
         }
     }
 }

@@ -21,6 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
+/// @notice         bool lockForSP = _decodeBool(data, 137);
 contract YearnWithdrawHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -65,6 +66,9 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockForSP = _decodeBool(data, 137);
+        address yieldSource = data.extractYieldSource();
+        spToken = IYearnVault(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook

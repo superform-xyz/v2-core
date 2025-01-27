@@ -23,6 +23,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
+/// @notice         bool lockForSP = _decodeBool(data, 125);
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -68,6 +69,8 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getUnderlyingBalance(data);
+        lockForSP = _decodeBool(data, 125);
+        spToken = data.extractYieldSource();
     }
 
     /// @inheritdoc ISuperHook

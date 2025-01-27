@@ -1,6 +1,7 @@
 # Full reference https://github.com/foundry-rs/foundry/tree/master/crates/config
 
 [profile.default]
+cache_path = "cache"
 auto_detect_solc = false
 bytecode_hash = "none"
 fuzz = { runs = 1_000 }

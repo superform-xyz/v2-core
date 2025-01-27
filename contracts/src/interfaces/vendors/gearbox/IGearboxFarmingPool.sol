@@ -16,6 +16,8 @@ interface IGearboxFarmingPool {
     function distributor() external view returns (address);
     //function farmInfo() external view returns(FarmAccounting.Info memory);
     function farmed(address account) external view returns (uint256);
+    function stakingToken() external view returns (address);
+    function rewardsToken() external view returns (address);
 
 
     /*//////////////////////////////////////////////////////////////
