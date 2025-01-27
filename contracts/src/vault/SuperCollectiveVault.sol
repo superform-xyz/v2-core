@@ -12,7 +12,6 @@ import { ISuperCollectiveVault } from "../interfaces/vault/ISuperCollectiveVault
 
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-// TODO: remove abstract
 contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer {
     using ExcessivelySafeCall for address;
     using SafeERC20 for IERC20;
@@ -90,8 +89,9 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperCollectiveVault
     function lock(address account, address token, uint256 amount) external onlyExecutor {
-        if (account == address(0)) revert INVALID_ACCOUNT();
         if (amount == 0) revert INVALID_AMOUNT();
+        if (token == address(0)) revert INVALID_TOKEN();
+        if (account == address(0)) revert INVALID_ACCOUNT();
         _lockedAmounts[account][token] += amount;
         _lockedAssets[account].push(token);
 
@@ -102,14 +102,18 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
     /// @inheritdoc ISuperCollectiveVault
     function unlock(address account, address token, uint256 amount) external onlySuperCollectiveVaultManager {
         if (account == address(0)) revert INVALID_ACCOUNT();
-        if (amount > _lockedAmounts[account][token]) revert INVALID_AMOUNT();
-        _lockedAmounts[account][token] -= amount;
-        _removeFromLockedAssets(account, token);
+        _unlock(account, token, amount);
+    }
 
-        IERC20(token).safeTransfer(account, amount);
-        emit Unlock(account, token, amount);
+    /// @inheritdoc ISuperCollectiveVault
+    function batchUnlock(address account, address[] calldata tokens, uint256[] calldata amounts) external onlySuperCollectiveVaultManager {
+        if (account == address(0)) revert INVALID_ACCOUNT();
 
-        // TODO: should we perform `SuperExecutor` here? Or do unlock + execution async? 
+        uint256 len = tokens.length;
+        if (len != amounts.length) revert INVALID_VALUE();
+        for (uint256 i = 0; i < len; i++) {
+            _unlock(account, tokens[i], amounts[i]);
+        }
     }
 
     /// @inheritdoc ISuperCollectiveVault
@@ -160,7 +164,10 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
         bytes32[] calldata proof
     )
         external
-    {
+    {   
+        if (account == address(0)) revert INVALID_ACCOUNT();
+        if (amount == 0) revert INVALID_AMOUNT();
+        if (rewardToken == address(0)) revert INVALID_TOKEN();
         if (!_registeredMerkleRoots[merkleRoot]) revert INVALID_MERKLE_ROOT();
         if (!canClaim(merkleRoot, account, rewardToken, amount, proof)) revert NOTHING_TO_CLAIM();
         if (_hasBeenDistributed[account][rewardToken][merkleRoot]) revert ALREADY_DISTRIBUTED();
@@ -217,5 +224,15 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
             _lockedAssets[account][index] = _lockedAssets[account][len - 1];
         }
         _lockedAssets[account].pop();
+    }
+    
+    function _unlock(address account, address token, uint256 amount) private {
+        if (token == address(0)) revert INVALID_TOKEN();
+        if (amount == 0 || amount > _lockedAmounts[account][token]) revert INVALID_AMOUNT();
+        _lockedAmounts[account][token] -= amount;
+        _removeFromLockedAssets(account, token);
+
+        IERC20(token).safeTransfer(account, amount);
+        emit Unlock(account, token, amount);
     }
 }

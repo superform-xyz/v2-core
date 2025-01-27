@@ -47,7 +47,7 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
-import { SuperCollectiveVault } from "../src/superPositions/SuperCollectiveVault.sol";
+import { SuperCollectiveVault } from "../src/vault/SuperCollectiveVault.sol";
 // external
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData

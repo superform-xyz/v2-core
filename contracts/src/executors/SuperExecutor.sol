@@ -2,6 +2,8 @@
 pragma solidity >=0.8.28;
 
 // external
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
@@ -141,6 +143,15 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             ISuperCollectiveVault vault = ISuperCollectiveVault(
                 superRegistry.getAddress(superRegistry.SUPER_COLLECTIVE_VAULT_ID())
             );
+
+            // forge approval for vault
+            Execution[] memory execs = new Execution[](1);
+            execs[0] = Execution({
+                target: spToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (address(vault), amount))
+            });
+            _execute(account, execs);
 
             vault.lock(account, spToken, amount);
 

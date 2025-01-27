@@ -9,6 +9,7 @@ interface ISuperCollectiveVault {
     //////////////////////////////////////////////////////////////*/
     error CLAIM_FAILED();
     error INVALID_VALUE();
+    error INVALID_TOKEN();
     error NOT_AUTHORIZED();
     error INVALID_AMOUNT();
     error INVALID_ACCOUNT();
@@ -70,6 +71,11 @@ interface ISuperCollectiveVault {
     /// @param token The asset to unlock
     /// @param amount The amount of the asset to unlock
     function unlock(address account, address token, uint256 amount) external;
+    /// @notice Batch unlock assets for an account
+    /// @param account The account to unlock the assets for
+    /// @param tokens The assets to unlock
+    /// @param amounts The amounts of the assets to unlock
+    function batchUnlock(address account, address[] calldata tokens, uint256[] calldata amounts) external;  
     /// @notice Claim rewards for an account
     /// @param target The target to claim rewards from
     /// @param gasLimit The gas limit for the claim

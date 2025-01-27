@@ -8,7 +8,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
-import { SuperCollectiveVault } from "../../../src/superPositions/SuperCollectiveVault.sol";
+import { SuperCollectiveVault } from "../../../src/vault/SuperCollectiveVault.sol";
 
 import { BaseTest } from "../../BaseTest.t.sol";
 
@@ -98,15 +98,13 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         _getTokens(underlying, account, amount);
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
-        address[] memory hooksAddresses = new address[](3);
+        address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHook(ETH, "ApproveERC20Hook");
-        hooksAddresses[2] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
 
-        bytes[] memory hooksData = new bytes[](3);
+        bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createApproveHookData(yieldSourceAddress, address(vault), sharesPreviewed, false);
-        hooksData[2] = 
+        hooksData[1] = 
             _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false, true);
 
 
