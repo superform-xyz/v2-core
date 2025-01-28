@@ -126,8 +126,8 @@ contract SuperMerkleValidatorTest is BaseTest {
 
         // hooks
         address[] memory hooksAddresses = new address[](2);
-        address approveHook = _getHook(ETH, "ApproveERC20Hook");
-        address depositHook = _getHook(ETH, "Deposit4626VaultHook");
+        address approveHook = _getHookAddress(ETH, "ApproveERC20Hook");
+        address depositHook = _getHookAddress(ETH, "Deposit4626VaultHook");
         hooksAddresses[0] = approveHook;
         hooksAddresses[1] = depositHook;
 
