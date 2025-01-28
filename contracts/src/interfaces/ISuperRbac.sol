@@ -40,7 +40,4 @@ interface ISuperRbac {
 
     /// @dev Get the ID of the bridge gateway role.
     function BRIDGE_GATEWAY() external view returns (bytes32);
-
-    /// @dev Get the ID of the super collective vault manager role.
-    function SUPER_COLLECTIVE_VAULT_MANAGER() external view returns (bytes32);
 }

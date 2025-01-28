@@ -66,8 +66,4 @@ interface ISuperRegistry {
     // -- SuperBundler
     /// @dev Get the ID of the super bundler.
     function SUPER_BUNDLER_ID() external view returns (bytes32);
-
-    // -- SuperCollectiveVault
-    /// @dev Get the ID of the super collective vault.
-    function SUPER_COLLECTIVE_VAULT_ID() external view returns (bytes32);
 }

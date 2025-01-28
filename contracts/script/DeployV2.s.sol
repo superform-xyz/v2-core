@@ -60,9 +60,6 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/debri
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
-// -- vault
-import { SuperCollectiveVault } from "../src/vault/SuperCollectiveVault.sol";
-
 contract DeployV2 is Script, Configuration {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
@@ -89,7 +86,6 @@ contract DeployV2 is Script, Configuration {
         address acrossReceiveFundsAndExecuteGateway;
         address debridgeReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
-        address superCollectiveVault;
     }
 
     modifier broadcast(uint256 env) {
@@ -208,15 +204,6 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, "MockValidatorModule"),
             type(MockValidatorModule).creationCode
-        );
-
-        // Deploy SuperCollectiveVault
-        deployedContracts.superCollectiveVault = __deployContract(
-            deployer,
-            "SuperCollectiveVault",
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, "SuperCollectiveVault"),
-            abi.encodePacked(type(SuperCollectiveVault).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
         // Deploy Hooks

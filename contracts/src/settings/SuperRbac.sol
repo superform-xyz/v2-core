@@ -22,8 +22,6 @@ contract SuperRbac is Ownable, ISuperRbac {
     bytes32 public constant BRIDGE_GATEWAY = keccak256("BRIDGE_GATEWAY");
     /// @inheritdoc ISuperRbac
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
-    /// @inheritdoc ISuperRbac
-    bytes32 public constant SUPER_COLLECTIVE_VAULT_MANAGER = keccak256("SUPER_COLLECTIVE_VAULT_MANAGER");
 
     constructor(address owner) Ownable(owner) { }
 

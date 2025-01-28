@@ -16,9 +16,7 @@ import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
-import { ISuperCollectiveVault } from "../interfaces/vault/ISuperCollectiveVault.sol";
 
-import "forge-std/console2.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////

@@ -16,9 +16,7 @@ import { ISuperRbac } from "../../src/interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperHook, ISuperHookResult } from "../../src/interfaces/ISuperHook.sol";
-import { ISuperCollectiveVault } from "../../src/interfaces/vault/ISuperCollectiveVault.sol";
-
-import "forge-std/console2.sol";
+import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
@@ -141,7 +139,7 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
             if (spToken == address(0)) revert ADDRESS_NOT_VALID();
 
             ISuperCollectiveVault vault = ISuperCollectiveVault(
-                superRegistry.getAddress(superRegistry.SUPER_COLLECTIVE_VAULT_ID())
+                superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID"))
             );
 
             // forge approval for vault

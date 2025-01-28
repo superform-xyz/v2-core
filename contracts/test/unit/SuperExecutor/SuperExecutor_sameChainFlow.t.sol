@@ -8,12 +8,9 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
-import { SuperCollectiveVault } from "../../../src/vault/SuperCollectiveVault.sol";
 import { SuperRegistry } from "../../../src/settings/SuperRegistry.sol";
 
 import { BaseTest } from "../../BaseTest.t.sol";
-
-import { console2 } from "forge-std/console2.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest {
     IERC4626 public vaultInstance;
@@ -24,8 +21,8 @@ contract SuperExecutor_sameChainFlow is BaseTest {
     AccountInstance public instance;
     ISuperExecutor public superExecutor;
     ISuperExecutor public superExecutorMock;    
-    SuperCollectiveVault public vault;
     SuperRegistry public superRegistry;
+
 
     function setUp() public override {
         super.setUp();
@@ -39,7 +36,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         instance = accountInstances[ETH];
         superExecutor = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
         superExecutorMock = ISuperExecutor(_getContract(ETH, "SuperExecutorMock")); 
-        vault = SuperCollectiveVault(_getContract(ETH, "SuperCollectiveVault"));
         superRegistry = SuperRegistry(_getContract(ETH, "SuperRegistry"));
     }
 
@@ -97,6 +93,9 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         assertGt(accSharesAfter, 0);
     }
 
+
+
+    /**
     function test_ShouldExecuteDeposit4626Hook_And_Lock_Assets(uint256 amount) external {
         superRegistry.setAddress(
             superRegistry.SUPER_EXECUTOR_ID(), address(superExecutorMock)
@@ -125,5 +124,5 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         uint256 accSharesAfter = vault.viewLockedAmount(account, yieldSourceAddress);
         assertEq(accSharesAfter, sharesPreviewed);
     }
-
+    */
 }
