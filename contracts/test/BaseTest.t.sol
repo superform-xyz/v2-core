@@ -21,6 +21,7 @@ import { AcrossReceiveFundsAndExecuteGateway } from "../src/bridges/AcrossReceiv
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/bridges/interfaces/IAcrossV3Receiver.sol";
 import { SuperPositionSentinel } from "../src/sentinels/SuperPositionSentinel.sol";
+import { SuperExecutorMock } from "./mocks/SuperExecutorMock.sol";
 
 // hooks
 
@@ -65,6 +66,7 @@ struct Addresses {
     ISuperLedger superLedger;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
+    ISuperExecutor superExecutorMock;
     ISentinel superPositionSentinel;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
@@ -229,6 +231,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superExecutor), "superExecutor");
             contractAddresses[chainIds[i]]["SuperExecutor"] = address(A.superExecutor);
 
+            A.superExecutorMock = ISuperExecutor(address(new SuperExecutorMock(address(A.superRegistry))));
+            vm.label(address(A.superExecutorMock), "superExecutorMock");
+            contractAddresses[chainIds[i]]["SuperExecutorMock"] = address(A.superExecutorMock);
+
             A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
             vm.label(address(A.superPositionSentinel), "superPositionSentinel");
             contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
@@ -321,6 +327,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
                 module: _getContract(chainIds[i], "SuperExecutor"),
+                data: ""
+            });
+             instance.installModule({
+                moduleTypeId: MODULE_TYPE_EXECUTOR,
+                module: _getContract(chainIds[i], "SuperExecutorMock"),
                 data: ""
             });
             vm.label(instance.account, accountName);
