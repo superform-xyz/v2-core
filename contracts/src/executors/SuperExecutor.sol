@@ -19,8 +19,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    mapping(address => bool) internal _initialized;
-
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
@@ -30,8 +28,8 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         _;
     }
 
-    function isInitialized(address account) external view returns (bool) {
-        return _initialized[account];
+    function isInitialized(address) external pure returns (bool) {
+        return true;
     }
 
     function name() external pure returns (string memory) {
@@ -49,26 +47,12 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {
-        if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
-        _initialized[msg.sender] = true;
-    }
+    function onInstall(bytes calldata) external pure { }
 
-    function onUninstall(bytes calldata) external {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-        _initialized[msg.sender] = false;
-    }
+    function onUninstall(bytes calldata) external pure { }
 
     function execute(bytes calldata data) external {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
-    }
-
-    /// @inheritdoc ISuperExecutor
-    function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
-        if (!_initialized[account]) revert NOT_INITIALIZED();
-        // check if we need anything else here
-        _execute(account, abi.decode(data, (ExecutorEntry)));
     }
 
     /*//////////////////////////////////////////////////////////////
