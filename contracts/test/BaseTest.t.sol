@@ -25,10 +25,15 @@ import { SuperExecutorMock } from "./mocks/SuperExecutorMock.sol";
 
 // hooks
 
-// tokens hooks
+// token hooks
 // --- erc20
 import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { ApproveWithPermit2Hook } from "../src/hooks/tokens/erc20/ApproveWithPermit2Hook.sol";
+import { PermitWithPermit2Hook } from "../src/hooks/tokens/erc20/PermitWithPermit2Hook.sol";
+import { TransferBatchWithPermit2Hook } from "../src/hooks/tokens/erc20/TransferBatchWithPermit2Hook.sol";
 import { TransferERC20Hook } from "../src/hooks/tokens/erc20/TransferERC20Hook.sol";
+import { TransferWithPermit2Hook } from "../src/hooks/tokens/erc20/TransferWithPermit2Hook.sol";
+
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
@@ -37,12 +42,50 @@ import { Withdraw5115VaultHook } from "../src/hooks/vaults/5115/Withdraw5115Vaul
 import { Deposit4626VaultHook } from "../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Withdraw4626VaultHook } from "../src/hooks/vaults/4626/Withdraw4626VaultHook.sol";
 // -- erc7540
+import { Deposit7540VaultHook } from "../src/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
+import { Withdraw7540VaultHook } from "../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
+
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendFundsAndExecuteOnDstHook } from
     "../src/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
+
+// Swap hooks
+// --- 1inch
+import { Base1InchHook } from "../src/hooks/swapers/1inch/Base1InchHook.sol";
+import { Swap1InchClipperRouterHook } from "../src/hooks/swapers/1inch/Swap1InchClipperRouterHook.sol";
+import { Swap1InchGenericRouterHook } from "../src/hooks/swapers/1inch/Swap1InchGenericRouterHook.sol";
+import { Swap1InchUnoswapHook } from "../src/hooks/swapers/1inch/Swap1InchUnoswapHook.sol";
+
+// Stake hooks
+// --- Gearbox
+import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
+import { GearboxWithdrawHook } from "../src/hooks/stake/gearbox/GearboxWithdrawHook.sol";
+// --- Somelier
+import { SomelierStakeHook } from "../src/hooks/stake/somelier/SomelierStakeHook.sol";
+import { SomelierUnbondAllHook } from "../src/hooks/stake/somelier/SomelierUnbondAllHook.sol";
+import { SomelierUnbondHook } from "../src/hooks/stake/somelier/SomelierUnbondHook.sol";
+import { SomelierUnstakeAllHook } from "../src/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
+import { SomelierUnstakeHook } from "../src/hooks/stake/somelier/SomelierUnstakeHook.sol";
+// --- Yearn
+// import { YearnStakeHook } from "../src/hooks/stake/yearn/YearnStakeHook.sol";
+import { YearnWithdrawHook } from "../src/hooks/stake/yearn/YearnWithdrawHook.sol";
+// --- Generic
+import { YieldExitHook } from "../src/hooks/stake/YieldExitHook.sol";
+
+// Claim Hooks
+// --- Fluid
+import { FluidClaimRewardHook } from "../src/hooks/claim/fluid/FluidClaimRewardHook.sol";
+// --- Gearbox
+import { GearboxClaimRewardHook } from "../src/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
+// --- Somelier
+import { SomelierClaimAllRewardsHook } from "../src/hooks/claim/somelier/SomelierClaimAllRewardsHook.sol";
+import { SomelierClaimOneRewardHook } from "../src/hooks/claim/somelier/SomelierClaimOneRewardHook.sol";
+// --- Yearn
+import { YearnClaimAllRewardsHook } from "../src/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
+import { YearnClaimOneRewardHook } from "../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -71,20 +114,41 @@ struct Addresses {
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
+    ApproveWithPermit2Hook approveWithPermit2Hook;
+    PermitWithPermit2Hook permitWithPermit2Hook;
+    TransferBatchWithPermit2Hook transferBatchWithPermit2Hook;
     TransferERC20Hook transferErc20Hook;
+    TransferWithPermit2Hook transferWithPermit2Hook;
     Deposit4626VaultHook deposit4626VaultHook;
     Withdraw4626VaultHook withdraw4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
     Withdraw5115VaultHook withdraw5115VaultHook;
+    Deposit7540VaultHook deposit7540VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
+    Withdraw7540VaultHook withdraw7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
+    Swap1InchClipperRouterHook swap1InchClipperRouterHook;
+    Swap1InchGenericRouterHook swap1InchGenericRouterHook;
+    Swap1InchUnoswapHook swap1InchUnoswapHook;
+    GearboxStakeHook gearboxStakeHook;
+    GearboxWithdrawHook gearboxWithdrawHook;
+    SomelierStakeHook somelierStakeHook;
+    SomelierUnbondAllHook somelierUnbondAllHook;
+    SomelierUnbondHook somelierUnbondHook;
+    SomelierUnstakeAllHook somelierUnstakeAllHook;
+    SomelierUnstakeHook somelierUnstakeHook;
+    // YearnStakeHook yearnStakeHook;
+    YearnWithdrawHook yearnWithdrawHook;
+    YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
+    YearnClaimOneRewardHook yearnClaimOneRewardHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     SuperMerkleValidator superMerkleValidator;
     SuperCollectiveVault superCollectiveVault;
 }
+
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
@@ -98,7 +162,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
 
-    address constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+    
+
+    enum HookCategory {
+        TokenApprovals,
+        VaultDeposits,
+        VaultWithdrawals,
+        Bridges,
+        Swaps,
+        Stakes,
+        Claims,
+        None
+    }
+
+    struct Hook {
+        string name;
+        HookCategory category;
+        HookCategory dependency; // Dependant category, can be empty
+        address hook;
+        bytes description;
+    }
+
+    address public constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
     uint64[] public chainIds = [ETH, OP, BASE];
 
@@ -137,6 +222,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
     mapping(uint64 chainId => mapping(string hookName => address hook)) public hookAddresses;
+
+    mapping(uint64 chainId => mapping(HookCategory category => Hook[] hooksByCategory)) public hooksByCategory;
+
+    mapping(uint64 chainId => mapping(string name => Hook hookInstance)) public hooks;
 
     mapping(uint64 chainId => AccountInstance accountInstance) public accountInstances;
 
@@ -187,7 +276,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return contractAddresses[chainId][contractName];
     }
 
-    function _getHook(uint64 chainId, string memory hookName) internal view returns (address) {
+    function _getHookAddress(uint64 chainId, string memory hookName) internal view returns (address) {
         return hookAddresses[chainId][hookName];
     }
 
@@ -266,39 +355,107 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.erc5115YieldSourceOracle), "ERC5115YieldSourceOracle");
             contractAddresses[chainIds[i]]["ERC5115YieldSourceOracle"] = address(A.erc5115YieldSourceOracle);
 
-            /// @dev  hooks
-
+            /// @dev hooks
             A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
             vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
             hookAddresses[chainIds[i]]["ApproveERC20Hook"] = address(A.approveErc20Hook);
+            hooks[chainIds[i]]["ApproveERC20Hook"] = 
+            Hook(
+                "ApproveERC20Hook", 
+                HookCategory.TokenApprovals, 
+                HookCategory.None, 
+                address(A.approveErc20Hook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["ApproveERC20Hook"]);
 
             A.transferErc20Hook = new TransferERC20Hook(address(A.superRegistry), address(this));
             vm.label(address(A.transferErc20Hook), "TransferERC20Hook");
             hookAddresses[chainIds[i]]["TransferERC20Hook"] = address(A.transferErc20Hook);
+            hooks[chainIds[i]]["TransferERC20Hook"] = 
+            Hook(
+                "TransferERC20Hook", 
+                HookCategory.TokenApprovals, 
+                HookCategory.TokenApprovals, 
+                address(A.transferErc20Hook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["TransferERC20Hook"]);
 
             A.deposit4626VaultHook = new Deposit4626VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.deposit4626VaultHook), "Deposit4626VaultHook");
             hookAddresses[chainIds[i]]["Deposit4626VaultHook"] = address(A.deposit4626VaultHook);
-
+            hooks[chainIds[i]]["Deposit4626VaultHook"] = 
+            Hook(
+                "Deposit4626VaultHook", 
+                HookCategory.VaultDeposits, 
+                HookCategory.TokenApprovals, 
+                address(A.deposit4626VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit4626VaultHook"]);
             A.withdraw4626VaultHook = new Withdraw4626VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.withdraw4626VaultHook), "Withdraw4626VaultHook");
             hookAddresses[chainIds[i]]["Withdraw4626VaultHook"] = address(A.withdraw4626VaultHook);
+            hooks[chainIds[i]]["Withdraw4626VaultHook"] = 
+            Hook(
+                "Withdraw4626VaultHook", 
+                HookCategory.VaultWithdrawals, 
+                HookCategory.VaultDeposits, 
+                address(A.withdraw4626VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["Withdraw4626VaultHook"]);
 
             A.deposit5115VaultHook = new Deposit5115VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.deposit5115VaultHook), "Deposit5115VaultHook");
             hookAddresses[chainIds[i]]["Deposit5115VaultHook"] = address(A.deposit5115VaultHook);
-
+            hooks[chainIds[i]]["Deposit5115VaultHook"] = 
+            Hook(
+                "Deposit5115VaultHook", 
+                HookCategory.VaultDeposits, 
+                HookCategory.TokenApprovals, 
+                address(A.deposit5115VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit5115VaultHook"]);
             A.withdraw5115VaultHook = new Withdraw5115VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.withdraw5115VaultHook), "Withdraw5115VaultHook");
             hookAddresses[chainIds[i]]["Withdraw5115VaultHook"] = address(A.withdraw5115VaultHook);
+            hooks[chainIds[i]]["Withdraw5115VaultHook"] 
+            = Hook(
+                "Withdraw5115VaultHook", 
+                HookCategory.VaultWithdrawals, 
+                HookCategory.VaultDeposits, 
+                address(A.withdraw5115VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["Withdraw5115VaultHook"]);
 
             A.requestDeposit7540VaultHook = new RequestDeposit7540VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.requestDeposit7540VaultHook), "RequestDeposit7540VaultHook");
             hookAddresses[chainIds[i]]["RequestDeposit7540VaultHook"] = address(A.requestDeposit7540VaultHook);
-
+            hooks[chainIds[i]]["RequestDeposit7540VaultHook"] 
+            = Hook(
+                "RequestDeposit7540VaultHook", 
+                HookCategory.VaultDeposits, 
+                HookCategory.TokenApprovals, 
+                address(A.requestDeposit7540VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["RequestDeposit7540VaultHook"]);
             A.requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(address(A.superRegistry), address(this));
             vm.label(address(A.requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
             hookAddresses[chainIds[i]]["RequestWithdraw7540VaultHook"] = address(A.requestWithdraw7540VaultHook);
+            hooks[chainIds[i]]["RequestWithdraw7540VaultHook"] 
+            = Hook(
+                "RequestWithdraw7540VaultHook", 
+                HookCategory.VaultWithdrawals, 
+                HookCategory.VaultDeposits, 
+                address(A.requestWithdraw7540VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["RequestWithdraw7540VaultHook"]);
 
             A.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 address(A.superRegistry), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
@@ -306,7 +463,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.acrossSendFundsAndExecuteOnDstHook), "AcrossSendFundsAndExecuteOnDstHook");
             hookAddresses[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] =
                 address(A.acrossSendFundsAndExecuteOnDstHook);
-
+            hooks[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] 
+            = Hook(
+                "AcrossSendFundsAndExecuteOnDstHook", 
+                HookCategory.Bridges, 
+                HookCategory.TokenApprovals, 
+                address(A.acrossSendFundsAndExecuteOnDstHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(hooks[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"]);
             A.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
                 address(A.superRegistry), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
             );
@@ -314,6 +479,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], "DEBRIDGE_GATE_ADDRESS");
             hookAddresses[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] =
                 address(A.deBridgeSendFundsAndExecuteOnDstHook);
+            hooks[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] 
+            = Hook(
+                "DeBridgeSendFundsAndExecuteOnDstHook", 
+                HookCategory.Bridges, 
+                HookCategory.TokenApprovals, 
+                address(A.deBridgeSendFundsAndExecuteOnDstHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(hooks[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"]);
         }
     }
 

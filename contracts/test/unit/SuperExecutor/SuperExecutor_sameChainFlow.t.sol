@@ -49,8 +49,8 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         _getTokens(underlying, account, amount);
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
@@ -72,9 +72,9 @@ contract SuperExecutor_sameChainFlow is BaseTest {
     {
         amount = _bound(amount);
         address[] memory hooksAddresses = new address[](3);
-        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
-        hooksAddresses[2] = _getHook(ETH, "Withdraw4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
+        hooksAddresses[2] = _getHookAddress(ETH, "Withdraw4626VaultHook");
 
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
@@ -108,8 +108,8 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHook(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHook(ETH, "Deposit4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        hooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
