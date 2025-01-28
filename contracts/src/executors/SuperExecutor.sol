@@ -64,13 +64,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
     }
 
-    /// @inheritdoc ISuperExecutor
-    function executeFromGateway(address account, bytes calldata data) external onlyBridgeGateway {
-        if (!_initialized[account]) revert NOT_INITIALIZED();
-        // check if we need anything else here
-        _execute(account, abi.decode(data, (ExecutorEntry)));
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
