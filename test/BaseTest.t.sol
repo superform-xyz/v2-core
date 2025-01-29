@@ -87,41 +87,6 @@ import { SomelierClaimOneRewardHook } from "../src/core/hooks/claim/somelier/Som
 import { YearnClaimAllRewardsHook } from "../src/core/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
-// Swap hooks
-// --- 1inch
-import { Base1InchHook } from "../src/hooks/swapers/1inch/Base1InchHook.sol";
-import { Swap1InchClipperRouterHook } from "../src/hooks/swapers/1inch/Swap1InchClipperRouterHook.sol";
-import { Swap1InchGenericRouterHook } from "../src/hooks/swapers/1inch/Swap1InchGenericRouterHook.sol";
-import { Swap1InchUnoswapHook } from "../src/hooks/swapers/1inch/Swap1InchUnoswapHook.sol";
-
-// Stake hooks
-// --- Gearbox
-import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxWithdrawHook } from "../src/hooks/stake/gearbox/GearboxWithdrawHook.sol";
-// --- Somelier
-import { SomelierStakeHook } from "../src/hooks/stake/somelier/SomelierStakeHook.sol";
-import { SomelierUnbondAllHook } from "../src/hooks/stake/somelier/SomelierUnbondAllHook.sol";
-import { SomelierUnbondHook } from "../src/hooks/stake/somelier/SomelierUnbondHook.sol";
-import { SomelierUnstakeAllHook } from "../src/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
-import { SomelierUnstakeHook } from "../src/hooks/stake/somelier/SomelierUnstakeHook.sol";
-// --- Yearn
-// import { YearnStakeHook } from "../src/hooks/stake/yearn/YearnStakeHook.sol";
-import { YearnWithdrawHook } from "../src/hooks/stake/yearn/YearnWithdrawHook.sol";
-// --- Generic
-import { YieldExitHook } from "../src/hooks/stake/YieldExitHook.sol";
-
-// Claim Hooks
-// --- Fluid
-import { FluidClaimRewardHook } from "../src/hooks/claim/fluid/FluidClaimRewardHook.sol";
-// --- Gearbox
-import { GearboxClaimRewardHook } from "../src/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
-// --- Somelier
-import { SomelierClaimAllRewardsHook } from "../src/hooks/claim/somelier/SomelierClaimAllRewardsHook.sol";
-import { SomelierClaimOneRewardHook } from "../src/hooks/claim/somelier/SomelierClaimOneRewardHook.sol";
-// --- Yearn
-import { YearnClaimAllRewardsHook } from "../src/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
-import { YearnClaimOneRewardHook } from "../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
-
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
