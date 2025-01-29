@@ -245,6 +245,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         // Deploy contracts
         _deployContracts();
 
+        // Deploy hooks
+        _deployHooks();
+
         // Initialize accounts
         _initializeAccounts();
 
@@ -288,6 +291,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]]["DebridgeHelper"] = debridgeHelper;
 
             Addresses memory A;
+
             /// @dev main contracts
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
             vm.label(address(A.superRegistry), "superRegistry");
@@ -339,9 +343,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
             vm.label(address(A.erc5115YieldSourceOracle), "ERC5115YieldSourceOracle");
             contractAddresses[chainIds[i]]["ERC5115YieldSourceOracle"] = address(A.erc5115YieldSourceOracle);
+        }
+    }
 
-            /// @dev hooks
-            A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
+    function _deployHooks() internal {
+        for (uint256 i = 0; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+            
+            Addresses memory A;
+
+             A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
             vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
             hookAddresses[chainIds[i]]["ApproveERC20Hook"] = address(A.approveErc20Hook);
             hooks[chainIds[i]]["ApproveERC20Hook"] = Hook(
@@ -471,6 +482,233 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
                 hooks[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"]
             );
+
+             A.approveWithPermit2Hook 
+            = new ApproveWithPermit2Hook(
+                address(A.superRegistry), 
+                address(this),
+                 0x000000000022D473030F116dDEE9F6B43aC78BA3 // Permit2 address on ETH, Base and OP
+            ); 
+            vm.label(address(A.approveWithPermit2Hook), "ApproveWithPermit2Hook");
+            hookAddresses[chainIds[i]]["ApproveWithPermit2Hook"] = address(A.approveWithPermit2Hook);
+            hooks[chainIds[i]]["ApproveWithPermit2Hook"] 
+            = Hook(
+                "ApproveWithPermit2Hook", 
+                HookCategory.TokenApprovals, 
+                HookCategory.None, 
+                address(A.approveWithPermit2Hook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["ApproveWithPermit2Hook"]);
+
+            A.permitWithPermit2Hook = 
+            new PermitWithPermit2Hook(
+                address(A.superRegistry), 
+                address(this), 
+                0x000000000022D473030F116dDEE9F6B43aC78BA3
+            );
+            vm.label(address(A.permitWithPermit2Hook), "PermitWithPermit2Hook");
+            hookAddresses[chainIds[i]]["PermitWithPermit2Hook"] = address(A.permitWithPermit2Hook);
+            hooks[chainIds[i]]["PermitWithPermit2Hook"] 
+            = Hook(
+                "PermitWithPermit2Hook", 
+                HookCategory.TokenApprovals, 
+                HookCategory.None, 
+                address(A.permitWithPermit2Hook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["PermitWithPermit2Hook"]);
+
+            A.deposit7540VaultHook = new Deposit7540VaultHook(address(A.superRegistry), address(this));
+            vm.label(address(A.deposit7540VaultHook), "Deposit7540VaultHook");
+            hookAddresses[chainIds[i]]["Deposit7540VaultHook"] = address(A.deposit7540VaultHook);
+            hooks[chainIds[i]]["Deposit7540VaultHook"] 
+            = Hook(
+                "Deposit7540VaultHook", 
+                HookCategory.VaultDeposits, 
+                HookCategory.TokenApprovals, 
+                address(A.deposit7540VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit7540VaultHook"]);
+
+            A.withdraw7540VaultHook = new Withdraw7540VaultHook(address(A.superRegistry), address(this));
+            vm.label(address(A.withdraw7540VaultHook), "Withdraw7540VaultHook");
+            hookAddresses[chainIds[i]]["Withdraw7540VaultHook"] = address(A.withdraw7540VaultHook);
+            hooks[chainIds[i]]["Withdraw7540VaultHook"] 
+            = Hook(
+                "Withdraw7540VaultHook", 
+                HookCategory.VaultWithdrawals, 
+                HookCategory.VaultDeposits, 
+                address(A.withdraw7540VaultHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["Withdraw7540VaultHook"]);
+
+
+            // IWETH weth = IWETH(_getContract(chainIds[i], "WETH"));
+
+            // A.aggregationRouter = new AggregationRouterV6(weth);
+            // vm.label(address(A.aggregationRouter), "AggregationRouterV6");
+            // contractAddresses[chainIds[i]]["AggregationRouterV6"] = address(A.aggregationRouter);
+
+            A.swap1InchClipperRouterHook = 
+            new Swap1InchClipperRouterHook(
+                address(A.superRegistry), 
+                address(this), 
+                0x111111125421cA6dc452d289314280a0f8842A65
+            );
+            vm.label(address(A.swap1InchClipperRouterHook), "Swap1InchClipperRouterHook");
+            hookAddresses[chainIds[i]]["Swap1InchClipperRouterHook"] = address(A.swap1InchClipperRouterHook);
+            hooks[chainIds[i]]["Swap1InchClipperRouterHook"] 
+            = Hook(
+                "Swap1InchClipperRouterHook", 
+                HookCategory.Swaps, 
+                HookCategory.TokenApprovals, 
+                address(A.swap1InchClipperRouterHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]]["Swap1InchClipperRouterHook"]);
+
+            A.swap1InchGenericRouterHook 
+            = new Swap1InchGenericRouterHook(
+                address(A.superRegistry), 
+                address(this), 
+                0x111111125421cA6dc452d289314280a0f8842A65
+            );
+            vm.label(address(A.swap1InchGenericRouterHook), "Swap1InchGenericRouterHook");
+            hookAddresses[chainIds[i]]["Swap1InchGenericRouterHook"] = address(A.swap1InchGenericRouterHook);
+            hooks[chainIds[i]]["Swap1InchGenericRouterHook"] 
+            = Hook(
+                "Swap1InchGenericRouterHook", 
+                HookCategory.Swaps, 
+                HookCategory.TokenApprovals, 
+                address(A.swap1InchGenericRouterHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]]["Swap1InchGenericRouterHook"]);
+
+            A.swap1InchUnoswapHook 
+            = new Swap1InchUnoswapHook(
+                address(A.superRegistry), 
+                address(this), 
+                0x111111125421cA6dc452d289314280a0f8842A65
+            );
+            vm.label(address(A.swap1InchUnoswapHook), "Swap1InchUnoswapHook");
+            hookAddresses[chainIds[i]]["Swap1InchUnoswapHook"] = address(A.swap1InchUnoswapHook);
+            hooks[chainIds[i]]["Swap1InchUnoswapHook"] 
+            = Hook(
+                "Swap1InchUnoswapHook", 
+                HookCategory.Swaps, 
+                HookCategory.TokenApprovals, 
+                address(A.swap1InchUnoswapHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]]["Swap1InchUnoswapHook"]);
+
+            A.gearboxStakeHook = new GearboxStakeHook(address(A.superRegistry), address(this));
+            vm.label(address(A.gearboxStakeHook), "GearboxStakeHook");
+            hookAddresses[chainIds[i]]["GearboxStakeHook"] = address(A.gearboxStakeHook);
+            hooks[chainIds[i]]["GearboxStakeHook"] 
+            = Hook(
+                "GearboxStakeHook", 
+                HookCategory.Stakes, 
+                HookCategory.VaultDeposits, 
+                address(A.gearboxStakeHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]]["GearboxStakeHook"]);
+
+            A.gearboxWithdrawHook = new GearboxWithdrawHook(address(A.superRegistry), address(this));
+            vm.label(address(A.gearboxWithdrawHook), "GearboxWithdrawHook");
+            hookAddresses[chainIds[i]]["GearboxWithdrawHook"] = address(A.gearboxWithdrawHook);
+            hooks[chainIds[i]]["GearboxWithdrawHook"] 
+            = Hook(
+                "GearboxWithdrawHook", 
+                HookCategory.Claims, 
+                HookCategory.Stakes, 
+                address(A.gearboxWithdrawHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["GearboxWithdrawHook"]);
+
+            A.somelierStakeHook = new SomelierStakeHook(address(A.superRegistry), address(this));
+            vm.label(address(A.somelierStakeHook), "SomelierStakeHook");
+            hookAddresses[chainIds[i]]["SomelierStakeHook"] = address(A.somelierStakeHook);
+            hooks[chainIds[i]]["SomelierStakeHook"] 
+            = Hook(
+                "SomelierStakeHook", 
+                HookCategory.Stakes, 
+                HookCategory.VaultDeposits, 
+                address(A.somelierStakeHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]]["SomelierStakeHook"]);
+
+            A.somelierUnbondAllHook = new SomelierUnbondAllHook(address(A.superRegistry), address(this));
+            vm.label(address(A.somelierUnbondAllHook), "SomelierUnbondAllHook");
+            hookAddresses[chainIds[i]]["SomelierUnbondAllHook"] = address(A.somelierUnbondAllHook);
+            hooks[chainIds[i]]["SomelierUnbondAllHook"] 
+            = Hook(
+                "SomelierUnbondAllHook", 
+                HookCategory.Claims, 
+                HookCategory.Stakes, 
+                address(A.somelierUnbondAllHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnbondAllHook"]);
+
+            A.somelierUnbondHook = new SomelierUnbondHook(address(A.superRegistry), address(this));
+            vm.label(address(A.somelierUnbondHook), "SomelierUnbondHook");
+            hookAddresses[chainIds[i]]["SomelierUnbondHook"] = address(A.somelierUnbondHook);
+            hooks[chainIds[i]]["SomelierUnbondHook"] 
+            = Hook(
+                "SomelierUnbondHook", 
+                HookCategory.Claims, 
+                HookCategory.Stakes, 
+                address(A.somelierUnbondHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnbondHook"]);
+
+            A.somelierUnstakeAllHook = new SomelierUnstakeAllHook(address(A.superRegistry), address(this));
+            vm.label(address(A.somelierUnstakeAllHook), "SomelierUnstakeAllHook");
+            hookAddresses[chainIds[i]]["SomelierUnstakeAllHook"] = address(A.somelierUnstakeAllHook);
+            hooks[chainIds[i]]["SomelierUnstakeAllHook"] 
+            = Hook(
+                "SomelierUnstakeAllHook", 
+                HookCategory.Stakes, 
+                HookCategory.VaultDeposits, 
+                address(A.somelierUnstakeAllHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnstakeAllHook"]);
+
+            A.yearnClaimOneRewardHook = new YearnClaimOneRewardHook(address(A.superRegistry), address(this));
+            vm.label(address(A.yearnClaimOneRewardHook), "YearnClaimOneRewardHook");
+            hookAddresses[chainIds[i]]["YearnClaimOneRewardHook"] = address(A.yearnClaimOneRewardHook);
+            hooks[chainIds[i]]["YearnClaimOneRewardHook"] 
+            = Hook(
+                "YearnClaimOneRewardHook", 
+                HookCategory.Claims, 
+                HookCategory.Stakes, 
+                address(A.yearnClaimOneRewardHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["YearnClaimOneRewardHook"]);
+
+            A.yearnClaimAllRewardsHook = new YearnClaimAllRewardsHook(address(A.superRegistry), address(this));
+            vm.label(address(A.yearnClaimAllRewardsHook), "YearnClaimAllRewardsHook");
+            hookAddresses[chainIds[i]]["YearnClaimAllRewardsHook"] = address(A.yearnClaimAllRewardsHook);
+            hooks[chainIds[i]]["YearnClaimAllRewardsHook"] 
+            = Hook(
+                "YearnClaimAllRewardsHook", 
+                HookCategory.Claims, 
+                HookCategory.Stakes, 
+                address(A.yearnClaimAllRewardsHook), 
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["YearnClaimAllRewardsHook"]);
         }
     }
 
