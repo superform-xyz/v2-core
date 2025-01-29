@@ -746,11 +746,11 @@ update_latest_file() {
             --arg slug "$network_slug" \
             --arg vnet "$vnet_id" \
             --arg counter "$new_counter" \
-            --argjson contracts "$contracts" \
+            --arg contracts "$contracts" \
             '.networks[$slug] = {
                 "counter": ($counter|tonumber),
                 "vnet_id": $vnet,
-                "contracts": $contracts
+                "contracts": ($contracts|fromjson)
             }')
             
         i=$((i + 1))
