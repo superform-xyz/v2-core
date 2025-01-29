@@ -930,4 +930,34 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             dstUserOpData
         );
     }
+
+    function _createGenericRouterSwapHookData(
+            bool usePrevHookAmount,
+            uint256 msgValue,
+            address srcToken,
+            address dstToken,
+            address srcReceiver,
+            address dstReceiver,
+            uint256 inputAmount,
+            uint256 minDstAmount,
+            uint256 flags,
+            address aggregationExecutor,
+            bytes memory permitData,
+            bytes memory swapData
+        ) internal pure returns (bytes memory) {
+            return abi.encodePacked(
+                usePrevHookAmount,
+                msgValue,
+                srcToken,
+                dstToken,
+                srcReceiver,
+                dstReceiver,
+                inputAmount,
+                minDstAmount,
+                flags,
+                aggregationExecutor,
+                permitData,
+                swapData
+            );
+        }
 }
