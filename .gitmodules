@@ -7,3 +7,6 @@
 [submodule "lib/ExcessivelySafeCall"]
 	path = lib/ExcessivelySafeCall
 	url = https://github.com/nomad-xyz/ExcessivelySafeCall
+[submodule "lib/pigeon"]
+	path = lib/pigeon
+	url = https://github.com/exp-table/pigeon
