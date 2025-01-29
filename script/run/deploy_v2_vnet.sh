@@ -706,14 +706,21 @@ update_latest_file() {
         fi
         
         # Read contracts file and ensure it's valid JSON - handle potential DOS line endings
+        log "DEBUG" "Reading contract file contents..."
         contracts=$(tr -d '\r' < "$contracts_file")
-        if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
+        log "DEBUG" "Raw contracts content:"
+        echo "$contracts" | xxd
+        
+        log "DEBUG" "Attempting first JSON parse..."
+        if ! contracts=$(echo "$contracts" | jq -c '.' 2>&1); then
             log "ERROR" "Failed to parse JSON from contract file for $network_slug"
-            log "DEBUG" "Raw file contents:"
-            cat "$contracts_file" | xxd
+            log "DEBUG" "jq parse error output: $contracts"
             cleanup_vnets
             exit 1
         fi
+        
+        log "DEBUG" "First JSON parse successful. Parsed content:"
+        echo "$contracts" | jq '.'
         
         log "INFO" "Successfully parsed contracts for $network_slug"
         
@@ -723,6 +730,8 @@ update_latest_file() {
             cleanup_vnets
             exit 1
         fi
+        
+        log "DEBUG" "Contracts variable is non-empty"
         
         # Check if contracts is empty object
         if [ "$contracts" = "{}" ]; then
@@ -742,7 +751,17 @@ update_latest_file() {
                 ;;
         esac
         
-        content=$(echo "$content" | jq \
+        log "DEBUG" "Attempting to update content with new contracts..."
+        log "DEBUG" "Current content structure:"
+        echo "$content" | jq '.'
+        
+        log "DEBUG" "Parameters for jq update:"
+        echo "slug: $network_slug"
+        echo "vnet: $vnet_id"
+        echo "counter: $new_counter"
+        echo "contracts: $contracts"
+        
+        updated_content=$(echo "$content" | jq \
             --arg slug "$network_slug" \
             --arg vnet "$vnet_id" \
             --arg counter "$new_counter" \
@@ -751,8 +770,19 @@ update_latest_file() {
                 "counter": ($counter|tonumber),
                 "vnet_id": $vnet,
                 "contracts": ($contracts|fromjson)
-            }')
-            
+            }' 2>&1)
+        
+        if [ $? -ne 0 ]; then
+            log "ERROR" "Failed to update content with new contracts"
+            log "DEBUG" "jq error output: $updated_content"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        content="$updated_content"
+        log "DEBUG" "Content updated successfully. New structure:"
+        echo "$content" | jq '.'
+        
         i=$((i + 1))
     done
     
@@ -774,7 +804,7 @@ update_latest_file() {
         # Only include SHA if we have one (for existing files)
         if [ -n "$initial_sha" ]; then
             log "INFO" "Including SHA in update request: $initial_sha"
-            update_data="$update_data,\"sha\":\"$initial_sha\""
+            update_data="$update_data,\"sha\":\"$initial_sha"
         fi
         
         update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
