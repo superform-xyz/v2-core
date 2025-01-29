@@ -107,7 +107,13 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         hooksAddresses[0] = _getHookAddress(ETH, "Withdraw4626VaultHook");
         hooksData = new bytes[](2);
         hooksData[0] = _createWithdrawHookData(
-            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, accountEth, accSharesAfter, false
+            accountEth,
+            bytes32("ERC4626YieldSourceOracle"),
+            yieldSourceAddressEth,
+            accountEth,
+            accSharesAfter,
+            false,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
@@ -168,7 +174,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, amount, false, false
         );
         srcHooksData[2] = _createWithdrawHookData(
-            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, accountEth, 0, true
+            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, accountEth, 0, true, false
         );
         srcHooksData[3] = _createApproveHookData(underlyingEth_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
 
@@ -218,7 +224,12 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vars.dstHooksData[0] =
             _createApproveHookData(underlyingBase_WETH, yieldSourceAddressBaseWeth, vars.intentAmount, false);
         vars.dstHooksData[1] = _createDepositHookData(
-            accountBase, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressBaseWeth, vars.intentAmount, false, false
+            accountBase,
+            bytes32("ERC4626YieldSourceOracle"),
+            yieldSourceAddressBaseWeth,
+            vars.intentAmount,
+            false,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =

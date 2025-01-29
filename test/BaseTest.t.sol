@@ -845,13 +845,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address vault,
         address owner,
         uint256 shares,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool lockSP
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
     }
 
     function _createDebridgeSendFundsAndExecuteHookData(

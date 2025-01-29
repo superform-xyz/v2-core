@@ -75,7 +75,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
             account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false, false
         );
         hooksData[2] = _createWithdrawHookData(
-            account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, account, amount, false
+            account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, account, amount, false, false
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);
