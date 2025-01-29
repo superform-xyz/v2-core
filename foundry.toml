@@ -1,0 +1,51 @@
+# Full reference https://github.com/foundry-rs/foundry/tree/master/crates/config
+
+[profile.default]
+cache_path = "cache"
+auto_detect_solc = false
+bytecode_hash = "none"
+fuzz = { runs = 1_000 }
+gas_reports = ["*"]
+optimizer = true
+optimizer_runs = 10_000
+out = "out"
+script = "script"
+solc = "0.8.28"
+src = "src"
+test = "test"
+cbor_metadata = true
+libs = ['lib']
+fs_permissions = [{ access = "read-write", path = "./" }]
+
+# remappings
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
+  "modulekit/=lib/modulekit/src/",
+  "@prb/math/=lib/modulekit/node_modules/@prb/math/src/",
+  "@solady/=lib/solady/",
+  "@account-abstraction/=lib/modulekit/node_modules/account-abstraction/contracts/",
+  "@pigeon/=lib/pigeon/src/",
+]
+
+[profile.ci]
+fuzz = { runs = 10_000 }
+verbosity = 4
+
+[fmt]
+bracket_spacing = true
+int_types = "long"
+line_length = 120
+multiline_func_header = "all"
+number_underscore = "thousands"
+quote_style = "double"
+tab_width = 4
+wrap_comments = true
+
+[fmt.exclude]
+path = "test/mocks/TransientStorageExecutor.sol"
+
+[etherscan]
+ethereum = { key = "${TENDERLY_ACCESS_KEY}", chain = 101, url = "${ETH_MAINNET}/verify/etherscan" }
+base = { key = "${TENDERLY_ACCESS_KEY}", chain = 102, url = "${BASE_MAINNET}/verify/etherscan" }
+optimism = { key = "${TENDERLY_ACCESS_KEY}", chain = 103, url = "${OPTIMISM_MAINNET}/verify/etherscan" }
