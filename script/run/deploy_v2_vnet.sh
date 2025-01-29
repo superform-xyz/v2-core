@@ -229,11 +229,54 @@ read_branch_latest() {
     response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
     
-    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+    # Debug the raw response
+    log "DEBUG" "Raw GitHub API response: $response"
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON response from GitHub API"
+        log "ERROR" "Response: $response"
         echo "{\"networks\":{},\"updated_at\":null}"
-    else
-        echo "$response" | jq -r '.content' | base64 --decode
+        return 0
     fi
+    
+    # Check for API error responses
+    if [ "$(echo "$response" | jq -r '.message // empty')" == "Not Found" ]; then
+        log "INFO" "No existing latest file found, creating new one"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    # Check for other API errors
+    if [ "$(echo "$response" | jq -r '.message // empty')" != "" ]; then
+        log "ERROR" "GitHub API error: $(echo "$response" | jq -r '.message')"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    # Try to decode content
+    content=$(echo "$response" | jq -r '.content // empty')
+    if [ -z "$content" ]; then
+        log "ERROR" "No content field in GitHub response"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    decoded_content=$(echo "$content" | base64 --decode)
+    if [ $? -ne 0 ]; then
+        log "ERROR" "Failed to decode base64 content"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    # Validate decoded content is valid JSON
+    if ! echo "$decoded_content" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Decoded content is not valid JSON"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    echo "$decoded_content"
 }
 
 # Function to update branch-level latest file with optimistic locking
