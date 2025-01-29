@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
+
+// external
+import { IERC7579Account, Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import "modulekit/accounts/common/lib/ModeLib.sol";
+
+import { BaseE2ETest, MockRegistry, INexus } from "../BaseE2ETest.t.sol";
+import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";  
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+
+contract E2EExecutionTest is BaseE2ETest {
+    MockRegistry nexusRegistry;
+    address[] attesters;
+    uint8 threshold;
+
+    SuperExecutor superExecutor;
+    bytes mockSignature;
+
+    function setUp() public override {
+        super.setUp();
+        nexusRegistry = new MockRegistry();
+        attesters = new address[](1);
+        attesters[0] = address(MANAGER);
+        threshold = 1;
+
+        mockSignature = abi.encodePacked(hex"41414141");
+
+        superExecutor = SuperExecutor(_getContract(ETH, "SuperExecutor"));
+    }
+
+    function test_AccountCreation_WithNexus() public {
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        _assertAccountCreation(nexusAccount);
+    }
+
+    function test_AccountCreation_WithNexus_WithNoAttesters() public {
+        address[] memory actualAttesters = new address[](0);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), actualAttesters, threshold);
+        _assertAccountCreation(nexusAccount);
+    }   
+
+    function test_AccountCreation_WithNexus_WithNoThreshold() public {
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, 0);
+        _assertAccountCreation(nexusAccount);
+    }
+    
+    function test_AccountCreation_Multiple_Times() public {
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        _assertAccountCreation(nexusAccount);
+
+        address nexusAccount2 = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        _assertAccountCreation(nexusAccount2);
+        assertEq(nexusAccount, nexusAccount2, "Nexus accounts should be the same");  
+
+        address nexusAccount3 = _createWithNexus(address(nexusRegistry), attesters, 0);
+        _assertAccountCreation(nexusAccount3);
+        assertNotEq(nexusAccount, nexusAccount3, "Nexus3 account should be different");  
+
+        address[] memory actualAttesters = new address[](0);
+        address nexusAccount4 = _createWithNexus(address(nexusRegistry), actualAttesters, threshold);
+        _assertAccountCreation(nexusAccount4);
+        assertNotEq(nexusAccount, nexusAccount4, "Nexus4 account should be different");  
+    }
+
+    function test_Approval_With_Nexus(uint256 amount) public {
+        amount = _bound(amount);
+
+        // create account
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        _assertAccountCreation(nexusAccount);
+
+        // fund account
+        vm.deal(nexusAccount, LARGE);
+
+
+        // assert account initialized with super executor 
+        address isSuperExecutorInitialized = superExecutor.isInitialized(nexusAccount);
+        assertTrue(isSuperExecutorInitialized, "SuperExecutor should be initialized");
+
+        // add tokens to account
+        _getTokens(CHAIN_1_WETH, nexusAccount, amount);
+
+        // create SuperExecutor data
+        address[] memory hooksAddresses = new address[](1);
+        bytes[] memory hooksData = new bytes[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
+        hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), amount, false);
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+
+        // prepare data & execute through entry point
+        _executThroughEntrypoint(nexusAccount, 0, mockSignature, entry);
+    }
+
+
+
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _assertAccountCreation(address nexusAccount) internal view {
+        string memory accountId = INexus(nexusAccount).accountId();
+        assertGt(bytes(accountId).length, 0);
+        assertEq(accountId, NEXUS_ACCOUNT_IMPLEMENTATION_ID);
+    }
+}

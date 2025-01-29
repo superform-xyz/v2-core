@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "../BaseTest.t.sol";
+import { BaseTest, Addresses } from "../BaseTest.t.sol";
 
 // token hooks
 // --- erc20

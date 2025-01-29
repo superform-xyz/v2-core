@@ -1,0 +1,229 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
+
+
+// external
+import { IERC7579Account, Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import "modulekit/accounts/common/lib/ModeLib.sol";
+
+// Superform
+import {
+    IMinimalEntryPoint, PackedUserOperation
+} from "../src/core/interfaces/vendors/account-abstraction/IMinimalEntryPoint.sol";
+import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
+
+import {SuperExecutor} from "../src/core/executors/SuperExecutor.sol";
+import {MockValidatorModule} from "./mocks/MockValidatorModule.sol";
+import "./BaseTest.t.sol";
+
+struct BootstrapConfig {
+    address module;
+    bytes data;
+}
+
+//TODO move all interfaces to a separate file
+interface INexus {
+    function accountId() external view returns (string memory accountImplementationId);
+    function supportsModule(uint256 moduleTypeId) external view returns (bool supported);
+}
+interface IERC7484 {
+    event NewTrustedAttesters();
+
+    /**
+     * Allows Smart Accounts - the end users of the registry - to appoint
+     * one or many attesters as trusted.
+     * @dev this function reverts, if address(0), or duplicates are provided in attesters[]
+     *
+     * @param threshold The minimum number of attestations required for a module
+     *                  to be considered secure.
+     * @param attesters The addresses of the attesters to be trusted.
+     */
+    function trustAttesters(uint8 threshold, address[] calldata attesters) external;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*          Check with Registry internal attesters            */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+    function check(address module) external view;
+
+    function checkForAccount(address smartAccount, address module) external view;
+
+    function check(address module, uint256 moduleType) external view;
+
+    function checkForAccount(address smartAccount, address module, uint256 moduleType) external view;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*              Check with external attester(s)               */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function check(address module, address[] calldata attesters, uint256 threshold) external view;
+
+    function check(address module, uint256 moduleType, address[] calldata attesters, uint256 threshold) external view;
+}
+
+interface INexusFactory {
+    /// @notice Creates a new Nexus with initialization data.
+    /// @param initData Initialization data to be called on the new Smart Account.
+    /// @param salt Unique salt for the Smart Account creation.
+    /// @return The address of the newly created Nexus.
+    function createAccount(bytes calldata initData, bytes32 salt) external payable returns (address payable);
+
+    /// @notice Computes the expected address of a Nexus contract using the factory's deterministic deployment algorithm.
+    /// @param initData Initialization data to be called on the new Smart Account.
+    /// @param salt Unique salt for the Smart Account creation.
+    /// @return expectedAddress The expected address at which the Nexus contract will be deployed if the provided parameters are used.
+    function computeAccountAddress(bytes calldata initData, bytes32 salt) external view returns (address payable expectedAddress);
+}
+
+interface INexusBoostrap {
+    /// @notice Initializes the Nexus account with multiple modules.
+    /// @dev Intended to be called by the Nexus with a delegatecall.
+    /// @param validators The configuration array for validator modules.
+    /// @param executors The configuration array for executor modules.
+    /// @param hook The configuration for the hook module.
+    /// @param fallbacks The configuration array for fallback handler modules.
+    function initNexus(
+        BootstrapConfig[] calldata validators,
+        BootstrapConfig[] calldata executors,
+        BootstrapConfig calldata hook,
+        BootstrapConfig[] calldata fallbacks,
+        IERC7484 registry,
+        address[] calldata attesters,
+        uint8 threshold
+    ) external;
+
+    /// @notice Prepares calldata for the initNexusScoped function.
+    /// @param validators The configuration array for validator modules.
+    /// @param hook The configuration for the hook module.
+    /// @return init The prepared calldata for initNexusScoped.
+    function getInitNexusScopedCalldata(
+        BootstrapConfig[] calldata validators,
+        BootstrapConfig calldata hook,
+        IERC7484 registry,
+        address[] calldata attesters,
+        uint8 threshold
+    ) external view returns (bytes memory init);
+
+    /// @notice Prepares calldata for the initNexus function.
+    /// @param validators The configuration array for validator modules.
+    /// @param executors The configuration array for executor modules.
+    /// @param hook The configuration for the hook module.
+    /// @param fallbacks The configuration array for fallback handler modules.
+    /// @return init The prepared calldata for initNexus.
+    function getInitNexusCalldata(
+        BootstrapConfig[] calldata validators,
+        BootstrapConfig[] calldata executors,
+        BootstrapConfig calldata hook,
+        BootstrapConfig[] calldata fallbacks,
+        IERC7484 registry,
+        address[] calldata attesters,
+        uint8 threshold
+    ) external view returns (bytes memory init);
+}
+
+contract MockRegistry is IERC7484 {
+    event Log(address sender);
+
+    function check(address module) external view {}
+
+    function checkForAccount(address smartAccount, address module) external view {}
+
+    function check(address module, uint256 moduleType) external view {}
+
+    function checkForAccount(address smartAccount, address module, uint256 moduleType) external view override {}
+
+    function check(address module, address[] calldata attesters, uint256 threshold) external view {}
+
+    function check(address module, uint256 moduleType, address[] calldata attesters, uint256 threshold) external view {}
+
+    function trustAttesters(uint8, address[] calldata) external {
+        emit Log(msg.sender);
+        emit NewTrustedAttesters();
+    }
+}
+
+contract BaseE2ETest is BaseTest {
+    MockValidatorModule mockValidatorModule; 
+    INexusFactory nexusFactory;    
+    INexusBoostrap nexusBootstrap;  
+    SuperExecutor superExecutorModule;
+
+    bytes32 initSalt;
+
+    function setUp() public virtual override {
+        super.setUp();
+        vm.selectFork(FORKS[ETH]);
+
+        initSalt = keccak256(abi.encode("test"));
+
+        mockValidatorModule = new MockValidatorModule();
+        nexusFactory = INexusFactory(CHAIN_1_NEXUS_FACTORY);
+        nexusBootstrap = INexusBoostrap(CHAIN_1_NEXUS_BOOTSTRAP);
+        superExecutorModule = SuperExecutor(_getContract(ETH, "SuperExecutor"));
+    }   
+    /*//////////////////////////////////////////////////////////////
+                                 TOKENS METHODS
+    //////////////////////////////////////////////////////////////*/
+
+
+    /*//////////////////////////////////////////////////////////////
+                                 ACCOUNT CREATION METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _createWithNexus(address registry, address[] memory attesters, uint8 threshold) internal returns (address) {
+        bytes memory initData = _getNexusInitData(registry, attesters, threshold);
+        //bytes memory factoryData = abi.encodeWithSelector(nexusFactory.createAccount.selector, initData, initSalt);
+
+        address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
+        address deployedAddress = nexusFactory.createAccount{value: 1 ether}(initData, initSalt);
+
+        if (deployedAddress != computedAddress) revert("Nexus SCA addresses mismatch");
+        return computedAddress;
+    }
+
+    function _getNexusInitData(address registry, address[] memory attesters, uint8 threshold) internal view returns (bytes memory) {
+        // create validators
+        BootstrapConfig[] memory validators = new BootstrapConfig[](1);
+        validators[0] = BootstrapConfig({
+            module: address(mockValidatorModule),
+            data: ""
+        });
+
+        // create executors
+        BootstrapConfig[] memory executors = new BootstrapConfig[](1);
+        executors[0] = BootstrapConfig({
+            module: address(superExecutorModule),
+            data: ""
+        });
+
+        // create hooks
+        BootstrapConfig memory hook = BootstrapConfig({
+            module: address(0),
+            data: ""
+        });
+
+        // create fallbacks
+        BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
+
+        return nexusBootstrap.getInitNexusCalldata(validators, executors, hook, fallbacks, IERC7484(registry), attesters, threshold);
+    }
+    
+
+    /*//////////////////////////////////////////////////////////////
+                                USER OPERATION METHODS
+    //////////////////////////////////////////////////////////////*/
+    
+    function _createPackedUserOperation(address account, uint256 nonce, bytes memory callData, bytes memory signature) internal view returns (PackedUserOperation memory) {
+        return PackedUserOperation({
+            sender: account,
+            nonce: nonce,
+            initCode: "", //we assume contract is already deployed (following the Bundler flow)
+            callData: callData,
+            accountGasLimits: bytes32(abi.encodePacked(uint128(3e6), uint128(1e6))),
+            preVerificationGas: 3e5,
+            gasFees: bytes32(abi.encodePacked(uint128(3e5), uint128(1e7))),
+            paymasterAndData: "",
+            signature: signature
+        });
+    }
+
+}
+
