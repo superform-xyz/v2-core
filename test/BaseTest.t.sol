@@ -70,7 +70,6 @@ import { SomelierUnbondHook } from "../src/core/hooks/stake/somelier/SomelierUnb
 import { SomelierUnstakeAllHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
 import { SomelierUnstakeHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeHook.sol";
 // --- Yearn
-// import { YearnStakeHook } from "../src/hooks/stake/yearn/YearnStakeHook.sol";
 import { YearnWithdrawHook } from "../src/core/hooks/stake/yearn/YearnWithdrawHook.sol";
 // --- Generic
 import { YieldExitHook } from "../src/core/hooks/stake/YieldExitHook.sol";
