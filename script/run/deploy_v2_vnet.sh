@@ -721,7 +721,8 @@ update_latest_file() {
     local is_local=$1
     log "INFO" "All deployments successful. Updating latest file..."
     
-    local content="{\"networks\":{},\"updated_at\":null}"
+    # Initialize content with default structure
+    content="{\"networks\":{},\"updated_at\":null}"
     local latest_file
     local initial_sha=""
     
@@ -732,6 +733,11 @@ update_latest_file() {
             echo "$content" > "$latest_file"
         else
             content=$(cat "$latest_file")
+            # Validate the content from file
+            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+                log "WARN" "Invalid JSON in latest file, resetting to default"
+                content="{\"networks\":{},\"updated_at\":null}"
+            fi
         fi
     else
         # Original GitHub API logic for CI mode
@@ -742,8 +748,16 @@ update_latest_file() {
             content=$(echo "$response" | jq -r '.content' | base64 --decode)
             initial_sha=$(echo "$response" | jq -r '.sha')
             log "INFO" "Found existing file with SHA: $initial_sha"
+            # Validate the decoded content
+            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+                log "WARN" "Invalid JSON in GitHub response, resetting to default"
+                content="{\"networks\":{},\"updated_at\":null}"
+            fi
         fi
     fi
+    
+    log "DEBUG" "Initial content structure:"
+    echo "$content" | jq '.' >&2
     
     # Update content with new deployment info
     i=0
