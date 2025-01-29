@@ -7,18 +7,18 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { BytesLib } from "../libraries/BytesLib.sol";
+import { BytesLib } from "../../src/core/libraries/BytesLib.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
+import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
 
-import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
-import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
+import { ISuperRbac } from "../../src/core/interfaces/ISuperRbac.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
-
-contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -100,8 +100,10 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
         // update accounting
         _updateAccounting(account, address(hook), hookData);
+
+        // check SP minting and lock assets
+        _lockForSuperPositions(account, address(hook));
     }
-    
 
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
@@ -117,6 +119,32 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 _type == ISuperHook.HookType.INFLOW,
                 ISuperHookResult(address(hook)).outAmount()
             );
+        }
+    }
+
+    function _lockForSuperPositions(address account, address hook) private {
+        bool lockForSP = ISuperHookResult(address(hook)).lockForSP();
+        if (lockForSP) {
+            address spToken = ISuperHookResult(hook).spToken();
+            uint256 amount = ISuperHookResult(hook).outAmount();
+
+            if (spToken == address(0)) revert ADDRESS_NOT_VALID();
+
+            ISuperCollectiveVault vault =
+                ISuperCollectiveVault(superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID")));
+
+            // forge approval for vault
+            Execution[] memory execs = new Execution[](1);
+            execs[0] = Execution({
+                target: spToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (address(vault), amount))
+            });
+            _execute(account, execs);
+
+            vault.lock(account, spToken, amount);
+
+            emit SuperPositionLocked(account, spToken, amount);
         }
     }
 }

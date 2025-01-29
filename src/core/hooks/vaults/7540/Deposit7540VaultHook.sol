@@ -4,6 +4,7 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -21,6 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
+/// @notice         bool lockForSP = _decodeBool(data, 125);
 contract Deposit7540VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -67,6 +69,8 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory data) external onlyExecutor {
         // store current balance
         outAmount = _getBalance(data);
+        lockForSP = _decodeBool(data, 125);
+        spToken = data.extractYieldSource();
     }
 
     /// @inheritdoc ISuperHook

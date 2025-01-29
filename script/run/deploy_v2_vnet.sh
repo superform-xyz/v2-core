@@ -644,37 +644,7 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
 fi
 wait
 
-# Read deployed contracts from output file and validate
-read_and_validate_contracts() {
-    local file_path=$1
-    local network_name=$2
-    
-    log "INFO" "Reading contracts from: $file_path"
-    
-    if [ ! -f "$file_path" ]; then
-        log "ERROR" "Contract file not found for $network_name: $file_path"
-        return 1
-    fi
-    
-    local contracts
-    contracts=$(cat "$file_path")
-    log "INFO" "Contract file contents for $network_name: $contracts"
-    
-    # Validate JSON format
-    if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
-        log "ERROR" "Invalid JSON in contract file for $network_name"
-        return 1
-    fi
-    
-    # Validate that we have at least some contract addresses
-    if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
-        log "ERROR" "No contract addresses found in file for $network_name"
-        return 1
-    fi
-    
-    echo "$contracts"
-    return 0
-}
+
 
 # Update the branch latest file section to use validation
 update_latest_file() {
@@ -735,18 +705,27 @@ update_latest_file() {
             exit 1
         fi
         
-        contracts=$(cat "$contracts_file")
-        log "INFO" "Contract file contents for $network_slug: $contracts"
-        
-        # Validate JSON format
-        if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
-            log "ERROR" "Invalid JSON in contract file for $network_slug"
+        # Read contracts file and ensure it's valid JSON - handle potential DOS line endings
+        contracts=$(tr -d '\r' < "$contracts_file")
+        if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
+            log "ERROR" "Failed to parse JSON from contract file for $network_slug"
+            log "DEBUG" "Raw file contents:"
+            cat "$contracts_file" | xxd
             cleanup_vnets
             exit 1
         fi
         
-        # Check if contracts is empty
-        if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+        log "INFO" "Successfully parsed contracts for $network_slug"
+        
+        # Validate JSON format
+        if [ -z "$contracts" ]; then
+            log "ERROR" "Empty or invalid JSON in contract file for $network_slug"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        # Check if contracts is empty object
+        if [ "$contracts" = "{}" ]; then
             log "WARN" "No contracts found in file for $network_slug"
         fi
         

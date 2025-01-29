@@ -66,4 +66,4 @@ interface ISuperRegistry {
     // -- SuperBundler
     /// @dev Get the ID of the super bundler.
     function SUPER_BUNDLER_ID() external view returns (bytes32);
-   }
+}

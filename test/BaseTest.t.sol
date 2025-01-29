@@ -829,13 +829,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool lockSP
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
     }
 
     function _createWithdrawHookData(
@@ -844,13 +845,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address vault,
         address owner,
         uint256 shares,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool lockSP
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
     }
 
     function _createDebridgeSendFundsAndExecuteHookData(

@@ -19,6 +19,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool lockForSP = _decodeBool(data, 104);
 contract SomelierUnstakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -48,6 +49,9 @@ contract SomelierUnstakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockForSP = _decodeBool(data, 104);
+        address yieldSource = data.extractYieldSource();
+        spToken = ISomelierCellarStaking(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook

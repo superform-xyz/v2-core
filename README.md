@@ -1,6 +1,6 @@
 # Superform v2-contracts
 
-This repository contains the core smart contracts for Superform v2
+This repository contains the smart contracts for Superform v2
 
 ## Overview
 
@@ -30,7 +30,6 @@ src/
 The project uses the following main dependencies:
 - OpenZeppelin Contracts: For standard contract implementations
 - Solady: For gas-optimized contract building blocks
-- LayerZero v2: For cross-chain messaging
 - Modulekit: For modular contract development
 - Forge Standard Library: For testing utilities
 - ExcessivelySafeCall: For secure cross-contract calls
@@ -47,8 +46,8 @@ The project uses the following main dependencies:
 
 1. Clone the repository with submodules:
 ```bash
-git clone --recursive https://github.com/your-org/superform-v2-core
-cd superform-v2-core
+git clone --recursive https://github.com/superform-xyz/v2-contracts
+cd v2-contracts
 ```
 
 2. Install dependencies:
