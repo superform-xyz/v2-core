@@ -27,9 +27,6 @@ on:
 jobs:
   build:
     runs-on: "SuperformCore3"
-    defaults:
-      run:
-        working-directory: ./contracts
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -69,9 +66,6 @@ jobs:
   test:
     needs: ["build"]
     runs-on: "SuperformCore3"
-    defaults:
-      run:
-        working-directory: ./contracts
     steps:
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
@@ -118,9 +112,6 @@ jobs:
     needs: ["test"]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
     runs-on: "SuperformCore3"
-    defaults:
-      run:
-        working-directory: ./contracts
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
       base_mainnet_addresses: ${{ steps.get-addresses-base.outputs.addresses }}

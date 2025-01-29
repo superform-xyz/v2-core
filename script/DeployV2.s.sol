@@ -1,0 +1,527 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
+
+// external
+import { Script } from "forge-std/Script.sol";
+import "forge-std/console2.sol";
+
+// Superform
+import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
+
+import { Configuration } from "./utils/Configuration.sol";
+
+import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
+import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
+import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
+import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
+import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
+import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
+import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
+
+import { SuperPositionsMock } from "../src/core/accounting/SuperPositionsMock.sol";
+import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
+
+import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
+
+// -- hooks
+// ---- | tokens
+import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
+// ---- | claim
+import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
+import { SomelierClaimAllRewardsHook } from "../src/core/hooks/claim/somelier/SomelierClaimAllRewardsHook.sol";
+import { SomelierClaimOneRewardHook } from "../src/core/hooks/claim/somelier/SomelierClaimOneRewardHook.sol";
+import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
+import { YearnClaimAllRewardsHook } from "../src/core/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
+// ---- | vault
+import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Withdraw4626VaultHook } from "../src/core/hooks/vaults/4626/Withdraw4626VaultHook.sol";
+import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { Withdraw5115VaultHook } from "../src/core/hooks/vaults/5115/Withdraw5115VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
+// ---- | stake
+import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
+import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
+import { SomelierStakeHook } from "../src/core/hooks/stake/somelier/SomelierStakeHook.sol";
+import { SomelierUnbondAllHook } from "../src/core/hooks/stake/somelier/SomelierUnbondAllHook.sol";
+import { SomelierUnbondHook } from "../src/core/hooks/stake/somelier/SomelierUnbondHook.sol";
+import { SomelierUnstakeAllHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
+import { SomelierUnstakeHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeHook.sol";
+import { YearnWithdrawHook } from "../src/core/hooks/stake/yearn/YearnWithdrawHook.sol";
+import { YieldExitHook } from "../src/core/hooks/stake/YieldExitHook.sol";
+
+// ---- | bridges
+import { AcrossSendFundsAndExecuteOnDstHook } from
+    "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { DeBridgeSendFundsAndExecuteOnDstHook } from
+    "../src/core/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
+
+// -- oracles
+import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+
+contract DeployV2 is Script, Configuration {
+    mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
+
+    address public constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+
+    struct HookDeployment {
+        string name;
+        bytes creationCode;
+    }
+
+    // leave it separately from `HookDeployment` to avoid confusion
+    struct OracleDeployment {
+        string name;
+        bytes creationCode;
+    }
+
+    struct DeployedContracts {
+        address superExecutor;
+        address superRegistry;
+        address superRbac;
+        address superLedger;
+        address superPositionSentinel;
+        address acrossReceiveFundsGateway;
+        address acrossReceiveFundsAndExecuteGateway;
+        address debridgeReceiveFundsAndExecuteGateway;
+        address mockValidatorModule;
+    }
+
+    modifier broadcast(uint256 env) {
+        if (env == 1) {
+            (address deployer,) = deriveRememberKey(MNEMONIC, 0);
+            console2.log("Deployer: ", deployer);
+            vm.startBroadcast(deployer);
+            _;
+            vm.stopBroadcast();
+        } else {
+            vm.startBroadcast();
+            _;
+            vm.stopBroadcast();
+        }
+    }
+
+    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
+        _setConfiguration(env, saltNamespace);
+        console2.log("Deploying on chainId: ", chainId);
+
+        // deploy contracts
+        _deploy(chainId);
+
+        // Configure contracts
+        _configure(chainId);
+
+        // Setup SuperLedger
+        _setupSuperLedger(chainId);
+    }
+
+    function _getDeployer() internal view returns (ISuperDeployer deployer) {
+        return ISuperDeployer(configuration.deployer);
+    }
+
+    function _deploy(uint64 chainId) internal {
+        DeployedContracts memory deployedContracts;
+
+        // retrieve deployer
+        ISuperDeployer deployer = _getDeployer();
+
+        // Deploy SuperRegistry
+        deployedContracts.superRegistry = __deployContract(
+            deployer,
+            "SuperRegistry",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperRegistry"),
+            abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
+        );
+        // Deploy SuperExecutor
+        deployedContracts.superExecutor = __deployContract(
+            deployer,
+            "SuperExecutor",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperExecutor"),
+            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
+        );
+
+        // Deploy SuperRbac
+        deployedContracts.superRbac = __deployContract(
+            deployer,
+            "SuperRbac",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperRbac"),
+            abi.encodePacked(type(SuperRbac).creationCode, abi.encode(configuration.owner))
+        );
+
+        // Deploy SuperLedger
+        deployedContracts.superLedger = __deployContract(
+            deployer,
+            "SuperLedger",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperLedger"),
+            abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superRegistry))
+        );
+
+        // Deploy SuperPositionMock
+        _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions, chainId);
+
+        // Deploy SuperPositionSentinel
+        deployedContracts.superPositionSentinel = __deployContract(
+            deployer,
+            "SuperPositionSentinel",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperPositionSentinel"),
+            abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
+        );
+
+        // Deploy AcrossReceiveFundsAndExecuteGateway
+        deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
+            deployer,
+            "AcrossReceiveFundsAndExecuteGateway",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "AcrossReceiveFundsAndExecuteGateway"),
+            abi.encodePacked(
+                type(AcrossReceiveFundsAndExecuteGateway).creationCode,
+                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], ENTRY_POINT)
+            )
+        );
+
+        // Deploy DeBridgeReceiveFundsAndExecuteGateway
+        deployedContracts.debridgeReceiveFundsAndExecuteGateway = __deployContract(
+            deployer,
+            "DeBridgeReceiveFundsAndExecuteGateway",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "DeBridgeReceiveFundsAndExecuteGateway"),
+            abi.encodePacked(
+                type(DeBridgeReceiveFundsAndExecuteGateway).creationCode,
+                abi.encode(deployedContracts.superRegistry, configuration.debridgeGates[chainId], ENTRY_POINT)
+            )
+        );
+
+        // Deploy MockValidatorModule
+        deployedContracts.mockValidatorModule = __deployContract(
+            deployer,
+            "MockValidatorModule",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "MockValidatorModule"),
+            type(MockValidatorModule).creationCode
+        );
+
+        // Deploy Hooks
+        _deployHooks(deployer, deployedContracts.superRegistry, chainId);
+
+        // Deploy Oracles
+        _deployOracles(deployer, chainId);
+    }
+
+    function _configure(uint64 chainId) internal {
+        SuperRbac superRbac = SuperRbac(_getContract(chainId, "SuperRbac"));
+        SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, "SuperRegistry"));
+
+        // -- Roles
+        // ---- | set external roles (ex: SUPER_ACTIONS_CONFIGURATOR for another address)
+        uint256 len = configuration.externalRoles.length;
+        for (uint256 i; i < len;) {
+            RolesData memory _roleInfo = configuration.externalRoles[i];
+            superRbac.setRole(_roleInfo.addr, _roleInfo.role, true);
+
+            unchecked {
+                ++i;
+            }
+        }
+        // ---- | set deployed contracts roles
+        superRbac.setRole(
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway"), superRbac.BRIDGE_GATEWAY(), true
+        );
+        superRbac.setRole(configuration.owner, superRbac.EXECUTOR_CONFIGURATOR(), true);
+        superRbac.setRole(configuration.owner, superRbac.SENTINEL_CONFIGURATOR(), true);
+
+        // -- SuperRegistry
+        superRegistry.setAddress(superRegistry.SUPER_LEDGER_ID(), _getContract(chainId, "SuperLedger"));
+        superRegistry.setAddress(
+            superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, "SuperPositionSentinel")
+        );
+        superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, "SuperRbac"));
+
+        superRegistry.setAddress(
+            superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
+        );
+        superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, "SuperExecutor"));
+        superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
+        superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getContract(uint64 chainId, string memory contractName) internal view returns (address) {
+        return contractAddresses[chainId][contractName];
+    }
+
+    function __deployContract(
+        ISuperDeployer deployer,
+        string memory contractName,
+        uint64 chainId,
+        bytes32 salt,
+        bytes memory creationCode
+    )
+        private
+        returns (address)
+    {
+        address expectedAddr = deployer.getDeployed(salt);
+        if (expectedAddr.code.length > 0) {
+            console2.log("[!] %s already deployed at:", contractName, expectedAddr);
+            console2.log("      skipping...");
+            return expectedAddr;
+        }
+
+        address deployedAddr = deployer.deploy(salt, creationCode);
+        console2.log("  [+] %s deployed at:", contractName, deployedAddr);
+        contractAddresses[chainId][contractName] = deployedAddr;
+        _exportContract(chainNames[chainId], contractName, deployedAddr, chainId);
+
+        return deployedAddr;
+    }
+
+    function __getSalt(address eoa, address deployer, string memory name) private view returns (bytes32) {
+        return keccak256(abi.encodePacked(eoa, deployer, SALT_NAMESPACE, bytes(string.concat(name, ".v0.1"))));
+    }
+
+    function _deployHooks(
+        ISuperDeployer deployer,
+        address registry,
+        uint64 chainId
+    )
+        private
+        returns (address[] memory hookAddresses)
+    {
+        uint256 len = 25;
+        HookDeployment[] memory hooks = new HookDeployment[](len);
+        hookAddresses = new address[](len);
+
+        hooks[0] = HookDeployment(
+            "AcrossSendFundsAndExecuteOnDstHook",
+            abi.encodePacked(
+                type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
+                abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3s[chainId])
+            )
+        );
+        hooks[1] = HookDeployment(
+            "DeBridgeSendFundsAndExecuteOnDstHook",
+            abi.encodePacked(
+                type(DeBridgeSendFundsAndExecuteOnDstHook).creationCode,
+                abi.encode(registry, configuration.owner, configuration.debridgeGates[chainId])
+            )
+        );
+        hooks[2] = HookDeployment(
+            "FluidClaimRewardHook",
+            abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[3] = HookDeployment(
+            "GearboxClaimRewardHook",
+            abi.encodePacked(type(GearboxClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[4] = HookDeployment(
+            "SomelierClaimAllRewardsHook",
+            abi.encodePacked(type(SomelierClaimAllRewardsHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[5] = HookDeployment(
+            "SomelierClaimOneRewardHook",
+            abi.encodePacked(type(SomelierClaimOneRewardHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[6] = HookDeployment(
+            "YearnClaimAllRewardsHook",
+            abi.encodePacked(type(YearnClaimAllRewardsHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[7] = HookDeployment(
+            "YearnClaimOneRewardHook",
+            abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[8] = HookDeployment(
+            "ApproveERC20Hook",
+            abi.encodePacked(type(ApproveERC20Hook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[9] = HookDeployment(
+            "TransferERC20Hook",
+            abi.encodePacked(type(TransferERC20Hook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[10] = HookDeployment(
+            "Deposit4626VaultHook",
+            abi.encodePacked(type(Deposit4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[11] = HookDeployment(
+            "Withdraw4626VaultHook",
+            abi.encodePacked(type(Withdraw4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[12] = HookDeployment(
+            "Deposit5115VaultHook",
+            abi.encodePacked(type(Deposit5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[13] = HookDeployment(
+            "Withdraw5115VaultHook",
+            abi.encodePacked(type(Withdraw5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[14] = HookDeployment(
+            "RequestDeposit7540VaultHook",
+            abi.encodePacked(type(RequestDeposit7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[15] = HookDeployment(
+            "RequestWithdraw7540VaultHook",
+            abi.encodePacked(type(RequestWithdraw7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[16] = HookDeployment(
+            "GearboxStakeHook",
+            abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[17] = HookDeployment(
+            "GearboxWithdrawHook",
+            abi.encodePacked(type(GearboxWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[18] = HookDeployment(
+            "SomelierStakeHook",
+            abi.encodePacked(type(SomelierStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[19] = HookDeployment(
+            "SomelierUnbondAllHook",
+            abi.encodePacked(type(SomelierUnbondAllHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[20] = HookDeployment(
+            "SomelierUnbondHook",
+            abi.encodePacked(type(SomelierUnbondHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[21] = HookDeployment(
+            "SomelierUnstakeAllHook",
+            abi.encodePacked(type(SomelierUnstakeAllHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[22] = HookDeployment(
+            "SomelierUnstakeHook",
+            abi.encodePacked(type(SomelierUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[23] = HookDeployment(
+            "YearnWithdrawHook",
+            abi.encodePacked(type(YearnWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[24] = HookDeployment(
+            "YieldExitHook",
+            abi.encodePacked(type(YieldExitHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+
+        for (uint256 i = 0; i < len;) {
+            HookDeployment memory hook = hooks[i];
+            hookAddresses[i] = __deployContract(
+                deployer,
+                hook.name,
+                chainId,
+                __getSalt(configuration.owner, configuration.deployer, hook.name),
+                hook.creationCode
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _deployOracles(
+        ISuperDeployer deployer,
+        uint64 chainId
+    )
+        private
+        returns (address[] memory oracleAddresses)
+    {
+        uint256 len = 2;
+        OracleDeployment[] memory oracles = new OracleDeployment[](len);
+        oracleAddresses = new address[](len);
+        oracles[0] = OracleDeployment("ERC4626YieldSourceOracle", type(ERC4626YieldSourceOracle).creationCode);
+        oracles[1] = OracleDeployment("ERC5115YieldSourceOracle", type(ERC5115YieldSourceOracle).creationCode);
+
+        for (uint256 i = 0; i < len;) {
+            OracleDeployment memory oracle = oracles[i];
+            oracleAddresses[i] = __deployContract(
+                deployer,
+                oracle.name,
+                chainId,
+                __getSalt(configuration.owner, configuration.deployer, oracle.name),
+                oracle.creationCode
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _setupSuperLedger(uint64 chainId) private {
+        SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, "SuperRegistry"));
+        ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
+        configs[0] = ISuperLedger.HookRegistrationConfig({
+            yieldSourceOracle: _getContract(chainId, "ERC4626YieldSourceOracle"),
+            yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
+            feePercent: 100,
+            vaultShareToken: address(0), // this is auto set because its standardized yield
+            feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+        });
+
+        ISuperLedger(_getContract(chainId, "SuperLedger")).setYieldSourceOracles(configs);
+    }
+
+    function _deploySuperPositions(
+        ISuperDeployer deployer,
+        address registry,
+        SuperPositionData[] memory superPositions,
+        uint64 chainId
+    )
+        private
+    {
+        uint256 len = superPositions.length;
+        for (uint256 i; i < len;) {
+            SuperPositionData memory _superPosition = superPositions[i];
+            string memory name = string.concat("SuperPositionsMock.", _superPosition.name);
+            __deployContract(
+                deployer,
+                name,
+                chainId,
+                __getSalt(configuration.owner, configuration.deployer, name),
+                abi.encodePacked(type(SuperPositionsMock).creationCode, registry, _superPosition.decimals)
+            );
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _exportContract(
+        string memory chainName,
+        string memory contractName,
+        address addr,
+        uint64 chainId
+    )
+        private
+    {
+        string memory json = vm.serializeAddress("EXPORTS", contractName, addr);
+        string memory root = vm.projectRoot();
+        string memory chainOutputFolder = string(abi.encodePacked("/script/output/"));
+
+        // For local runs, use local directory
+        if (!vm.envOr("CI", false)) {
+            chainOutputFolder =
+                string(abi.encodePacked(chainOutputFolder, "local/", vm.toString(uint256(chainId)), "/"));
+        } else {
+            // For CI runs, use branch-specific directory
+            string memory branchName = vm.envString("GITHUB_REF_NAME");
+
+            chainOutputFolder =
+                string(abi.encodePacked(chainOutputFolder, branchName, "/", vm.toString(uint256(chainId)), "/"));
+        }
+
+        // Create directory if it doesn't exist
+        vm.createDir(string(abi.encodePacked(root, chainOutputFolder)), true);
+
+        // Write to {ChainName}-latest.json
+        string memory outputPath = string(abi.encodePacked(root, chainOutputFolder, chainName, "-latest.json"));
+        vm.writeJson(json, outputPath);
+    }
+}

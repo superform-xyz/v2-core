@@ -1,24 +1,18 @@
-[submodule "contracts/lib/forge-std"]
-	path = contracts/lib/forge-std
+[submodule "lib/forge-std"]
+	path = lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "contracts/lib/openzeppelin-contracts"]
-	path = contracts/lib/openzeppelin-contracts
+[submodule "lib/openzeppelin-contracts"]
+	path = lib/openzeppelin-contracts
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts
-[submodule "contracts/lib/solady"]
-	path = contracts/lib/solady
-	url = https://github.com/Vectorized/solady
-[submodule "contracts/lib/ExcessivelySafeCall"]
-	path = contracts/lib/ExcessivelySafeCall
+[submodule "lib/ExcessivelySafeCall"]
+	path = lib/ExcessivelySafeCall
 	url = https://github.com/nomad-xyz/ExcessivelySafeCall
-[submodule "contracts/lib/devtools"]
-	path = contracts/lib/devtools
-	url = https://github.com/LayerZero-Labs/devtools
-[submodule "contracts/lib/layerzero-v2"]
-	path = contracts/lib/layerzero-v2
-	url = https://github.com/LayerZero-Labs/layerzero-v2
-[submodule "contracts/lib/pigeon"]
-	path = contracts/lib/pigeon
+[submodule "lib/pigeon"]
+	path = lib/pigeon
 	url = https://github.com/exp-table/pigeon
-[submodule "contracts/lib/modulekit"]
-	path = contracts/lib/modulekit
+[submodule "lib/modulekit"]
+	path = lib/modulekit
 	url = https://github.com/rhinestonewtf/modulekit
+[submodule "lib/solady"]
+	path = lib/solady
+	url = https://github.com/Vectorized/solady
