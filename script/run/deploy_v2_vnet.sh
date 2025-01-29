@@ -249,7 +249,7 @@ read_branch_latest() {
     
     # Check for other API errors
     if [ "$(echo "$response" | jq -r '.message // empty')" != "" ]; then
-        log "ERROR" "GitHub API error: $(echo "$response" | jq -r '.message')"
+        log "DEBUG" "GitHub API info: $(echo "$response" | jq -r '.message')"
         echo "{\"networks\":{},\"updated_at\":null}"
         return 0
     fi
@@ -812,6 +812,35 @@ update_latest_file() {
                 ;;
         esac
         
+        # Debug output for all parameters
+        log "DEBUG" "Parameters for network update:"
+        log "DEBUG" "network_slug: $network_slug"
+        log "DEBUG" "vnet_id: $vnet_id"
+        log "DEBUG" "new_counter: $new_counter"
+        log "DEBUG" "contracts (formatted):"
+        echo "$contracts" | jq '.' >&2
+        log "DEBUG" "current content:"
+        echo "$content" | jq '.' >&2
+        
+        # Validate all inputs before jq operation
+        if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
+            log "ERROR" "contracts is not valid JSON"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+            log "ERROR" "content is not valid JSON"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        if ! [[ "$new_counter" =~ ^[0-9]+$ ]]; then
+            log "ERROR" "new_counter is not a valid number: $new_counter"
+            cleanup_vnets
+            exit 1
+        fi
+        
         content=$(echo "$content" | jq \
             --arg slug "$network_slug" \
             --arg vnet "$vnet_id" \
@@ -822,6 +851,17 @@ update_latest_file() {
                 "vnet_id": $vnet,
                 "contracts": $contracts
             }')
+            
+        # Validate the result
+        if [ $? -ne 0 ]; then
+            log "ERROR" "jq command failed"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        # Debug the output
+        log "DEBUG" "Updated content:"
+        echo "$content" | jq '.' >&2
             
         i=$((i + 1))
     done
