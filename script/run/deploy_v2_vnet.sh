@@ -225,13 +225,21 @@ fi
 
 # Function to read branch-level latest file
 read_branch_latest() {
+    log "DEBUG" "Attempting to read branch latest file from GitHub"
     response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json?ref=$GITHUB_REF_NAME")
+    
+    log "DEBUG" "GitHub API Response:"
+    echo "$response" | jq '.'
     
     if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+        log "DEBUG" "File not found, returning empty structure"
         echo "{\"networks\":{},\"updated_at\":null}"
     else
-        echo "$response" | jq -r '.content' | base64 --decode
+        log "DEBUG" "File found, decoding content"
+        content=$(echo "$response" | jq -r '.content' | base64 --decode)
+        log "DEBUG" "Decoded content:"
+        echo "$content"
     fi
 }
 
@@ -324,7 +332,21 @@ check_vnets() {
     log "INFO" "Checking for existing VNET for network: $network_slug"
     
     # Read from branch latest file
+    log "DEBUG" "Reading branch latest file"
     content=$(read_branch_latest)
+    
+    log "DEBUG" "Content from branch latest file:"
+    echo "$content"
+    
+    # Validate JSON before processing
+    if ! echo "$content" | jq '.' > /dev/null 2>&1; then
+        log "ERROR" "Invalid JSON in branch latest file"
+        log "DEBUG" "Raw content:"
+        echo "$content" | xxd
+        content="{\"networks\":{},\"updated_at\":null}"
+        log "DEBUG" "Using default empty content instead"
+    fi
+    
     vnet_id=$(echo "$content" | jq -r ".networks[\"$network_slug\"].vnet_id // empty")
     
     if [ -n "$vnet_id" ]; then
@@ -333,6 +355,9 @@ check_vnets() {
         local tenderly_response=$(curl -s -X GET \
             "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
             -H "X-Access-Key: ${TENDERLY_ACCESS_KEY}")
+        
+        log "DEBUG" "Tenderly API Response:"
+        echo "$tenderly_response" | jq '.'
         
         if [ "$(echo "$tenderly_response" | jq -r '.id')" == "$vnet_id" ]; then
             local admin_rpc=$(echo "$tenderly_response" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
@@ -673,6 +698,7 @@ update_latest_file() {
             initial_sha=$(echo "$response" | jq -r '.sha')
             log "INFO" "Found existing file with SHA: $initial_sha"
         fi
+
     fi
     
     # Update content with new deployment info
@@ -836,3 +862,4 @@ else
 fi
 
 log "SUCCESS" "All deployments completed successfully!"
+
