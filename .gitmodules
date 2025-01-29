@@ -13,3 +13,6 @@
 [submodule "lib/modulekit"]
 	path = lib/modulekit
 	url = https://github.com/rhinestonewtf/modulekit
+[submodule "lib/solady"]
+	path = lib/solady
+	url = https://github.com/Vectorized/solady
