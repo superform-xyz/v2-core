@@ -225,21 +225,14 @@ fi
 
 # Function to read branch-level latest file
 read_branch_latest() {
-    log "DEBUG" "Attempting to read branch latest file from GitHub"
+    log "DEBUG" "Reading branch latest file from GitHub: https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME"
     response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$GITHUB_API_PATH/$GITHUB_REF_NAME/latest.json?ref=$GITHUB_REF_NAME")
-    
-    log "DEBUG" "GitHub API Response:"
-    echo "$response" | jq '.'
+        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
     
     if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
-        log "DEBUG" "File not found, returning empty structure"
         echo "{\"networks\":{},\"updated_at\":null}"
     else
-        log "DEBUG" "File found, decoding content"
-        content=$(echo "$response" | jq -r '.content' | base64 --decode)
-        log "DEBUG" "Decoded content:"
-        echo "$content"
+        echo "$response" | jq -r '.content' | base64 --decode
     fi
 }
 
@@ -332,21 +325,7 @@ check_vnets() {
     log "INFO" "Checking for existing VNET for network: $network_slug"
     
     # Read from branch latest file
-    log "DEBUG" "Reading branch latest file"
     content=$(read_branch_latest)
-    
-    log "DEBUG" "Content from branch latest file:"
-    echo "$content"
-    
-    # Validate JSON before processing
-    if ! echo "$content" | jq '.' > /dev/null 2>&1; then
-        log "ERROR" "Invalid JSON in branch latest file"
-        log "DEBUG" "Raw content:"
-        echo "$content" | xxd
-        content="{\"networks\":{},\"updated_at\":null}"
-        log "DEBUG" "Using default empty content instead"
-    fi
-    
     vnet_id=$(echo "$content" | jq -r ".networks[\"$network_slug\"].vnet_id // empty")
     
     if [ -n "$vnet_id" ]; then
@@ -355,9 +334,6 @@ check_vnets() {
         local tenderly_response=$(curl -s -X GET \
             "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
             -H "X-Access-Key: ${TENDERLY_ACCESS_KEY}")
-        
-        log "DEBUG" "Tenderly API Response:"
-        echo "$tenderly_response" | jq '.'
         
         if [ "$(echo "$tenderly_response" | jq -r '.id')" == "$vnet_id" ]; then
             local admin_rpc=$(echo "$tenderly_response" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
@@ -698,7 +674,6 @@ update_latest_file() {
             initial_sha=$(echo "$response" | jq -r '.sha')
             log "INFO" "Found existing file with SHA: $initial_sha"
         fi
-
     fi
     
     # Update content with new deployment info
@@ -732,21 +707,14 @@ update_latest_file() {
         fi
         
         # Read contracts file and ensure it's valid JSON - handle potential DOS line endings
-        log "DEBUG" "Reading contract file contents..."
         contracts=$(tr -d '\r' < "$contracts_file")
-        log "DEBUG" "Raw contracts content:"
-        echo "$contracts" | xxd
-        
-        log "DEBUG" "Attempting first JSON parse..."
-        if ! contracts=$(echo "$contracts" | jq -c '.' 2>&1); then
+        if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
             log "ERROR" "Failed to parse JSON from contract file for $network_slug"
-            log "DEBUG" "jq parse error output: $contracts"
+            log "DEBUG" "Raw file contents:"
+            cat "$contracts_file" | xxd
             cleanup_vnets
             exit 1
         fi
-        
-        log "DEBUG" "First JSON parse successful. Parsed content:"
-        echo "$contracts" | jq '.'
         
         log "INFO" "Successfully parsed contracts for $network_slug"
         
@@ -756,8 +724,6 @@ update_latest_file() {
             cleanup_vnets
             exit 1
         fi
-        
-        log "DEBUG" "Contracts variable is non-empty"
         
         # Check if contracts is empty object
         if [ "$contracts" = "{}" ]; then
@@ -777,38 +743,17 @@ update_latest_file() {
                 ;;
         esac
         
-        log "DEBUG" "Attempting to update content with new contracts..."
-        log "DEBUG" "Current content structure:"
-        echo "$content" | jq '.'
-        
-        log "DEBUG" "Parameters for jq update:"
-        echo "slug: $network_slug"
-        echo "vnet: $vnet_id"
-        echo "counter: $new_counter"
-        echo "contracts: $contracts"
-        
-        updated_content=$(echo "$content" | jq \
+        content=$(echo "$content" | jq \
             --arg slug "$network_slug" \
             --arg vnet "$vnet_id" \
             --arg counter "$new_counter" \
-            --arg contracts "$contracts" \
+            --argjson contracts "$contracts" \
             '.networks[$slug] = {
                 "counter": ($counter|tonumber),
                 "vnet_id": $vnet,
-                "contracts": ($contracts|fromjson)
-            }' 2>&1)
-        
-        if [ $? -ne 0 ]; then
-            log "ERROR" "Failed to update content with new contracts"
-            log "DEBUG" "jq error output: $updated_content"
-            cleanup_vnets
-            exit 1
-        fi
-        
-        content="$updated_content"
-        log "DEBUG" "Content updated successfully. New structure:"
-        echo "$content" | jq '.'
-        
+                "contracts": $contracts
+            }')
+            
         i=$((i + 1))
     done
     
@@ -830,7 +775,7 @@ update_latest_file() {
         # Only include SHA if we have one (for existing files)
         if [ -n "$initial_sha" ]; then
             log "INFO" "Including SHA in update request: $initial_sha"
-            update_data="$update_data,\"sha\":\"$initial_sha"
+            update_data="$update_data,\"sha\":\"$initial_sha\""
         fi
         
         update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
@@ -862,4 +807,3 @@ else
 fi
 
 log "SUCCESS" "All deployments completed successfully!"
-
