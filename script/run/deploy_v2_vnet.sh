@@ -454,13 +454,39 @@ EOF
         -H "Content-Type: application/json" \
         -H "X-Access-Key: ${access_key}" \
         -d "$json_data")
+        
+    # Debug the raw response
+    log "DEBUG" "Raw Tenderly API response: $response"
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON response from Tenderly API"
+        log "ERROR" "Response: $response"
+        return 1
+    fi
+    
+    # Check for API error responses
+    if [ "$(echo "$response" | jq -r '.error.message // empty')" != "" ]; then
+        log "ERROR" "Tenderly API error: $(echo "$response" | jq -r '.error.message')"
+        return 1
+    fi
+    
+    # Check if response has the expected structure
+    if ! echo "$response" | jq -e '.rpcs' >/dev/null 2>&1; then
+        log "ERROR" "Unexpected response format from Tenderly API (missing rpcs field)"
+        log "ERROR" "Full response: $response"
+        return 1
+    fi
 
-    # Extract RPC URLs and VNET ID using jq
+    # Extract RPC URLs and VNET ID using jq with error handling
     local admin_rpc=$(echo "$response" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
     local vnet_id=$(echo "$response" | jq -r '.id')
 
     if [ -z "$admin_rpc" ] || [ -z "$vnet_id" ]; then
-        log "ERROR" "Error creating TestNet: $response"
+        log "ERROR" "Failed to extract required fields from Tenderly API response"
+        log "ERROR" "Admin RPC: $admin_rpc"
+        log "ERROR" "VNET ID: $vnet_id"
+        log "ERROR" "Full response: $response"
         return 1
     fi
     
