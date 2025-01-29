@@ -281,6 +281,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return hooks[chainId][hookName];
     }
 
+    function _getHookDependency(uint64 chainId, string memory hookName) internal view returns (HookCategory) {
+        return hooks[chainId][hookName].dependency;
+    }
+
     function _getHooksByCategory(uint64 chainId, HookCategory category) internal view returns (Hook[] memory) {
         return hooksByCategory[chainId][category];
     }
