@@ -234,8 +234,6 @@ contract DeployV2 is Script, Configuration {
         superRbac.setRole(
             _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway"), superRbac.BRIDGE_GATEWAY(), true
         );
-        superRbac.setRole(configuration.owner, superRbac.EXECUTOR_CONFIGURATOR(), true);
-        superRbac.setRole(configuration.owner, superRbac.SENTINEL_CONFIGURATOR(), true);
 
         // -- SuperRegistry
         superRegistry.setAddress(superRegistry.SUPER_LEDGER_ID(), _getContract(chainId, "SuperLedger"));

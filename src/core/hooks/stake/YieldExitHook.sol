@@ -19,6 +19,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         bool lockForSP = _decodeBool(data, 72);
 contract YieldExitHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -41,6 +42,9 @@ contract YieldExitHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
+        lockForSP = _decodeBool(data, 72);
+        address yieldSource = data.extractYieldSource();
+        spToken = IYieldExit(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook
