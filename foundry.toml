@@ -22,7 +22,7 @@ remappings = [
   "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
   "modulekit/=lib/modulekit/src/",
   "@prb/math/=lib/modulekit/node_modules/@prb/math/src/",
-  "solady/=lib/modulekit/node_modules/solady/src/",
+  "@solady/=lib/solady/",
   "@account-abstraction/=lib/modulekit/node_modules/account-abstraction/contracts/",
   "@pigeon/=lib/pigeon/src/",
 ]
