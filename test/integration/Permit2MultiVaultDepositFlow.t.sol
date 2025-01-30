@@ -9,18 +9,26 @@ import { BaseTest } from "../BaseTest.t.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 
-// external
+// Vault Interfaces
+import { IERC5115 } from "../../src/core/interfaces/vendors/vaults/5115/IERC5115.sol";
+import { IERC7540 } from "../../src/core/interfaces/vendors/vaults/7540/IERC7540.sol";
+
+// External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Permit2MultiVaultDepositFlow is BaseTest {
-    IERC4626 public vaultInstanceETH;
+    IERC5115 public vaultInstance5115ETH;
+    IERC7540 public vaultInstance7540ETH;
 
     address public underlyingETH_USDC;
     address public underlyingETH_WETH;
 
-    address public yieldSourceOracle;
-    address public yieldSourceAddressETH;
+    address public yieldSourceOracle5115;
+    address public yieldSource5115AddressSUSDe;
+
+    address public yieldSourceOracle7540;
+    address public yieldSource7540AddressUSDC;
 
     address public accountETH;
     AccountInstance public instanceOnETH;
@@ -32,11 +40,17 @@ contract Permit2MultiVaultDepositFlow is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
-        underlyingETH_WETH = existingUnderlyingTokens[ETH]["WETH"];
+        underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["sUSDe"];
 
-        yieldSourceAddressETH = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
-        console2.log("yieldSourceAddressETH", yieldSourceAddressETH);
-        vaultInstanceETH = IERC4626(yieldSourceAddressETH);
+        yieldSource5115AddressEUSDE = realVaultAddresses[ETH]["ERC5115"]["PendleEthena"]["sUSDe"];
+        console2.log("yieldSource5115AddressEUSDE", yieldSource5115AddressEUSDE);
+
+        yieldSource7540AddressUSDC = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
+        console2.log("yieldSource7540AddressUSDC", yieldSource7540AddressUSDC);
+
+        vaultInstance5115ETH = IERC5115(yieldSource5115AddressEUSDE);
+        vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
+
         yieldSourceOracle = _getContract(ETH, "ERC4626YieldSourceOracle");
         console2.log("yieldSourceOracle", yieldSourceOracle);
 
