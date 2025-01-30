@@ -91,7 +91,6 @@ import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClai
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
-
 // external
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
@@ -147,7 +146,6 @@ struct Addresses {
     SuperMerkleValidator superMerkleValidator;
 }
 
-
 contract BaseTest is Helpers, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -176,23 +174,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bytes description;
     }
 
-
     uint64[] public chainIds = [ETH, OP, BASE];
 
-    string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
+    string[] public chainsNames = [ETHEREUM_KEY, OPTIMISM_KEY, BASE_KEY];
 
-    string[] public underlyingTokens = ["DAI", "USDC", "WETH"];
+    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY];
 
-    address[] public spokePoolV3Addresses = [
-        CHAIN_1_SPOKE_POOL_V3_ADDRESS,
-        CHAIN_10_SPOKE_POOL_V3_ADDRESS,
-        CHAIN_8453_SPOKE_POOL_V3_ADDRESS
-    ];
-    address[] public deBridgeGateAddresses = [
-        CHAIN_1_DEBRIDGE_GATE_ADDRESS,
-        CHAIN_10_DEBRIDGE_GATE_ADDRESS,
-        CHAIN_8453_DEBRIDGE_GATE_ADDRESS
-    ];
+    address[] public spokePoolV3Addresses =
+        [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
+    address[] public deBridgeGateAddresses =
+        [CHAIN_1_DEBRIDGE_GATE_ADDRESS, CHAIN_10_DEBRIDGE_GATE_ADDRESS, CHAIN_8453_DEBRIDGE_GATE_ADDRESS];
     address[] public deBridgeGateAdminAddresses = [
         CHAIN_1_DEBRIDGE_GATE_ADMIN_ADDRESS,
         CHAIN_10_DEBRIDGE_GATE_ADMIN_ADDRESS,
@@ -226,9 +217,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     mapping(uint64 chainId => string forkUrl) public RPC_URLS;
 
-    string public ETHEREUM_RPC_URL = vm.envString("ETHEREUM_RPC_URL"); // Native token: ETH
-    string public OPTIMISM_RPC_URL = vm.envString("OPTIMISM_RPC_URL"); // Native token: ETH
-    string public BASE_RPC_URL = vm.envString("BASE_RPC_URL"); // Native token: ETH
+    string public ETHEREUM_RPC_URL = vm.envString(ETHEREUM_RPC_URL_KEY); // Native token: ETH
+    string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
+    string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -279,199 +270,197 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
-            contractAddresses[chainIds[i]]["AcrossV3Helper"] = acrossV3Helper;
+            contractAddresses[chainIds[i]][ACROSS_V3_HELPER_KEY] = acrossV3Helper;
 
             address debridgeHelper = address(new DebridgeHelper());
             vm.allowCheatcodes(debridgeHelper);
             vm.makePersistent(debridgeHelper);
-            contractAddresses[chainIds[i]]["DebridgeHelper"] = debridgeHelper;
+            contractAddresses[chainIds[i]][DEBRIDGE_HELPER_KEY] = debridgeHelper;
 
             Addresses memory A;
             /// @dev main contracts
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
-            vm.label(address(A.superRegistry), "superRegistry");
-            contractAddresses[chainIds[i]]["SuperRegistry"] = address(A.superRegistry);
+            vm.label(address(A.superRegistry), SUPER_REGISTRY_KEY);
+            contractAddresses[chainIds[i]][SUPER_REGISTRY_KEY] = address(A.superRegistry);
 
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
-            vm.label(address(A.superRbac), "superRbac");
-            contractAddresses[chainIds[i]]["SuperRbac"] = address(A.superRbac);
+            vm.label(address(A.superRbac), SUPER_RBAC_KEY);
+            contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
 
             A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superRegistry))));
-            vm.label(address(A.superLedger), "superLedger");
-            contractAddresses[chainIds[i]]["SuperLedger"] = address(A.superLedger);
+            vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
+            contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A.superLedger);
 
             A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
-            vm.label(address(A.superPositionSentinel), "superPositionSentinel");
-            contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
+            vm.label(address(A.superPositionSentinel), SUPER_POSITION_SENTINEL_KEY);
+            contractAddresses[chainIds[i]][SUPER_POSITION_SENTINEL_KEY] = address(A.superPositionSentinel);
 
             A.superExecutor = ISuperExecutor(address(new SuperExecutor(address(A.superRegistry))));
-            vm.label(address(A.superExecutor), "superExecutor");
-            contractAddresses[chainIds[i]]["SuperExecutor"] = address(A.superExecutor);
-
-            A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
-            vm.label(address(A.superPositionSentinel), "superPositionSentinel");
-            contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
+            vm.label(address(A.superExecutor), SUPER_EXECUTOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A.superExecutor);
 
             A.acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
                 address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
             );
-            vm.label(address(A.acrossReceiveFundsAndExecuteGateway), "acrossReceiveFundsAndExecuteGateway");
-            contractAddresses[chainIds[i]]["AcrossReceiveFundsAndExecuteGateway"] =
+            vm.label(address(A.acrossReceiveFundsAndExecuteGateway), ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
+            contractAddresses[chainIds[i]][ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
                 address(A.acrossReceiveFundsAndExecuteGateway);
 
             A.deBridgeReceiveFundsAndExecuteGateway = new DeBridgeReceiveFundsAndExecuteGateway(
                 address(A.superRegistry), DEBRIDGE_GATE_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
             );
-            vm.label(address(A.deBridgeReceiveFundsAndExecuteGateway), "deBridgeReceiveFundsAndExecuteGateway");
-            contractAddresses[chainIds[i]]["DeBridgeReceiveFundsAndExecuteGateway"] =
+            vm.label(address(A.deBridgeReceiveFundsAndExecuteGateway), DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
+            contractAddresses[chainIds[i]][DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
                 address(A.deBridgeReceiveFundsAndExecuteGateway);
 
             A.superMerkleValidator = new SuperMerkleValidator(address(A.superRegistry));
-            vm.label(address(A.superMerkleValidator), "superMerkleValidator");
-            contractAddresses[chainIds[i]]["SuperMerkleValidator"] = address(A.superMerkleValidator);
+            vm.label(address(A.superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A.superMerkleValidator);
 
             /// @dev action oracles
             A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
-            vm.label(address(A.erc4626YieldSourceOracle), "ERC4626YieldSourceOracle");
-            contractAddresses[chainIds[i]]["ERC4626YieldSourceOracle"] = address(A.erc4626YieldSourceOracle);
+            vm.label(address(A.erc4626YieldSourceOracle), ERC4626_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ERC4626_YIELD_SOURCE_ORACLE_KEY] = address(A.erc4626YieldSourceOracle);
 
             A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
-            vm.label(address(A.erc5115YieldSourceOracle), "ERC5115YieldSourceOracle");
-            contractAddresses[chainIds[i]]["ERC5115YieldSourceOracle"] = address(A.erc5115YieldSourceOracle);
+            vm.label(address(A.erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A.erc5115YieldSourceOracle);
 
             /// @dev hooks
             A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
-            vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
-            hookAddresses[chainIds[i]]["ApproveERC20Hook"] = address(A.approveErc20Hook);
-            hooks[chainIds[i]]["ApproveERC20Hook"] = 
-            Hook(
-                "ApproveERC20Hook", 
-                HookCategory.TokenApprovals, 
-                HookCategory.None, 
-                address(A.approveErc20Hook), 
-                ""
+            vm.label(address(A.approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = address(A.approveErc20Hook);
+            hooks[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = Hook(
+                APPROVE_ERC20_HOOK_KEY, HookCategory.TokenApprovals, HookCategory.None, address(A.approveErc20Hook), ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["ApproveERC20Hook"]);
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][APPROVE_ERC20_HOOK_KEY]);
 
             A.transferErc20Hook = new TransferERC20Hook(address(A.superRegistry), address(this));
-            vm.label(address(A.transferErc20Hook), "TransferERC20Hook");
-            hookAddresses[chainIds[i]]["TransferERC20Hook"] = address(A.transferErc20Hook);
-            hooks[chainIds[i]]["TransferERC20Hook"] = 
-            Hook(
-                "TransferERC20Hook", 
-                HookCategory.TokenApprovals, 
-                HookCategory.TokenApprovals, 
-                address(A.transferErc20Hook), 
+            vm.label(address(A.transferErc20Hook), TRANSFER_ERC20_HOOK_KEY);
+            hookAddresses[chainIds[i]][TRANSFER_ERC20_HOOK_KEY] = address(A.transferErc20Hook);
+            hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY] = Hook(
+                TRANSFER_ERC20_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.TokenApprovals,
+                address(A.transferErc20Hook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["TransferERC20Hook"]);
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY]);
 
             A.deposit4626VaultHook = new Deposit4626VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.deposit4626VaultHook), "Deposit4626VaultHook");
-            hookAddresses[chainIds[i]]["Deposit4626VaultHook"] = address(A.deposit4626VaultHook);
-            hooks[chainIds[i]]["Deposit4626VaultHook"] = 
-            Hook(
-                "Deposit4626VaultHook", 
-                HookCategory.VaultDeposits, 
-                HookCategory.TokenApprovals, 
-                address(A.deposit4626VaultHook), 
+            vm.label(address(A.deposit4626VaultHook), DEPOSIT_4626_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = address(A.deposit4626VaultHook);
+            hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = Hook(
+                DEPOSIT_4626_VAULT_HOOK_KEY,
+                HookCategory.VaultDeposits,
+                HookCategory.TokenApprovals,
+                address(A.deposit4626VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit4626VaultHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY]
+            );
             A.withdraw4626VaultHook = new Withdraw4626VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.withdraw4626VaultHook), "Withdraw4626VaultHook");
-            hookAddresses[chainIds[i]]["Withdraw4626VaultHook"] = address(A.withdraw4626VaultHook);
-            hooks[chainIds[i]]["Withdraw4626VaultHook"] = 
-            Hook(
-                "Withdraw4626VaultHook", 
-                HookCategory.VaultWithdrawals, 
-                HookCategory.VaultDeposits, 
-                address(A.withdraw4626VaultHook), 
+            vm.label(address(A.withdraw4626VaultHook), WITHDRAW_4626_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY] = address(A.withdraw4626VaultHook);
+            hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY] = Hook(
+                WITHDRAW_4626_VAULT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A.withdraw4626VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["Withdraw4626VaultHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY]
+            );
 
             A.deposit5115VaultHook = new Deposit5115VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.deposit5115VaultHook), "Deposit5115VaultHook");
-            hookAddresses[chainIds[i]]["Deposit5115VaultHook"] = address(A.deposit5115VaultHook);
-            hooks[chainIds[i]]["Deposit5115VaultHook"] = 
-            Hook(
-                "Deposit5115VaultHook", 
-                HookCategory.VaultDeposits, 
-                HookCategory.TokenApprovals, 
-                address(A.deposit5115VaultHook), 
+            vm.label(address(A.deposit5115VaultHook), DEPOSIT_5115_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = address(A.deposit5115VaultHook);
+            hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = Hook(
+                DEPOSIT_5115_VAULT_HOOK_KEY,
+                HookCategory.VaultDeposits,
+                HookCategory.TokenApprovals,
+                address(A.deposit5115VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit5115VaultHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
+            );
             A.withdraw5115VaultHook = new Withdraw5115VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.withdraw5115VaultHook), "Withdraw5115VaultHook");
-            hookAddresses[chainIds[i]]["Withdraw5115VaultHook"] = address(A.withdraw5115VaultHook);
-            hooks[chainIds[i]]["Withdraw5115VaultHook"] 
-            = Hook(
-                "Withdraw5115VaultHook", 
-                HookCategory.VaultWithdrawals, 
-                HookCategory.VaultDeposits, 
-                address(A.withdraw5115VaultHook), 
+            vm.label(address(A.withdraw5115VaultHook), WITHDRAW_5115_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY] = address(A.withdraw5115VaultHook);
+            hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY] = Hook(
+                WITHDRAW_5115_VAULT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A.withdraw5115VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["Withdraw5115VaultHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY]
+            );
 
             A.requestDeposit7540VaultHook = new RequestDeposit7540VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.requestDeposit7540VaultHook), "RequestDeposit7540VaultHook");
-            hookAddresses[chainIds[i]]["RequestDeposit7540VaultHook"] = address(A.requestDeposit7540VaultHook);
-            hooks[chainIds[i]]["RequestDeposit7540VaultHook"] 
-            = Hook(
-                "RequestDeposit7540VaultHook", 
-                HookCategory.VaultDeposits, 
-                HookCategory.TokenApprovals, 
-                address(A.requestDeposit7540VaultHook), 
+            vm.label(address(A.requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = address(A.requestDeposit7540VaultHook);
+            hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
+                REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultDeposits,
+                HookCategory.TokenApprovals,
+                address(A.requestDeposit7540VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["RequestDeposit7540VaultHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
+            );
             A.requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
-            hookAddresses[chainIds[i]]["RequestWithdraw7540VaultHook"] = address(A.requestWithdraw7540VaultHook);
-            hooks[chainIds[i]]["RequestWithdraw7540VaultHook"] 
-            = Hook(
-                "RequestWithdraw7540VaultHook", 
-                HookCategory.VaultWithdrawals, 
-                HookCategory.VaultDeposits, 
-                address(A.requestWithdraw7540VaultHook), 
+            vm.label(address(A.requestWithdraw7540VaultHook), REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY] = address(A.requestWithdraw7540VaultHook);
+            hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
+                REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A.requestWithdraw7540VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]]["RequestWithdraw7540VaultHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY]
+            );
 
             A.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 address(A.superRegistry), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
-            vm.label(address(A.acrossSendFundsAndExecuteOnDstHook), "AcrossSendFundsAndExecuteOnDstHook");
-            hookAddresses[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] =
+            vm.label(address(A.acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+            hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
                 address(A.acrossSendFundsAndExecuteOnDstHook);
-            hooks[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] 
-            = Hook(
-                "AcrossSendFundsAndExecuteOnDstHook", 
-                HookCategory.Bridges, 
-                HookCategory.TokenApprovals, 
-                address(A.acrossSendFundsAndExecuteOnDstHook), 
+            hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] = Hook(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                HookCategory.Bridges,
+                HookCategory.TokenApprovals,
+                address(A.acrossSendFundsAndExecuteOnDstHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(hooks[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
+                hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
+            );
             A.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
                 address(A.superRegistry), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
             );
-            vm.label(address(A.deBridgeSendFundsAndExecuteOnDstHook), "DeBridgeSendFundsAndExecuteOnDstHook");
-            vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], "DEBRIDGE_GATE_ADDRESS");
-            hookAddresses[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] =
+            vm.label(address(A.deBridgeSendFundsAndExecuteOnDstHook), DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+            vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], DEBRIDGE_GATE_ADDRESS_KEY);
+            hookAddresses[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
                 address(A.deBridgeSendFundsAndExecuteOnDstHook);
-            hooks[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] 
-            = Hook(
-                "DeBridgeSendFundsAndExecuteOnDstHook", 
-                HookCategory.Bridges, 
-                HookCategory.TokenApprovals, 
-                address(A.deBridgeSendFundsAndExecuteOnDstHook), 
+            hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] = Hook(
+                DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                HookCategory.Bridges,
+                HookCategory.TokenApprovals,
+                address(A.deBridgeSendFundsAndExecuteOnDstHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(hooks[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"]);
+            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
+                hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
+            );
         }
     }
 
@@ -528,19 +517,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
-        existingUnderlyingTokens[1]["DAI"] = CHAIN_1_DAI;
-        existingUnderlyingTokens[1]["USDC"] = CHAIN_1_USDC;
-        existingUnderlyingTokens[1]["WETH"] = CHAIN_1_WETH;
+        existingUnderlyingTokens[1][DAI_KEY] = CHAIN_1_DAI;
+        existingUnderlyingTokens[1][USDC_KEY] = CHAIN_1_USDC;
+        existingUnderlyingTokens[1][WETH_KEY] = CHAIN_1_WETH;
 
         // Optimism tokens
-        existingUnderlyingTokens[10]["DAI"] = CHAIN_10_DAI;
-        existingUnderlyingTokens[10]["USDC"] = CHAIN_10_USDC;
-        existingUnderlyingTokens[10]["WETH"] = CHAIN_10_WETH;
+        existingUnderlyingTokens[10][DAI_KEY] = CHAIN_10_DAI;
+        existingUnderlyingTokens[10][USDC_KEY] = CHAIN_10_USDC;
+        existingUnderlyingTokens[10][WETH_KEY] = CHAIN_10_WETH;
 
         // Base tokens
-        existingUnderlyingTokens[8453]["DAI"] = CHAIN_8453_DAI;
-        existingUnderlyingTokens[8453]["USDC"] = CHAIN_8453_USDC;
-        existingUnderlyingTokens[8453]["WETH"] = CHAIN_8453_WETH;
+        existingUnderlyingTokens[8453][DAI_KEY] = CHAIN_8453_DAI;
+        existingUnderlyingTokens[8453][USDC_KEY] = CHAIN_8453_USDC;
+        existingUnderlyingTokens[8453][WETH_KEY] = CHAIN_8453_WETH;
 
         /// @dev Setup realVaultAddresses
         mapping(
@@ -551,30 +540,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         ) storage existingVaults = realVaultAddresses;
 
         /// @dev Ethereum 4626 vault addresses
-        existingVaults[1]["ERC4626"]["AaveVault"]["USDC"] = CHAIN_1_AaveVault;
-        vm.label(existingVaults[1]["ERC4626"]["AaveVault"]["USDC"], "AaveVault");
-        existingVaults[1]["ERC4626"]["FluidVault"]["USDC"] = CHAIN_1_FluidVault;
-        vm.label(existingVaults[1]["ERC4626"]["FluidVault"]["USDC"], "FluidVault");
-        existingVaults[1]["ERC4626"]["EulerVault"]["USDC"] = CHAIN_1_EulerVault;
-        vm.label(existingVaults[1]["ERC4626"]["EulerVault"]["USDC"], "EulerVault");
-        existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"] = CHAIN_1_MorphoVault;
-        vm.label(existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"], "MorphoVault");
+        existingVaults[1][ERC4626_VAULT_KEY][AAVE_VAULT_KEY][USDC_KEY] = CHAIN_1_AaveVault;
+        vm.label(existingVaults[1][ERC4626_VAULT_KEY][AAVE_VAULT_KEY][USDC_KEY], AAVE_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][FLUID_VAULT_KEY][USDC_KEY] = CHAIN_1_FluidVault;
+        vm.label(existingVaults[1][ERC4626_VAULT_KEY][FLUID_VAULT_KEY][USDC_KEY], FLUID_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY] = CHAIN_1_EulerVault;
+        vm.label(existingVaults[1][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY], EULER_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY] = CHAIN_1_MorphoVault;
+        vm.label(existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
         // existingVaults[10][1]["DAI"][0] = address(0);
-        existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"] = CHAIN_10_AloeUSDC;
-        vm.label(existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"], "AloeUSDC");
+        existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_10_AloeUSDC;
+        vm.label(existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY], ALOE_USDC_VAULT_KEY);
         // existingVaults[10][1]["WETH"][0] = address(0);
 
         /// @dev Base 4626 vault addresses
-        existingVaults[8453]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"] = CHAIN_8453_MorphoGauntletUSDCPrime;
-        vm.label(existingVaults[8453]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"], "MorphoGauntletUSDCPrime");
-        existingVaults[8453]["ERC4626"]["MorphoGauntletWETHCore"]["WETH"] = CHAIN_8453_MorphoGauntletWETHCore;
-        vm.label(existingVaults[8453]["ERC4626"]["MorphoGauntletWETHCore"]["WETH"], "MorphoGauntletWETHCore");
+        existingVaults[8453][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
+            CHAIN_8453_MorphoGauntletUSDCPrime;
+        vm.label(
+            existingVaults[8453][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY],
+            MORPHO_GAUNTLET_USDC_PRIME_KEY
+        );
+        existingVaults[8453][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY] =
+            CHAIN_8453_MorphoGauntletWETHCore;
+        vm.label(
+            existingVaults[8453][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY],
+            MORPHO_GAUNTLET_WETH_CORE_KEY
+        );
 
         /// @dev 7540 real centrifuge vaults on mainnet
-        existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"] = CHAIN_1_CentrifugeUSDC;
-        vm.label(existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"], "CentrifugeUSDC");
+        existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
+        vm.label(
+            existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
+        );
         //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults =
         // ERC5115_VAULTS;
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
@@ -652,7 +651,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         for (uint256 j = 0; j < underlyingTokens.length - 1; ++j) {
             for (uint256 i = 0; i < chainIds.length; ++i) {
                 vm.selectFork(FORKS[chainIds[i]]);
-                if (keccak256(abi.encodePacked(underlyingTokens[j])) == keccak256(abi.encodePacked("USDC"))) {
+                if (keccak256(abi.encodePacked(underlyingTokens[j])) == keccak256(abi.encodePacked(USDC_KEY))) {
                     address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
                     deal(token, accountInstances[chainIds[i]].account, 1e18 * amount);
                 }
@@ -663,22 +662,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _setSuperRegistryAddresses() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
+            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_LEDGER_ID(), _getContract(chainIds[i], "SuperLedger")
+                superRegistry.SUPER_LEDGER_ID(), _getContract(chainIds[i], SUPER_LEDGER_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainIds[i], "SuperPositionSentinel")
+                superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainIds[i], SUPER_POSITION_SENTINEL_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_RBAC_ID(), _getContract(chainIds[i], "SuperRbac")
+                superRegistry.SUPER_RBAC_ID(), _getContract(chainIds[i], SUPER_RBAC_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
-                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
+                _getContract(chainIds[i], ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], "SuperExecutor")
+                superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_BUNDLER_ID(), address(0x11111));
@@ -698,16 +697,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             vm.startPrank(MANAGER);
 
-            SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
+            SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
             configs[0] = ISuperLedger.HookRegistrationConfig({
-                yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
-                yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
+                yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 feePercent: 100,
                 vaultShareToken: address(0), // this is auto set because its standardized yield
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
             });
-            ISuperLedger(_getContract(chainIds[i], "SuperLedger")).setYieldSourceOracles(configs);
+            ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
         }
     }
@@ -779,7 +778,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.expectEmit(true, true, true, true);
             emit IAcrossV3Receiver.AcrossFundsReceivedAndExecuted(account);
         }
-        AcrossV3Helper(_getContract(srcChainId, "AcrossV3Helper")).help(
+        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
             SPOKE_POOL_V3_ADDRESSES[dstChainId],
             ACROSS_RELAYER,
@@ -797,7 +796,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     )
         internal
     {
-        DebridgeHelper(_getContract(srcChainId, "DebridgeHelper")).help(
+        DebridgeHelper(_getContract(srcChainId, DEBRIDGE_HELPER_KEY)).help(
             DEBRIDGE_ADMIN_ADDRESSES[dstChainId],
             DEBRIDGE_GATE_ADDRESSES[srcChainId],
             DEBRIDGE_GATE_ADDRESSES[dstChainId],

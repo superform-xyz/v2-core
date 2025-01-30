@@ -41,12 +41,12 @@ contract SuperMerkleValidatorTest is BaseTest {
     function setUp() public override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
-        underlying = existingUnderlyingTokens[1]["USDC"];
-        yieldSourceAddress = realVaultAddresses[1]["ERC4626"]["MorphoVault"]["USDC"];
+        underlying = existingUnderlyingTokens[1][USDC_KEY];
+        yieldSourceAddress = realVaultAddresses[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
         vaultInstance = IERC4626(yieldSourceAddress);
-        superExecutor = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
+        superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
-        validator = SuperMerkleValidator(_getContract(ETH, "SuperMerkleValidator"));
+        validator = SuperMerkleValidator(_getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY));
 
         instance = accountInstances[ETH];
         account = instance.account;
@@ -126,16 +126,17 @@ contract SuperMerkleValidatorTest is BaseTest {
 
         // hooks
         address[] memory hooksAddresses = new address[](2);
-        address approveHook = _getHookAddress(ETH, "ApproveERC20Hook");
-        address depositHook = _getHookAddress(ETH, "Deposit4626VaultHook");
+        address approveHook = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        address depositHook = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[0] = approveHook;
         hooksAddresses[1] = depositHook;
 
         // hooks data
         bytes[] memory hooksData = new bytes[](2);
         bytes memory approveData = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        bytes memory depositData =
-            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false, false);
+        bytes memory depositData = _createDepositHookData(
+            account, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+        );
         hooksData[0] = approveData;
         hooksData[1] = depositData;
 
