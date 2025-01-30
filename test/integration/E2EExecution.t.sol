@@ -90,7 +90,7 @@ contract E2EExecutionTest is BaseE2ETest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // prepare data & execute through entry point
-        _executThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         uint256 allowanceAmount = IERC20(CHAIN_1_WETH).allowance(nexusAccount, address(MANAGER));
         assertEq(allowanceAmount, amount, "Allowance should be set correctly");
@@ -121,7 +121,7 @@ contract E2EExecutionTest is BaseE2ETest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // prepare data & execute through entry point
-        _executThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         uint256 allowanceAmount = IERC20(CHAIN_1_WETH).allowance(nexusAccount, address(MANAGER));
         assertEq(allowanceAmount, amount, "Allowance should be set correctly");
@@ -156,7 +156,7 @@ contract E2EExecutionTest is BaseE2ETest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // prepare data & execute through entry point
-        _executThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         uint256 accSharesAfter = IERC4626(morphoVault).balanceOf(nexusAccount);
         assertApproxEqAbs(

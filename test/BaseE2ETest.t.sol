@@ -101,7 +101,7 @@ contract BaseE2ETest is BaseTest {
     /*//////////////////////////////////////////////////////////////
                                 USER OPERATION METHODS
     //////////////////////////////////////////////////////////////*/
-    function _executThroughEntrypoint(
+    function _executeThroughEntrypoint(
         address account,
         bytes memory signature,
         ISuperExecutor.ExecutorEntry memory entry
