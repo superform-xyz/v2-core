@@ -818,10 +818,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"], "MorphoVault");
 
         /// @dev Optimism 4626vault addresses
-        // existingVaults[10][1]["DAI"][0] = address(0);
         existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"] = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
         vm.label(existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"], "AloeUSDC");
-        // existingVaults[10][1]["WETH"][0] = address(0);
 
         /// @dev Base 4626 vault addresses
         existingVaults[8453]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"] = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
@@ -832,6 +830,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         /// @dev 7540 real centrifuge vaults on mainnet
         existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
         vm.label(existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"], "CentrifugeUSDC");
+        
         //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults =
         // ERC5115_VAULTS;
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
