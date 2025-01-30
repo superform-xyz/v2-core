@@ -54,10 +54,10 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 
 // Swap hooks
 // --- 1inch
-import { Base1InchHook } from "../src/core/hooks/swapers/1inch/Base1InchHook.sol";
-import { Swap1InchClipperRouterHook } from "../src/core/hooks/swapers/1inch/Swap1InchClipperRouterHook.sol";
-import { Swap1InchGenericRouterHook } from "../src/core/hooks/swapers/1inch/Swap1InchGenericRouterHook.sol";
-import { Swap1InchUnoswapHook } from "../src/core/hooks/swapers/1inch/Swap1InchUnoswapHook.sol";
+import { Base1InchHook } from "../src/core/hooks/swappers/1inch/Base1InchHook.sol";
+import { Swap1InchClipperRouterHook } from "../src/core/hooks/swappers/1inch/Swap1InchClipperRouterHook.sol";
+import { Swap1InchGenericRouterHook } from "../src/core/hooks/swappers/1inch/Swap1InchGenericRouterHook.sol";
+import { Swap1InchUnoswapHook } from "../src/core/hooks/swappers/1inch/Swap1InchUnoswapHook.sol";
 
 // Stake hooks
 // --- Gearbox
