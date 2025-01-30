@@ -22,7 +22,7 @@ contract Permit2MultiVaultDepositFlow is BaseTest {
     IERC7540 public vaultInstance7540ETH;
 
     address public underlyingETH_USDC;
-    address public underlyingETH_WETH;
+    address public underlyingETH_sUSDe;
 
     address public yieldSourceOracle5115;
     address public yieldSource5115AddressSUSDe;
@@ -42,17 +42,20 @@ contract Permit2MultiVaultDepositFlow is BaseTest {
         underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
         underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["sUSDe"];
 
-        yieldSource5115AddressEUSDE = realVaultAddresses[ETH]["ERC5115"]["PendleEthena"]["sUSDe"];
-        console2.log("yieldSource5115AddressEUSDE", yieldSource5115AddressEUSDE);
+        yieldSource5115AddressSUSDe = realVaultAddresses[ETH]["ERC5115"]["PendleEthena"]["sUSDe"];
+        console2.log("yieldSource5115AddressSUSDe", yieldSource5115AddressSUSDe);
 
         yieldSource7540AddressUSDC = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
         console2.log("yieldSource7540AddressUSDC", yieldSource7540AddressUSDC);
 
-        vaultInstance5115ETH = IERC5115(yieldSource5115AddressEUSDE);
+        vaultInstance5115ETH = IERC5115(yieldSource5115AddressSUSDe);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
 
-        yieldSourceOracle = _getContract(ETH, "ERC4626YieldSourceOracle");
-        console2.log("yieldSourceOracle", yieldSourceOracle);
+        yieldSourceOracle5115 = _getContract(ETH, "ERC5115YieldSourceOracle");
+        console2.log("yieldSourceOracle5115", yieldSourceOracle5115);
+
+        yieldSourceOracle7540 = _getContract(ETH, "ERC7540YieldSourceOracle");
+        console2.log("yieldSourceOracle7540", yieldSourceOracle7540);
 
         superExecutorOnETH = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
         console2.log("superExecutorOnETH", address(superExecutorOnETH));
@@ -79,7 +82,7 @@ contract Permit2MultiVaultDepositFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(
             underlyingETH_USDC,
-            yieldSourceAddressETH,
+            yieldSource5115AddressSUSDe,
             amount,
             false
         );
