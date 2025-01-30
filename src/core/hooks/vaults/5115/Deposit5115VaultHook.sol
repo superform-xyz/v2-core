@@ -65,7 +65,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC5115.redeem, (account, amount, tokenIn, minSharesOut, depositFromInternalBalance))
+            callData: abi.encodeCall(IERC5115.deposit, (account, tokenIn, amount, minSharesOut, depositFromInternalBalance))
         });
     }
 
