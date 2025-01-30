@@ -10,9 +10,9 @@
 [submodule "lib/pigeon"]
 	path = lib/pigeon
 	url = https://github.com/exp-table/pigeon
-[submodule "lib/modulekit"]
-	path = lib/modulekit
-	url = https://github.com/rhinestonewtf/modulekit
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
+[submodule "lib/modulekit"]
+	path = lib/modulekit
+	url = https://github.com/rhinestonewtf/modulekit

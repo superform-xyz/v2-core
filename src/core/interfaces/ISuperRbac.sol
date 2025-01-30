@@ -38,15 +38,6 @@ interface ISuperRbac {
     /// @dev Get the ID of the admin role.
     function SUPER_ADMIN_ROLE() external view returns (bytes32);
 
-    /// @dev Get the ID of the executor configurator role.
-    function EXECUTOR_CONFIGURATOR() external view returns (bytes32);
-
     /// @dev Get the ID of the bridge gateway role.
     function BRIDGE_GATEWAY() external view returns (bytes32);
-
-    /// @dev Get the ID of the sentinel configurator role.
-    function SENTINEL_CONFIGURATOR() external view returns (bytes32);
-
-    /// @dev Get the ID of the accounting hook role.
-    function ACCOUNTING_HOOK() external view returns (bytes32); 
 }

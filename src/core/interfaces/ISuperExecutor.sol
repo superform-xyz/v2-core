@@ -12,7 +12,13 @@ interface ISuperExecutor {
     //////////////////////////////////////////////////////////////*/
     error NOT_AUTHORIZED();
     error NOT_INITIALIZED();
+    error ADDRESS_NOT_VALID();
     error ALREADY_INITIALIZED();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS

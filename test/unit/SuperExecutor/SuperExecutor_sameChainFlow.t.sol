@@ -46,6 +46,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDepositHookData(
             account, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -73,7 +74,8 @@ contract SuperExecutor_sameChainFlow is BaseTest {
             account, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
         hooksData[2] = _createWithdrawHookData(
-            account, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false
+            account, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, false
+
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);

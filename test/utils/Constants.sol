@@ -45,9 +45,25 @@ abstract contract Constants {
     string public constant WITHDRAW_5115_VAULT_HOOK_KEY = "Withdraw5115VaultHook";
     string public constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
     string public constant REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY = "RequestWithdraw7540VaultHook";
-
+    string public constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
+    string public constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
+    string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
+    string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
+    string public constant SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY = "Swap1InchClipperRouterHook";
+    string public constant SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY = "Swap1InchGenericRouterHook";
+    string public constant SWAP_1INCH_UNOSWAP_HOOK_KEY = "Swap1InchUnoswapHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string public constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
+    string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
+    string public constant GEARBOX_WITHDRAW_HOOK_KEY = "GearboxWithdrawHook";
+    string public constant SOMELIER_STAKE_HOOK_KEY = "SomelierStakeHook";
+    string public constant SOMELIER_UNBOND_ALL_HOOK_KEY = "SomelierUnbondAllHook";  
+    string public constant SOMELIER_UNBOND_HOOK_KEY = "SomelierUnbondHook";
+    string public constant SOMELIER_UNSTAKE_ALL_HOOK_KEY = "SomelierUnstakeAllHook";
+    string public constant SOMELIER_UNSTAKE_HOOK_KEY = "SomelierUnstakeHook";
+    string public constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
+    string public constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";
+
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
@@ -79,6 +95,12 @@ abstract contract Constants {
     address public constant CHAIN_8453_DAI = 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb;
     address public constant CHAIN_8453_USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     address public constant CHAIN_8453_WETH = 0x4200000000000000000000000000000000000006;
+
+    // permit2 
+    address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
+    // 1inch
+    address public constant ONE_INCH_ROUTER = 0x111111125421cA6dc452d289314280a0f8842A65;
 
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";

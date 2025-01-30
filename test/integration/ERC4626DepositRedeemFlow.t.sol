@@ -112,6 +112,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             yieldSourceAddressEth,
             accountEth,
             accSharesAfter,
+            false,
             false
         );
 
@@ -178,7 +179,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             accountEth, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
         srcHooksData[2] = _createWithdrawHookData(
-            accountEth, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, accountEth, 0, true
+            accountEth, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, accountEth, 0, true, false
         );
         srcHooksData[3] = _createApproveHookData(underlyingEth_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
 
@@ -317,9 +318,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         dstHooksData[1] = _createDepositHookData(
             accountBase, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, amount, false, false
         );
-
-        //ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
-        //    ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHooksAddresses, hooksData: dstHooksData });
 
         // ETH is SRC
         vm.selectFork(FORKS[ETH]);

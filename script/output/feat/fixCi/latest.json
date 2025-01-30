@@ -2,7 +2,7 @@
   "networks": {
     "Ethereum": {
       "counter": 1,
-      "vnet_id": "9bb2414d-a771-429a-8369-865714e0444f",
+      "vnet_id": "2235dfcd-31b0-4a14-9acd-44b5818aa948",
       "contracts": {
         "AcrossReceiveFundsAndExecuteGateway": "0xe6d6a5C182abA3Af67201994a2370234e8775134",
         "AcrossSendFundsAndExecuteOnDstHook": "0xc446d97cF4887b14F4d35B514C92249f8d0946e9",
@@ -43,7 +43,7 @@
     },
     "Base": {
       "counter": 1,
-      "vnet_id": "b9ab4309-2798-4537-bc86-381d4acd507c",
+      "vnet_id": "b7e968c1-e2d2-4da5-a5ca-57c4bcb7dbaf",
       "contracts": {
         "AcrossReceiveFundsAndExecuteGateway": "0xe6d6a5C182abA3Af67201994a2370234e8775134",
         "AcrossSendFundsAndExecuteOnDstHook": "0xc446d97cF4887b14F4d35B514C92249f8d0946e9",
@@ -84,7 +84,7 @@
     },
     "Optimism": {
       "counter": 1,
-      "vnet_id": "f5513f5e-3139-40f6-8fbc-293b9aa893ea",
+      "vnet_id": "f2a2fac1-7189-4e9d-9073-fc23bbc6ee60",
       "contracts": {
         "AcrossReceiveFundsAndExecuteGateway": "0xe6d6a5C182abA3Af67201994a2370234e8775134",
         "AcrossSendFundsAndExecuteOnDstHook": "0xc446d97cF4887b14F4d35B514C92249f8d0946e9",
@@ -124,5 +124,5 @@
       }
     }
   },
-  "updated_at": "2025-01-29T13:51:55Z"
+  "updated_at": "2025-01-29T16:45:03Z"
 }
