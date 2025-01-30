@@ -34,7 +34,7 @@ contract Permit2MultiVaultDepositFlow is BaseTest {
         underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
         underlyingETH_WETH = existingUnderlyingTokens[ETH]["WETH"];
 
-        yieldSourceAddressETH = realVaultAddresses[ETH]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"];
+        yieldSourceAddressETH = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
         console2.log("yieldSourceAddressETH", yieldSourceAddressETH);
         vaultInstanceETH = IERC4626(yieldSourceAddressETH);
         yieldSourceOracle = _getContract(ETH, "ERC4626YieldSourceOracle");
@@ -48,7 +48,7 @@ contract Permit2MultiVaultDepositFlow is BaseTest {
         instanceOnETH = accountInstances[ETH];
     }
 
-    function test_permit2MultiVaultDepositFlow() public {
+    function test_Permit2_MultiVault_Deposit_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
         uint256 amount = 1e8;
