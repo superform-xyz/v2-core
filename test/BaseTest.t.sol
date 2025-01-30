@@ -182,7 +182,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
 
-    string[] public underlyingTokens = ["DAI", "USDC", "WETH"];
+    string[] public underlyingTokens = ["DAI", "USDC", "WETH", "sUSDe"];
 
     address[] public spokePoolV3Addresses = [
         0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
@@ -788,6 +788,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[1]["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         existingUnderlyingTokens[1]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
         existingUnderlyingTokens[1]["WETH"] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        existingUnderlyingTokens[1]["sUSDe"] = 0x9d39a5de30e57443bff2a8307a4256c8797a3497;
 
         // Optimism tokens
         existingUnderlyingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
@@ -830,9 +831,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         /// @dev 7540 real centrifuge vaults on mainnet
         existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
         vm.label(existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"], "CentrifugeUSDC");
-        
+
         //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults =
         // ERC5115_VAULTS;
+        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
+        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
         //    ERC5115_VAULTS_NAMES;
         //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
