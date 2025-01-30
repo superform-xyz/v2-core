@@ -665,7 +665,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]]["SomelierStakeHook"]);
 
-            Addr.somelierUnbondAllHook = new SomelierUnbondAllHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.somelierUnbondAllHook 
+            = new SomelierUnbondAllHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.somelierUnbondAllHook), "SomelierUnbondAllHook");
             hookAddresses[chainIds[i]]["SomelierUnbondAllHook"] = address(Addr.somelierUnbondAllHook);
             hooks[chainIds[i]]["SomelierUnbondAllHook"] 
@@ -678,7 +679,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnbondAllHook"]);
 
-            Addr.somelierUnbondHook = new SomelierUnbondHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.somelierUnbondHook 
+            = new SomelierUnbondHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.somelierUnbondHook), "SomelierUnbondHook");
             hookAddresses[chainIds[i]]["SomelierUnbondHook"] = address(Addr.somelierUnbondHook);
             hooks[chainIds[i]]["SomelierUnbondHook"] 
@@ -691,7 +693,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnbondHook"]);
 
-            Addr.somelierUnstakeAllHook = new SomelierUnstakeAllHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.somelierUnstakeAllHook 
+            = new SomelierUnstakeAllHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.somelierUnstakeAllHook), "SomelierUnstakeAllHook");
             hookAddresses[chainIds[i]]["SomelierUnstakeAllHook"] = address(Addr.somelierUnstakeAllHook);
             hooks[chainIds[i]]["SomelierUnstakeAllHook"] 
@@ -704,7 +707,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["SomelierUnstakeAllHook"]);
 
-            Addr.yearnClaimOneRewardHook = new YearnClaimOneRewardHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.yearnClaimOneRewardHook 
+            = new YearnClaimOneRewardHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.yearnClaimOneRewardHook), "YearnClaimOneRewardHook");
             hookAddresses[chainIds[i]]["YearnClaimOneRewardHook"] = address(Addr.yearnClaimOneRewardHook);
             hooks[chainIds[i]]["YearnClaimOneRewardHook"] 
@@ -717,7 +721,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]]["YearnClaimOneRewardHook"]);
 
-            Addr.yearnClaimAllRewardsHook = new YearnClaimAllRewardsHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.yearnClaimAllRewardsHook 
+            = new YearnClaimAllRewardsHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.yearnClaimAllRewardsHook), "YearnClaimAllRewardsHook");
             hookAddresses[chainIds[i]]["YearnClaimAllRewardsHook"] = address(Addr.yearnClaimAllRewardsHook);
             hooks[chainIds[i]]["YearnClaimAllRewardsHook"] 
@@ -787,8 +792,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         // Mainnet tokens
         existingUnderlyingTokens[1]["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         existingUnderlyingTokens[1]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        vm.label(existingUnderlyingTokens[1]["USDC"], "USDC");
         existingUnderlyingTokens[1]["WETH"] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        vm.label(existingUnderlyingTokens[1]["WETH"], "WETH");
         existingUnderlyingTokens[1]["sUSDe"] = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+        vm.label(existingUnderlyingTokens[1]["sUSDe"], "sUSDe");
 
         // Optimism tokens
         existingUnderlyingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
