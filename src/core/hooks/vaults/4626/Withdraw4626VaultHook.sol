@@ -11,7 +11,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -27,11 +27,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract Withdraw4626VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
+    uint256 private constant AMOUNT_POSITION = 92;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
@@ -45,7 +44,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
@@ -78,9 +77,14 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         outAmount = _getUnderlyingBalance(data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookAmount
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+
     function _getUnderlyingBalance(bytes memory data) private view returns (uint256) {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();

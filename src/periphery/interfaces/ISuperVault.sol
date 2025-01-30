@@ -51,6 +51,7 @@ interface ISuperVault is IERC7540 {
     error VAULT_CAP_EXCEEDED();
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error VAULT_THRESHOLD_NOT_MET();
+    error ARRAY_LENGTH_MISMATCH();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS

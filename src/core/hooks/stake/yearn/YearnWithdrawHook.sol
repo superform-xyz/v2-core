@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
 import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -24,6 +24,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool lockForSP = _decodeBool(data, 137);
 contract YearnWithdrawHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 72;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -42,7 +44,7 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 136);
 
@@ -74,6 +76,11 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = outAmount - _getBalance(data);
+    }
+
+    /// @inheritdoc ISuperHookAmount
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

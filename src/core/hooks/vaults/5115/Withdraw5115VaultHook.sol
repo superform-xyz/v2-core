@@ -14,7 +14,7 @@ import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -31,6 +31,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool lockForSP = _decodeBool(data, 158);
 contract Withdraw5115VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 92;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -50,7 +52,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
         bool burnFromInternalBalance = _decodeBool(data, 156);
         bool usePrevHookAmount = _decodeBool(data, 157);
@@ -83,6 +85,11 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = outAmount - _getBalance(data);
+    }
+
+    /// @inheritdoc ISuperHookAmount
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

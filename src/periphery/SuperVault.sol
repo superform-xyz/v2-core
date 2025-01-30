@@ -9,10 +9,10 @@ import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { ISuperVault, RequestStatus } from "./interfaces/ISuperVault.sol";
+import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IERC7540 } from "./interfaces/IERC7540.sol";
 import { IERC7741 } from "./interfaces/IERC7741.sol";
-import { ISuperHook, ISuperHookResult, Execution } from "../core/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, Execution, ISuperHookAmount } from "../core/interfaces/ISuperHook.sol";
 
 /// @title SuperVault
 /// @notice A vault that allows users to deposit and withdraw assets across multiple yield sources
@@ -614,7 +614,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
     /// @param totalRequestedAssets Total assets that need to be spent
     /// @param spentAssets Running total of assets spent so far
     /// @return (address, uint256) The hook address and updated spent assets amount
-    function _processHookExecutions(
+    function _processHookExecution(
         address hook,
         address prevHook,
         bytes calldata hookCalldata,
@@ -624,53 +624,50 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
         internal
         returns (address, uint256)
     {
+        uint256 amount = ISuperHookAmount(hook).decodeAmount(hookCalldata);
+
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
         Execution[] memory executions = hookContract.build(prevHook, hookCalldata);
+        // prevent any hooks with more than one execution
+        if (executions.length > 1) revert INVALID_HOOK();
 
-        // Process each execution
-        for (uint256 j = 0; j < executions.length; j++) {
-            // Only process INFLOW hooks
-            ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
-            if (hookType != ISuperHook.HookType.INFLOW) continue;
+        // Only process INFLOW hooks
+        ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
+        if (hookType != ISuperHook.HookType.INFLOW) revert INVALID_HOOK();
 
-            // Validate target is an active yield source and check constraints
-            YieldSource storage source = yieldSources[executions[j].target];
-            if (!source.isActive) revert INVALID_YIELD_SOURCE();
+        // Validate target is an active yield source and check constraints
+        YieldSource storage source = yieldSources[executions[0].target];
+        if (!source.isActive) revert INVALID_YIELD_SOURCE();
 
-            // TODO: Decode amount from hookCalldata
-            uint256 amount = totalRequestedAssets; // This is a placeholder, needs to be decoded from hookCalldata
+        // Validate yield source constraints
+        // Check vault caps
+        if (amount > globalConfig.vaultCap) revert VAULT_CAP_EXCEEDED();
 
-            // Validate yield source constraints
-            // Check vault caps
-            if (amount > globalConfig.vaultCap) revert VAULT_CAP_EXCEEDED();
+        // Get current total assets in yield source
+        uint256 currentYieldSourceAssets =
+            IERC4626(executions[0].target).convertToAssets(IERC4626(executions[0].target).balanceOf(address(this)));
 
-            // Get current total assets in yield source
-            uint256 currentYieldSourceAssets =
-                IERC4626(executions[j].target).convertToAssets(IERC4626(executions[j].target).balanceOf(address(this)));
-
-            // Check allocation rate
-            if ((currentYieldSourceAssets + amount).mulDiv(10_000, totalAssets()) > globalConfig.maxAllocationRate) {
-                revert MAX_ALLOCATION_RATE_EXCEEDED();
-            }
-
-            // Check vault threshold
-            if (currentYieldSourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
-
-            // TODO: do we need approval here?
-            // Approve assets to target
-            _asset.approve(executions[j].target, amount);
-
-            // Execute the transaction
-            (bool success,) = executions[j].target.call{ value: executions[j].value }(executions[j].callData);
-            if (!success) revert EXECUTION_FAILED();
-
-            // Reset approval
-            _asset.approve(executions[j].target, 0);
-
-            // Update spent assets
-            spentAssets += amount;
+        // Check allocation rate
+        if ((currentYieldSourceAssets + amount).mulDiv(10_000, totalAssets()) > globalConfig.maxAllocationRate) {
+            revert MAX_ALLOCATION_RATE_EXCEEDED();
         }
+
+        // Check vault threshold
+        if (currentYieldSourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+
+        // Approve assets to target
+        _asset.approve(executions[0].target, amount);
+
+        // Execute the transaction
+        (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+        if (!success) revert EXECUTION_FAILED();
+
+        // Reset approval
+        _asset.approve(executions[0].target, 0);
+
+        // Update spent assets
+        spentAssets += amount;
 
         return (hook, spentAssets);
     }
@@ -706,7 +703,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
 
             // Process hook executions
             (prevHook, spentAssets) =
-                _processHookExecutions(hooks[i], prevHook, hookCalldata[i], totalRequestedAssets, spentAssets);
+                _processHookExecution(hooks[i], prevHook, hookCalldata[i], totalRequestedAssets, spentAssets);
         }
 
         // Verify all assets were spent

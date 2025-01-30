@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
 import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -23,6 +23,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract SomelierUnstakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
+    uint256 private constant AMOUNT_POSITION = 72;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -31,7 +33,7 @@ contract SomelierUnstakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address yieldSource = data.extractYieldSource();
-        uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 depositId = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -57,6 +59,11 @@ contract SomelierUnstakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
+    }
+
+    /// @inheritdoc ISuperHookAmount
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

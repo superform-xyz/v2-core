@@ -19,6 +19,10 @@ interface ISuperHookResult {
     function spToken() external view returns (address);
 }
 
+interface ISuperHookAmount {
+    function decodeAmount(bytes memory data) external pure returns (uint256);
+}
+
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  ENUMS
@@ -50,5 +54,4 @@ interface ISuperHook {
     /// @param prevHook The previous hook
     /// @param data The data to post-hook
     function postExecute(address prevHook, bytes memory data) external;
-
 }
