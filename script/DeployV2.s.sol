@@ -453,12 +453,11 @@ contract DeployV2 is Script, Configuration {
 
     function _setupSuperLedger(uint64 chainId) private {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, "SuperRegistry"));
-        ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
-        configs[0] = ISuperLedger.HookRegistrationConfig({
-            yieldSourceOracle: _getContract(chainId, "ERC4626YieldSourceOracle"),
+        ISuperLedger.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedger.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
+            yieldSourceOracle: _getContract(chainId, "ERC4626YieldSourceOracle"),
             feePercent: 100,
-            vaultShareToken: address(0), // this is auto set because its standardized yield
             feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
         });
 

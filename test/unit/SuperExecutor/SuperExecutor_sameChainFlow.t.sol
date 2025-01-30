@@ -46,7 +46,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDepositHookData(
             account, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
-
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -75,7 +74,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         );
         hooksData[2] = _createWithdrawHookData(
             account, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, false
-
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);
@@ -84,7 +82,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
-        emit ISuperLedger.AccountingUpdated(account, yieldSourceOracle, yieldSourceAddress, false, amount, 1e18);
+        emit ISuperLedger.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
         executeOp(userOpData);
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);

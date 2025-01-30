@@ -15,8 +15,7 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
-
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
@@ -101,7 +100,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         // update accounting
         _updateAccounting(account, address(hook), hookData);
     }
-    
 
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
@@ -110,13 +108,32 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
             address yieldSource = BytesLib.toAddress(BytesLib.slice(hookData, 52, 20), 0);
 
-            ledger.updateAccounting(
+            // Update accounting and get fee amount if any
+            uint256 feeAmount = ledger.updateAccounting(
                 account,
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
                 ISuperHookResult(address(hook)).outAmount()
             );
+
+            // If there's a fee to collect (only for outflows)
+            if (feeAmount > 0) {
+                ISuperLedger.YieldSourceOracleConfig memory config =
+                    ledger.getYieldSourceOracleConfig(yieldSourceOracleId);
+                // Get the asset token from the hook
+                address assetToken = ISuperHookResultOutflow(hook).assetOut();
+                if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
+
+                // Add fee transfer to executions
+                Execution[] memory feeExecution = new Execution[](1);
+                feeExecution[0] = Execution({
+                    target: assetToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.transfer, (config.feeRecipient, feeAmount))
+                });
+                _execute(account, feeExecution);
+            }
         }
     }
 }

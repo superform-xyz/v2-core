@@ -19,9 +19,11 @@ import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHo
 import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+    event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount);
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
     mapping(address => bool) internal _initialized;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
