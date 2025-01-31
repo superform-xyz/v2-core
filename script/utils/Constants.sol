@@ -78,7 +78,7 @@ abstract contract Constants {
     string internal constant REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY = "RequestWithdraw7540VaultHook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string internal constant GEARBOX_WITHDRAW_HOOK_KEY = "GearboxWithdrawHook";
-    string internal constant YEARN_WITHDRAW_HOOK_KEY = "YearnWithdrawHook";
+    string internal constant YEARN_REDEEM_HOOK_KEY = "YearnRedeemHook";
     string internal constant YIELD_EXIT_HOOK_KEY = "YieldExitHook";
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
     string internal constant FLUID_STAKE_WITH_PERMIT_HOOK_KEY = "FluidStakeWithPermitHook";

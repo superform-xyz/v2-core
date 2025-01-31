@@ -42,7 +42,6 @@ import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Requ
 // ---- | stake
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
 import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
-import { YearnWithdrawHook } from "../src/core/hooks/stake/yearn/YearnWithdrawHook.sol";
 import { YearnUnstakeHook } from "../src/core/hooks/stake/yearn/YearnUnstakeHook.sol";
 import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
 import { FluidStakeWithPermitHook } from "../src/core/hooks/stake/fluid/FluidStakeWithPermitHook.sol";
@@ -365,8 +364,8 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(GearboxWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[16] = HookDeployment(
-            YEARN_WITHDRAW_HOOK_KEY,
-            abi.encodePacked(type(YearnWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+            YEARN_REDEEM_HOOK_KEY,
+            abi.encodePacked(type(YearnUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[17] = HookDeployment(
             YIELD_EXIT_HOOK_KEY,
