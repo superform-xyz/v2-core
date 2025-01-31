@@ -165,7 +165,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     string[] public chainsNames = [ETHEREUM_KEY, OPTIMISM_KEY, BASE_KEY];
 
-    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY];
+    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY, SUSDE_KEY];
 
     address[] public spokePoolV3Addresses =
         [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
@@ -703,6 +703,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[1][DAI_KEY] = CHAIN_1_DAI;
         existingUnderlyingTokens[1][USDC_KEY] = CHAIN_1_USDC;
         existingUnderlyingTokens[1][WETH_KEY] = CHAIN_1_WETH;
+        existingUnderlyingTokens[1][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Optimism tokens
         existingUnderlyingTokens[10][DAI_KEY] = CHAIN_10_DAI;
@@ -733,10 +734,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
-        // existingVaults[10][1]["DAI"][0] = address(0);
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_10_AloeUSDC;
         vm.label(existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY], ALOE_USDC_VAULT_KEY);
-        // existingVaults[10][1]["WETH"][0] = address(0);
 
         /// @dev Base 4626 vault addresses
         existingVaults[8453][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
@@ -757,10 +756,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(
             existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
         );
-        //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults =
-        // ERC5115_VAULTS;
-        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
-        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
+
+        /// @dev 5115 real pendle ethena vaults on mainnet
+        existingVaults[1]["ERC5115"]["PendleEthena"]["SUSDe"] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["SUSDe"], "PendleEthena");
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
         //    ERC5115_VAULTS_NAMES;
         //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
