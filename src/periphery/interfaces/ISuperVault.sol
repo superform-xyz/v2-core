@@ -59,7 +59,6 @@ interface ISuperVault {
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
-    event OperatorSet(address indexed owner, address indexed operator, bool approved);
     /// @notice Event emitted when a deposit request is fulfilled
     event DepositFulfilled(address indexed controller, address indexed owner, uint256 shares);
     /*//////////////////////////////////////////////////////////////
@@ -101,9 +100,6 @@ interface ISuperVault {
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Returns the address of the underlying token used for the Vault for accounting, depositing, and
-    /// withdrawing
-    function asset() external view returns (address);
     function getYieldSource(address source) external view returns (YieldSource memory);
     function getGlobalConfig() external view returns (GlobalConfig memory);
     function getFeeConfig() external view returns (FeeConfig memory);

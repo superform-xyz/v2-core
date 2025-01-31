@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
 
-import { ERC4626 } from "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { ERC4626, ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { AccessControl } from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
@@ -10,7 +9,15 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
-import { IERC7540Vault, IERC7540Operator, IERC7741 } from "./interfaces/IERC7540Vault.sol";
+import {
+    IERC7540Vault,
+    IERC7540Operator,
+    IERC7540Deposit,
+    IERC7540Redeem,
+    IERC7540CancelDeposit,
+    IERC7540CancelRedeem,
+    IERC7741
+} from "./interfaces/IERC7540Vault.sol";
 import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from "../core/interfaces/ISuperHook.sol";
 
 /// @title SuperVault
@@ -82,6 +89,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         FeeConfig memory feeConfig_
     )
         ERC4626(IERC20(asset_))
+        ERC20(name_, symbol_)
     {
         if (asset_ == address(0)) revert INVALID_ASSET();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
@@ -94,7 +102,6 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         if (globalConfig_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
         if (feeConfig_.feeBps > 10_000) revert INVALID_FEE();
         if (feeConfig_.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
-
         _asset = IERC20(asset_);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(STRATEGIST_ROLE, strategist_);
@@ -115,7 +122,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     //////////////////////////////////////////////////////////////*/
     //--ERC7540--
 
-    /// @inheritdoc IERC7540Vault
+    /// @inheritdoc IERC7540Deposit
     function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256) {
         if (assets == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
@@ -135,7 +142,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         return REQUEST_ID;
     }
 
-    /// @inheritdoc IERC7540Vault
+    /// @inheritdoc IERC7540CancelDeposit
     function cancelDepositRequest(uint256, address controller) external {
         if (msg.sender != controller && !isOperator[controller][msg.sender]) {
             revert INVALID_CONTROLLER_OR_OPERATOR();
@@ -145,10 +152,19 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         if (state.pendingCancelDepositRequest) revert CANCELLATION_IS_PENDING();
         state.pendingCancelDepositRequest = true;
 
-        emit CancelDepositRequest(controller, REQUEST_ID);
+        emit CancelDepositRequest(controller, REQUEST_ID, msg.sender);
     }
 
-    /// @inheritdoc IERC7540Vault
+    function claimCancelDepositRequest(
+        uint256 requestId,
+        address receiver,
+        address controller
+    )
+        external
+        returns (uint256 assets)
+    { }
+
+    /// @inheritdoc IERC7540Redeem
     function requestRedeem(uint256 shares, address controller, address owner) external returns (uint256) {
         if (shares == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
@@ -171,7 +187,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         return REQUEST_ID;
     }
 
-    /// @inheritdoc IERC7540Vault
+    /// @inheritdoc IERC7540CancelRedeem
     function cancelRedeemRequest(uint256, address controller) external {
         if (msg.sender != controller && !isOperator[controller][msg.sender]) {
             revert INVALID_CONTROLLER_OR_OPERATOR();
@@ -181,8 +197,17 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         if (state.pendingCancelRedeemRequest) revert CANCELLATION_IS_PENDING();
         state.pendingCancelRedeemRequest = true;
 
-        emit CancelRedeemRequest(controller, REQUEST_ID);
+        emit CancelRedeemRequest(controller, REQUEST_ID, msg.sender);
     }
+
+    function claimCancelRedeemRequest(
+        uint256 requestId,
+        address receiver,
+        address controller
+    )
+        external
+        returns (uint256 shares)
+    { }
 
     //--Operator Management--
 
@@ -362,17 +387,71 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
                     USER EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     //--ERC7540--
-    /// @inheritdoc IERC7540Vault
-    function isDepositClaimable(uint256) external view returns (bool) {
-        SuperVaultState storage state = superVaultState[msg.sender];
-        return state.pendingDepositRequest > 0 && !state.pendingCancelDepositRequest;
-    }
 
-    /// @inheritdoc IERC7540Vault
-    function isRedeemClaimable(uint256) external view returns (bool) {
-        SuperVaultState storage state = superVaultState[msg.sender];
-        return state.pendingRedeemRequest > 0 && !state.pendingCancelRedeemRequest;
-    }
+    function pendingDepositRequest(
+        uint256 requestId,
+        address controller
+    )
+        external
+        view
+        returns (uint256 pendingAssets)
+    { }
+
+    function claimableDepositRequest(
+        uint256 requestId,
+        address controller
+    )
+        external
+        view
+        returns (uint256 claimableAssets)
+    { }
+
+    function pendingRedeemRequest(
+        uint256 requestId,
+        address controller
+    )
+        external
+        view
+        returns (uint256 pendingShares)
+    { }
+
+    function claimableRedeemRequest(
+        uint256 requestId,
+        address controller
+    )
+        external
+        view
+        returns (uint256 claimableShares)
+    { }
+
+    function pendingCancelDepositRequest(
+        uint256 requestId,
+        address controller
+    )
+        external
+        view
+        returns (bool isPending)
+    { }
+
+    function claimableCancelDepositRequest(
+        uint256 requestId,
+        address controller
+    )
+        external
+        view
+        returns (uint256 claimableAssets)
+    { }
+
+    function pendingCancelRedeemRequest(uint256 requestId, address controller) external view returns (bool isPending) { }
+
+    function claimableCancelRedeemRequest(
+        uint256 requestId,
+        address controller
+    )
+        external
+        view
+        returns (uint256 claimableShares)
+    { }
 
     //--Operator Management--
 
@@ -444,13 +523,8 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
                         ERC4626 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ISuperVault
-    function asset() public view override(IERC4626, ISuperVault) returns (address) {
-        return address(_asset);
-    }
-
     /// @inheritdoc IERC4626
-    function totalAssets() public view returns (uint256) {
+    function totalAssets() public view override returns (uint256) {
         // Total assets is the sum of all assets in yield sources plus idle assets
         uint256 total = _asset.balanceOf(address(this));
         for (uint256 i = 0; i < yieldSourcesList.length; i++) {
@@ -463,59 +537,58 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function convertToShares(uint256 assets) public view returns (uint256) {
+    function convertToShares(uint256 assets) public view override returns (uint256) {
         uint256 supply = totalSupply();
         return supply == 0 ? assets : assets.mulDiv(supply, totalAssets());
     }
 
     /// @inheritdoc IERC4626
-    function convertToAssets(uint256 shares) public view returns (uint256) {
+    function convertToAssets(uint256 shares) public view override returns (uint256) {
         uint256 supply = totalSupply();
         return supply == 0 ? shares : shares.mulDiv(totalAssets(), supply);
     }
 
     /// @inheritdoc IERC4626
-    function maxDeposit(address) public view returns (uint256) {
+    function maxDeposit(address) public view override returns (uint256) {
         return globalConfig.superVaultCap - totalAssets();
     }
 
     /// @inheritdoc IERC4626
-    function maxMint(address) public view returns (uint256) {
+    function maxMint(address) public view override returns (uint256) {
         return convertToShares(maxDeposit(address(0)));
     }
 
     /// @inheritdoc IERC4626
-    function maxWithdraw(address owner) public view returns (uint256) {
+    function maxWithdraw(address owner) public view override returns (uint256) {
         return convertToAssets(balanceOf(owner));
     }
 
     /// @inheritdoc IERC4626
-    function maxRedeem(address owner) public view returns (uint256) {
+    function maxRedeem(address owner) public view override returns (uint256) {
         return balanceOf(owner);
     }
 
     /// @inheritdoc IERC4626
-    function previewDeposit(uint256 assets) public view returns (uint256) {
+    function previewDeposit(uint256 assets) public view override returns (uint256) {
         return convertToShares(assets);
     }
 
     /// @inheritdoc IERC4626
-    function previewMint(uint256 shares) public view returns (uint256) {
+    function previewMint(uint256 shares) public view override returns (uint256) {
         return convertToAssets(shares);
     }
 
     /// @inheritdoc IERC4626
-    function previewWithdraw(uint256 assets) public view returns (uint256) {
+    function previewWithdraw(uint256 assets) public view override returns (uint256) {
         return convertToShares(assets);
     }
 
     /// @inheritdoc IERC4626
-    function previewRedeem(uint256 shares) public view returns (uint256) {
+    function previewRedeem(uint256 shares) public view override returns (uint256) {
         return convertToAssets(shares);
     }
 
-    /// @inheritdoc IERC4626
-    function deposit(uint256 assets, address receiver) public returns (uint256) {
+    function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
         if (assets > maxDeposit(receiver)) revert INVALID_AMOUNT();
         uint256 shares = previewDeposit(assets);
 
@@ -526,8 +599,11 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         return shares;
     }
 
-    /// @inheritdoc IERC4626
-    function mint(uint256 shares, address receiver) public returns (uint256) {
+    function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
+        shares = deposit(assets, receiver, msg.sender);
+    }
+
+    function mint(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
         uint256 assets = previewMint(shares);
         if (assets > maxDeposit(receiver)) revert INVALID_AMOUNT();
 
@@ -538,8 +614,12 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         return assets;
     }
 
+    function mint(uint256 shares, address receiver) public override returns (uint256 assets) {
+        assets = mint(shares, receiver, msg.sender);
+    }
+
     /// @inheritdoc IERC4626
-    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256) {
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
         if (assets > maxWithdraw(owner)) revert INVALID_AMOUNT();
         uint256 shares = previewWithdraw(assets);
 
@@ -558,7 +638,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function redeem(uint256 shares, address receiver, address owner) public returns (uint256) {
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
         if (shares > maxRedeem(owner)) revert INVALID_AMOUNT();
         uint256 assets = previewRedeem(shares);
 
@@ -579,10 +659,11 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     /*//////////////////////////////////////////////////////////////
                             ERC165 INTERFACE
     //////////////////////////////////////////////////////////////*/
-    function supportsInterface(bytes4 interfaceId) public view override(AccessControl, IERC165) returns (bool) {
+
+    function supportsInterface(bytes4 interfaceId) public view override(AccessControl) returns (bool) {
         return interfaceId == type(IERC7540Vault).interfaceId || interfaceId == type(ISuperVault).interfaceId
             || interfaceId == type(IERC165).interfaceId || interfaceId == type(IERC7741).interfaceId
-            || super.supportsInterface(interfaceId);
+            || interfaceId == type(IERC4626).interfaceId || super.supportsInterface(interfaceId);
     }
 
     /*//////////////////////////////////////////////////////////////
