@@ -9,23 +9,24 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
+import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title YearnWithdrawHook
+//TODO: add assetOut after PR #90
+
+/// @title FluidUnstakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
-/// @notice         bool lockForSP = _decodeBool(data, 137);
-contract YearnWithdrawHook is BaseHook, ISuperHook {
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bool lockForSP = _decodeBool(data, 105);
+contract FluidUnstakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -40,48 +41,46 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-        uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 136);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            maxShares = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).outAmount();
         }
 
         executions = new Execution[](1);
-        executions[0] = Execution({
-            target: yieldSource,
-            value: 0,
-            callData: abi.encodeCall(IYearnVault.withdraw, (maxShares, account, maxLoss))
-        });
+        executions[0] =
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IFluidLendingStakingRewards.withdraw, (amount)) });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    //TODO: update after PR #90 is merged
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 137);
+        lockForSP = _decodeBool(data, 105);
         address yieldSource = data.extractYieldSource();
-        spToken = IYearnVault(yieldSource).stakingToken();
+        spToken = IFluidLendingStakingRewards(yieldSource).stakingToken();
     }
 
+    //TODO: update after PR #90 is merged
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = outAmount - _getBalance(data);
+        outAmount = _getBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+    //TODO: update after PR #90 is merged
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        return IYearnVault(yieldSource).balanceOf(account);
+        return IFluidLendingStakingRewards(yieldSource).balanceOf(account);
     }
 }
