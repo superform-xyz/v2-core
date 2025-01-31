@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Superform
-import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
+import { IStandardizedYield } from "../../../interfaces/vendors/pendle/IStandardizedYield.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -51,7 +51,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
         bool depositFromInternalBalance = _decodeBool(data, 156);
         bool usePrevHookAmount = _decodeBool(data, 157);
@@ -67,7 +67,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC5115.deposit, (account, tokenIn, amount, minSharesOut, depositFromInternalBalance))
+            callData: abi.encodeCall(IStandardizedYield.deposit, (account, tokenIn, amount, minSharesOut))
         });
     }
 

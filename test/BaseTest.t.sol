@@ -240,6 +240,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Fund underlying tokens
         _fundUSDCTokens(10_000);
+
+        _fundSUSDETokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -758,8 +760,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
 
         /// @dev 5115 real pendle ethena vaults on mainnet
-        existingVaults[1]["ERC5115"]["PendleEthena"]["SUSDe"] = CHAIN_1_PendleEthena;
-        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["SUSDe"], "PendleEthena");
+        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
+
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
         //    ERC5115_VAULTS_NAMES;
         //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
@@ -841,6 +844,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 }
             }
         }
+    }
+
+    function _fundSUSDETokens(uint256 amount) internal {
+        vm.selectFork(FORKS[chainIds[0]]);
+        deal(existingUnderlyingTokens[chainIds[0]][SUSDE_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
     }
 
     function _setSuperRegistryAddresses() internal {
@@ -1165,6 +1173,30 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             controller, 
             amount, 
             usePrevHookAmount
+        );
+    }
+
+    function _createDeposit5115VaultHookData(
+        address account,
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool depositFromInternalBalance,
+        bool usePrevHookAmount,
+        bool lockForSP
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            account, 
+            yieldSourceOracleId, 
+            yieldSource, 
+            tokenIn, 
+            amount,
+            minSharesOut,
+            depositFromInternalBalance,
+            usePrevHookAmount,
+            lockForSP
         );
     }
 }

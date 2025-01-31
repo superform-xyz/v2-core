@@ -40,28 +40,29 @@ contract MultiVaultDepositFlow is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
-        underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["sUSDe"];
+        underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["SUSDe"];
 
         yieldSource5115AddressSUSDe = realVaultAddresses[ETH]["ERC5115"]["PendleEthena"]["sUSDe"];
-        console2.log("yieldSource5115AddressSUSDe", yieldSource5115AddressSUSDe);
+        // console2.log("yieldSource5115AddressSUSDe", yieldSource5115AddressSUSDe);
 
         yieldSource7540AddressUSDC = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
-        console2.log("yieldSource7540AddressUSDC", yieldSource7540AddressUSDC);
+        // console2.log("yieldSource7540AddressUSDC", yieldSource7540AddressUSDC);
 
         vaultInstance5115ETH = IERC5115(yieldSource5115AddressSUSDe);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
 
         yieldSourceOracle5115 = _getContract(ETH, "ERC5115YieldSourceOracle");
-        console2.log("yieldSourceOracle5115", yieldSourceOracle5115);
+        // console2.log("yieldSourceOracle5115", yieldSourceOracle5115);
 
         yieldSourceOracle7540 = _getContract(ETH, "ERC7540YieldSourceOracle");
-        console2.log("yieldSourceOracle7540", yieldSourceOracle7540);
+        // console2.log("yieldSourceOracle7540", yieldSourceOracle7540);
 
         superExecutorOnETH = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
-        console2.log("superExecutorOnETH", address(superExecutorOnETH));
+        // console2.log("superExecutorOnETH", address(superExecutorOnETH));
 
         accountETH = accountInstances[ETH].account;
-        console2.log("accountETH", accountETH);
+        // console2.log("accountETH", accountETH);
+        
         instanceOnETH = accountInstances[ETH];
     }
 
@@ -72,39 +73,24 @@ contract MultiVaultDepositFlow is BaseTest {
         uint256 amountPerVault = amount / 2;
 
         uint256 accountUSDCStartBalance = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+        uint256 accountSUSDEStartBalance = IERC20(underlyingETH_sUSDe).balanceOf(accountETH);
+        // console2.log("accountSUSDEStartBalance", accountSUSDEStartBalance);
 
-        address[] memory hooksAddresses = new address[](2);
+        address[] memory hooksAddresses = new address[](4);
         hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
-        console2.log("approveHook.hookAddress", hooksAddresses[0]);
-        // hooksAddresses[1] = _getHookAddress(ETH, "ApproveERC20Hook");
-        // hooksAddresses[2] = _getHookAddress(ETH, "Deposit5115VaultHook");
-        // console2.log("deposit5115Hook.hookAddress", hooksAddresses[1]);
         hooksAddresses[1] = _getHookAddress(ETH, "RequestDeposit7540VaultHook");
-        console2.log("requestDepositHook.hookAddress", hooksAddresses[1]);
+        hooksAddresses[2] = _getHookAddress(ETH, "ApproveERC20Hook");
+        hooksAddresses[3] = _getHookAddress(ETH, "Deposit5115VaultHook");
+        console2.log("deposit5115Hook.hookAddress", hooksAddresses[3]);
+        
 
-        bytes[] memory hooksData = new bytes[](2);
+        bytes[] memory hooksData = new bytes[](4);
         hooksData[0] = _createApproveHookData(
             underlyingETH_USDC,
             yieldSource7540AddressUSDC,
             amountPerVault,
             false
         );
-        // hooksData[1] = _createApproveHookData(
-        //     underlyingETH_sUSDe,
-        //     yieldSource5115AddressSUSDe,
-        //     amountPerVault,
-        //     false
-        // );
-        // hooksData[2] = _createDeposit5115VaultHookData(
-        //     accountETH,
-        //     // bytes32("ERC5115YieldSourceOracle"),
-        //     yieldSource5115AddressSUSDe,
-        //     underlyingETH_sUSDe,
-        //     amountPerVault,
-        //     0,
-        //     false,
-        //     false
-        // );
         hooksData[1] = _createRequestDeposit7540VaultHookData(
             accountETH,
             yieldSource7540AddressUSDC,
@@ -113,6 +99,24 @@ contract MultiVaultDepositFlow is BaseTest {
             amountPerVault,
             true
         );
+        hooksData[2] = _createApproveHookData(
+            underlyingETH_sUSDe,
+            yieldSource5115AddressSUSDe,
+            amountPerVault,
+            false
+        );
+        hooksData[3] = _createDeposit5115VaultHookData(
+            accountETH,
+            bytes32("ERC5115YieldSourceOracle"),
+            yieldSource5115AddressSUSDe,
+            underlyingETH_sUSDe,
+            amountPerVault,
+            0,
+            false,
+            false,
+            false
+        );
+        
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
