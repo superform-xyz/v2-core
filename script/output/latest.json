@@ -2,7 +2,7 @@
   "networks": {
     "Ethereum": {
       "counter": 1,
-      "vnet_id": "9bb2414d-a771-429a-8369-865714e0444f",
+      "vnet_id": "89de3204-3aac-4e94-b5a3-0f4106fd2b05",
       "contracts": {
         "AcrossReceiveFundsAndExecuteGateway": "0xe6d6a5C182abA3Af67201994a2370234e8775134",
         "AcrossSendFundsAndExecuteOnDstHook": "0xc446d97cF4887b14F4d35B514C92249f8d0946e9",
@@ -20,13 +20,6 @@
         "MockValidatorModule": "0xaE540E098d63219113462160d189133339Af3fC5",
         "RequestDeposit7540VaultHook": "0x8E8987AA3512a6118C63Ac2D8e3Ef8c5931ba60E",
         "RequestWithdraw7540VaultHook": "0x64459d6cFEA2Ea5333F9789e391f8d4f43191792",
-        "SomelierClaimAllRewardsHook": "0x0352402C4D0f7f3c2EB7c8383C80eec3BBcfF212",
-        "SomelierClaimOneRewardHook": "0xE6565c187B22f742555F7f3e62EcaA92f5255043",
-        "SomelierStakeHook": "0x2094a2728886cbB3f0e55eF3ce37Ce6327f2F351",
-        "SomelierUnbondAllHook": "0xb39A9d50593a07b25526659b2B86603cBf308Faa",
-        "SomelierUnbondHook": "0xeA0784417091ED8D6b27394396683e030621e0A7",
-        "SomelierUnstakeAllHook": "0xF87C233eC30570Def46802498cAd27799D996FBA",
-        "SomelierUnstakeHook": "0xa005C727180b814525b79F491A9f66a871Fe19Af",
         "SuperExecutor": "0x7Bd88d38ef082b9213a09F93dd9732dc64bE27Ce",
         "SuperLedger": "0x0F7fBE03D1cFBECc4043dfBf249588e92d8a725b",
         "SuperPositionSentinel": "0x9190abFBC0ffD0bC3f879C154a081E813d0898ed",
@@ -43,7 +36,7 @@
     },
     "Base": {
       "counter": 1,
-      "vnet_id": "b9ab4309-2798-4537-bc86-381d4acd507c",
+      "vnet_id": "f08be837-16f4-424a-8ea0-0598e8dc3eff",
       "contracts": {
         "AcrossReceiveFundsAndExecuteGateway": "0xe6d6a5C182abA3Af67201994a2370234e8775134",
         "AcrossSendFundsAndExecuteOnDstHook": "0xc446d97cF4887b14F4d35B514C92249f8d0946e9",
@@ -61,13 +54,6 @@
         "MockValidatorModule": "0xaE540E098d63219113462160d189133339Af3fC5",
         "RequestDeposit7540VaultHook": "0x8E8987AA3512a6118C63Ac2D8e3Ef8c5931ba60E",
         "RequestWithdraw7540VaultHook": "0x64459d6cFEA2Ea5333F9789e391f8d4f43191792",
-        "SomelierClaimAllRewardsHook": "0x0352402C4D0f7f3c2EB7c8383C80eec3BBcfF212",
-        "SomelierClaimOneRewardHook": "0xE6565c187B22f742555F7f3e62EcaA92f5255043",
-        "SomelierStakeHook": "0x2094a2728886cbB3f0e55eF3ce37Ce6327f2F351",
-        "SomelierUnbondAllHook": "0xb39A9d50593a07b25526659b2B86603cBf308Faa",
-        "SomelierUnbondHook": "0xeA0784417091ED8D6b27394396683e030621e0A7",
-        "SomelierUnstakeAllHook": "0xF87C233eC30570Def46802498cAd27799D996FBA",
-        "SomelierUnstakeHook": "0xa005C727180b814525b79F491A9f66a871Fe19Af",
         "SuperExecutor": "0x7Bd88d38ef082b9213a09F93dd9732dc64bE27Ce",
         "SuperLedger": "0x0F7fBE03D1cFBECc4043dfBf249588e92d8a725b",
         "SuperPositionSentinel": "0x9190abFBC0ffD0bC3f879C154a081E813d0898ed",
@@ -84,7 +70,7 @@
     },
     "Optimism": {
       "counter": 1,
-      "vnet_id": "f5513f5e-3139-40f6-8fbc-293b9aa893ea",
+      "vnet_id": "aa767448-cf7f-4c2c-910c-b8e161fdfae6",
       "contracts": {
         "AcrossReceiveFundsAndExecuteGateway": "0xe6d6a5C182abA3Af67201994a2370234e8775134",
         "AcrossSendFundsAndExecuteOnDstHook": "0xc446d97cF4887b14F4d35B514C92249f8d0946e9",
@@ -102,13 +88,6 @@
         "MockValidatorModule": "0xaE540E098d63219113462160d189133339Af3fC5",
         "RequestDeposit7540VaultHook": "0x8E8987AA3512a6118C63Ac2D8e3Ef8c5931ba60E",
         "RequestWithdraw7540VaultHook": "0x64459d6cFEA2Ea5333F9789e391f8d4f43191792",
-        "SomelierClaimAllRewardsHook": "0x0352402C4D0f7f3c2EB7c8383C80eec3BBcfF212",
-        "SomelierClaimOneRewardHook": "0xE6565c187B22f742555F7f3e62EcaA92f5255043",
-        "SomelierStakeHook": "0x2094a2728886cbB3f0e55eF3ce37Ce6327f2F351",
-        "SomelierUnbondAllHook": "0xb39A9d50593a07b25526659b2B86603cBf308Faa",
-        "SomelierUnbondHook": "0xeA0784417091ED8D6b27394396683e030621e0A7",
-        "SomelierUnstakeAllHook": "0xF87C233eC30570Def46802498cAd27799D996FBA",
-        "SomelierUnstakeHook": "0xa005C727180b814525b79F491A9f66a871Fe19Af",
         "SuperExecutor": "0x7Bd88d38ef082b9213a09F93dd9732dc64bE27Ce",
         "SuperLedger": "0x0F7fBE03D1cFBECc4043dfBf249588e92d8a725b",
         "SuperPositionSentinel": "0x9190abFBC0ffD0bC3f879C154a081E813d0898ed",
@@ -124,5 +103,5 @@
       }
     }
   },
-  "updated_at": "2025-01-29T13:51:55Z"
+  "updated_at": "2025-01-31T08:37:44Z"
 }

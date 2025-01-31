@@ -5,44 +5,32 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
+import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title Withdraw4626VaultHook
+/// @title FluidStakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
-/// @notice         bool lockForSP = _decodeBool(data, 125);
-contract Withdraw4626VaultHook is BaseHook, ISuperHook {
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bool lockForSP = _decodeBool(data, 105);
+contract FluidStakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 92;
+    uint256 private constant AMOUNT_POSITION = 72;
 
-
-    // forgefmt: disable-start
-    address public transient assetOut;
-    // forgefmt: disable-end
-
-
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
-
-
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
@@ -53,24 +41,21 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 124);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 104);
+
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResultOutflow(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).outAmount();
         }
-
-        if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC4626.redeem, (shares, account, owner))
+            callData: abi.encodeCall(IFluidLendingStakingRewards.stake, (amount))
         });
     }
 
@@ -78,16 +63,14 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external  onlyExecutor {
-        address yieldSource = data.extractYieldSource();
-        assetOut = IERC4626(yieldSource).asset();
+    function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 125);
-        spToken = yieldSource;
+        lockForSP = _decodeBool(data, 105);
+        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external  onlyExecutor {
+    function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
     }
 
@@ -95,11 +78,11 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        return IERC20(assetOut).balanceOf(data.extractAccount());
+        return IFluidLendingStakingRewards(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
-
 }

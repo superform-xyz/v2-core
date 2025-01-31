@@ -5,29 +5,34 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
-import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
+import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title SomelierStakeHook
+/// @title YearnUnstakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+/// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 /// @notice         bool lockForSP = _decodeBool(data, 137);
-contract SomelierStakeHook is BaseHook, ISuperHook {
+contract YearnUnstakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
+    // forgefmt: disable-start
+    address public assetOut;
+    // forgefmt: disable-end
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -42,22 +47,23 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
+        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
-        uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 136);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            maxShares = ISuperHookResult(prevHook).outAmount();
         }
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(ISomelierCellarStaking.stake, (amount, ISomelierCellarStaking.Lock(lock)))
+            callData: abi.encodeCall(IYearnVault.withdraw, (maxShares, account, maxLoss))
         });
     }
 
@@ -66,10 +72,10 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
+        assetOut = IYearnVault(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 137);
-        address yieldSource = data.extractYieldSource();
-        spToken = ISomelierCellarStaking(yieldSource).stakingToken();
+        /// @dev in Yearn, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     /// @inheritdoc ISuperHook
@@ -86,17 +92,6 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-
-        ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(yieldSource).getUserStakes(account);
-        uint256 total;
-        for (uint256 i = 0; i < stakes.length;) {
-            total += stakes[i].amount;
-            unchecked {
-                ++i;
-            }
-        }
-        return total;
+        return IERC20(assetOut).balanceOf(data.extractAccount());
     }
 }

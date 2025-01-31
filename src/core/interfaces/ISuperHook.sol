@@ -23,6 +23,11 @@ interface ISuperHookAmount {
     function decodeAmount(bytes memory data) external pure returns (uint256);
 }
 
+interface ISuperHookResultOutflow is ISuperHookResult {
+    /// @notice The asset token being withdrawn
+    function assetOut() external view returns (address);
+}
+
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  ENUMS
