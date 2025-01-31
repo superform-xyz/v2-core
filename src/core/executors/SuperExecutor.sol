@@ -125,7 +125,10 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 address assetToken = ISuperHookResultOutflow(hook).assetOut();
                 if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
                 if (IERC20(assetToken).balanceOf(address(this)) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
+
                 // Add fee transfer to executions
+                // TODO: use a better method to transfer?
+                uint256 balanceBefore = IERC20(assetToken).balanceOf(msg.sender);
                 Execution[] memory feeExecution = new Execution[](1);
                 feeExecution[0] = Execution({
                     target: assetToken,
@@ -133,6 +136,8 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                     callData: abi.encodeCall(IERC20.transfer, (config.feeRecipient, feeAmount))
                 });
                 _execute(account, feeExecution);
+                uint256 balanceAfter = IERC20(assetToken).balanceOf(msg.sender);
+                if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
             }
         }
     }
