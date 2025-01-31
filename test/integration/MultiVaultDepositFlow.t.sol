@@ -65,13 +65,13 @@ contract MultiVaultDepositFlow is BaseTest {
         instanceOnETH = accountInstances[ETH];
     }
 
-    function test_Permit2_MultiVault_Deposit_Flow() public {
+    function test_MultiVault_Deposit_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
         uint256 amount = 1e8;
         uint256 amountPerVault = amount / 2;
 
-        console2.log("accountStartBalance", IERC20(underlyingETH_USDC).balanceOf(accountETH));
+        uint256 accountUSDCStartBalance = IERC20(underlyingETH_USDC).balanceOf(accountETH);
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
@@ -118,18 +118,18 @@ contract MultiVaultDepositFlow is BaseTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entry));
 
-        // vm.expectEmit(true, true, true, false);
-        // emit IERC7540.DepositRequest(
-        //     accountETH, 
-        //     0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
-        //     1, 
-        //     address(superExecutorOnETH),
-        //     amountPerVault
-        // );
+        vm.expectEmit(true, true, true, false);
+        emit IERC7540.DepositRequest(
+            0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
+            accountETH, 
+            0, 
+            accountETH,
+            amountPerVault
+        );
         executeOp(userOpData);
 
         // Check balances
-        console2.log("IERC20(underlyingETH_USDC).balanceOf(accountETH)", IERC20(underlyingETH_USDC).balanceOf(accountETH));
+        assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), accountUSDCStartBalance - amountPerVault);
         //console2.log("IERC20(underlyingETH_sUSDe).balanceOf(accountETH)", IERC20(underlyingETH_sUSDe).balanceOf(accountETH));
         //console2.log("vaultInstance5115ETH.balanceOf(accountETH)", vaultInstance5115ETH.balanceOf(accountETH));
         //console2.log("vaultInstance7540ETH.pendingDepositRequest(ID, accountETH)", vaultInstance7540ETH.pendingDepositRequest(bytes32(0), accountETH));
