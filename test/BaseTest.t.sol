@@ -165,7 +165,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     string[] public chainsNames = [ETHEREUM_KEY, OPTIMISM_KEY, BASE_KEY];
 
-    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY, USDe_KEY];
+    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY];
 
     address[] public spokePoolV3Addresses =
         [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
@@ -1148,6 +1148,24 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             aggregationExecutor,
             permitData,
             swapData
+        );
+    }
+
+    function _createRequestDeposit7540VaultHookData(
+        address account,
+        address yieldSource,
+        bytes32 yieldSourceOracleId,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            account, 
+            yieldSourceOracleId,
+            yieldSource, 
+            controller, 
+            amount, 
+            usePrevHookAmount
         );
     }
 }
