@@ -9,34 +9,17 @@ import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/
 import { Helpers } from "../../utils/Helpers.sol";
 
 import { MockSignature } from "../../mocks/MockSignature.sol";
-import { TransientStorageExecutor } from "../../mocks/TransientStorageExecutor.sol";
 
 import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
 import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
-
-import "forge-std/console2.sol";
 
 contract Mock is Helpers, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
-    TransientStorageExecutor transientExecutor;
-
-    function setUp() public virtual {
-        transientExecutor = new TransientStorageExecutor();
-    }
-
     function test_WhenIsValid() external pure {
         // it should not revert
         assertTrue(true);
-    }
-
-    function test_GasBenchmarkForTransientStorageExecutor() external {
-        transientExecutor.execute(abi.encode(1e8));
-    }
-
-    function test_GasBenchmarkForTransientStorageExecutorNotTransient() external {
-        transientExecutor.executeNotTransient(abi.encode(1e8));
     }
 
     function test_MockSignature() external {

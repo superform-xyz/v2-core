@@ -8,22 +8,27 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { ISomelierCellarStaking } from "../../../interfaces/vendors/somelier/ISomelierCellarStaking.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title SomelierStakeHook
+/// @title FluidStakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
-/// @notice         bool lockForSP = _decodeBool(data, 137);
-contract SomelierStakeHook is BaseHook, ISuperHook {
+/// @notice         uint256 deadline = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+/// @notice         uint8 v = BytesLib.toUint8(BytesLib.slice(data, 136, 1), 0);
+/// @notice         bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 137, 32), 0);
+/// @notice         bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 169, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 201);
+/// @notice         bool lockForSP = _decodeBool(data, 202);
+contract FluidStakeWithPermitHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 72;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -41,9 +46,12 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-        uint256 lock = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 136);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        uint256 deadline = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+        uint8 v = BytesLib.toUint8(BytesLib.slice(data, 136, 1), 0);
+        bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 137, 32), 0);
+        bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 169, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 201);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -55,7 +63,7 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(ISomelierCellarStaking.stake, (amount, ISomelierCellarStaking.Lock(lock)))
+            callData: abi.encodeCall(IFluidLendingStakingRewards.stakeWithPermit, (amount, deadline, v, r, s))
         });
     }
 
@@ -65,9 +73,8 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 137);
-        address yieldSource = data.extractYieldSource();
-        spToken = ISomelierCellarStaking(yieldSource).stakingToken();
+        lockForSP = _decodeBool(data, 202);
+        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     /// @inheritdoc ISuperHook
@@ -75,21 +82,15 @@ contract SomelierStakeHook is BaseHook, ISuperHook {
         outAmount = _getBalance(data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-
-        ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(yieldSource).getUserStakes(account);
-        uint256 total;
-        for (uint256 i = 0; i < stakes.length;) {
-            total += stakes[i].amount;
-            unchecked {
-                ++i;
-            }
-        }
-        return total;
+        return IFluidLendingStakingRewards(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }

@@ -19,6 +19,15 @@ interface ISuperHookResult {
     function spToken() external view returns (address);
 }
 
+interface ISuperHookInflowOutflow {
+    function decodeAmount(bytes memory data) external pure returns (uint256);
+}
+
+interface ISuperHookResultOutflow is ISuperHookResult {
+    /// @notice The asset token being withdrawn
+    function assetOut() external view returns (address);
+}
+
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  ENUMS
@@ -50,5 +59,4 @@ interface ISuperHook {
     /// @param prevHook The previous hook
     /// @param data The data to post-hook
     function postExecute(address prevHook, bytes memory data) external;
-
 }

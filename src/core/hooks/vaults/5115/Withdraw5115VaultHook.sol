@@ -14,7 +14,7 @@ import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -29,14 +29,20 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 156);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
 /// @notice         bool lockForSP = _decodeBool(data, 158);
-contract Withdraw5115VaultHook is BaseHook, ISuperHook {
+contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 92;
+    // forgefmt: disable-start
+    address public transient assetOut;
+    // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
@@ -50,13 +56,13 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
         bool burnFromInternalBalance = _decodeBool(data, 156);
         bool usePrevHookAmount = _decodeBool(data, 157);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResult(prevHook).outAmount();
+            shares = ISuperHookResultOutflow(prevHook).outAmount();
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -74,7 +80,8 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
+    function preExecute(address, bytes memory data) external  onlyExecutor {
+        assetOut = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0); // tokenOut from data
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 158);
         spToken = data.extractYieldSource();
@@ -82,16 +89,18 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = outAmount - _getBalance(data);
+        outAmount = _getBalance(data) - outAmount ;
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        address asset = IERC5115(yieldSource).asset();
-        return IERC20(asset).balanceOf(account);
+        return IERC20(assetOut).balanceOf(data.extractAccount());
     }
 }

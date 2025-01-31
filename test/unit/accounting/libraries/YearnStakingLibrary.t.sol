@@ -2,8 +2,8 @@
 pragma solidity >=0.8.28;
 
 import { Helpers } from "../../../utils/Helpers.sol";
-import { YearnStakingYieldSourceOracleLibrary } from 
-"../../../../src/core/libraries/accounting/YearnStakingYieldSourceOracleLibrary.sol";
+import { YearnStakingYieldSourceOracleLibrary } from
+    "../../../../src/core/libraries/accounting/YearnStakingYieldSourceOracleLibrary.sol";
 import { MockStakingProtocol } from "../../../mocks/MockStakingProtocol.sol";
 
 contract YearnStakingLibraryTest is Helpers {

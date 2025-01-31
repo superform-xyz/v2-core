@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -21,8 +21,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
-contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
+contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 92;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
@@ -42,7 +44,7 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
@@ -68,4 +70,9 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook {
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory) external view onlyExecutor { }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
 }

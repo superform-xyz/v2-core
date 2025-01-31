@@ -9,7 +9,7 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -23,8 +23,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bool lockForSP = _decodeBool(data, 125);
-contract Deposit7540VaultHook is BaseHook, ISuperHook {
+contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 92;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -44,7 +46,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
@@ -78,12 +80,15 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook {
         outAmount = _getBalance(data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IERC7540(yieldSource).balanceOf(account);
+        return IERC7540(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }

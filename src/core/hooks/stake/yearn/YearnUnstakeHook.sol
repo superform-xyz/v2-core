@@ -5,15 +5,17 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title YearnWithdrawHook
+/// @title YearnUnstakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
@@ -22,8 +24,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 /// @notice         bool lockForSP = _decodeBool(data, 137);
-contract YearnWithdrawHook is BaseHook, ISuperHook {
+contract YearnUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 72;
+    // forgefmt: disable-start
+    address public assetOut;
+    // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -42,7 +49,7 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 136);
 
@@ -65,23 +72,26 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
+        assetOut = IYearnVault(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 137);
-        address yieldSource = data.extractYieldSource();
-        spToken = IYearnVault(yieldSource).stakingToken();
+        /// @dev in Yearn, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = outAmount - _getBalance(data);
+        outAmount = _getBalance(data) - outAmount;
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IYearnVault(yieldSource).balanceOf(account);
+        return IERC20(assetOut).balanceOf(data.extractAccount());
     }
 }
