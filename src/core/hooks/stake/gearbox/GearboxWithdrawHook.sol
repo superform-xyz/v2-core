@@ -8,9 +8,9 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
-
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title GearboxWithdrawHook
@@ -24,11 +24,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract GearboxWithdrawHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
+    // forgefmt: disable-start
+    address public transient assetOut;
+    // forgefmt: disable-end
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
@@ -46,7 +47,7 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
 
         executions = new Execution[](1);
@@ -59,23 +60,21 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
+        address yieldSource = data.extractYieldSource();
+        /// @dev in Gearbox, the staking token is the assetOut
+        assetOut = IGearboxFarmingPool(yieldSource).stakingToken();
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 105);
-        address yieldSource = data.extractYieldSource();
         spToken = IGearboxFarmingPool(yieldSource).rewardsToken();
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = outAmount - _getBalance(data);
+        outAmount =  _getBalance(data) - outAmount;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IGearboxFarmingPool(yieldSource).balanceOf(account);
+        return IERC20(assetOut).balanceOf(account);
     }
 }

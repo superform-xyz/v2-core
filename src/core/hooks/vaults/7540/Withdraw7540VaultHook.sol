@@ -11,7 +11,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -28,7 +28,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract Withdraw7540VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    // forgefmt: disable-start
+    address public transient assetOut;
+    // forgefmt: disable-end
+
+    constructor(address registry_, address author_) BaseHook(registry_, author_, ISuperHook.HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -50,7 +54,7 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook {
         bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -69,22 +73,23 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getUnderlyingBalance(data);
+        address yieldSource = data.extractYieldSource();
+        assetOut = IERC7540(yieldSource).asset();
+        outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 158);
-        spToken = data.extractYieldSource();
+        spToken = yieldSource;
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getUnderlyingBalance(data) - outAmount;
+        outAmount = _getBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getUnderlyingBalance(bytes memory data) private view returns (uint256) {
+    function _getBalance(bytes memory data) private view returns (uint256) {
         address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IERC20(IERC7540(yieldSource).asset()).balanceOf(account);
+        return IERC20(assetOut).balanceOf(account);
     }
 }
