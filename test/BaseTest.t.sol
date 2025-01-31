@@ -400,7 +400,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit4626VaultHook"]);
-            Addr.withdraw4626VaultHook = new Withdraw4626VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+
+            Addr.withdraw4626VaultHook 
+            = new Withdraw4626VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.withdraw4626VaultHook), "Withdraw4626VaultHook");
             hookAddresses[chainIds[i]]["Withdraw4626VaultHook"] = address(Addr.withdraw4626VaultHook);
             hooks[chainIds[i]]["Withdraw4626VaultHook"] = Hook(
@@ -414,7 +416,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]]["Withdraw4626VaultHook"]
             );
 
-            Addr.deposit5115VaultHook = new Deposit5115VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.deposit5115VaultHook 
+            = new Deposit5115VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.deposit5115VaultHook), "Deposit5115VaultHook");
             hookAddresses[chainIds[i]]["Deposit5115VaultHook"] = address(Addr.deposit5115VaultHook);
             hooks[chainIds[i]]["Deposit5115VaultHook"] = Hook(
@@ -426,7 +429,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit5115VaultHook"]);
 
-            Addr.withdraw5115VaultHook = new Withdraw5115VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.withdraw5115VaultHook 
+            = new Withdraw5115VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.withdraw5115VaultHook), "Withdraw5115VaultHook");
             hookAddresses[chainIds[i]]["Withdraw5115VaultHook"] = address(Addr.withdraw5115VaultHook);
             hooks[chainIds[i]]["Withdraw5115VaultHook"] = Hook(
@@ -440,7 +444,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]]["Withdraw5115VaultHook"]
             );
 
-            Addr.requestDeposit7540VaultHook = new RequestDeposit7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.requestDeposit7540VaultHook 
+            = new RequestDeposit7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.requestDeposit7540VaultHook), "RequestDeposit7540VaultHook");
             hookAddresses[chainIds[i]]["RequestDeposit7540VaultHook"] = address(Addr.requestDeposit7540VaultHook);
             hooks[chainIds[i]]["RequestDeposit7540VaultHook"] = Hook(
@@ -454,7 +459,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]]["RequestDeposit7540VaultHook"]
             );
 
-            Addr.requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.requestWithdraw7540VaultHook 
+            = new RequestWithdraw7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
             hookAddresses[chainIds[i]]["RequestWithdraw7540VaultHook"] = address(Addr.requestWithdraw7540VaultHook);
             hooks[chainIds[i]]["RequestWithdraw7540VaultHook"] = Hook(
@@ -468,7 +474,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]]["RequestWithdraw7540VaultHook"]
             );
 
-            Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
+            Addr.acrossSendFundsAndExecuteOnDstHook 
+            = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], "SuperRegistry"), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
             vm.label(address(Addr.acrossSendFundsAndExecuteOnDstHook), "AcrossSendFundsAndExecuteOnDstHook");
@@ -539,7 +546,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["PermitWithPermit2Hook"]);
 
-            Addr.deposit7540VaultHook = new Deposit7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.deposit7540VaultHook 
+            = new Deposit7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.deposit7540VaultHook), "Deposit7540VaultHook");
             hookAddresses[chainIds[i]]["Deposit7540VaultHook"] = address(Addr.deposit7540VaultHook);
             hooks[chainIds[i]]["Deposit7540VaultHook"] 
@@ -552,7 +560,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit7540VaultHook"]);
 
-            Addr.withdraw7540VaultHook = new Withdraw7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.withdraw7540VaultHook 
+            = new Withdraw7540VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.withdraw7540VaultHook), "Withdraw7540VaultHook");
             hookAddresses[chainIds[i]]["Withdraw7540VaultHook"] = address(Addr.withdraw7540VaultHook);
             hooks[chainIds[i]]["Withdraw7540VaultHook"] 
@@ -1228,5 +1237,29 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 permitData,
                 swapData
             );
-        }
+    }
+
+    function _createDeposit5115VaultHookData(
+        address account,
+        address yieldSource,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool depositFromInternalBalance,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return 
+        abi.encodePacked(account, yieldSource, tokenIn, amount, minSharesOut, depositFromInternalBalance, usePrevHookAmount);
+    }
+
+    function _createRequestDeposit7540VaultHookData(
+        address account,
+        address yieldSource,
+        bytes32 yieldSourceOracleId,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(account, yieldSource, yieldSourceOracleId, controller, amount, usePrevHookAmount);
+    }
 }
