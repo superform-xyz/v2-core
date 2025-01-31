@@ -5,6 +5,8 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
@@ -22,11 +24,15 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract SomelierUnstakeAllHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    // forgefmt: disable-start
+    address public assetOut;
+    // forgefmt: disable-end
 
+    constructor(address registry_, address author_) BaseHook(registry_, author_, ISuperHook.HookType.OUTFLOW) { }
     /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
+                                 EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc ISuperHook
     function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address yieldSource = data.extractYieldSource();
@@ -34,19 +40,21 @@ contract SomelierUnstakeAllHook is BaseHook, ISuperHook {
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(ISomelierCellarStaking.unstakeAll, ()) });
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(ISomelierCellarStaking.unstakeAll, ())
+        });
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
+        address yieldSource = data.extractYieldSource();
+        assetOut = ISomelierCellarStaking(yieldSource).stakingToken();
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 72);
-        address yieldSource = data.extractYieldSource();
-        spToken = ISomelierCellarStaking(yieldSource).stakingToken();
+        /// @dev in Somelier, the staking token doesn't exist because no shares are minted.
+        spToken = address(0);
     }
 
     /// @inheritdoc ISuperHook
@@ -54,21 +62,8 @@ contract SomelierUnstakeAllHook is BaseHook, ISuperHook {
         outAmount = _getBalance(data) - outAmount;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-
-        ISomelierCellarStaking.UserStake[] memory stakes = ISomelierCellarStaking(yieldSource).getUserStakes(account);
-        uint256 total;
-        for (uint256 i = 0; i < stakes.length;) {
-            total += stakes[i].amount;
-            unchecked {
-                ++i;
-            }
-        }
-        return total;
+        return IERC20(assetOut).balanceOf(account);
     }
 }

@@ -54,10 +54,10 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 
 // Swap hooks
 // --- 1inch
-import { Base1InchHook } from "../src/core/hooks/swapers/1inch/Base1InchHook.sol";
-import { Swap1InchClipperRouterHook } from "../src/core/hooks/swapers/1inch/Swap1InchClipperRouterHook.sol";
-import { Swap1InchGenericRouterHook } from "../src/core/hooks/swapers/1inch/Swap1InchGenericRouterHook.sol";
-import { Swap1InchUnoswapHook } from "../src/core/hooks/swapers/1inch/Swap1InchUnoswapHook.sol";
+import { Base1InchHook } from "../src/core/hooks/swappers/1inch/Base1InchHook.sol";
+import { Swap1InchClipperRouterHook } from "../src/core/hooks/swappers/1inch/Swap1InchClipperRouterHook.sol";
+import { Swap1InchGenericRouterHook } from "../src/core/hooks/swappers/1inch/Swap1InchGenericRouterHook.sol";
+import { Swap1InchUnoswapHook } from "../src/core/hooks/swappers/1inch/Swap1InchUnoswapHook.sol";
 
 // Stake hooks
 // --- Gearbox
@@ -228,7 +228,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
         ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
-        
+
         // Setup forks
         _preDeploymentSetup();
 
@@ -347,7 +347,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _deployHooks() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            
+
             Addresses memory Addr;
 
             Addr.approveErc20Hook = new ApproveERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -355,8 +355,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hookAddresses[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = address(Addr.approveErc20Hook);
             hooks[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = Hook(
                 APPROVE_ERC20_HOOK_KEY,
-                HookCategory.TokenApprovals, 
-                HookCategory.None, 
+                HookCategory.TokenApprovals,
+                HookCategory.None,
                 address(Addr.approveErc20Hook),
                 ""
             );
@@ -374,7 +374,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY]);
 
-            Addr.deposit4626VaultHook = new Deposit4626VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            Addr.deposit4626VaultHook =
+                new Deposit4626VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
             vm.label(address(Addr.deposit4626VaultHook), DEPOSIT_4626_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = address(Addr.deposit4626VaultHook);
             hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = Hook(
@@ -387,7 +388,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY]
             );
-            Addr.withdraw4626VaultHook = new Withdraw4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.withdraw4626VaultHook =
+                new Withdraw4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw4626VaultHook), WITHDRAW_4626_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY] = address(Addr.withdraw4626VaultHook);
             hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY] = Hook(
@@ -401,7 +403,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY]
             );
 
-            Addr.deposit5115VaultHook = new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.deposit5115VaultHook =
+                new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.deposit5115VaultHook), DEPOSIT_5115_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = address(Addr.deposit5115VaultHook);
             hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = Hook(
@@ -415,7 +418,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
             );
 
-            Addr.withdraw5115VaultHook = new Withdraw5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.withdraw5115VaultHook =
+                new Withdraw5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw5115VaultHook), WITHDRAW_5115_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY] = address(Addr.withdraw5115VaultHook);
             hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY] = Hook(
@@ -429,7 +433,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY]
             );
 
-            Addr.requestDeposit7540VaultHook = new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.requestDeposit7540VaultHook =
+                new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = address(Addr.requestDeposit7540VaultHook);
             hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
@@ -443,9 +448,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
             );
 
-            Addr.requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.requestWithdraw7540VaultHook =
+                new RequestWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.requestWithdraw7540VaultHook), REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY] = address(Addr.requestWithdraw7540VaultHook);
+            hookAddresses[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY] =
+                address(Addr.requestWithdraw7540VaultHook);
             hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
                 REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
@@ -477,7 +484,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             Addr.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
             );
-            vm.label(address(Addr.deBridgeSendFundsAndExecuteOnDstHook), DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+            vm.label(
+                address(Addr.deBridgeSendFundsAndExecuteOnDstHook), DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
+            );
             vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], DEBRIDGE_GATE_ADDRESS_KEY);
             hookAddresses[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
                 address(Addr.deBridgeSendFundsAndExecuteOnDstHook);
@@ -492,119 +501,107 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
 
-            Addr.approveWithPermit2Hook 
-            = new ApproveWithPermit2Hook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), 
-                address(this),
-                PERMIT2
-            ); 
+            Addr.approveWithPermit2Hook =
+                new ApproveWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
             vm.label(address(Addr.approveWithPermit2Hook), APPROVE_WITH_PERMIT2_HOOK_KEY);
             hookAddresses[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = address(Addr.approveWithPermit2Hook);
-            hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] 
-            = Hook(
-                APPROVE_WITH_PERMIT2_HOOK_KEY, 
-                HookCategory.TokenApprovals, 
-                HookCategory.None, 
-                address(Addr.approveWithPermit2Hook), 
+            hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = Hook(
+                APPROVE_WITH_PERMIT2_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(Addr.approveWithPermit2Hook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY]);
-
-            Addr.permitWithPermit2Hook = 
-            new PermitWithPermit2Hook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), 
-                address(this), 
-                PERMIT2
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
+                hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY]
             );
+
+            Addr.permitWithPermit2Hook =
+                new PermitWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
             vm.label(address(Addr.permitWithPermit2Hook), PERMIT_WITH_PERMIT2_HOOK_KEY);
             hookAddresses[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = address(Addr.permitWithPermit2Hook);
-            hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] 
-            = Hook(
-                PERMIT_WITH_PERMIT2_HOOK_KEY, 
-                HookCategory.TokenApprovals, 
-                HookCategory.None, 
-                address(Addr.permitWithPermit2Hook), 
+            hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = Hook(
+                PERMIT_WITH_PERMIT2_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(Addr.permitWithPermit2Hook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
+                hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY]
+            );
 
-            Addr.deposit7540VaultHook = new Deposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.deposit7540VaultHook =
+                new Deposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.deposit7540VaultHook), DEPOSIT_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY] = address(Addr.deposit7540VaultHook);
-            hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY] 
-            = Hook(
-                DEPOSIT_7540_VAULT_HOOK_KEY, 
-                HookCategory.VaultDeposits, 
-                HookCategory.TokenApprovals, 
-                address(Addr.deposit7540VaultHook), 
+            hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
+                DEPOSIT_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultDeposits,
+                HookCategory.TokenApprovals,
+                address(Addr.deposit7540VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY]
+            );
 
-            Addr.withdraw7540VaultHook = new Withdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.withdraw7540VaultHook =
+                new Withdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw7540VaultHook), WITHDRAW_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7540VaultHook);
-            hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY] 
-            = Hook(
-                WITHDRAW_7540_VAULT_HOOK_KEY, 
-                HookCategory.VaultWithdrawals, 
-                HookCategory.VaultDeposits, 
-                address(Addr.withdraw7540VaultHook), 
+            hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
+                WITHDRAW_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(Addr.withdraw7540VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
+            );
 
-
-            Addr.swap1InchClipperRouterHook = 
-            new Swap1InchClipperRouterHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), 
-                address(this), 
-                0x111111125421cA6dc452d289314280a0f8842A65
+            Addr.swap1InchClipperRouterHook = new Swap1InchClipperRouterHook(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), 0x111111125421cA6dc452d289314280a0f8842A65
             );
             vm.label(address(Addr.swap1InchClipperRouterHook), SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY] = address(Addr.swap1InchClipperRouterHook);
-            hooks[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY] 
-            = Hook(
-                SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY, 
-                HookCategory.Swaps, 
-                HookCategory.TokenApprovals, 
-                address(Addr.swap1InchClipperRouterHook), 
+            hooks[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY] = Hook(
+                SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(Addr.swap1InchClipperRouterHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(
+                hooks[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY]
+            );
 
-            Addr.swap1InchGenericRouterHook 
-            = new Swap1InchGenericRouterHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), 
-                address(this), 
-                ONE_INCH_ROUTER
+            Addr.swap1InchGenericRouterHook = new Swap1InchGenericRouterHook(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), ONE_INCH_ROUTER
             );
             vm.label(address(Addr.swap1InchGenericRouterHook), SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY] = address(Addr.swap1InchGenericRouterHook);
-            hooks[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY] 
-            = Hook(
-                SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY, 
-                HookCategory.Swaps, 
-                HookCategory.TokenApprovals, 
-                address(Addr.swap1InchGenericRouterHook), 
+            hooks[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY] = Hook(
+                SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(Addr.swap1InchGenericRouterHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY]);
-
-            Addr.swap1InchUnoswapHook 
-            = new Swap1InchUnoswapHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), 
-                address(this), 
-                ONE_INCH_ROUTER
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(
+                hooks[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY]
             );
+
+            Addr.swap1InchUnoswapHook =
+                new Swap1InchUnoswapHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), ONE_INCH_ROUTER);
             vm.label(address(Addr.swap1InchUnoswapHook), SWAP_1INCH_UNOSWAP_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_1INCH_UNOSWAP_HOOK_KEY] = address(Addr.swap1InchUnoswapHook);
-            hooks[chainIds[i]][SWAP_1INCH_UNOSWAP_HOOK_KEY] 
-            = Hook(
-                SWAP_1INCH_UNOSWAP_HOOK_KEY, 
-                HookCategory.Swaps, 
-                HookCategory.TokenApprovals, 
-                address(Addr.swap1InchUnoswapHook), 
+            hooks[chainIds[i]][SWAP_1INCH_UNOSWAP_HOOK_KEY] = Hook(
+                SWAP_1INCH_UNOSWAP_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(Addr.swap1InchUnoswapHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_UNOSWAP_HOOK_KEY]);
@@ -612,25 +609,24 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             Addr.gearboxStakeHook = new GearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.gearboxStakeHook), GEARBOX_STAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][GEARBOX_STAKE_HOOK_KEY] = address(Addr.gearboxStakeHook);
-            hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY] 
-            = Hook(
-                GEARBOX_STAKE_HOOK_KEY, 
-                HookCategory.Stakes, 
-                HookCategory.VaultDeposits, 
-                address(Addr.gearboxStakeHook), 
+            hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY] = Hook(
+                GEARBOX_STAKE_HOOK_KEY,
+                HookCategory.Stakes,
+                HookCategory.VaultDeposits,
+                address(Addr.gearboxStakeHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY]);
 
-            Addr.gearboxWithdrawHook = new GearboxWithdrawHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.gearboxWithdrawHook =
+                new GearboxWithdrawHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.gearboxWithdrawHook), GEARBOX_WITHDRAW_HOOK_KEY);
             hookAddresses[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY] = address(Addr.gearboxWithdrawHook);
-            hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY] 
-            = Hook(
-                GEARBOX_WITHDRAW_HOOK_KEY, 
-                HookCategory.Claims, 
-                HookCategory.Stakes, 
-                address(Addr.gearboxWithdrawHook), 
+            hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY] = Hook(
+                GEARBOX_WITHDRAW_HOOK_KEY,
+                HookCategory.Claims,
+                HookCategory.Stakes,
+                address(Addr.gearboxWithdrawHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY]);
@@ -638,77 +634,72 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             Addr.somelierStakeHook = new SomelierStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.somelierStakeHook), SOMELIER_STAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][SOMELIER_STAKE_HOOK_KEY] = address(Addr.somelierStakeHook);
-            hooks[chainIds[i]][SOMELIER_STAKE_HOOK_KEY] 
-            = Hook(
-                SOMELIER_STAKE_HOOK_KEY, 
-                HookCategory.Stakes, 
-                HookCategory.VaultDeposits, 
-                address(Addr.somelierStakeHook), 
+            hooks[chainIds[i]][SOMELIER_STAKE_HOOK_KEY] = Hook(
+                SOMELIER_STAKE_HOOK_KEY,
+                HookCategory.Stakes,
+                HookCategory.VaultDeposits,
+                address(Addr.somelierStakeHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][SOMELIER_STAKE_HOOK_KEY]);
 
-            Addr.somelierUnbondAllHook = new SomelierUnbondAllHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.somelierUnbondAllHook =
+                new SomelierUnbondAllHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.somelierUnbondAllHook), SOMELIER_UNBOND_ALL_HOOK_KEY);
             hookAddresses[chainIds[i]][SOMELIER_UNBOND_ALL_HOOK_KEY] = address(Addr.somelierUnbondAllHook);
-            hooks[chainIds[i]][SOMELIER_UNBOND_ALL_HOOK_KEY] 
-            = Hook(
-                SOMELIER_UNBOND_ALL_HOOK_KEY, 
-                HookCategory.Claims, 
-                HookCategory.Stakes, 
-                address(Addr.somelierUnbondAllHook), 
+            hooks[chainIds[i]][SOMELIER_UNBOND_ALL_HOOK_KEY] = Hook(
+                SOMELIER_UNBOND_ALL_HOOK_KEY,
+                HookCategory.Claims,
+                HookCategory.Stakes,
+                address(Addr.somelierUnbondAllHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][SOMELIER_UNBOND_ALL_HOOK_KEY]);
 
-            Addr.somelierUnbondHook = new SomelierUnbondHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.somelierUnbondHook =
+                new SomelierUnbondHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.somelierUnbondHook), SOMELIER_UNBOND_HOOK_KEY);
             hookAddresses[chainIds[i]][SOMELIER_UNBOND_HOOK_KEY] = address(Addr.somelierUnbondHook);
-            hooks[chainIds[i]][SOMELIER_UNBOND_HOOK_KEY] 
-            = Hook(
-                SOMELIER_UNBOND_HOOK_KEY, 
-                HookCategory.Claims, 
-                HookCategory.Stakes, 
-                address(Addr.somelierUnbondHook), 
-                ""
+            hooks[chainIds[i]][SOMELIER_UNBOND_HOOK_KEY] = Hook(
+                SOMELIER_UNBOND_HOOK_KEY, HookCategory.Claims, HookCategory.Stakes, address(Addr.somelierUnbondHook), ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][SOMELIER_UNBOND_HOOK_KEY]);
 
-            Addr.somelierUnstakeAllHook = new SomelierUnstakeAllHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.somelierUnstakeAllHook =
+                new SomelierUnstakeAllHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.somelierUnstakeAllHook), SOMELIER_UNSTAKE_ALL_HOOK_KEY);
             hookAddresses[chainIds[i]][SOMELIER_UNSTAKE_ALL_HOOK_KEY] = address(Addr.somelierUnstakeAllHook);
-            hooks[chainIds[i]][SOMELIER_UNSTAKE_ALL_HOOK_KEY] 
-            = Hook(
-                SOMELIER_UNSTAKE_ALL_HOOK_KEY, 
-                HookCategory.Stakes, 
-                HookCategory.VaultDeposits, 
-                address(Addr.somelierUnstakeAllHook), 
+            hooks[chainIds[i]][SOMELIER_UNSTAKE_ALL_HOOK_KEY] = Hook(
+                SOMELIER_UNSTAKE_ALL_HOOK_KEY,
+                HookCategory.Stakes,
+                HookCategory.VaultDeposits,
+                address(Addr.somelierUnstakeAllHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][SOMELIER_UNSTAKE_ALL_HOOK_KEY]);
 
-            Addr.yearnClaimOneRewardHook = new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.yearnClaimOneRewardHook =
+                new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.yearnClaimOneRewardHook), YEARN_CLAIM_ONE_REWARD_HOOK_KEY);
             hookAddresses[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = address(Addr.yearnClaimOneRewardHook);
-            hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] 
-            = Hook(
-                YEARN_CLAIM_ONE_REWARD_HOOK_KEY, 
-                HookCategory.Claims, 
-                HookCategory.Stakes, 
-                address(Addr.yearnClaimOneRewardHook), 
+            hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = Hook(
+                YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
+                HookCategory.Claims,
+                HookCategory.Stakes,
+                address(Addr.yearnClaimOneRewardHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
 
-            Addr.yearnClaimAllRewardsHook = new YearnClaimAllRewardsHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            Addr.yearnClaimAllRewardsHook =
+                new YearnClaimAllRewardsHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.yearnClaimAllRewardsHook), YEARN_CLAIM_ALL_REWARDS_HOOK_KEY);
             hookAddresses[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY] = address(Addr.yearnClaimAllRewardsHook);
-            hooks[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY] 
-            = Hook(
-                YEARN_CLAIM_ALL_REWARDS_HOOK_KEY, 
-                HookCategory.Claims, 
-                HookCategory.Stakes, 
-                address(Addr.yearnClaimAllRewardsHook), 
+            hooks[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY] = Hook(
+                YEARN_CLAIM_ALL_REWARDS_HOOK_KEY,
+                HookCategory.Claims,
+                HookCategory.Stakes,
+                address(Addr.yearnClaimAllRewardsHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY]);
@@ -949,12 +940,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.startPrank(MANAGER);
 
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
-            ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
-            configs[0] = ISuperLedger.HookRegistrationConfig({
-                yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedger.YieldSourceOracleConfigArgs[](1);
+            configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                vaultShareToken: address(0), // this is auto set because its standardized yield
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
             });
             ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
@@ -1184,32 +1175,36 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createGenericRouterSwapHookData(
-            bool usePrevHookAmount,
-            uint256 msgValue,
-            address srcToken,
-            address dstToken,
-            address srcReceiver,
-            address dstReceiver,
-            uint256 inputAmount,
-            uint256 minDstAmount,
-            uint256 flags,
-            address aggregationExecutor,
-            bytes memory permitData,
-            bytes memory swapData
-        ) internal pure returns (bytes memory) {
-            return abi.encodePacked(
-                usePrevHookAmount,
-                msgValue,
-                srcToken,
-                dstToken,
-                srcReceiver,
-                dstReceiver,
-                inputAmount,
-                minDstAmount,
-                flags,
-                aggregationExecutor,
-                permitData,
-                swapData
-            );
-        }
+        bool usePrevHookAmount,
+        uint256 msgValue,
+        address srcToken,
+        address dstToken,
+        address srcReceiver,
+        address dstReceiver,
+        uint256 inputAmount,
+        uint256 minDstAmount,
+        uint256 flags,
+        address aggregationExecutor,
+        bytes memory permitData,
+        bytes memory swapData
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            usePrevHookAmount,
+            msgValue,
+            srcToken,
+            dstToken,
+            srcReceiver,
+            dstReceiver,
+            inputAmount,
+            minDstAmount,
+            flags,
+            aggregationExecutor,
+            permitData,
+            swapData
+        );
+    }
 }

@@ -5,6 +5,8 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../libraries/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
@@ -24,6 +26,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool lockForSP = _decodeBool(data, 137);
 contract YearnUnstakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
+
+    // forgefmt: disable-start
+    address public assetOut;
+    // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -65,15 +71,16 @@ contract YearnUnstakeHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
+        assetOut = IYearnVault(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 137);
-        address yieldSource = data.extractYieldSource();
-        spToken = IYearnVault(yieldSource).stakingToken();
+        /// @dev in Yearn, the staking token doesn't exist because no shares are minted.
+        spToken = address(0);
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = outAmount - _getBalance(data);
+        outAmount = _getBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -81,7 +88,6 @@ contract YearnUnstakeHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
         address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IYearnVault(yieldSource).balanceOf(account);
+        return IERC20(assetOut).balanceOf(account);
     }
 }

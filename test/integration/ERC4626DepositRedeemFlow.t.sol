@@ -97,7 +97,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
-        emit ISuperLedger.AccountingUpdated(accountEth, yieldSourceOracle, yieldSourceAddressEth, true, amount, 1e18);
+        emit ISuperLedger.AccountingInflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, amount, 1e18);
         executeOp(userOpData);
 
         uint256 accSharesAfter = vaultInstanceEth.balanceOf(accountEth);
@@ -122,9 +122,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryWithdraw));
 
         vm.expectEmit(true, true, true, false);
-        emit ISuperLedger.AccountingUpdated(
-            accountEth, yieldSourceOracle, yieldSourceAddressEth, false, accSharesAfter, 1e18
-        );
+        emit ISuperLedger.AccountingOutflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, accSharesAfter, 0);
 
         executeOp(userOpData);
 
@@ -179,7 +177,13 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             accountEth, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
         srcHooksData[2] = _createWithdrawHookData(
-            accountEth, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, accountEth, 0, true, false
+            accountEth,
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceAddressEth,
+            accountEth,
+            0,
+            true,
+            false
         );
         srcHooksData[3] = _createApproveHookData(underlyingEth_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
 
