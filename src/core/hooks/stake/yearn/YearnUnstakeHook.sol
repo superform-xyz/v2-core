@@ -15,7 +15,7 @@ import { IYearnVault } from "../../../interfaces/vendors/yearn/IYearnVault.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title YearnWithdrawHook
+/// @title YearnUnstakeHook
 /// @dev data has the following structure
 /// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
@@ -24,7 +24,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 /// @notice         bool lockForSP = _decodeBool(data, 137);
-contract YearnWithdrawHook is BaseHook, ISuperHook {
+contract YearnUnstakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
     // forgefmt: disable-start

@@ -49,7 +49,10 @@ import { SomelierUnbondAllHook } from "../src/core/hooks/stake/somelier/Somelier
 import { SomelierUnbondHook } from "../src/core/hooks/stake/somelier/SomelierUnbondHook.sol";
 import { SomelierUnstakeAllHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
 import { SomelierUnstakeHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeHook.sol";
-import { YearnWithdrawHook } from "../src/core/hooks/stake/yearn/YearnWithdrawHook.sol";
+import { YearnUnstakeHook } from "../src/core/hooks/stake/yearn/YearnUnstakeHook.sol";
+import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
+import { FluidStakeWithPermitHook } from "../src/core/hooks/stake/fluid/FluidStakeWithPermitHook.sol";
+import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
 import { YieldExitHook } from "../src/core/hooks/stake/YieldExitHook.sol";
 
 // ---- | bridges
@@ -293,7 +296,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 25;
+        uint256 len = 28;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
 
@@ -402,6 +405,18 @@ contract DeployV2 is Script, Configuration {
         hooks[24] = HookDeployment(
             YIELD_EXIT_HOOK_KEY,
             abi.encodePacked(type(YieldExitHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[25] = HookDeployment(
+            "FluidStakeHook",
+            abi.encodePacked(type(FluidStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[26] = HookDeployment(
+            "FluidStakeWithPermitHook",
+            abi.encodePacked(type(FluidStakeWithPermitHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[27] = HookDeployment(
+            "FluidUnstakeHook",
+            abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
 
         for (uint256 i = 0; i < len;) {
