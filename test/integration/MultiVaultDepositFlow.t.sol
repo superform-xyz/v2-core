@@ -2,7 +2,6 @@
 pragma solidity >=0.8.28;
 
 // Tests
-import { console2 } from "forge-std/console2.sol";
 import { BaseTest } from "../BaseTest.t.sol";
 
 // Superform
@@ -10,7 +9,7 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 // Vault Interfaces
-import { IERC5115 } from "../../src/core/interfaces/vendors/vaults/5115/IERC5115.sol";
+import { IStandardizedYield } from "../../src/core/interfaces/vendors/pendle/IStandardizedYield.sol";
 import { IERC7540 } from "../../src/core/interfaces/vendors/vaults/7540/IERC7540.sol";
 
 // External
@@ -18,7 +17,7 @@ import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract MultiVaultDepositFlow is BaseTest {
-    IERC5115 public vaultInstance5115ETH;
+    IStandardizedYield public vaultInstance5115ETH;
     IERC7540 public vaultInstance7540ETH;
 
     address public underlyingETH_USDC;
@@ -43,26 +42,20 @@ contract MultiVaultDepositFlow is BaseTest {
         underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["SUSDe"];
 
         yieldSource5115AddressSUSDe = realVaultAddresses[ETH]["ERC5115"]["PendleEthena"]["sUSDe"];
-        // console2.log("yieldSource5115AddressSUSDe", yieldSource5115AddressSUSDe);
 
         yieldSource7540AddressUSDC = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
-        // console2.log("yieldSource7540AddressUSDC", yieldSource7540AddressUSDC);
 
-        vaultInstance5115ETH = IERC5115(yieldSource5115AddressSUSDe);
+        vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
 
         yieldSourceOracle5115 = _getContract(ETH, "ERC5115YieldSourceOracle");
-        // console2.log("yieldSourceOracle5115", yieldSourceOracle5115);
 
         yieldSourceOracle7540 = _getContract(ETH, "ERC7540YieldSourceOracle");
-        // console2.log("yieldSourceOracle7540", yieldSourceOracle7540);
 
         superExecutorOnETH = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
-        // console2.log("superExecutorOnETH", address(superExecutorOnETH));
 
         accountETH = accountInstances[ETH].account;
-        // console2.log("accountETH", accountETH);
-        
+
         instanceOnETH = accountInstances[ETH];
     }
 
@@ -74,14 +67,12 @@ contract MultiVaultDepositFlow is BaseTest {
 
         uint256 accountUSDCStartBalance = IERC20(underlyingETH_USDC).balanceOf(accountETH);
         uint256 accountSUSDEStartBalance = IERC20(underlyingETH_sUSDe).balanceOf(accountETH);
-        // console2.log("accountSUSDEStartBalance", accountSUSDEStartBalance);
 
         address[] memory hooksAddresses = new address[](4);
         hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
         hooksAddresses[1] = _getHookAddress(ETH, "RequestDeposit7540VaultHook");
         hooksAddresses[2] = _getHookAddress(ETH, "ApproveERC20Hook");
         hooksAddresses[3] = _getHookAddress(ETH, "Deposit5115VaultHook");
-        console2.log("deposit5115Hook.hookAddress", hooksAddresses[3]);
         
 
         bytes[] memory hooksData = new bytes[](4);
@@ -130,16 +121,15 @@ contract MultiVaultDepositFlow is BaseTest {
             accountETH,
             amountPerVault
         );
+        vm.expectEmit(true, true, true, false);
+        emit IStandardizedYield.Deposit(accountETH, accountETH, underlyingETH_sUSDe, amountPerVault, amountPerVault);
         executeOp(userOpData);
 
-        // Check balances
+        // Check asset balances
         assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), accountUSDCStartBalance - amountPerVault);
-        //console2.log("IERC20(underlyingETH_sUSDe).balanceOf(accountETH)", IERC20(underlyingETH_sUSDe).balanceOf(accountETH));
-        //console2.log("vaultInstance5115ETH.balanceOf(accountETH)", vaultInstance5115ETH.balanceOf(accountETH));
-        //console2.log("vaultInstance7540ETH.pendingDepositRequest(ID, accountETH)", vaultInstance7540ETH.pendingDepositRequest(bytes32(0), accountETH));
-        // assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), 0);
-        // assertEq(IERC20(underlyingETH_sUSDe).balanceOf(accountETH), 0);
-        // assertEq(vaultInstance5115ETH.balanceOf(accountETH), amountPerVault);
-        // assertEq(vaultInstance7540ETH.balanceOf(accountETH), amountPerVault);
+        assertEq(IERC20(underlyingETH_sUSDe).balanceOf(accountETH), accountSUSDEStartBalance - amountPerVault);
+
+        // Check vault shares balances
+        assertEq(vaultInstance5115ETH.balanceOf(accountETH), amountPerVault);
     }
 }
