@@ -65,7 +65,6 @@ import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115
 contract DeployV2 is Script, Configuration {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
-
     struct HookDeployment {
         string name;
         bytes creationCode;
@@ -451,11 +450,11 @@ contract DeployV2 is Script, Configuration {
     }
 
     function _setupSuperLedger(uint64 chainId) private {
-        SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, "SuperRegistry"));
+        SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
         ISuperLedger.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedger.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
-            yieldSourceOracle: _getContract(chainId, "ERC4626YieldSourceOracle"),
+            yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
             feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
         });

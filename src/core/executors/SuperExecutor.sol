@@ -124,7 +124,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 // Get the asset token from the hook
                 address assetToken = ISuperHookResultOutflow(hook).assetOut();
                 if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
-
+                if (IERC20(assetToken).balanceOf(address(this)) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
                 // Add fee transfer to executions
                 Execution[] memory feeExecution = new Execution[](1);
                 feeExecution[0] = Execution({
