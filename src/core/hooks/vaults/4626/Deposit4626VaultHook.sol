@@ -84,8 +84,6 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IERC4626(yieldSource).balanceOf(account);
+        return IERC4626(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }

@@ -66,8 +66,8 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 105);
-        address yieldSource = data.extractYieldSource();
-        spToken = IGearboxFarmingPool(yieldSource).stakingToken();
+        /// @dev In Gearbox, the shares is the yield source itself
+        spToken = data.extractYieldSource();
     }
 
     /// @inheritdoc ISuperHook
@@ -84,8 +84,6 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IGearboxFarmingPool(yieldSource).balanceOf(account);
+        return IGearboxFarmingPool(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }

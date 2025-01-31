@@ -95,8 +95,6 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        return IERC4626(yieldSource).balanceOf(account);
+        return IERC4626(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }

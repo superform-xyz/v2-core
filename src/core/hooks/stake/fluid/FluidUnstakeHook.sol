@@ -8,12 +8,11 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookAmount } from "../../../interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-//TODO: add assetOut after PR #90
 
 /// @title FluidUnstakeHook
 /// @dev data has the following structure
@@ -26,7 +25,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract FluidUnstakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
+    uint256 private constant AMOUNT_POSITION = 72;
+    // forgefmt: disable-start
+    address public transient assetOut;
+    // forgefmt: disable-end
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -42,45 +45,48 @@ contract FluidUnstakeHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IFluidLendingStakingRewards.withdraw, (amount)) });
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(IFluidLendingStakingRewards.withdraw, (amount))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    //TODO: update after PR #90 is merged
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
+        assetOut = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 105);
-        address yieldSource = data.extractYieldSource();
-        spToken = IFluidLendingStakingRewards(yieldSource).stakingToken();
+        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
-    //TODO: update after PR #90 is merged
     /// @inheritdoc ISuperHook
     function postExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookAmount
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    //TODO: update after PR #90 is merged
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IFluidLendingStakingRewards(yieldSource).balanceOf(account);
+        return IFluidLendingStakingRewards(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }

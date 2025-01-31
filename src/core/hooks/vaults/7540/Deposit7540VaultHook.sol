@@ -89,8 +89,6 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IERC7540(yieldSource).balanceOf(account);
+        return IERC7540(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }
