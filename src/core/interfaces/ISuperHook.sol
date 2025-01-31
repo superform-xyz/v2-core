@@ -19,7 +19,7 @@ interface ISuperHookResult {
     function spToken() external view returns (address);
 }
 
-interface ISuperHookAmount {
+interface ISuperHookInflowOutflow {
     function decodeAmount(bytes memory data) external pure returns (uint256);
 }
 

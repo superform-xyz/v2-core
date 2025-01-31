@@ -12,7 +12,7 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IERC7540 } from "./interfaces/IERC7540.sol";
 import { IERC7741 } from "./interfaces/IERC7741.sol";
-import { ISuperHook, ISuperHookResult, Execution, ISuperHookAmount } from "../core/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from "../core/interfaces/ISuperHook.sol";
 
 /// @title SuperVault
 /// @notice A vault that allows users to deposit and withdraw assets across multiple yield sources
@@ -42,8 +42,6 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
     /*//////////////////////////////////////////////////////////////
                                 STATE
     //////////////////////////////////////////////////////////////*/
-    // Authorization tracking
-    mapping(address controller => mapping(bytes32 nonce => bool used)) private _authorizations;
 
     // Asset configuration
     IERC20 private immutable _asset;
@@ -70,10 +68,8 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
     // Operator configuration
     mapping(address owner => mapping(address operator => bool)) public isOperator;
 
-    /// @notice Event emitted when a deposit request is fulfilled
-    event DepositFulfilled(
-        address indexed controller, address indexed owner, uint256 indexed requestId, uint256 shares
-    );
+    // Authorization tracking
+    mapping(address controller => mapping(bytes32 nonce => bool used)) private _authorizations;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -200,13 +196,8 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
         _asset.safeTransferFrom(owner, address(this), assets);
 
         // Create deposit request
-        depositRequests[controller] = DepositRequestInfo({
-            controller: controller,
-            owner: owner,
-            assets: assets,
-            cancelled: false,
-            claimed: false
-        });
+        depositRequests[controller] =
+            DepositRequestInfo({ controller: controller, owner: owner, assets: assets, status: RequestStatus.PENDING });
 
         emit DepositRequest(controller, owner, REQUEST_ID, msg.sender, assets);
         return REQUEST_ID;
@@ -215,18 +206,19 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
     /// @inheritdoc IERC7540
     function isDepositClaimable(uint256) external view returns (bool) {
         DepositRequestInfo storage request = depositRequests[msg.sender];
-        return request.owner != address(0) && !request.cancelled && !request.claimed;
+        return request.owner != address(0) && !(request.status == RequestStatus.CANCELLED)
+            && !(request.status == RequestStatus.CLAIMED);
     }
 
     /// @inheritdoc IERC7540
     function cancelDepositRequest(uint256) external {
         DepositRequestInfo storage request = depositRequests[msg.sender];
         if (request.owner == address(0)) revert REQUEST_NOT_FOUND();
-        if (request.cancelled) revert REQUEST_ALREADY_CANCELLED();
-        if (request.claimed) revert REQUEST_ALREADY_CLAIMED();
+        if (request.status == RequestStatus.CANCELLED) revert REQUEST_ALREADY_CANCELLED();
+        if (request.status == RequestStatus.CLAIMED) revert REQUEST_ALREADY_CLAIMED();
         if (msg.sender != request.controller && !isOperator[request.controller][msg.sender]) revert UNAUTHORIZED();
 
-        request.cancelled = true;
+        request.status = RequestStatus.CANCELLED;
         _asset.safeTransfer(request.owner, request.assets);
 
         emit CancelDepositRequest(request.controller, REQUEST_ID);
@@ -244,13 +236,8 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
         _transfer(msg.sender, address(this), shares);
 
         // Create redeem request
-        redeemRequests[controller] = RedeemRequestInfo({
-            controller: controller,
-            owner: owner,
-            shares: shares,
-            cancelled: false,
-            claimed: false
-        });
+        redeemRequests[controller] =
+            RedeemRequestInfo({ controller: controller, owner: owner, shares: shares, status: RequestStatus.PENDING });
 
         emit RedeemRequest(controller, owner, REQUEST_ID, msg.sender, shares);
         return REQUEST_ID;
@@ -259,18 +246,19 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
     /// @inheritdoc IERC7540
     function isRedeemClaimable(uint256) external view returns (bool) {
         RedeemRequestInfo storage request = redeemRequests[msg.sender];
-        return request.owner != address(0) && !request.cancelled && !request.claimed;
+        return request.owner != address(0) && !(request.status == RequestStatus.CANCELLED)
+            && !(request.status == RequestStatus.CLAIMED);
     }
 
     /// @inheritdoc IERC7540
     function cancelRedeemRequest(uint256) external {
         RedeemRequestInfo storage request = redeemRequests[msg.sender];
         if (request.owner == address(0)) revert REQUEST_NOT_FOUND();
-        if (request.cancelled) revert REQUEST_ALREADY_CANCELLED();
-        if (request.claimed) revert REQUEST_ALREADY_CLAIMED();
+        if (request.status == RequestStatus.CANCELLED) revert REQUEST_ALREADY_CANCELLED();
+        if (request.status == RequestStatus.CLAIMED) revert REQUEST_ALREADY_CLAIMED();
         if (msg.sender != request.controller && !isOperator[request.controller][msg.sender]) revert UNAUTHORIZED();
 
-        request.cancelled = true;
+        request.status = RequestStatus.CANCELLED;
         _transfer(address(this), request.owner, request.shares);
 
         emit CancelRedeemRequest(request.controller, REQUEST_ID);
@@ -572,15 +560,15 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
 
     /// @notice Validate and get total assets for deposit requests
     /// @param users Array of user addresses to validate
-    /// @return totalAssets Total assets to be deposited
-    function _validateDepositRequests(address[] calldata users) internal view returns (uint256 totalAssets) {
+    /// @return totalRequestedAssets Total assets to be deposited
+    function _validateDepositRequests(address[] calldata users) internal view returns (uint256 totalRequestedAssets) {
         for (uint256 i = 0; i < users.length; i++) {
             DepositRequestInfo storage request = depositRequests[users[i]];
             if (request.owner == address(0)) revert REQUEST_NOT_FOUND();
-            if (request.cancelled) revert REQUEST_ALREADY_CANCELLED();
-            if (request.claimed) revert REQUEST_ALREADY_CLAIMED();
+            if (request.status == RequestStatus.CANCELLED) revert REQUEST_ALREADY_CANCELLED();
+            if (request.status == RequestStatus.CLAIMED) revert REQUEST_ALREADY_CLAIMED();
 
-            totalAssets += request.assets;
+            totalRequestedAssets += request.assets;
         }
     }
 
@@ -611,21 +599,17 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param totalRequestedAssets Total assets that need to be spent
     /// @param spentAssets Running total of assets spent so far
     /// @return (address, uint256) The hook address and updated spent assets amount
     function _processHookExecution(
         address hook,
         address prevHook,
         bytes calldata hookCalldata,
-        uint256 totalRequestedAssets,
         uint256 spentAssets
     )
         internal
         returns (address, uint256)
     {
-        uint256 amount = ISuperHookAmount(hook).decodeAmount(hookCalldata);
-
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
         Execution[] memory executions = hookContract.build(prevHook, hookCalldata);
@@ -635,6 +619,9 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
         // Only process INFLOW hooks
         ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
         if (hookType != ISuperHook.HookType.INFLOW) revert INVALID_HOOK();
+
+        // Get amount from hook
+        uint256 amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
         // Validate target is an active yield source and check constraints
         YieldSource storage source = yieldSources[executions[0].target];
@@ -702,8 +689,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
             if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
 
             // Process hook executions
-            (prevHook, spentAssets) =
-                _processHookExecution(hooks[i], prevHook, hookCalldata[i], totalRequestedAssets, spentAssets);
+            (prevHook, spentAssets) = _processHookExecution(hooks[i], prevHook, hookCalldata[i], spentAssets);
         }
 
         // Verify all assets were spent
@@ -718,7 +704,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540, ISuperVault, IERC7741 {
             request.status = ISuperVault.RequestStatus.CLAIMABLE;
 
             // Emit event
-            emit DepositFulfilled(user, request.owner, request.requestId, request.assets);
+            emit DepositFulfilled(user, request.owner, request.assets);
         }
     }
 }

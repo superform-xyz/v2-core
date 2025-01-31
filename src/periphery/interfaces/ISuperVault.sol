@@ -14,7 +14,8 @@ interface ISuperVault is IERC7540 {
     enum RequestStatus {
         PENDING,
         CANCELLED,
-        CLAIMABLE
+        CLAIMABLE,
+        CLAIMED
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -65,10 +66,12 @@ interface ISuperVault is IERC7540 {
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
     event OperatorSet(address indexed owner, address indexed operator, bool approved);
-
+    /// @notice Event emitted when a deposit request is fulfilled
+    event DepositFulfilled(address indexed controller, address indexed owner, uint256 shares);
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
+
     struct YieldSource {
         address oracle; // Associated yield source oracle address
         bool isActive; // Whether the source is active
@@ -90,7 +93,6 @@ interface ISuperVault is IERC7540 {
         address controller; // Address that can control the request
         address owner; // Address that will own the shares
         uint256 assets; // Amount of assets to deposit
-        uint256 requestId; // Unique identifier for the request
         RequestStatus status; // Status of the request
     }
 
@@ -98,7 +100,6 @@ interface ISuperVault is IERC7540 {
         address controller; // Address that can control the request
         address owner; // Address that owns the shares
         uint256 shares; // Amount of shares to redeem
-        uint256 requestId; // Unique identifier for the request
         RequestStatus status; // Status of the request
     }
 
