@@ -78,6 +78,7 @@ abstract contract Constants {
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string public constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
+    string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
 
     // tokens
     string public constant DAI_KEY = "DAI";
