@@ -1,26 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
 
-import { IERC7540 } from "./IERC7540.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 /// @title ISuperVault
 /// @notice Interface for SuperVault contract that manages multiple yield sources
 /// @author SuperForm Labs
-interface ISuperVault is IERC7540 {
-    /*//////////////////////////////////////////////////////////////
-                                ENUMS
-    //////////////////////////////////////////////////////////////*/
-    enum RequestStatus {
-        PENDING,
-        CANCELLED,
-        CLAIMABLE,
-        CLAIMED
-    }
-
+interface ISuperVault {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
+    error ZERO_AMOUNT();
+    error ZERO_ADDRESS();
     error YIELD_SOURCE_ALREADY_EXISTS();
     error YIELD_SOURCE_NOT_FOUND();
     error INVALID_ALLOCATION();
@@ -34,6 +25,8 @@ interface ISuperVault is IERC7540 {
     error TIMELOCK_NOT_EXPIRED();
     error INVALID_HOOK_ROOT();
     error INVALID_HOOK_PROOF();
+    error INVALID_OWNER_OR_OPERATOR();
+    error INVALID_CONTROLLER_OR_OPERATOR();
     error UNAUTHORIZED();
     error INVALID_ASSET();
     error INVALID_STRATEGIST();
@@ -53,10 +46,11 @@ interface ISuperVault is IERC7540 {
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error VAULT_THRESHOLD_NOT_MET();
     error ARRAY_LENGTH_MISMATCH();
-
+    error CANCELLATION_IS_PENDING();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
+
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceRemoved(address indexed source);
     event GlobalConfigUpdated(
@@ -89,18 +83,19 @@ interface ISuperVault is IERC7540 {
         address recipient; // Fee recipient address
     }
 
-    struct DepositRequestInfo {
-        address controller; // Address that can control the request
-        address owner; // Address that will own the shares
-        uint256 assets; // Amount of assets to deposit
-        RequestStatus status; // Status of the request
-    }
-
-    struct RedeemRequestInfo {
-        address controller; // Address that can control the request
-        address owner; // Address that owns the shares
-        uint256 shares; // Amount of shares to redeem
-        RequestStatus status; // Status of the request
+    struct SuperVaultState {
+        /// @dev Remaining deposit request in assets
+        uint256 pendingDepositRequest;
+        /// @dev Remaining redeem request in shares
+        uint256 pendingRedeemRequest;
+        /// @dev Assets that can be claimed using `claimCancelDepositRequest()`
+        uint256 claimableCancelDepositRequest;
+        /// @dev Shares that can be claimed using `claimCancelRedeemRequest()`
+        uint256 claimableCancelRedeemRequest;
+        /// @dev Indicates whether the depositRequest was requested to be cancelled
+        bool pendingCancelDepositRequest;
+        /// @dev Indicates whether the redeemRequest was requested to be cancelled
+        bool pendingCancelRedeemRequest;
     }
 
     /*//////////////////////////////////////////////////////////////
