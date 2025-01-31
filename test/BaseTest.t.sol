@@ -63,12 +63,7 @@ import { Swap1InchUnoswapHook } from "../src/core/hooks/swappers/1inch/Swap1Inch
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
 import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
-// --- Somelier
-import { SomelierStakeHook } from "../src/core/hooks/stake/somelier/SomelierStakeHook.sol";
-import { SomelierUnbondAllHook } from "../src/core/hooks/stake/somelier/SomelierUnbondAllHook.sol";
-import { SomelierUnbondHook } from "../src/core/hooks/stake/somelier/SomelierUnbondHook.sol";
-import { SomelierUnstakeAllHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
-import { SomelierUnstakeHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeHook.sol";
+
 // --- Yearn
 import { YearnUnstakeHook } from "../src/core/hooks/stake/yearn/YearnUnstakeHook.sol";
 // --- Generic
@@ -79,9 +74,7 @@ import { YieldExitHook } from "../src/core/hooks/stake/YieldExitHook.sol";
 import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
 // --- Gearbox
 import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
-// --- Somelier
-import { SomelierClaimAllRewardsHook } from "../src/core/hooks/claim/somelier/SomelierClaimAllRewardsHook.sol";
-import { SomelierClaimOneRewardHook } from "../src/core/hooks/claim/somelier/SomelierClaimOneRewardHook.sol";
+
 // --- Yearn
 import { YearnClaimAllRewardsHook } from "../src/core/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
@@ -131,11 +124,6 @@ struct Addresses {
     Swap1InchUnoswapHook swap1InchUnoswapHook;
     GearboxStakeHook gearboxStakeHook;
     GearboxWithdrawHook gearboxWithdrawHook;
-    SomelierStakeHook somelierStakeHook;
-    SomelierUnbondAllHook somelierUnbondAllHook;
-    SomelierUnbondHook somelierUnbondHook;
-    SomelierUnstakeAllHook somelierUnstakeAllHook;
-    SomelierUnstakeHook somelierUnstakeHook;
     // YearnStakeHook yearnStakeHook;
     YearnUnstakeHook yearnUnstakeHook;
     YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
@@ -630,53 +618,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY]);
-
-            Addr.somelierStakeHook = new SomelierStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.somelierStakeHook), SOMELIER_STAKE_HOOK_KEY);
-            hookAddresses[chainIds[i]][SOMELIER_STAKE_HOOK_KEY] = address(Addr.somelierStakeHook);
-            hooks[chainIds[i]][SOMELIER_STAKE_HOOK_KEY] = Hook(
-                SOMELIER_STAKE_HOOK_KEY,
-                HookCategory.Stakes,
-                HookCategory.VaultDeposits,
-                address(Addr.somelierStakeHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][SOMELIER_STAKE_HOOK_KEY]);
-
-            Addr.somelierUnbondAllHook =
-                new SomelierUnbondAllHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.somelierUnbondAllHook), SOMELIER_UNBOND_ALL_HOOK_KEY);
-            hookAddresses[chainIds[i]][SOMELIER_UNBOND_ALL_HOOK_KEY] = address(Addr.somelierUnbondAllHook);
-            hooks[chainIds[i]][SOMELIER_UNBOND_ALL_HOOK_KEY] = Hook(
-                SOMELIER_UNBOND_ALL_HOOK_KEY,
-                HookCategory.Claims,
-                HookCategory.Stakes,
-                address(Addr.somelierUnbondAllHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][SOMELIER_UNBOND_ALL_HOOK_KEY]);
-
-            Addr.somelierUnbondHook =
-                new SomelierUnbondHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.somelierUnbondHook), SOMELIER_UNBOND_HOOK_KEY);
-            hookAddresses[chainIds[i]][SOMELIER_UNBOND_HOOK_KEY] = address(Addr.somelierUnbondHook);
-            hooks[chainIds[i]][SOMELIER_UNBOND_HOOK_KEY] = Hook(
-                SOMELIER_UNBOND_HOOK_KEY, HookCategory.Claims, HookCategory.Stakes, address(Addr.somelierUnbondHook), ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][SOMELIER_UNBOND_HOOK_KEY]);
-
-            Addr.somelierUnstakeAllHook =
-                new SomelierUnstakeAllHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.somelierUnstakeAllHook), SOMELIER_UNSTAKE_ALL_HOOK_KEY);
-            hookAddresses[chainIds[i]][SOMELIER_UNSTAKE_ALL_HOOK_KEY] = address(Addr.somelierUnstakeAllHook);
-            hooks[chainIds[i]][SOMELIER_UNSTAKE_ALL_HOOK_KEY] = Hook(
-                SOMELIER_UNSTAKE_ALL_HOOK_KEY,
-                HookCategory.Stakes,
-                HookCategory.VaultDeposits,
-                address(Addr.somelierUnstakeAllHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][SOMELIER_UNSTAKE_ALL_HOOK_KEY]);
 
             Addr.yearnClaimOneRewardHook =
                 new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
