@@ -144,9 +144,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
 
     /// @inheritdoc IERC7540CancelDeposit
     function cancelDepositRequest(uint256, address controller) external {
-        if (msg.sender != controller && !isOperator[controller][msg.sender]) {
-            revert INVALID_CONTROLLER_OR_OPERATOR();
-        }
+        _validateController(controller);
         SuperVaultState storage state = superVaultState[controller];
         if (state.pendingDepositRequest == 0) revert REQUEST_NOT_FOUND();
         if (state.pendingCancelDepositRequest) revert CANCELLATION_IS_PENDING();
@@ -156,13 +154,21 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     }
 
     function claimCancelDepositRequest(
-        uint256 requestId,
+        uint256, /*requestId*/
         address receiver,
         address controller
     )
         external
         returns (uint256 assets)
-    { }
+    {
+        _validateController(controller);
+        assets = superVaultState[controller].claimableCancelDepositRequest;
+        superVaultState[controller].claimableCancelDepositRequest = 0;
+        if (assets > 0) {
+            _asset.safeTransferFrom(address(this), receiver, assets);
+        }
+        emit CancelDepositClaim(receiver, controller, REQUEST_ID, msg.sender, assets);
+    }
 
     /// @inheritdoc IERC7540Redeem
     function requestRedeem(uint256 shares, address controller, address owner) external returns (uint256) {
@@ -189,25 +195,33 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
 
     /// @inheritdoc IERC7540CancelRedeem
     function cancelRedeemRequest(uint256, address controller) external {
-        if (msg.sender != controller && !isOperator[controller][msg.sender]) {
-            revert INVALID_CONTROLLER_OR_OPERATOR();
-        }
+        _validateController(controller);
         SuperVaultState storage state = superVaultState[controller];
         if (state.pendingRedeemRequest == 0) revert REQUEST_NOT_FOUND();
         if (state.pendingCancelRedeemRequest) revert CANCELLATION_IS_PENDING();
         state.pendingCancelRedeemRequest = true;
+        state.claimableCancelRedeemRequest = state.claimableCancelRedeemRequest + state.pendingRedeemRequest;
+        delete state.pendingCancelRedeemRequest;
 
         emit CancelRedeemRequest(controller, REQUEST_ID, msg.sender);
     }
 
     function claimCancelRedeemRequest(
-        uint256 requestId,
+        uint256, /*requestId*/
         address receiver,
         address controller
     )
         external
         returns (uint256 shares)
-    { }
+    {
+        _validateController(controller);
+        shares = superVaultState[controller].claimableCancelRedeemRequest;
+        superVaultState[controller].claimableCancelRedeemRequest = 0;
+        if (shares > 0) {
+            _transfer(address(this), receiver, shares);
+        }
+        emit CancelRedeemClaim(receiver, controller, REQUEST_ID, msg.sender, shares);
+    }
 
     //--Operator Management--
 
@@ -589,14 +603,10 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     }
 
     function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
-        if (assets > maxDeposit(receiver)) revert INVALID_AMOUNT();
-        uint256 shares = previewDeposit(assets);
-
-        _asset.safeTransferFrom(msg.sender, address(this), assets);
-        _mint(receiver, shares);
+        _validateController(controller);
+        // TODO
 
         emit Deposit(msg.sender, receiver, assets, shares);
-        return shares;
     }
 
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
@@ -750,6 +760,10 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     }
 
     //--Misc helpers--
+
+    function _validateController(address controller) internal view {
+        if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_CONTROLLER();
+    }
 
     /// @notice Calculate the EIP712 domain separator
     function _calculateDomainSeparator() internal view returns (bytes32) {
