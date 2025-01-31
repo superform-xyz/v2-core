@@ -65,7 +65,7 @@ import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHo
 import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
 
 // --- Yearn
-import { YearnWithdrawHook } from "../src/core/hooks/stake/yearn/YearnWithdrawHook.sol";
+import { YearnUnstakeHook } from "../src/core/hooks/stake/yearn/YearnUnstakeHook.sol";
 // --- Generic
 import { YieldExitHook } from "../src/core/hooks/stake/YieldExitHook.sol";
 
@@ -125,7 +125,7 @@ struct Addresses {
     GearboxStakeHook gearboxStakeHook;
     GearboxWithdrawHook gearboxWithdrawHook;
     // YearnStakeHook yearnStakeHook;
-    YearnWithdrawHook yearnWithdrawHook;
+    YearnUnstakeHook yearnUnstakeHook;
     YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;

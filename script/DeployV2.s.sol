@@ -43,6 +43,10 @@ import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Requ
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
 import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
 import { YearnWithdrawHook } from "../src/core/hooks/stake/yearn/YearnWithdrawHook.sol";
+import { YearnUnstakeHook } from "../src/core/hooks/stake/yearn/YearnUnstakeHook.sol";
+import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
+import { FluidStakeWithPermitHook } from "../src/core/hooks/stake/fluid/FluidStakeWithPermitHook.sol";
+import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
 import { YieldExitHook } from "../src/core/hooks/stake/YieldExitHook.sol";
 
 // ---- | bridges
@@ -286,7 +290,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 18;
+        uint256 len = 21;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
 
@@ -367,6 +371,18 @@ contract DeployV2 is Script, Configuration {
         hooks[17] = HookDeployment(
             YIELD_EXIT_HOOK_KEY,
             abi.encodePacked(type(YieldExitHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[18] = HookDeployment(
+            FLUID_STAKE_HOOK_KEY,
+            abi.encodePacked(type(FluidStakeHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[19] = HookDeployment(
+            FLUID_STAKE_WITH_PERMIT_HOOK_KEY,
+            abi.encodePacked(type(FluidStakeWithPermitHook).creationCode, abi.encode(registry, configuration.owner))
+        );
+        hooks[20] = HookDeployment(
+            FLUID_UNSTAKE_HOOK_KEY,
+            abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
 
         for (uint256 i = 0; i < len;) {
