@@ -364,7 +364,7 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(GearboxWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[16] = HookDeployment(
-            YEARN_REDEEM_HOOK_KEY,
+            YEARN_UNSTAKE_HOOK_KEY,
             abi.encodePacked(type(YearnUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[17] = HookDeployment(

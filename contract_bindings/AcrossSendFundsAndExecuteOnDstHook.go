@@ -38,7 +38,7 @@ type Execution struct {
 
 // AcrossSendFundsAndExecuteOnDstHookMetaData contains all meta data concerning the AcrossSendFundsAndExecuteOnDstHook contract.
 var AcrossSendFundsAndExecuteOnDstHookMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"registry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"author_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spokePoolV3_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"author\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"build\",\"inputs\":[{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"executions\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"hookType\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"enumISuperHook.HookType\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"outAmount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"postExecute\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"preExecute\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"spokePoolV3\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperRegistry\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AMOUNT_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"registry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"author_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spokePoolV3_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"author\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"build\",\"inputs\":[{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"executions\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"hookType\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"enumISuperHook.HookType\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"lockForSP\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"outAmount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"postExecute\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"preExecute\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"spToken\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"spokePoolV3\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperRegistry\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AMOUNT_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]}]",
 }
 
 // AcrossSendFundsAndExecuteOnDstHookABI is the input ABI used to generate the binding from.
@@ -280,6 +280,37 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCal
 	return _AcrossSendFundsAndExecuteOnDstHook.Contract.HookType(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
 }
 
+// LockForSP is a free data retrieval call binding the contract method 0x514ea109.
+//
+// Solidity: function lockForSP() view returns(bool)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) LockForSP(opts *bind.CallOpts) (bool, error) {
+	var out []interface{}
+	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "lockForSP")
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// LockForSP is a free data retrieval call binding the contract method 0x514ea109.
+//
+// Solidity: function lockForSP() view returns(bool)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) LockForSP() (bool, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.LockForSP(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
+}
+
+// LockForSP is a free data retrieval call binding the contract method 0x514ea109.
+//
+// Solidity: function lockForSP() view returns(bool)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) LockForSP() (bool, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.LockForSP(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
+}
+
 // OutAmount is a free data retrieval call binding the contract method 0xe0b95720.
 //
 // Solidity: function outAmount() view returns(uint256)
@@ -367,6 +398,37 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSes
 // Solidity: function preExecute(address , bytes ) view returns()
 func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) PreExecute(arg0 common.Address, arg1 []byte) error {
 	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PreExecute(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, arg0, arg1)
+}
+
+// SpToken is a free data retrieval call binding the contract method 0x8e148776.
+//
+// Solidity: function spToken() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) SpToken(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "spToken")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// SpToken is a free data retrieval call binding the contract method 0x8e148776.
+//
+// Solidity: function spToken() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) SpToken() (common.Address, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.SpToken(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
+}
+
+// SpToken is a free data retrieval call binding the contract method 0x8e148776.
+//
+// Solidity: function spToken() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) SpToken() (common.Address, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.SpToken(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
 }
 
 // SpokePoolV3 is a free data retrieval call binding the contract method 0x3c02c770.

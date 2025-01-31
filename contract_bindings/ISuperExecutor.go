@@ -31,7 +31,7 @@ var (
 
 // ISuperExecutorMetaData contains all meta data concerning the ISuperExecutor contract.
 var ISuperExecutorMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeFromGateway\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]}]",
 }
 
 // ISuperExecutorABI is the input ABI used to generate the binding from.
@@ -199,25 +199,4 @@ func (_ISuperExecutor *ISuperExecutorSession) Execute(data []byte) (*types.Trans
 // Solidity: function execute(bytes data) returns()
 func (_ISuperExecutor *ISuperExecutorTransactorSession) Execute(data []byte) (*types.Transaction, error) {
 	return _ISuperExecutor.Contract.Execute(&_ISuperExecutor.TransactOpts, data)
-}
-
-// ExecuteFromGateway is a paid mutator transaction binding the contract method 0x17429edd.
-//
-// Solidity: function executeFromGateway(address account, bytes data) returns()
-func (_ISuperExecutor *ISuperExecutorTransactor) ExecuteFromGateway(opts *bind.TransactOpts, account common.Address, data []byte) (*types.Transaction, error) {
-	return _ISuperExecutor.contract.Transact(opts, "executeFromGateway", account, data)
-}
-
-// ExecuteFromGateway is a paid mutator transaction binding the contract method 0x17429edd.
-//
-// Solidity: function executeFromGateway(address account, bytes data) returns()
-func (_ISuperExecutor *ISuperExecutorSession) ExecuteFromGateway(account common.Address, data []byte) (*types.Transaction, error) {
-	return _ISuperExecutor.Contract.ExecuteFromGateway(&_ISuperExecutor.TransactOpts, account, data)
-}
-
-// ExecuteFromGateway is a paid mutator transaction binding the contract method 0x17429edd.
-//
-// Solidity: function executeFromGateway(address account, bytes data) returns()
-func (_ISuperExecutor *ISuperExecutorTransactorSession) ExecuteFromGateway(account common.Address, data []byte) (*types.Transaction, error) {
-	return _ISuperExecutor.Contract.ExecuteFromGateway(&_ISuperExecutor.TransactOpts, account, data)
 }
