@@ -57,12 +57,12 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
+    function preExecute(address, address, bytes memory data) external onlyExecutor {
         outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address prevHook, bytes memory data) external onlyExecutor {
+    function postExecute(address prevHook, address, bytes memory data) external onlyExecutor {
         if (_decodeBool(data, 72)) {
             outAmount = ISuperHookResult(prevHook).outAmount();
         } else {

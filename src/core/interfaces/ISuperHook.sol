@@ -10,13 +10,16 @@ interface ISuperHookResult {
     //////////////////////////////////////////////////////////////*/
     /// @notice The amount of tokens processed by the hook
     function outAmount() external view returns (uint256);
-
     /// @notice The type of hook
     function hookType() external view returns (ISuperHook.HookType);
     /// @notice The lock flag of the hook
     function lockForSP() external view returns (bool);
     /// @notice The lock token of the hook
     function spToken() external view returns (address);
+}
+
+interface ISuperHookInflowOutflow {
+    function decodeAmount(bytes memory data) external pure returns (uint256);
 }
 
 interface ISuperHookResultOutflow is ISuperHookResult {

@@ -11,7 +11,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -24,14 +24,15 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 /// @notice         bool lockForSP = _decodeBool(data, 105);
-contract Withdraw7540VaultHook is BaseHook, ISuperHook {
+contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
+    uint256 private constant AMOUNT_POSITION = 72;
     // forgefmt: disable-start
     address public transient assetOut;
     // forgefmt: disable-end
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, ISuperHook.HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -49,8 +50,9 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook {
     {
         address yieldSource = data.extractYieldSource();
         address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, 104);
+
 
         if (usePrevHookAmount) {
             amount = ISuperHookResultOutflow(prevHook).outAmount();
@@ -84,10 +86,19 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook {
         outAmount = _getBalance(account, data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return _decodeAmount(data);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+    
+    function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(assetOut).balanceOf(account);
     }
 }

@@ -85,7 +85,7 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, address, bytes memory data) external {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 
@@ -93,7 +93,7 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, address, bytes memory data) external {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 

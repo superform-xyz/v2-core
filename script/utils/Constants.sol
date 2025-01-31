@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 abstract contract Constants {
     address internal constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
-    
+
     // chain names
     string internal constant ETHEREUM_KEY = "Ethereum";
     string internal constant BASE_KEY = "Base";
@@ -77,17 +77,14 @@ abstract contract Constants {
     string internal constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
     string internal constant REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY = "RequestWithdraw7540VaultHook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
-    string internal constant GEARBOX_WITHDRAW_HOOK_KEY = "GearboxWithdrawHook";
-    string internal constant SOMELIER_STAKE_HOOK_KEY = "SomelierStakeHook";
-    string internal constant SOMELIER_UNBOND_ALL_HOOK_KEY = "SomelierUnbondAllHook";
-    string internal constant SOMELIER_UNBOND_HOOK_KEY = "SomelierUnbondHook";
-    string internal constant SOMELIER_UNSTAKE_ALL_HOOK_KEY = "SomelierUnstakeAllHook";
-    string internal constant SOMELIER_UNSTAKE_HOOK_KEY = "SomelierUnstakeHook";
-    string internal constant YEARN_WITHDRAW_HOOK_KEY = "YearnWithdrawHook";
+    string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
+    string internal constant YEARN_UNSTAKE_HOOK_KEY = "YearnUnstakeHook";
     string internal constant YIELD_EXIT_HOOK_KEY = "YieldExitHook";
+    string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
+    string internal constant FLUID_STAKE_WITH_PERMIT_HOOK_KEY = "FluidStakeWithPermitHook";
+    string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
 
     // oracle keys
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
 }
-

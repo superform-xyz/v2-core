@@ -70,12 +70,12 @@ contract ApproveWithPermit2Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, address, bytes memory data) external {
         outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, address, bytes memory data) external {
         outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
     }
 }

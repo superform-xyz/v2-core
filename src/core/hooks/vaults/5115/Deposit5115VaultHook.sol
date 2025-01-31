@@ -13,7 +13,7 @@ import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -27,8 +27,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool depositFromInternalBalance = _decodeBool(data, 136);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 137);
 /// @notice         bool lockForSP = _decodeBool(data, 138);
-contract Deposit5115VaultHook is BaseHook, ISuperHook {
+contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 72;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -48,7 +51,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     {
         address yieldSource = data.extractYieldSource();
         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 amount = _decodeAmount(data);
         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
         bool depositFromInternalBalance = _decodeBool(data, 136);
         bool usePrevHookAmount = _decodeBool(data, 137);
@@ -72,22 +75,30 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(data);
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 138);
         spToken = data.extractYieldSource();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount = _getBalance(account, data) - outAmount;
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return _decodeAmount(data);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+    
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address yieldSource = data.extractYieldSource();
-        return IERC4626(yieldSource).balanceOf(account);
+        return IERC4626(data.extractYieldSource()).balanceOf(account);
     }
 }

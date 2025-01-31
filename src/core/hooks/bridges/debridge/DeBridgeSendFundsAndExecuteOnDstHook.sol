@@ -14,15 +14,16 @@ import { IDeBridgeGate } from "../../../interfaces/vendors/bridges/debridge/IDeB
 /// @title DeBridgeSendFundsAndExecuteOnDstHook
 /// @dev data has the following structure
 /// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
-/// @notice         uint256 chainIdTo = BytesLib.toUint256(BytesLib.slice(data, 84, 32), 0);
-/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 116, 4), 0);
-/// @notice         bool useAssetFee = _decodeBool(data, 120);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 121);
-/// @notice         uint256 autoParamsLength = BytesLib.toUint256(BytesLib.slice(data, 122, 32), 0);
-/// @notice         bytes autoParams = BytesLib.slice(data, 154, autoParamsLength);
-/// @notice         bytes permit = BytesLib.slice(data, 154 + autoParamsLength, data.length - 154 - autoParamsLength);
+/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         uint256 chainIdTo = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 136, 4), 0);
+/// @notice         bool useAssetFee = _decodeBool(data, 140);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 141);
+/// @notice         uint256 autoParamsLength = BytesLib.toUint256(BytesLib.slice(data, 142, 32), 0);
+/// @notice         bytes autoParams = BytesLib.slice(data, 142, autoParamsLength);
+/// @notice         bytes permit = BytesLib.slice(data, 142 + autoParamsLength, data.length - 142 - autoParamsLength;
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
@@ -32,6 +33,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
 
     struct DeBridgeDepositAndExecuteData {
         uint256 value;
+        address account;
         address inputToken;
         uint256 inputAmount;
         uint256 chainIdTo;
@@ -69,7 +71,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
-        address account,
+        address,
         bytes memory data
     )
         external
@@ -81,6 +83,8 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
         DeBridgeDepositAndExecuteData memory deBridgeDepositAndExecuteData;
         deBridgeDepositAndExecuteData.value = BytesLib.toUint256(BytesLib.slice(data, offset, 32), 0);
         offset += 32;
+        deBridgeDepositAndExecuteData.account = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+        offset += 20;
         deBridgeDepositAndExecuteData.inputToken = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
         offset += 20;
         deBridgeDepositAndExecuteData.inputAmount = BytesLib.toUint256(BytesLib.slice(data, offset, 32), 0);
@@ -117,7 +121,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                     deBridgeDepositAndExecuteData.inputToken,
                     deBridgeDepositAndExecuteData.inputAmount,
                     deBridgeDepositAndExecuteData.chainIdTo,
-                    abi.encodePacked(account),
+                    abi.encodePacked(deBridgeDepositAndExecuteData.account),
                     deBridgeDepositAndExecuteData.permit,
                     deBridgeDepositAndExecuteData.useAssetFee,
                     deBridgeDepositAndExecuteData.referralCode,

@@ -89,7 +89,7 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
 
     function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) private {
         // run hook preExecute
-        hook.preExecute(prevHook, hookData);
+        hook.preExecute(prevHook, account, hookData);
 
         Execution[] memory executions = hook.build(prevHook, account, hookData);
         // run hook execute
@@ -98,7 +98,7 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
         }
 
         // run hook postExecute
-        hook.postExecute(prevHook, hookData);
+        hook.postExecute(prevHook, account, hookData);
 
         // update accounting
         _updateAccounting(account, address(hook), hookData);

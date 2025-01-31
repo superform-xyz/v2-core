@@ -22,7 +22,7 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         if (stakingRewards == address(0)) revert ADDRESS_NOT_VALID();
 

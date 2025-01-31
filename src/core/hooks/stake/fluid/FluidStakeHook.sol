@@ -9,22 +9,21 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
-import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
+import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title Deposit7540VaultHook
+/// @title FluidStakeHook
 /// @dev data has the following structure
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         bool lockForSP = _decodeBool(data, 105);
-contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         bool lockForSP = _decodeBool(data, 85);
+contract FluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant AMOUNT_POSITION = 52;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -34,7 +33,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
-        address account,
+        address,
         bytes memory data
     )
         external
@@ -43,22 +42,20 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 104);
+        bool usePrevHookAmount = _decodeBool(data, 84);
+
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0) || controller == address(0)) revert ADDRESS_NOT_VALID();
-
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.deposit, (amount, account, controller))
+            callData: abi.encodeCall(IFluidLendingStakingRewards.stake, (amount))
         });
     }
 
@@ -67,10 +64,9 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external onlyExecutor {
-        // store current balance
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 105);
-        spToken = data.extractYieldSource();
+        lockForSP = _decodeBool(data, 85);
+        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     /// @inheritdoc ISuperHook
@@ -89,8 +85,8 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        return IERC7540(data.extractYieldSource()).balanceOf(account);
+        return IFluidLendingStakingRewards(data.extractYieldSource()).balanceOf(account);
     }
 }

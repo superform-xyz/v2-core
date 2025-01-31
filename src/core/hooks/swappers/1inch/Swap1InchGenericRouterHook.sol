@@ -44,7 +44,7 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
-        address,
+        address account,
         bytes memory data
     )
         external
@@ -58,17 +58,17 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
 
         params.description.srcToken = IERC20(BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0));
         params.description.dstToken = IERC20(BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0));
-        params.description.srcReceiver = payable(BytesLib.toAddress(BytesLib.slice(data, 73, 20), 0));
-        params.description.dstReceiver = payable(BytesLib.toAddress(BytesLib.slice(data, 93, 20), 0));
-        params.description.amount = BytesLib.toUint256(BytesLib.slice(data, 113, 32), 0);
-        params.description.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
-        params.description.flags = BytesLib.toUint256(BytesLib.slice(data, 177, 32), 0);
-        params.aggregationExecutor = BytesLib.toAddress(BytesLib.slice(data, 209, 20), 0);
+        params.description.srcReceiver = payable(account);
+        params.description.srcReceiver = payable(account);
+        params.description.amount = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
+        params.description.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
+        params.description.flags = BytesLib.toUint256(BytesLib.slice(data, 137, 32), 0);
+        params.aggregationExecutor = BytesLib.toAddress(BytesLib.slice(data, 157, 20), 0);
 
-        uint256 permitDataLength = BytesLib.toUint256(BytesLib.slice(data, 229, 32), 0);
-        params.permitData = BytesLib.slice(data, 261, permitDataLength);
+        uint256 permitDataLength = BytesLib.toUint256(BytesLib.slice(data, 177, 32), 0);
+        params.permitData = BytesLib.slice(data, 209, permitDataLength);
 
-        uint256 swapDataOffset = 261 + permitDataLength;
+        uint256 swapDataOffset = 209 + permitDataLength;
         params.swapData = BytesLib.slice(data, swapDataOffset, data.length - swapDataOffset);
 
 
@@ -95,21 +95,20 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
-        outAmount = _getBalance(data);
+    function preExecute(address, address account, bytes memory data) external {
+        outAmount = _getBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
-        outAmount = _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        Swap1InchGenericRouterHookParams memory params = abi.decode(data, (Swap1InchGenericRouterHookParams));
-
-        return IERC20(address(params.description.dstToken)).balanceOf(params.description.dstReceiver);
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+        address dstToken = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
+        return IERC20(dstToken).balanceOf(account);
     }
 }

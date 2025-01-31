@@ -72,12 +72,12 @@ contract TransferWithPermit2Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, address, bytes memory data) external {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
     }
 
