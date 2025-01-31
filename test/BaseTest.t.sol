@@ -891,13 +891,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](1);
+                new ISuperLedger.YieldSourceOracleConfigArgs[](2);
             configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
             });
+            configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            });
+            // configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
+            //     yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            //     yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
+            //     feePercent: 100,
+            //     feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            // });
             ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
         }
