@@ -8,12 +8,10 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-
-//TODO: add assetOut after PR #90
 
 /// @title FluidStakeHook
 /// @dev data has the following structure
@@ -27,8 +25,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 169, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 201);
 /// @notice         bool lockForSP = _decodeBool(data, 202);
-contract FluidStakeWithPermitHook is BaseHook, ISuperHook {
+contract FluidStakeWithPermitHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 72;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -46,7 +46,7 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         uint256 deadline = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
         uint8 v = BytesLib.toUint8(BytesLib.slice(data, 136, 1), 0);
         bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 137, 32), 0);
@@ -60,8 +60,11 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHook {
         }
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IFluidLendingStakingRewards.stakeWithPermit, (amount, deadline, v, r, s)) });
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(IFluidLendingStakingRewards.stakeWithPermit, (amount, deadline, v, r, s))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -71,8 +74,7 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 202);
-        address yieldSource = data.extractYieldSource();
-        spToken = IFluidLendingStakingRewards(yieldSource).stakingToken();
+        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     /// @inheritdoc ISuperHook
@@ -80,12 +82,15 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHook {
         outAmount = _getBalance(data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IFluidLendingStakingRewards(yieldSource).balanceOf(account);
+        return IFluidLendingStakingRewards(data.extractYieldSource()).balanceOf(data.extractAccount());
     }
 }

@@ -14,7 +14,7 @@ import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -29,9 +29,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 156);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
 /// @notice         bool lockForSP = _decodeBool(data, 158);
-contract Withdraw5115VaultHook is BaseHook, ISuperHook {
+contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
+    uint256 private constant AMOUNT_POSITION = 92;
     // forgefmt: disable-start
     address public transient assetOut;
     // forgefmt: disable-end
@@ -55,7 +56,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
         bool burnFromInternalBalance = _decodeBool(data, 156);
         bool usePrevHookAmount = _decodeBool(data, 157);
@@ -91,11 +92,15 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook {
         outAmount = _getBalance(data) - outAmount ;
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        return IERC20(assetOut).balanceOf(account);
+        return IERC20(assetOut).balanceOf(data.extractAccount());
     }
 }

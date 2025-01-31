@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -21,9 +21,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 /// @notice         bool lockForSP = _decodeBool(data, 105);
-contract GearboxWithdrawHook is BaseHook, ISuperHook {
+contract GearboxWithdrawHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
+    uint256 private constant AMOUNT_POSITION = 72;
     // forgefmt: disable-start
     address public transient assetOut;
     // forgefmt: disable-end
@@ -41,7 +42,7 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
@@ -51,8 +52,11 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         }
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IGearboxFarmingPool.withdraw, (amount)) });
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(IGearboxFarmingPool.withdraw, (amount))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -65,7 +69,7 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         assetOut = IGearboxFarmingPool(yieldSource).stakingToken();
         outAmount = _getBalance(data);
         lockForSP = _decodeBool(data, 105);
-        spToken = IGearboxFarmingPool(yieldSource).rewardsToken();
+        spToken = yieldSource;
     }
 
     /// @inheritdoc ISuperHook
@@ -73,8 +77,15 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         outAmount =  _getBalance(data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        return IERC20(assetOut).balanceOf(account);
+        return IERC20(assetOut).balanceOf(data.extractAccount());
     }
 }

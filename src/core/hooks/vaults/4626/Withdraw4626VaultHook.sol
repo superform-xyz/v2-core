@@ -11,7 +11,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook,  ISuperHookResultOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -24,15 +24,20 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bool lockForSP = _decodeBool(data, 125);
-contract Withdraw4626VaultHook is BaseHook, ISuperHook {
+contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 92;
+
 
     // forgefmt: disable-start
     address public transient assetOut;
     // forgefmt: disable-end
 
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, ISuperHook.HookType.OUTFLOW) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -51,7 +56,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
         bool usePrevHookAmount = _decodeBool(data, 124);
 
         if (usePrevHookAmount) {
@@ -86,12 +91,15 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook {
         outAmount = _getBalance(data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        return IERC20(assetOut).balanceOf(account);
+        return IERC20(assetOut).balanceOf(data.extractAccount());
     }
 
 }
