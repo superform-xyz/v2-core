@@ -50,6 +50,7 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external

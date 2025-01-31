@@ -27,6 +27,7 @@ contract TransferERC20Hook is BaseHook, ISuperHook {
 
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external

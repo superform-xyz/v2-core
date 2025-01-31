@@ -27,6 +27,7 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external

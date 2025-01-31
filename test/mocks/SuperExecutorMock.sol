@@ -91,7 +91,7 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
         // run hook preExecute
         hook.preExecute(prevHook, hookData);
 
-        Execution[] memory executions = hook.build(prevHook, hookData);
+        Execution[] memory executions = hook.build(prevHook, account, hookData);
         // run hook execute
         if (executions.length > 0) {
             _execute(account, executions);

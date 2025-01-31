@@ -15,12 +15,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title GearboxStakeHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         bool lockForSP = _decodeBool(data, 105);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         bool lockForSP = _decodeBool(data, 85);
 contract GearboxStakeHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -32,6 +31,7 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -40,8 +40,8 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 104);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 84);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -58,23 +58,22 @@ contract GearboxStakeHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 105);
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 85);
         address yieldSource = data.extractYieldSource();
         spToken = IGearboxFarmingPool(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
         address yieldSource = data.extractYieldSource();
         return IGearboxFarmingPool(yieldSource).balanceOf(account);
     }

@@ -19,15 +19,14 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Deposit5115VaultHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-/// @notice         bool depositFromInternalBalance = _decodeBool(data, 156);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 157);
-/// @notice         bool lockForSP = _decodeBool(data, 158);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+/// @notice         bool depositFromInternalBalance = _decodeBool(data, 136);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 137);
+/// @notice         bool lockForSP = _decodeBool(data, 138);
 contract Deposit5115VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -39,6 +38,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -46,13 +46,12 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-        bool depositFromInternalBalance = _decodeBool(data, 156);
-        bool usePrevHookAmount = _decodeBool(data, 157);
+        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
+        bool depositFromInternalBalance = _decodeBool(data, 136);
+        bool usePrevHookAmount = _decodeBool(data, 137);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -75,7 +74,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 158);
+        lockForSP = _decodeBool(data, 138);
         spToken = data.extractYieldSource();
     }
 
@@ -87,9 +86,8 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+        address yieldSource = data.extractYieldSource();
         return IERC4626(yieldSource).balanceOf(account);
     }
 }

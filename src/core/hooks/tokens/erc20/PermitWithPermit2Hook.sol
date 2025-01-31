@@ -35,6 +35,7 @@ contract PermitWithPermit2Hook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -42,19 +43,18 @@ contract PermitWithPermit2Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        bool usePrevHookAmount = _decodeBool(data, 20);
+        bool usePrevHookAmount = _decodeBool(data, 0);
 
         IAllowanceTransfer.PermitSingle memory permitSingle;
-        permitSingle.details.token = BytesLib.toAddress(BytesLib.slice(data, 21, 20), 0);
-        permitSingle.details.amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 41, 32), 0));
-        permitSingle.details.expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0));
-        permitSingle.details.nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0));
+        permitSingle.details.token = BytesLib.toAddress(BytesLib.slice(data, 1, 20), 0);
+        permitSingle.details.amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 21, 32), 0));
+        permitSingle.details.expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0));
+        permitSingle.details.nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0));
 
-        permitSingle.spender = BytesLib.toAddress(BytesLib.slice(data, 137, 20), 0);
-        permitSingle.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+        permitSingle.spender = BytesLib.toAddress(BytesLib.slice(data, 117, 20), 0);
+        permitSingle.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 137, 32), 0);
 
-        uint256 signatureOffset = 189;
+        uint256 signatureOffset = 169;
         bytes memory signature = BytesLib.slice(data, signatureOffset, data.length - signatureOffset);
 
         if (usePrevHookAmount) {

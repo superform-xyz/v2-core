@@ -15,12 +15,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title GearboxWithdrawHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         bool lockForSP = _decodeBool(data, 105);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         bool lockForSP = _decodeBool(data, 85);
 contract GearboxWithdrawHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -33,6 +32,7 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -41,8 +41,8 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 104);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 84);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -64,7 +64,7 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook {
         /// @dev in Gearbox, the staking token is the assetOut
         assetOut = IGearboxFarmingPool(yieldSource).stakingToken();
         outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 105);
+        lockForSP = _decodeBool(data, 85);
         spToken = IGearboxFarmingPool(yieldSource).rewardsToken();
     }
 

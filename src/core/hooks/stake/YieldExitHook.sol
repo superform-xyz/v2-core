@@ -16,10 +16,9 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @title YieldExitHook
 /// @dev can be used for Gearbox, Fluid
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         bool lockForSP = _decodeBool(data, 72);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         bool lockForSP = _decodeBool(data, 52);
 contract YieldExitHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -42,7 +41,7 @@ contract YieldExitHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 72);
+        lockForSP = _decodeBool(data, 52);
         address yieldSource = data.extractYieldSource();
         spToken = IYieldExit(yieldSource).stakingToken();
     }

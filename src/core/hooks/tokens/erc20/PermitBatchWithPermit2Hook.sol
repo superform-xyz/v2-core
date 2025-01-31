@@ -35,6 +35,7 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -42,16 +43,15 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        bool usePrevHookAmount = _decodeBool(data, 20);
-        uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 21, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 0);
+        uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
 
         IAllowanceTransfer.PermitBatch memory permitBatch;
-        permitBatch.spender = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
-        permitBatch.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
+        permitBatch.spender = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+        permitBatch.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
 
-        uint256 detailsCount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
-        uint256 offset = 137; // Start of PermitDetails array
+        uint256 detailsCount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
+        uint256 offset = 117; // Start of PermitDetails array
 
         permitBatch.details = new IAllowanceTransfer.PermitDetails[](detailsCount);
         for (uint256 i = 0; i < detailsCount; ) {

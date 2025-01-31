@@ -17,13 +17,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title YearnWithdrawHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
-/// @notice         bool lockForSP = _decodeBool(data, 137);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+/// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 84, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         bool lockForSP = _decodeBool(data, 85);
 contract YearnWithdrawHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -39,6 +38,7 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -46,11 +46,10 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-        uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 136);
+        uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+        uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 84, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 84);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -73,7 +72,7 @@ contract YearnWithdrawHook is BaseHook, ISuperHook {
     function preExecute(address, bytes memory data) external onlyExecutor {
         assetOut = IYearnVault(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 137);
+        lockForSP = _decodeBool(data, 85);
         /// @dev in Yearn, the staking token doesn't exist because no shares are minted.
         spToken = address(0);
     }

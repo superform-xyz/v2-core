@@ -15,12 +15,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title RequestWithdraw7540VaultHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -32,6 +31,7 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -39,11 +39,10 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 124);
+        address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
@@ -64,8 +63,8 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external view onlyExecutor { }
+    function preExecute(address, address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external view onlyExecutor { }
+    function postExecute(address, address, bytes memory) external view onlyExecutor { }
 }

@@ -44,6 +44,7 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -76,7 +77,6 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
         }
 
         if (params.usePrevHookAmount) {
-            // TODO: how do we handle `minReturnAmount`?
             params.description.amount = ISuperHookResult(prevHook).outAmount();
         }
 
