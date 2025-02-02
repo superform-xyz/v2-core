@@ -2,6 +2,7 @@ name: "Smart Contracts CI"
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-vnet-counter
@@ -110,13 +111,29 @@ jobs:
 
   vnet-deploy:
     needs: ["test"]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/') || contains(github.ref, '-test-'))
     runs-on: "SuperformCore3"
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
       base_mainnet_addresses: ${{ steps.get-addresses-base.outputs.addresses }}
       optimism_mainnet_addresses: ${{ steps.get-addresses-optimism.outputs.addresses }}
     steps:
+      # -------------------------------------------------------------------
+      # Block for OIDC 
+      # -------------------------------------------------------------------
+      - name: Mask Secrets
+        run: |
+          echo "::add-mask::${{ secrets.AWS_ROLE_ARN }}"
+          echo "::add-mask::${{ secrets.S3_BUCKET_NAME }}"
+          echo "::add-mask::${{ secrets.AWS_REGION }}"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      # -------------------------------------------------------------------
+
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
 
@@ -140,7 +157,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: "Make deploy script executable"
-        run: chmod +x ./script/run/deploy_v2_vnet.sh
+        run: chmod +x ./script/run/deploy_v2_vnet_s3.sh
 
       - name: Get branch name and commit hash
         id: branch-info
@@ -149,7 +166,7 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: "Run deploy script"
-        run: ./script/run/deploy_v2_vnet.sh "$BRANCH_NAME"
+        run: ./script/run/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
