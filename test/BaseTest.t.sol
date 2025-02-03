@@ -1159,4 +1159,46 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             swapData
         );
     }
+
+    function _createRequestDeposit7540VaultHookData(
+        address account,
+        address yieldSource,
+        bytes32 yieldSourceOracleId,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            account, 
+            yieldSourceOracleId,
+            yieldSource, 
+            controller, 
+            amount, 
+            usePrevHookAmount
+        );
+    }
+
+    function _createDeposit5115VaultHookData(
+        address account,
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool depositFromInternalBalance,
+        bool usePrevHookAmount,
+        bool lockForSP
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            account, 
+            yieldSourceOracleId, 
+            yieldSource, 
+            tokenIn, 
+            amount,
+            minSharesOut,
+            depositFromInternalBalance,
+            usePrevHookAmount,
+            lockForSP
+        );
+    }
 }

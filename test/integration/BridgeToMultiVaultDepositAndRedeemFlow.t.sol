@@ -106,9 +106,18 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlyingBase_USDC, accountBase, amount);
-        hooksData[1] = _createAcrossSendFundsAndExecuteOnDstHookData(underlyingBase_USDC, accountBase, amount, ETH, CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_1_DEBRIDGE_GATE_ADDRESS, CHAIN_1_DEBRIDGE_GATE_ADMIN_ADDRESS);
+        hooksData[1] 
+        = _createAcrossSendFundsAndExecuteOnDstHookData(
+          underlyingBase_USDC, 
+          accountBase, 
+          amount, 
+          ETH, 
+          CHAIN_1_SPOKE_POOL_V3_ADDRESS, 
+          CHAIN_1_DEBRIDGE_GATE_ADDRESS, 
+          CHAIN_1_DEBRIDGE_GATE_ADMIN_ADDRESS
+        );
         hooksData[2] = _createDeposit5115VaultHookData(underlyingBase_USDC, accountBase, amount, ETH, CHAIN_1_PendleEthena);
-        hooksData[3] = _createDeposit4626VaultHookData(underlyingBase_USDC, accountBase, amount, OP, CHAIN_1_PendleEthena);
+        hooksData[3] = _createDepositVaultHookData(underlyingBase_USDC, accountBase, amount, OP, CHAIN_1_PendleEthena);
         hooksData[4] = _createDeposit7540VaultHookData(underlyingBase_USDC, accountBase, amount, ETH, CHAIN_1_PendleEthena);
 
         // bytes memory userOpData = _createUserOp(hooksAddresses, hooksData);
