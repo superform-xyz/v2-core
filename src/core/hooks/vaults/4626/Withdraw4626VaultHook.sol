@@ -17,27 +17,22 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Withdraw4626VaultHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
-/// @notice         bool lockForSP = _decodeBool(data, 125);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bool lockForSP = _decodeBool(data, 105);
 contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 92;
-
+    uint256 private constant AMOUNT_POSITION = 72;
 
     // forgefmt: disable-start
     address public transient assetOut;
     // forgefmt: disable-end
 
-
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
-
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -46,6 +41,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -53,11 +49,11 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         override
         returns (Execution[] memory executions)
     {
-        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 124);
+        address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 shares = _decodeAmount(data);
+        bool usePrevHookAmount = _decodeBool(data, 104);
+
 
         if (usePrevHookAmount) {
             shares = ISuperHookResultOutflow(prevHook).outAmount();
@@ -78,28 +74,33 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external  onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external  onlyExecutor {
         address yieldSource = data.extractYieldSource();
         assetOut = IERC4626(yieldSource).asset();
-        outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 125);
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 105);
         spToken = yieldSource;
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external  onlyExecutor {
-        outAmount = _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external  onlyExecutor {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return _decodeAmount(data);
     }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        return IERC20(assetOut).balanceOf(data.extractAccount());
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+    
+    function _getBalance(address account, bytes memory) private view returns (uint256) {
+        return IERC20(assetOut).balanceOf(account);
     }
 
 }

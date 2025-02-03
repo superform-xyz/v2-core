@@ -16,10 +16,9 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @title YieldExitHook
 /// @dev can be used for Gearbox, Fluid
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         bool lockForSP = _decodeBool(data, 72);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         bool lockForSP = _decodeBool(data, 52);
 contract YieldExitHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -29,7 +28,7 @@ contract YieldExitHook is BaseHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address yieldSource = data.extractYieldSource();
 
         executions = new Execution[](1);
@@ -40,24 +39,22 @@ contract YieldExitHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 72);
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 52);
         address yieldSource = data.extractYieldSource();
         spToken = IYieldExit(yieldSource).stakingToken();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = outAmount - _getBalance(data);
+    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount = outAmount - _getBalance(account, data);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IYieldExit(yieldSource).balanceOf(account);
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+        return IYieldExit(data.extractYieldSource()).balanceOf(account);
     }
 }

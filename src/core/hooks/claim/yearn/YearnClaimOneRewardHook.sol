@@ -23,7 +23,7 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(address, address, bytes memory data) external pure override returns (Execution[] memory executions) {
         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
@@ -35,12 +35,12 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
+    function preExecute(address, address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external onlyExecutor {
+    function postExecute(address, address, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(data) - outAmount;
     }
 }
