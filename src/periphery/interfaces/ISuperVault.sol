@@ -47,12 +47,17 @@ interface ISuperVault {
     error VAULT_THRESHOLD_NOT_MET();
     error ARRAY_LENGTH_MISMATCH();
     error CANCELLATION_IS_PENDING();
+    error INVALID_DEPOSIT_CLAIM();
+    error NOT_IMPLEMENTED();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceRemoved(address indexed source);
+    event YieldSourceProposed(address indexed source, address indexed oracle, uint256 effectiveTime);
+    event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
+    event YieldSourceReactivated(address indexed source);
     event GlobalConfigUpdated(
         uint256 vaultCap, uint256 superVaultCap, uint256 maxAllocationRate, uint256 vaultThreshold
     );
@@ -64,6 +69,29 @@ interface ISuperVault {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
+
+    struct ProposedYieldSource {
+        address source; // Address of the yield source
+        address oracle; // Address of the oracle
+        uint256 effectiveTime; // Timestamp when proposal can be executed
+        bool isPending; // Whether proposal is pending
+    }
+
+    struct FulfillmentVars {
+        uint256 totalRequestedAssets;
+        uint256 totalValue;
+        uint256 totalSharesToMint;
+        uint256 pricePerShare;
+        address prevHook;
+        uint256 spentAssets;
+    }
+
+    struct SharePricePoint {
+        /// @notice Number of shares at this price point
+        uint256 shares;
+        /// @notice Price per share in asset decimals when these shares were minted
+        uint256 pricePerShare;
+    }
 
     struct YieldSource {
         address oracle; // Associated yield source oracle address
@@ -83,6 +111,10 @@ interface ISuperVault {
     }
 
     struct SuperVaultState {
+        /// @dev Shares that can be claimed using `mint()`
+        uint256 maxMint;
+        /// @dev Assets that can be claimed using `withdraw()`
+        uint256 maxWithdraw;
         /// @dev Remaining deposit request in assets
         uint256 pendingDepositRequest;
         /// @dev Remaining redeem request in shares
@@ -95,6 +127,8 @@ interface ISuperVault {
         bool pendingCancelDepositRequest;
         /// @dev Indicates whether the redeemRequest was requested to be cancelled
         bool pendingCancelRedeemRequest;
+        /// @dev FIFO queue of share price points for tracking entry prices
+        SharePricePoint[] sharePricePoints;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -112,10 +146,41 @@ interface ISuperVault {
     /*//////////////////////////////////////////////////////////////
                             ADMIN FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function addYieldSource(address source, address oracle) external;
+    /// @notice Propose a new yield source with timelock
+    /// @param source Address of the yield source
+    /// @param oracle Address of the yield source oracle
+    function proposeYieldSource(address source, address oracle) external;
+
+    /// @notice Execute a proposed yield source addition after timelock
+    /// @param source Address of the yield source to execute proposal for
+    function executeYieldSourceProposal(address source) external;
+
+    /// @notice Update oracle for an existing yield source
+    /// @param source Address of the yield source
+    /// @param newOracle Address of the new oracle
+    function updateYieldSourceOracle(address source, address newOracle) external;
+
+    /// @notice Remove a yield source
+    /// @param source Address of the yield source to remove
     function removeYieldSource(address source) external;
+
+    /// @notice Reactivate a previously removed yield source
+    /// @param source Address of the yield source to reactivate
+    function reactivateYieldSource(address source) external;
+
+    /// @notice Update global configuration
+    /// @param config New global configuration
     function updateGlobalConfig(GlobalConfig calldata config) external;
+
+    /// @notice Propose a new hook root
+    /// @param newRoot New hook root to propose
     function proposeHookRoot(bytes32 newRoot) external;
+
+    /// @notice Execute hook root update after timelock
     function executeHookRootUpdate() external;
+
+    /// @notice Update fee configuration
+    /// @param feeBps New fee in basis points
+    /// @param recipient New fee recipient address
     function updateFeeConfig(uint256 feeBps, address recipient) external;
 }

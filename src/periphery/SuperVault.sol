@@ -66,6 +66,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     // Yield source configuration
     mapping(address => YieldSource) public yieldSources;
     address[] public yieldSourcesList;
+    mapping(address => ProposedYieldSource) public proposedYieldSources;
 
     // Request tracking
     mapping(address controller => SuperVaultState state) public superVaultState;
@@ -127,6 +128,10 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         if (assets == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
+
+        // Check against SuperVaultCap
+        if (totalAssets() + assets > globalConfig.superVaultCap) revert VAULT_CAP_EXCEEDED();
+
         if (_asset.balanceOf(owner) < assets) revert INVALID_AMOUNT();
 
         // Transfer assets to vault
@@ -283,66 +288,144 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         bytes[] calldata hookCalldata
     )
         external
-        onlyRole(KEEPER_ROLE)
+        onlyRole(STRATEGIST_ROLE)
     {
         // Validate array lengths match
         if (hooks.length != hookProofs.length || hooks.length != hookCalldata.length) {
             revert ARRAY_LENGTH_MISMATCH();
         }
 
+        // Check there is at least one active yield source
+        bool hasActiveSource = false;
+        for (uint256 i = 0; i < yieldSourcesList.length; i++) {
+            if (yieldSources[yieldSourcesList[i]].isActive) {
+                hasActiveSource = true;
+                break;
+            }
+        }
+        if (!hasActiveSource) revert INVALID_YIELD_SOURCE();
+
+        FulfillmentVars memory vars;
+
         // Validate requests and get total assets
-        uint256 totalRequestedAssets = _validateDepositRequests(users);
+        vars.totalRequestedAssets = _validateDepositRequests(users);
+
+        // Check we have enough free assets to fulfill these requests
+        uint256 availableAssets = _asset.balanceOf(address(this));
+        if (availableAssets < vars.totalRequestedAssets) revert INVALID_AMOUNT();
+
+        // Get total value (including free funds)
+        vars.totalValue = totalAssets();
 
         // Process each hook in sequence
-        address prevHook;
-        uint256 spentAssets;
         for (uint256 i = 0; i < hooks.length; i++) {
             // Validate hook via merkle proof
             if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
 
             // Process hook executions
-            (prevHook, spentAssets) = _processHookExecution(hooks[i], prevHook, hookCalldata[i], spentAssets);
+            (vars.prevHook, vars.spentAssets) =
+                _processHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAssets);
         }
 
         // Verify all assets were spent
-        if (spentAssets != totalRequestedAssets) revert INVALID_AMOUNT();
+        if (vars.spentAssets != vars.totalRequestedAssets) revert INVALID_AMOUNT();
 
+        // Calculate shares to mint based on total value
+        if (totalSupply() == 0) {
+            vars.totalSharesToMint = vars.totalRequestedAssets;
+        } else {
+            vars.totalSharesToMint = vars.totalRequestedAssets.mulDiv(totalSupply(), vars.totalValue);
+        }
+
+        // Calculate price per share
+        vars.pricePerShare = vars.totalValue.mulDiv(1e18, totalSupply() + vars.totalSharesToMint);
+
+        uint256 usersLength = users.length;
         // Update accounting for each user
-        for (uint256 i = 0; i < users.length; i++) {
+        for (uint256 i = 0; i < usersLength;) {
             address user = users[i];
             SuperVaultState storage state = superVaultState[user];
             uint256 requestedAssets = state.pendingDepositRequest;
 
-            // TODO: inscribe PPS for deposit in superVaultsState
+            // Calculate user's share of total shares
+            uint256 shares = requestedAssets.mulDiv(vars.totalSharesToMint, vars.totalRequestedAssets);
+
+            // Add new share price point
+            state.sharePricePoints.push(SharePricePoint({ shares: shares, pricePerShare: vars.pricePerShare }));
+
             // Move request to claimable state
             state.pendingDepositRequest = 0;
             delete state.pendingCancelDepositRequest;
-            // TODO: below is wrong as we need PPS to convert to requestedAssets
-            uint256 shares = requestedAssets;
 
-            // TODO: mint shares to this vault
+            // Mint shares to this vault
             _mint(address(this), shares);
+
+            state.maxMint += shares;
 
             // Emit event
             emit DepositClaimable(user, REQUEST_ID, requestedAssets, shares);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Add a new yield source
+    /// @notice Propose a new yield source
     /// @param source Address of the yield source
     /// @param oracle Address of the yield source oracle
-    function addYieldSource(address source, address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function proposeYieldSource(address source, address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (source == address(0)) revert INVALID_YIELD_SOURCE();
         if (oracle == address(0)) revert INVALID_ORACLE();
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-        yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
+        // Check vault threshold
+        uint256 sourceAssets = IERC4626(source).totalAssets();
+        if (sourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
+        // Create proposal
+        proposedYieldSources[source] = ProposedYieldSource({
+            source: source,
+            oracle: oracle,
+            effectiveTime: block.timestamp + ONE_WEEK,
+            isPending: true
+        });
+
+        emit YieldSourceProposed(source, oracle, block.timestamp + ONE_WEEK);
+    }
+
+    /// @notice Execute a proposed yield source addition after timelock
+    /// @param source Address of the yield source to execute proposal for
+    function executeYieldSourceProposal(address source) external {
+        ProposedYieldSource memory proposal = proposedYieldSources[source];
+        if (!proposal.isPending) revert REQUEST_NOT_FOUND();
+        if (block.timestamp < proposal.effectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        // Add yield source
+        yieldSources[source] = YieldSource({ oracle: proposal.oracle, isActive: true });
         yieldSourcesList.push(source);
-        emit YieldSourceAdded(source, oracle);
+
+        // Clean up proposal
+        delete proposedYieldSources[source];
+
+        emit YieldSourceAdded(source, proposal.oracle);
+    }
+
+    /// @notice Update oracle for an existing yield source
+    /// @param source Address of the yield source
+    /// @param newOracle Address of the new oracle
+    function updateYieldSourceOracle(address source, address newOracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (newOracle == address(0)) revert INVALID_ORACLE();
+        YieldSource storage yieldSource = yieldSources[source];
+        if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+
+        address oldOracle = yieldSource.oracle;
+        yieldSource.oracle = newOracle;
+
+        emit YieldSourceOracleUpdated(source, oldOracle, newOracle);
     }
 
     /// @notice Remove a yield source
@@ -351,8 +434,27 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         YieldSource storage yieldSource = yieldSources[source];
         if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_FOUND();
 
+        // Check no assets are allocated to this source
+        uint256 sourceShares = IERC4626(source).balanceOf(address(this));
+        if (sourceShares > 0) revert INVALID_YIELD_SOURCE();
+
         yieldSource.isActive = false;
         emit YieldSourceRemoved(source);
+    }
+
+    /// @notice Reactivate a previously removed yield source
+    /// @param source Address of the yield source to reactivate
+    function reactivateYieldSource(address source) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        YieldSource storage yieldSource = yieldSources[source];
+        if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+        if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_EXISTS();
+
+        // Check vault threshold
+        uint256 sourceAssets = IERC4626(source).totalAssets();
+        if (sourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+
+        yieldSource.isActive = true;
+        emit YieldSourceReactivated(source);
     }
 
     /// @notice Update global configuration
@@ -540,13 +642,19 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     /// @inheritdoc IERC4626
     function totalAssets() public view override returns (uint256) {
         // Total assets is the sum of all assets in yield sources plus idle assets
-        uint256 total = _asset.balanceOf(address(this));
+        uint256 total = _asset.balanceOf(address(this)); // Idle assets
+
+        // Sum up value in yield sources
         for (uint256 i = 0; i < yieldSourcesList.length; i++) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
-                total += IERC4626(source).convertToAssets(IERC4626(source).balanceOf(address(this)));
+                uint256 sourceShares = IERC4626(source).balanceOf(address(this));
+                if (sourceShares > 0) {
+                    total += IERC4626(source).convertToAssets(sourceShares);
+                }
             }
         }
+
         return total;
     }
 
@@ -583,87 +691,94 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function previewDeposit(uint256 assets) public view override returns (uint256) {
-        return convertToShares(assets);
+    function previewDeposit(uint256 /*assets*/ ) public pure override returns (uint256) {
+        revert NOT_IMPLEMENTED();
     }
 
     /// @inheritdoc IERC4626
-    function previewMint(uint256 shares) public view override returns (uint256) {
-        return convertToAssets(shares);
+    function previewMint(uint256 /*shares*/ ) public pure override returns (uint256) {
+        revert NOT_IMPLEMENTED();
     }
 
     /// @inheritdoc IERC4626
-    function previewWithdraw(uint256 assets) public view override returns (uint256) {
-        return convertToShares(assets);
+    function previewWithdraw(uint256 /*assets*/ ) public pure override returns (uint256) {
+        revert NOT_IMPLEMENTED();
     }
 
     /// @inheritdoc IERC4626
-    function previewRedeem(uint256 shares) public view override returns (uint256) {
-        return convertToAssets(shares);
+    function previewRedeem(uint256 /*shares*/ ) public pure override returns (uint256) {
+        revert NOT_IMPLEMENTED();
     }
 
+    /// @inheritdoc IERC7540Deposit
     function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
         _validateController(controller);
-        // TODO
+        shares = convertToShares(assets);
+
+        SuperVaultState storage state = superVaultState[controller];
+        if (shares > state.maxMint) revert INVALID_DEPOSIT_CLAIM();
+        state.maxMint = state.maxMint > shares ? state.maxMint - shares : 0;
+
+        // Transfer shares to receiver
+        _transfer(address(this), receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
     }
 
+    /// @inheritdoc IERC4626
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         shares = deposit(assets, receiver, msg.sender);
     }
 
+    /// @inheritdoc IERC7540Deposit
     function mint(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
-        uint256 assets = previewMint(shares);
-        if (assets > maxDeposit(receiver)) revert INVALID_AMOUNT();
+        _validateController(controller);
 
-        _asset.safeTransferFrom(msg.sender, address(this), assets);
-        _mint(receiver, shares);
+        SuperVaultState storage state = superVaultState[controller];
+        if (shares > state.maxMint) revert INVALID_DEPOSIT_CLAIM();
+        assets = convertToAssets(shares);
+
+        state.maxMint = state.maxMint > shares ? state.maxMint - shares : 0;
+
+        // Transfer shares to receiver
+        _transfer(address(this), receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
-        return assets;
     }
 
+    /// @inheritdoc IERC4626
     function mint(uint256 shares, address receiver) public override returns (uint256 assets) {
         assets = mint(shares, receiver, msg.sender);
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256) {
-        if (assets > maxWithdraw(owner)) revert INVALID_AMOUNT();
-        uint256 shares = previewWithdraw(assets);
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256 shares) {
+        _validateController(owner);
+        shares = convertToShares(assets);
 
-        if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-            if (allowed != type(uint256).max) {
-                _approve(owner, msg.sender, allowed - shares);
-            }
-        }
+        SuperVaultState storage state = superVaultState[owner];
+        if (assets > state.maxWithdraw) revert INVALID_AMOUNT();
+        state.maxWithdraw = state.maxWithdraw > assets ? state.maxWithdraw - assets : 0;
 
-        _burn(owner, shares);
+        _burn(address(this), shares);
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-        return shares;
     }
 
     /// @inheritdoc IERC4626
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256) {
-        if (shares > maxRedeem(owner)) revert INVALID_AMOUNT();
-        uint256 assets = previewRedeem(shares);
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
+        _validateController(owner);
+        assets = convertToAssets(shares);
 
-        if (msg.sender != owner) {
-            uint256 allowed = allowance(owner, msg.sender);
-            if (allowed != type(uint256).max) {
-                _approve(owner, msg.sender, allowed - shares);
-            }
-        }
+        SuperVaultState storage state = superVaultState[owner];
+        if (shares > state.maxWithdraw) revert INVALID_AMOUNT();
+        state.maxWithdraw = state.maxWithdraw > assets ? state.maxWithdraw - assets : 0;
 
-        _burn(owner, shares);
+        _burn(address(this), shares);
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
-        return assets;
     }
 
     /*//////////////////////////////////////////////////////////////
