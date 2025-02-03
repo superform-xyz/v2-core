@@ -1,19 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { YearnStakingYieldSourceOracleLibrary } from 
-"../../libraries/accounting/YearnStakingYieldSourceOracleLibrary.sol";
+import { YearnStakingYieldSourceOracleLibrary } from
+    "../../libraries/accounting/YearnStakingYieldSourceOracleLibrary.sol";
 
 /// @title YearnStakingYieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for Yearn Staking Yield
 contract YearnStakingYieldSourceOracle {
-    /*//////////////////////////////////////////////////////////////
-                             CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    constructor() { }
-
     /*//////////////////////////////////////////////////////////////
                              VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -23,12 +17,5 @@ contract YearnStakingYieldSourceOracle {
     /// @return price The price per share
     function getPricePerShare(address yieldSourceAddress) external view returns (uint256 price) {
         price = YearnStakingYieldSourceOracleLibrary.getPricePerShare(yieldSourceAddress);
-    }
-
-    // ToDo: Implement this with the metadata library
-    /// @notice Get the metadata for a yield source
-    /// @return metadata The metadata
-    function getYieldSourceMetadata() external pure returns (bytes memory metadata) {
-        return "0x0";
     }
 }

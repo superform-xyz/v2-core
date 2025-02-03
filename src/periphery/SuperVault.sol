@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
 
+// External
 import { ERC4626, ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { AccessControl } from "openzeppelin-contracts/contracts/access/AccessControl.sol";
@@ -8,6 +9,8 @@ import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
+// Interfaces
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import {
     IERC7540Vault,
@@ -18,7 +21,10 @@ import {
     IERC7540CancelRedeem,
     IERC7741
 } from "./interfaces/IERC7540Vault.sol";
+
+// Core
 import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from "../core/interfaces/ISuperHook.sol";
+import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 /// @title SuperVault
 /// @notice A vault that allows users to deposit and withdraw assets across multiple yield sources
@@ -315,7 +321,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         if (availableAssets < vars.totalRequestedAssets) revert INVALID_AMOUNT();
 
         // Get total value (including free funds)
-        vars.totalValue = totalAssets();
+        vars.totalAssets = totalAssets();
 
         // Process each hook in sequence
         for (uint256 i = 0; i < hooks.length; i++) {
@@ -330,15 +336,16 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         // Verify all assets were spent
         if (vars.spentAssets != vars.totalRequestedAssets) revert INVALID_AMOUNT();
 
-        // Calculate shares to mint based on total value
-        if (totalSupply() == 0) {
-            vars.totalSharesToMint = vars.totalRequestedAssets;
-        } else {
-            vars.totalSharesToMint = vars.totalRequestedAssets.mulDiv(totalSupply(), vars.totalValue);
-        }
-
+        vars.totalSupply = totalSupply();
+        vars.vaultDecimals = decimals();
         // Calculate price per share
-        vars.pricePerShare = vars.totalValue.mulDiv(1e18, totalSupply() + vars.totalSharesToMint);
+        if (vars.totalSupply == 0) {
+            // For first deposit, set initial PPS to 1 unit in vault decimals
+            vars.pricePerShare = 10 ** vars.vaultDecimals;
+        } else {
+            // Calculate current PPS before new deposits
+            vars.pricePerShare = vars.totalAssets.mulDiv(10 ** vars.vaultDecimals, vars.totalSupply);
+        }
 
         uint256 usersLength = users.length;
         // Update accounting for each user
@@ -348,8 +355,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
             uint256 requestedAssets = state.pendingDepositRequest;
 
             // Calculate user's share of total shares
-            uint256 shares = requestedAssets.mulDiv(vars.totalSharesToMint, vars.totalRequestedAssets);
-
+            uint256 shares = requestedAssets.mulDiv(10 ** vars.vaultDecimals, vars.pricePerShare);
             // Add new share price point
             state.sharePricePoints.push(SharePricePoint({ shares: shares, pricePerShare: vars.pricePerShare }));
 
@@ -648,10 +654,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         for (uint256 i = 0; i < yieldSourcesList.length; i++) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
-                uint256 sourceShares = IERC4626(source).balanceOf(address(this));
-                if (sourceShares > 0) {
-                    total += IERC4626(source).convertToAssets(sourceShares);
-                }
+                total += IYieldSourceOracle(yieldSources[source].oracle).getTVL(source, address(this));
             }
         }
 

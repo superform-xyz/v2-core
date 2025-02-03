@@ -8,11 +8,12 @@ interface IYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /*
-    /// @notice Derives the TVL in a yield source
+
+    /// @notice Derives the TVL in a yield source by a given owner of shares
     /// @param yieldSourceAddress The yield source to derive TVL for
-    function getTVL(address yieldSourceAddress) external view returns (uint256 tvl);
-    */
+    /// @param ownerOfShares The owner of the shares
+    /// @return tvl The TVL of the yield source by the owner of the shares
+    function getTVL(address yieldSourceAddress, address ownerOfShares) external view returns (uint256 tvl);
 
     /// @notice Derives the price of an action
     /// @param yieldSourceAddress The yield source to derive the price for
@@ -21,38 +22,9 @@ interface IYieldSourceOracle {
 
     /// @notice Gets the price per share for multiple yield sources
     /// @param yieldSourceAddresses The yield sources to derive the price for
-    /// @param underlyingAsset The underlying asset of the yield sources
     /// @return prices The prices of the yield sources
-    function getPricePerShareMultiple(
-        address[] memory yieldSourceAddresses,
-        address underlyingAsset
-    )
+    function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
         external
         view
         returns (uint256[] memory prices);
-
-    /// @notice Gets the metadata of a strategy
-    /// @param yieldSourceAddress The vault to get the metadata for
-    /// @return metadata The metadata of the strategy
-    function getYieldSourceMetadata(address yieldSourceAddress) external view returns (bytes memory metadata);
-
-    /// @notice Gets the metadata of a strategy
-    /// @param yieldSourceAddresses The vaults to get the metadata for
-    /// @param yieldSourceOracleIds The ids of the strategies
-    /// @return metadata The array of metadata of the strategies
-    function getYieldSourceMetadata(
-        address[] memory yieldSourceAddresses,
-        bytes32[] memory yieldSourceOracleIds
-    )
-        external
-        view
-        returns (bytes[] memory metadata);
-
-    /// @notice Gets the metadata of multiple strategies
-    /// @param yieldSourceAddresses The vaults to get the metadata for
-    /// @return metadata The metadata of the strategies
-    function getYieldSourcesMetadata(address[] memory yieldSourceAddresses)
-        external
-        view
-        returns (bytes[] memory metadata);
 }

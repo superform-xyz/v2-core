@@ -32,10 +32,8 @@ contract DepositRedeem7540LibraryTest is Helpers {
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(vault);
 
-        address underlyingAsset = address(underlying);
-
         uint256[] memory actualPricePerShares =
-            ERC7540YieldSourceOracleLibrary.getPricePerShareMultiple(finalTargets, underlyingAsset);
+            ERC7540YieldSourceOracleLibrary.getPricePerShareMultiple(finalTargets);
         assertEq(actualPricePerShares[0], expectedPricePerShares[0]);
     }
 }

@@ -9,14 +9,16 @@ import { ERC7540YieldSourceOracleLibrary } from "../../libraries/accounting/ERC7
 /// @notice Oracle for synchronous deposit and redeem 7540 Vaults
 contract ERC7540YieldSourceOracle is IYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
-                            CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    constructor() { }
-
-    /*//////////////////////////////////////////////////////////////
                            VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Get the TVL of a yield source
+    /// @param yieldSourceAddress The address of the yield source
+    /// @param ownerOfShares The address of the owner of the shares
+    /// @return tvl The TVL of the yield source
+    function getTVL(address yieldSourceAddress, address ownerOfShares) public view returns (uint256 tvl) {
+        tvl = ERC7540YieldSourceOracleLibrary.getTVL(yieldSourceAddress, ownerOfShares);
+    }
 
     /// @notice Get the price per share for a deposit into a yield source
     /// @param yieldSourceAddress The address of the yield source
@@ -27,42 +29,12 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
 
     /// @notice Get the price per share for a deposit into multiple yield sources
     /// @param yieldSourceAddresses The addresses of the yield sources
-    /// @param underlyingAsset The address of the underlying asset
     /// @return prices The price per share per yield source
-    function getPricePerShareMultiple(
-        address[] memory yieldSourceAddresses,
-        address underlyingAsset
-    )
+    function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
         external
         view
         returns (uint256[] memory prices)
     {
-        prices = ERC7540YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses, underlyingAsset);
-    }
-
-    // ToDo: Implement this with the metadata library
-    /// @inheritdoc IYieldSourceOracle
-    function getYieldSourceMetadata(address) external pure returns (bytes memory metadata) {
-        return "0x0";
-    }
-
-    // ToDo: Implement this with the metadata library
-    /// @inheritdoc IYieldSourceOracle
-    function getYieldSourceMetadata(address[] memory yieldSourceAddresses, bytes32[] memory) 
-        external 
-        pure 
-        returns (bytes[] memory metadata) 
-    {
-        return new bytes[](yieldSourceAddresses.length);
-    }   
-
-    // ToDo: Implement this with the metadata library
-    /// @inheritdoc IYieldSourceOracle
-    function getYieldSourcesMetadata(address[] memory yieldSourceAddresses)
-        external
-        pure
-        returns (bytes[] memory metadata)
-    {
-        return new bytes[](yieldSourceAddresses.length);
+        prices = ERC7540YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses);
     }
 }

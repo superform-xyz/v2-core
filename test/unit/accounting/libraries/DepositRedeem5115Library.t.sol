@@ -21,7 +21,7 @@ contract DepositRedeem5115LibraryTest is Helpers {
     function test_get5115PricePerShare() public view {
         uint256 expectedPricePerShare = 1e18;
         uint256 actualPricePerShare =
-            ERC5115YieldSourceOracleLibrary.getPricePerShare(address(vault), address(underlying));
+            ERC5115YieldSourceOracleLibrary.getPricePerShare(address(vault));
         assertEq(actualPricePerShare, expectedPricePerShare);
     }
 
@@ -31,12 +31,8 @@ contract DepositRedeem5115LibraryTest is Helpers {
 
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(vault);
-
-        address[] memory tokenIns = new address[](1);
-        tokenIns[0] = address(underlying);
-
         uint256[] memory actualPricePerShares =
-            ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(finalTargets, tokenIns);
+            ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(finalTargets);
         assertEq(actualPricePerShares[0], expectedPricePerShares[0]);
     }
 }

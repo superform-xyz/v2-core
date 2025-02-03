@@ -8,60 +8,32 @@ import { ERC5115YieldSourceOracleLibrary } from "../../libraries/accounting/ERC5
 /// @notice Oracle for 5115 Vaults
 contract ERC5115YieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
-                            CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    constructor() { }
-
-    /*//////////////////////////////////////////////////////////////
                            VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /*
-    /// @param asset The address of the asset
+
+    /// @notice Get the TVL of a yield source
     /// @param yieldSourceAddress The address of the yield source
-    function getTVL(address asset, address yieldSourceAddress) public view returns (uint256 tvl) {
-        tvl = ERC5115YieldSourceOracleLibrary.getTVL(asset, yieldSourceAddress);
+    /// @param ownerOfShares The address of the owner of the shares
+    /// @return tvl The TVL of the yield source
+    function getTVL(address yieldSourceAddress, address ownerOfShares) public view returns (uint256 tvl) {
+        tvl = ERC5115YieldSourceOracleLibrary.getTVL(yieldSourceAddress, ownerOfShares);
     }
-    */
 
     /// @notice Get the price per share for a deposit into a yield source
-    /// @param asset The address of the asset
     /// @param yieldSourceAddress The address of the yield source
     /// @return price The price per share
-    function getPricePerShare(address asset, address yieldSourceAddress) external view returns (uint256 price) {
-        price = ERC5115YieldSourceOracleLibrary.getPricePerShare(asset, yieldSourceAddress);
+    function getPricePerShare(address yieldSourceAddress) external view returns (uint256 price) {
+        price = ERC5115YieldSourceOracleLibrary.getPricePerShare(yieldSourceAddress);
     }
 
     /// @notice Get the price per share for a deposit into multiple yield sources
-    /// @param assets The addresses of the assets
     /// @param yieldSourceAddresses The addresses of the yield sources
     /// @return prices The price per share per yield source
-    function getPricePerShareMultiple(
-        address[] memory assets,
-        address[] memory yieldSourceAddresses
-    )
+    function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
         external
         view
         returns (uint256[] memory prices)
     {
-        prices = ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses, assets);
-    }
-
-    // ToDo: Implement this with the metadata library
-    /// @notice Get the metadata for a yield source
-    /// @return metadata The metadata
-    function getYieldSourceMetadata(address) external pure returns (bytes memory metadata) {
-        return "0x0";
-    }
-
-    // ToDo: Implement this with the metadata library
-    /// @notice Get the metadata for multiple yield sources
-    /// @return metadata The metadata per yield source
-    function getYieldSourcesMetadata(address[] memory yieldSourceAddresses)
-        external
-        pure
-        returns (bytes[] memory metadata)
-    {
-        return new bytes[](yieldSourceAddresses.length);
+        prices = ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses);
     }
 }

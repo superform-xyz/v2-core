@@ -79,9 +79,10 @@ interface ISuperVault {
 
     struct FulfillmentVars {
         uint256 totalRequestedAssets;
-        uint256 totalValue;
-        uint256 totalSharesToMint;
+        uint256 totalAssets;
+        uint256 totalSupply;
         uint256 pricePerShare;
+        uint256 vaultDecimals;
         address prevHook;
         uint256 spentAssets;
     }
