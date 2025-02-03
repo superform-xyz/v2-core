@@ -41,7 +41,7 @@ import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/Reque
 import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 // ---- | stake
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
+import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
 import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
 import { FluidStakeWithPermitHook } from "../src/core/hooks/stake/fluid/FluidStakeWithPermitHook.sol";
 import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
@@ -358,8 +358,8 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[15] = HookDeployment(
-            GEARBOX_WITHDRAW_HOOK_KEY,
-            abi.encodePacked(type(GearboxWithdrawHook).creationCode, abi.encode(registry, configuration.owner))
+            GEARBOX_UNSTAKE_HOOK_KEY,
+            abi.encodePacked(type(GearboxUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[16] = HookDeployment(
             FLUID_STAKE_HOOK_KEY,

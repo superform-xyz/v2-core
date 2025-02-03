@@ -10,7 +10,6 @@ interface ISuperHookResult {
     //////////////////////////////////////////////////////////////*/
     /// @notice The amount of tokens processed by the hook
     function outAmount() external view returns (uint256);
-
     /// @notice The type of hook
     function hookType() external view returns (ISuperHook.HookType);
     /// @notice The lock flag of the hook
@@ -43,20 +42,23 @@ interface ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @notice Build the execution array for the hook
     /// @param prevHook The previous hook
+    /// @param account The account to build the execution array from
     /// @param data The data to build the execution array from
     /// @return executions The execution array
-    function build(address prevHook, bytes memory data) external view returns (Execution[] memory executions);
+    function build(address prevHook, address account, bytes memory data) external view returns (Execution[] memory executions);
 
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Pre-hook operation
     /// @param prevHook The previous hook
+    /// @param account The account to pre-hook
     /// @param data The data to pre-hook
-    function preExecute(address prevHook, bytes memory data) external;
+    function preExecute(address prevHook, address account, bytes memory data) external;
 
     /// @notice Post-hook operation
     /// @param prevHook The previous hook
+    /// @param account The account to post-hook
     /// @param data The data to post-hook
-    function postExecute(address prevHook, bytes memory data) external;
+    function postExecute(address prevHook, address account, bytes memory data) external;
 }

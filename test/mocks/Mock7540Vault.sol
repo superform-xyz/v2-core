@@ -4,36 +4,28 @@ pragma solidity >=0.8.28;
 import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
-contract Mock5115Vault {
-    enum AssetType {
-        ERC20,
-        AMM_LIQUIDITY_TOKEN,
-        BRIDGED_YIELD_BEARING_TOKEN
-    }
-
-    MockERC20 asset;
+contract Mock7540Vault {
+    MockERC20 assetToken;
+    MockERC20 shareToken;
 
     constructor(IERC20 asset_, string memory name_, string memory symbol_) {
         if (address(asset_) == address(0)) {
-            asset = new MockERC20(name_, symbol_, 18);
+            assetToken = new MockERC20(name_, symbol_, 18);
         } else {
-            asset = MockERC20(address(asset_));
+            assetToken = MockERC20(address(asset_));
         }
+        shareToken = new MockERC20("Share", "SHARE", 18);
     }
 
-    function assetInfo() external view returns (AssetType assetType, address asset_, uint8 decimals) {
-        assetType = AssetType.ERC20;
-        asset_ = address(asset);
-        decimals = uint8(asset.decimals());
+    function share() external view returns (address) {
+        return address(shareToken);
     }
 
-    function getTokensOut() external view returns (address[] memory tokensOut) {
-        tokensOut = new address[](1);
-        tokensOut[0] = address(asset);
+    function asset() external view returns (address) {
+        return address(assetToken);
     }
 
     function previewDeposit(
-        address, //tokenIn
         uint256 amountTokenToDeposit
     )
         external
@@ -44,7 +36,6 @@ contract Mock5115Vault {
     }
 
     function previewRedeem(
-        address, //tokenOut
         uint256 amountSharesToRedeem
     )
         external
