@@ -70,9 +70,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         yieldSourceOracle7540 = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
 
         yieldSourceOracle5115 = _getContract(OP, ERC7540_YIELD_SOURCE_ORACLE_KEY);
-        yieldSourceOracle7540 = _getContract(OP, ERC7540_YIELD_SOURCE_ORACLE_KEY);
 
-        yieldSourceOracle4626 = _getContract(BASE, ERC7540_YIELD_SOURCE_ORACLE_KEY);
         yieldSourceOracle4626 = _getContract(BASE, ERC7540_YIELD_SOURCE_ORACLE_KEY);
 
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
@@ -93,32 +91,83 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     }
 
     function test_Bridge_ToMultiVault_Deposit_Flow() public {
-        vm.selectFork(FORKS[ETH]);
+        vm.selectFork(FORKS[BASE]);
 
-        uint256 amount = 1e8;
+        uint256 amount = 1e9;
+        uint256 amountPerVault = amount / 3;
 
-        address[] memory hooksAddresses = new address[](5);
-        hooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-        hooksAddresses[2] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
-        hooksAddresses[3] = _getHookAddress(OP, DEPOSIT_4626_VAULT_HOOK_KEY);
-        hooksAddresses[4] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
-        bytes[] memory hooksData = new bytes[](5);
-        hooksData[0] = _createApproveHookData(underlyingBase_USDC, accountBase, amount);
-        hooksData[1] 
-        = _createAcrossSendFundsAndExecuteOnDstHookData(
+        address[] memory ethHooksAddresses = new address[](4);
+        ethHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        ethHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
+        ethHooksAddresses[2] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        ethHooksAddresses[3] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        address[] memory opHooksAddresses = new address[](2);
+        opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        opHooksAddresses[1] = _getHookAddress(OP, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC,
+            SPOKE_POOL_V3_ADDRESSES[BASE],
+            amount
+        );
+        srcHooksData[1] = _createAcrossSendFundsAndExecuteOnDstHookData(
           underlyingBase_USDC, 
           accountBase, 
           amount, 
-          ETH, 
+          BASE, 
           CHAIN_1_SPOKE_POOL_V3_ADDRESS, 
           CHAIN_1_DEBRIDGE_GATE_ADDRESS, 
           CHAIN_1_DEBRIDGE_GATE_ADMIN_ADDRESS
         );
-        hooksData[2] = _createDeposit5115VaultHookData(underlyingBase_USDC, accountBase, amount, ETH, CHAIN_1_PendleEthena);
-        hooksData[3] = _createDepositVaultHookData(underlyingBase_USDC, accountBase, amount, OP, CHAIN_1_PendleEthena);
-        hooksData[4] = _createDeposit7540VaultHookData(underlyingBase_USDC, accountBase, amount, ETH, CHAIN_1_PendleEthena);
+
+        bytes[] memory ethHooksData = new bytes[](4);
+        ethHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC,
+            SPOKE_POOL_V3_ADDRESSES[BASE],
+            amountPerVault
+        );
+        ethHooksData[2] = _createDeposit5115VaultHookData(
+            bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            underlyingBase_USDC, 
+            accountBase, 
+            amountPerVault, 
+            ETH, 
+            CHAIN_1_PendleEthena
+        );
+        ethHooksData[3] = _createApproveHookData(
+            underlyingBase_USDC,
+            SPOKE_POOL_V3_ADDRESSES[BASE],
+            amountPerVault
+        );
+        hooksData[4] = _createDeposit7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            underlyingBase_USDC, 
+            accountBase, 
+            amountPerVault, 
+            ETH, 
+            CHAIN_1_PendleEthena
+        );
+
+        bytes[] memory opHooksData = new bytes[](2);
+        opHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC,
+            SPOKE_POOL_V3_ADDRESSES[BASE],
+            amountPerVault
+        );
+        opHooksData[1] = _createDeposit4626VaultHookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            underlyingBase_USDC, 
+            accountBase, 
+            amountPerVault, 
+            OP, 
+            CHAIN_1_PendleEthena
+        );
 
         // bytes memory userOpData = _createUserOp(hooksAddresses, hooksData);
     }
