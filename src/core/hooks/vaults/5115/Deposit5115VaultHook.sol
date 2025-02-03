@@ -49,10 +49,10 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 42, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 62, 32), 0);
-        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 94, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 126);
+        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 84, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 116);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -75,7 +75,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     /// @inheritdoc ISuperHook
     function preExecute(address,address account, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 127);
+        lockForSP = _decodeBool(data, 117);
         spToken = data.extractYieldSource();
     }
 
