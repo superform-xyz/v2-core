@@ -83,7 +83,6 @@ contract MultiVaultDepositFlow is BaseTest {
             false
         );
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            accountETH,
             yieldSource7540AddressUSDC,
             bytes32("ERC7540YieldSourceOracle"),
             0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
@@ -97,7 +96,6 @@ contract MultiVaultDepositFlow is BaseTest {
             false
         );
         hooksData[3] = _createDeposit5115VaultHookData(
-            accountETH,
             bytes32("ERC5115YieldSourceOracle"),
             yieldSource5115AddressSUSDe,
             underlyingETH_sUSDe,
