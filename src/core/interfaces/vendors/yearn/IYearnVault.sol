@@ -6,7 +6,7 @@ interface IYearnVault {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     function balanceOf(address account) external view returns (uint256);    
-    function stakingToken() external view returns (address);
+    function asset() external view returns (address);
     
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
