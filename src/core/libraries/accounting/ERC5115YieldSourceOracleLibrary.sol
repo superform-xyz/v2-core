@@ -4,27 +4,23 @@ pragma solidity >=0.8.28;
 import { IStandardizedYield } from "../../interfaces/vendors/pendle/IStandardizedYield.sol";
 
 library ERC5115YieldSourceOracleLibrary {
-    /// @notice Get the price per share for a deposit into a yield source
-    /// @param yieldSourceAddress The address of the yield source
-    /// @return pricePerShare The price per share
-    function getPricePerShare(
-        address yieldSourceAddress
-    )
-        internal
-        view
-        returns (uint256 pricePerShare)
-    {
-        (,, uint8 decimals) = IStandardizedYield(yieldSourceAddress).assetInfo();
-        address assetOut = IStandardizedYield(yieldSourceAddress).getTokensOut()[0];
-        pricePerShare = IStandardizedYield(yieldSourceAddress).previewRedeem(assetOut, 10 ** decimals);
+    function getTVL(address yieldSourceAddress, address ownerOfShares) internal view returns (uint256 tvl) {
+        IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
+        uint256 shares = yieldSource.balanceOf(ownerOfShares);
+        if (shares == 0) return 0;
+        return (shares * yieldSource.exchangeRate()) / 1e18;
     }
 
-    /// @notice Get the price per share for a deposit into multiple yield sources
-    /// @param yieldSourceAddresses The addresses of the yield sources
-    /// @return pricePerShares The price per share for each yield source
-    function getPricePerShareMultiple(
-        address[] memory yieldSourceAddresses
-    )
+    function getPricePerShare(address yieldSourceAddress) internal view returns (uint256 pricePerShare) {
+        // Get the exchange rate from the StandardizedYield contract
+        // This represents how many assets (in 1e18) one SY token is worth
+        pricePerShare = IStandardizedYield(yieldSourceAddress).exchangeRate();
+
+        // Note: exchangeRate is already normalized to 1e18, so no additional scaling needed
+        // If exchangeRate is 2e18, it means 1 SY token = 2 asset tokens
+    }
+
+    function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
         internal
         view
         returns (uint256[] memory pricePerShares)

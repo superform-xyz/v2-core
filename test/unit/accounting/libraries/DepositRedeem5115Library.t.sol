@@ -30,9 +30,7 @@ contract DepositRedeem5115LibraryTest is Helpers {
 
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(vault);
-
-        uint256[] memory actualPricePerShares =
-            ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(finalTargets);
+        uint256[] memory actualPricePerShares = ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(finalTargets);
         assertEq(actualPricePerShares[0], expectedPricePerShares[0]);
     }
 }
