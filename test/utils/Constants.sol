@@ -85,10 +85,6 @@ abstract contract Constants {
     string public constant USDC_KEY = "USDC";
     string public constant WETH_KEY = "WETH";
     string public constant SUSDE_KEY = "SUSDe";
-<<<<<<< HEAD
-
-=======
->>>>>>> 0bf6e7aefad2fab9f9445a5ee450bc59d4f0936f
 
     address public constant CHAIN_1_DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address public constant CHAIN_1_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -121,10 +117,7 @@ abstract contract Constants {
     string public constant MORPHO_GAUNTLET_WETH_CORE_KEY = "MorphoGauntletWETHCore";
     string public constant ERC7540FullyAsync_KEY = "ERC7540FullyAsync";
     string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
-<<<<<<< HEAD
-=======
-
->>>>>>> 0bf6e7aefad2fab9f9445a5ee450bc59d4f0936f
+    
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
     address public constant CHAIN_1_EulerVault = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
