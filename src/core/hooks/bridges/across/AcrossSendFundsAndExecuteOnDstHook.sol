@@ -66,6 +66,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -125,10 +126,10 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external view onlyExecutor { }
+    function preExecute(address, address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external view onlyExecutor { }
+    function postExecute(address, address, bytes memory) external view onlyExecutor { }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

@@ -7,8 +7,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { BytesLib } from "../libraries/BytesLib.sol";
-
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
@@ -17,7 +15,11 @@ import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 
+import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
+
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+    using HookDataDecoder for bytes;
+    
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -86,16 +88,16 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) private {
         // run hook preExecute
-        hook.preExecute(prevHook, hookData);
+        hook.preExecute(prevHook, account, hookData);
 
-        Execution[] memory executions = hook.build(prevHook, hookData);
+        Execution[] memory executions = hook.build(prevHook, account, hookData);
         // run hook execute
         if (executions.length > 0) {
             _execute(account, executions);
         }
 
         // run hook postExecute
-        hook.postExecute(prevHook, hookData);
+        hook.postExecute(prevHook, account, hookData);
 
         // update accounting
         _updateAccounting(account, address(hook), hookData);
@@ -105,8 +107,8 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
-            bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
-            address yieldSource = BytesLib.toAddress(BytesLib.slice(hookData, 52, 20), 0);
+            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            address yieldSource = hookData.extractYieldSource();
 
             // Update accounting and get fee amount if any
             uint256 feeAmount = ledger.updateAccounting(

@@ -62,7 +62,7 @@ import { Swap1InchUnoswapHook } from "../src/core/hooks/swappers/1inch/Swap1Inch
 // Stake hooks
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
+import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
 
 // --- Yearn
 import { YearnUnstakeHook } from "../src/core/hooks/stake/yearn/YearnUnstakeHook.sol";
@@ -124,7 +124,7 @@ struct Addresses {
     Swap1InchGenericRouterHook swap1InchGenericRouterHook;
     Swap1InchUnoswapHook swap1InchUnoswapHook;
     GearboxStakeHook gearboxStakeHook;
-    GearboxWithdrawHook gearboxWithdrawHook;
+    GearboxUnstakeHook gearboxUnstakeHook;
     // YearnStakeHook yearnStakeHook;
     YearnUnstakeHook yearnUnstakeHook;
     YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
@@ -167,7 +167,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     string[] public chainsNames = [ETHEREUM_KEY, OPTIMISM_KEY, BASE_KEY];
 
-    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY];
+    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY, SUSDE_KEY];
 
     address[] public spokePoolV3Addresses =
         [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
@@ -242,6 +242,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Fund underlying tokens
         _fundUSDCTokens(10_000);
+
+        _fundSUSDETokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -612,18 +614,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY]);
 
-            Addr.gearboxWithdrawHook =
-                new GearboxWithdrawHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.gearboxWithdrawHook), GEARBOX_WITHDRAW_HOOK_KEY);
-            hookAddresses[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY] = address(Addr.gearboxWithdrawHook);
-            hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY] = Hook(
-                GEARBOX_WITHDRAW_HOOK_KEY,
+            Addr.gearboxUnstakeHook =
+                new GearboxUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.gearboxUnstakeHook), GEARBOX_UNSTAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = address(Addr.gearboxUnstakeHook);
+            hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = Hook(
+                GEARBOX_UNSTAKE_HOOK_KEY,
                 HookCategory.Claims,
                 HookCategory.Stakes,
-                address(Addr.gearboxWithdrawHook),
+                address(Addr.gearboxUnstakeHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY]);
 
             Addr.yearnClaimOneRewardHook =
                 new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -712,14 +714,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[1][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Optimism tokens
-        existingUnderlyingTokens[10][DAI_KEY] = CHAIN_10_DAI;
-        existingUnderlyingTokens[10][USDC_KEY] = CHAIN_10_USDC;
-        existingUnderlyingTokens[10][WETH_KEY] = CHAIN_10_WETH;
+        existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
+        existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
+        existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
 
         // Base tokens
-        existingUnderlyingTokens[8453][DAI_KEY] = CHAIN_8453_DAI;
-        existingUnderlyingTokens[8453][USDC_KEY] = CHAIN_8453_USDC;
-        existingUnderlyingTokens[8453][WETH_KEY] = CHAIN_8453_WETH;
+        existingUnderlyingTokens[BASE][DAI_KEY] = CHAIN_8453_DAI;
+        existingUnderlyingTokens[BASE][USDC_KEY] = CHAIN_8453_USDC;
+        existingUnderlyingTokens[BASE][WETH_KEY] = CHAIN_8453_WETH;
 
         /// @dev Setup realVaultAddresses
         mapping(
@@ -740,10 +742,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
-        // existingVaults[10][1]["DAI"][0] = address(0);
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_10_AloeUSDC;
         vm.label(existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY], ALOE_USDC_VAULT_KEY);
-        // existingVaults[10][1]["WETH"][0] = address(0);
 
         /// @dev Base 4626 vault addresses
         existingVaults[8453][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
@@ -764,6 +764,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(
             existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
         );
+
+        /// @dev 5115 real pendle ethena vaults on mainnet
+        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
+
+        //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
+        //    ERC5115_VAULTS_NAMES;
+        //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
+        //mapping(uint64 chainId => mapping(address realVault => ChosenAssets chosenAssets)) storage erc5115ChosenAssets
+        // =
+        //    ERC5115S_CHOSEN_ASSETS;
 
         /// @dev  pendle ethena - market: SUSDE-MAINNET-SEP2024
         existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
@@ -881,7 +892,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](3);
+                new ISuperLedger.YieldSourceOracleConfigArgs[](2);
             configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -1018,7 +1029,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDepositHookData(
-        address receiver,
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
@@ -1029,11 +1039,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
     }
 
     function _createWithdrawHookData(
-        address receiver,
         bytes32 yieldSourceOracleId,
         address vault,
         address owner,
@@ -1045,10 +1054,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
     }
 
-    function _createDebridgeSendFundsAndExecuteHookData(
+     function _createDebridgeSendFundsAndExecuteHookData(
         uint256 value,
         address account,
         address inputToken,
@@ -1131,8 +1140,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 msgValue,
         address srcToken,
         address dstToken,
-        address srcReceiver,
-        address dstReceiver,
         uint256 inputAmount,
         uint256 minDstAmount,
         uint256 flags,
@@ -1149,8 +1156,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             msgValue,
             srcToken,
             dstToken,
-            srcReceiver,
-            dstReceiver,
             inputAmount,
             minDstAmount,
             flags,
@@ -1161,7 +1166,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createRequestDeposit7540VaultHookData(
-        address account,
         address yieldSource,
         bytes32 yieldSourceOracleId,
         address controller,
@@ -1169,7 +1173,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bool usePrevHookAmount
     ) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            account, 
             yieldSourceOracleId,
             yieldSource, 
             controller, 
@@ -1179,24 +1182,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDeposit5115VaultHookData(
-        address account,
         bytes32 yieldSourceOracleId,
         address yieldSource,
         address tokenIn,
         uint256 amount,
         uint256 minSharesOut,
-        bool depositFromInternalBalance,
         bool usePrevHookAmount,
         bool lockForSP
     ) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            account, 
             yieldSourceOracleId, 
             yieldSource, 
             tokenIn, 
             amount,
             minSharesOut,
-            depositFromInternalBalance,
             usePrevHookAmount,
             lockForSP
         );
