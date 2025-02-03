@@ -116,6 +116,7 @@ abstract contract Constants {
     string public constant MORPHO_GAUNTLET_USDC_PRIME_KEY = "MorphoGauntletUSDCPrime";
     string public constant MORPHO_GAUNTLET_WETH_CORE_KEY = "MorphoGauntletWETHCore";
     string public constant ERC7540FullyAsync_KEY = "ERC7540FullyAsync";
+    string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
