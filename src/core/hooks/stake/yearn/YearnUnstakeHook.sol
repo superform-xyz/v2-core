@@ -21,8 +21,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
 /// @notice         uint256 maxShares = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
 /// @notice         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 84, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-/// @notice         bool lockForSP = _decodeBool(data, 85);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 116);
+/// @notice         bool lockForSP = _decodeBool(data, 117);
 contract YearnUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
 
     using HookDataDecoder for bytes;
@@ -51,7 +51,7 @@ contract YearnUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         address yieldSource = data.extractYieldSource();
         uint256 maxShares = _decodeAmount(data);
         uint256 maxLoss = BytesLib.toUint256(BytesLib.slice(data, 84, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 84);
+        bool usePrevHookAmount = _decodeBool(data, 116);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -74,7 +74,7 @@ contract YearnUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     function preExecute(address, address account, bytes memory data) external onlyExecutor {
         assetOut = IYearnVault(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 85);
+        lockForSP = _decodeBool(data, 117);
         /// @dev in Yearn, the staking token doesn't exist because no shares are minted.
         /// @dev in Yearn, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }

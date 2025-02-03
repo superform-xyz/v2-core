@@ -15,7 +15,13 @@ import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/
 
 /// @title PermitWithPermit2Hook
 /// @dev data has the following structure
-/// TODO add structure
+/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 1, 20), 0);
+/// @notice         uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 21, 32), 0));
+/// @notice         uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0));
+/// @notice         uint48 nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0));
+/// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 117, 20), 0);
+/// @notice         uint256 sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 137, 32), 0);
+/// @notice         bytes signature = BytesLib.slice(data, 169, data.length - 169);
 contract PermitWithPermit2Hook is BaseHook, ISuperHook {
     using SafeCast for uint256;
 

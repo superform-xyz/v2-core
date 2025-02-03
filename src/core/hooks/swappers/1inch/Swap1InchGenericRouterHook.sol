@@ -19,6 +19,19 @@ import {
 /// @title Swap1InchGenericRouterHook
 /// @dev data has the following structure
 /// @notice  Swap1InchGenericRouterHookParams
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
+/// @notice         uint256 msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+/// @notice         IERC20 srcToken = IERC20(BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0));
+/// @notice         IERC20 dstToken = IERC20(BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0));
+/// @notice         address srcReceiver = payable(account); // Explicitly set to account
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
+/// @notice         uint256 minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
+/// @notice         uint256 flags = BytesLib.toUint256(BytesLib.slice(data, 137, 32), 0);
+/// @notice         address aggregationExecutor = BytesLib.toAddress(BytesLib.slice(data, 169, 20), 0);
+/// @notice         uint256 permitDataLength = BytesLib.toUint256(BytesLib.slice(data, 189, 32), 0);
+/// @notice         bytes permitData = BytesLib.slice(data, 221, permitDataLength);
+/// @notice         uint256 swapDataOffset = 221 + permitDataLength;
+/// @notice         bytes swapData = BytesLib.slice(data, swapDataOffset, data.length - swapDataOffset);
 contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
     constructor(
         address registry_,
@@ -63,12 +76,12 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
         params.description.amount = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
         params.description.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
         params.description.flags = BytesLib.toUint256(BytesLib.slice(data, 137, 32), 0);
-        params.aggregationExecutor = BytesLib.toAddress(BytesLib.slice(data, 157, 20), 0);
+        params.aggregationExecutor = BytesLib.toAddress(BytesLib.slice(data, 169, 20), 0);
 
-        uint256 permitDataLength = BytesLib.toUint256(BytesLib.slice(data, 177, 32), 0);
-        params.permitData = BytesLib.slice(data, 209, permitDataLength);
+        uint256 permitDataLength = BytesLib.toUint256(BytesLib.slice(data, 189, 32), 0);
+        params.permitData = BytesLib.slice(data, 221, permitDataLength);
 
-        uint256 swapDataOffset = 209 + permitDataLength;
+        uint256 swapDataOffset = 221 + permitDataLength;
         params.swapData = BytesLib.slice(data, swapDataOffset, data.length - swapDataOffset);
 
 

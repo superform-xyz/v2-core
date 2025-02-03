@@ -22,8 +22,8 @@ import { IDeBridgeGate } from "../../../interfaces/vendors/bridges/debridge/IDeB
 /// @notice         bool useAssetFee = _decodeBool(data, 140);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 141);
 /// @notice         uint256 autoParamsLength = BytesLib.toUint256(BytesLib.slice(data, 142, 32), 0);
-/// @notice         bytes autoParams = BytesLib.slice(data, 142, autoParamsLength);
-/// @notice         bytes permit = BytesLib.slice(data, 142 + autoParamsLength, data.length - 142 - autoParamsLength;
+/// @notice         bytes autoParams = BytesLib.slice(data, 174, autoParamsLength);
+/// @notice         bytes permit = BytesLib.slice(data, 174 + autoParamsLength, data.length - 174 - autoParamsLength;
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////

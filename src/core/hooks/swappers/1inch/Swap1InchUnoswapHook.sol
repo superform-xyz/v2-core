@@ -22,6 +22,12 @@ import {
 /// @title Swap1InchUnoswapHook
 /// @dev data has the following structure
 /// @notice  Swap1InchUnoswapHookParams
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
+/// @notice         uint256 msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
+/// @notice         uint256 minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
+/// @notice         address dex = BytesLib.toAddress(BytesLib.slice(data, 117, 20), 0);
 contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
     using AddressLib for Address;
 
@@ -63,7 +69,7 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
         params.token = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
         params.amount = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
         params.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
-        params.dex = BytesLib.toAddress(BytesLib.slice(data, 105, 20), 0);
+        params.dex = BytesLib.toAddress(BytesLib.slice(data, 117, 20), 0);
 
         if (params.usePrevHookAmount) {
             params.amount = ISuperHookResult(prevHook).outAmount();

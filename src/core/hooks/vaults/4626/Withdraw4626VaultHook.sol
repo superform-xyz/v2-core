@@ -21,8 +21,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
 /// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 94);
-/// @notice         bool lockForSP = _decodeBool(data, 95);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bool lockForSP = _decodeBool(data, 105);
 contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
@@ -52,7 +52,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         address yieldSource = data.extractYieldSource();
         address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
         uint256 shares = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 94);
+        bool usePrevHookAmount = _decodeBool(data, 104);
 
 
         if (usePrevHookAmount) {
@@ -78,7 +78,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         address yieldSource = data.extractYieldSource();
         assetOut = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 95);
+        lockForSP = _decodeBool(data, 105);
         spToken = yieldSource;
     }
 

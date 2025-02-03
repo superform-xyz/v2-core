@@ -17,7 +17,15 @@ import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/
 
 /// @title TransferBatchWithPermit2Hook
 /// @dev data has the following structure
-/// TODO add structure
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
+/// @notice         uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+/// @notice         uint256 transferDetailsLength = BytesLib.toUint256(BytesLib.slice(data, 33, 32), 0);
+/// @notice         IAllowanceTransfer.AllowanceTransferDetails[] transferDetails - Array of transfer details, each containing:
+/// @notice             address from = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+/// @notice             address to = BytesLib.toAddress(BytesLib.slice(data, offset + 20, 20), 0);
+/// @notice             uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 40, 32), 0));
+/// @notice             address token = BytesLib.toAddress(BytesLib.slice(data, offset + 72, 20), 0);
+/// @notice         If usePrevHookAmount is true, transferDetails[indexOfAmount].amount is set to ISuperHookResult(prevHook).outAmount().toUint160()
 contract TransferBatchWithPermit2Hook is BaseHook, ISuperHook {
     using SafeCast for uint256;
     /*//////////////////////////////////////////////////////////////

@@ -15,7 +15,18 @@ import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/
 
 /// @title PermitBatchWithPermit2Hook
 /// @dev data has the following structure
-/// TODO add structure
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
+/// @notice         uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+/// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+/// @notice         uint256 sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
+/// @notice         uint256 detailsCount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
+/// @notice         uint256 offset = 117; // Start of PermitDetails array
+/// @notice         IAllowanceTransfer.PermitDetails[] details - Array of permit details, each containing:
+/// @notice             address token = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+/// @notice             uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 20, 32), 0));
+/// @notice             uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 52, 32), 0));
+/// @notice             uint48 nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 84, 32), 0));
+/// @notice         uint256 offset increments by 116 bytes for each PermitDetails entry.
 contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     using SafeCast for uint256;
 
