@@ -20,6 +20,16 @@ import {
 /// @title Swap1InchClipperRouterHook
 /// @dev data has the following structure
 /// @notice  Swap1InchClipperRouterHookParams
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
+/// @notice         uint256 msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+/// @notice         address clipperExchange = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+/// @notice         address srcToken = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
+/// @notice         address dstToken = BytesLib.toAddress(BytesLib.slice(data, 73, 20), 0);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 93, 32), 0);
+/// @notice         uint256 outputAmount = BytesLib.toUint256(BytesLib.slice(data, 125, 32), 0);
+/// @notice         uint256 expiryWithFlags = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+/// @notice         bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 189, 32), 0);
+/// @notice         bytes32 vs = BytesLib.toBytes32(BytesLib.slice(data, 209, 32), 0);
 contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
     constructor(
         address registry_,
@@ -34,7 +44,6 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
         bool usePrevHookAmount;
         uint256 msgValue;
         address clipperExchange;
-        address payable recipient;
         address srcToken;
         address dstToken;
         uint256 inputAmount;
@@ -42,7 +51,6 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
         uint256 expiryWithFlags;
         bytes32 r;
         bytes32 vs;
-        bytes permitData;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -51,6 +59,7 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -62,18 +71,15 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
         params.usePrevHookAmount = _decodeBool(data, 0);
         params.msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
         params.clipperExchange = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
-        params.recipient = payable(BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0));
-        params.srcToken = BytesLib.toAddress(BytesLib.slice(data, 73, 20), 0);
-        params.dstToken = BytesLib.toAddress(BytesLib.slice(data, 93, 20), 0);
-        params.inputAmount = BytesLib.toUint256(BytesLib.slice(data, 113, 32), 0);
-        params.outputAmount = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
-        params.expiryWithFlags = BytesLib.toUint256(BytesLib.slice(data, 177, 32), 0);
-        params.r = BytesLib.toBytes32(BytesLib.slice(data, 209, 32), 0);
-        params.vs = BytesLib.toBytes32(BytesLib.slice(data, 241, 32), 0);
-        params.permitData = BytesLib.slice(data, 273, data.length - 273);
+        params.srcToken = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
+        params.dstToken = BytesLib.toAddress(BytesLib.slice(data, 73, 20), 0);
+        params.inputAmount = BytesLib.toUint256(BytesLib.slice(data, 93, 32), 0);
+        params.outputAmount = BytesLib.toUint256(BytesLib.slice(data, 125, 32), 0);
+        params.expiryWithFlags = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+        params.r = BytesLib.toBytes32(BytesLib.slice(data, 189, 32), 0);
+        params.vs = BytesLib.toBytes32(BytesLib.slice(data, 209, 32), 0);
 
         if (params.usePrevHookAmount) {
-            // TODO: how do we handle `outputAmount`?
             params.inputAmount = ISuperHookResult(prevHook).outAmount();
         }
 
@@ -85,7 +91,7 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
                 I1InchAggregationRouterV6.clipperSwapTo,
                 (
                     IClipperExchange(params.clipperExchange),
-                    params.recipient,
+                    payable(account),
                     Address.wrap(uint256(uint160(params.srcToken))),
                     IERC20(params.dstToken),
                     params.inputAmount,
@@ -102,21 +108,20 @@ contract Swap1InchClipperRouterHook is BaseHook, Base1InchHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
-        outAmount = _getBalance(data);
+    function preExecute(address, address account, bytes memory data) external {
+        outAmount = _getBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
-        outAmount = _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        Swap1InchClipperRouterHookParams memory params = abi.decode(data, (Swap1InchClipperRouterHookParams));
-
-        return IERC20(address(params.dstToken)).balanceOf(params.recipient);
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+        address dstToken = BytesLib.toAddress(BytesLib.slice(data, 73, 20), 0);
+        return IERC20(dstToken).balanceOf(account);
     }
 }

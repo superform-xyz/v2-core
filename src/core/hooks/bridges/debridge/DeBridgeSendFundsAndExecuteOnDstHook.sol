@@ -22,8 +22,8 @@ import { IDeBridgeGate } from "../../../interfaces/vendors/bridges/debridge/IDeB
 /// @notice         bool useAssetFee = _decodeBool(data, 140);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 141);
 /// @notice         uint256 autoParamsLength = BytesLib.toUint256(BytesLib.slice(data, 142, 32), 0);
-/// @notice         bytes autoParams = BytesLib.slice(data, 142, autoParamsLength);
-/// @notice         bytes permit = BytesLib.slice(data, 142 + autoParamsLength, data.length - 142 - autoParamsLength;
+/// @notice         bytes autoParams = BytesLib.slice(data, 174, autoParamsLength);
+/// @notice         bytes permit = BytesLib.slice(data, 174 + autoParamsLength, data.length - 174 - autoParamsLength;
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
@@ -71,6 +71,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -134,10 +135,10 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external view onlyExecutor { }
+    function preExecute(address, address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external view onlyExecutor { }
+    function postExecute(address, address, bytes memory) external view onlyExecutor { }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

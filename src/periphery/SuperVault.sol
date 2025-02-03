@@ -712,7 +712,7 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     {
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
-        Execution[] memory executions = hookContract.build(prevHook, hookCalldata);
+        Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata);
         // prevent any hooks with more than one execution
         if (executions.length > 1) revert INVALID_HOOK();
 

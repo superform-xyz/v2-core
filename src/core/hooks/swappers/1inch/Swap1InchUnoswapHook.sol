@@ -22,6 +22,12 @@ import {
 /// @title Swap1InchUnoswapHook
 /// @dev data has the following structure
 /// @notice  Swap1InchUnoswapHookParams
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
+/// @notice         uint256 msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
+/// @notice         uint256 minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
+/// @notice         address dex = BytesLib.toAddress(BytesLib.slice(data, 117, 20), 0);
 contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
     using AddressLib for Address;
 
@@ -37,7 +43,6 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
     struct Swap1InchUnoswapHookParams {
         bool usePrevHookAmount;
         uint256 msgValue;
-        address recipient;
         address token;
         uint256 amount;
         uint256 minReturnAmount;
@@ -50,6 +55,7 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -60,14 +66,12 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
         Swap1InchUnoswapHookParams memory params;
         params.usePrevHookAmount = _decodeBool(data, 0);
         params.msgValue = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
-        params.recipient = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
-        params.token = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
-        params.amount = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
-        params.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
-        params.dex = BytesLib.toAddress(BytesLib.slice(data, 137, 20), 0);
+        params.token = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+        params.amount = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
+        params.minReturnAmount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
+        params.dex = BytesLib.toAddress(BytesLib.slice(data, 117, 20), 0);
 
         if (params.usePrevHookAmount) {
-            // TODO: how do we handle `minReturnAmount`?
             params.amount = ISuperHookResult(prevHook).outAmount();
         }
 
@@ -78,7 +82,7 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
             callData: abi.encodeCall(
                 I1InchAggregationRouterV6.unoswapTo,
                 (
-                    Address.wrap(uint256(uint160(params.recipient))),
+                    Address.wrap(uint256(uint160(account))),
                     Address.wrap(uint256(uint160(params.token))),
                     params.amount,
                     params.minReturnAmount,
@@ -92,21 +96,20 @@ contract Swap1InchUnoswapHook is BaseHook, Base1InchHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
-        outAmount = _getBalance(data);
+    function preExecute(address, address account, bytes memory data) external {
+        outAmount = _getBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
-        outAmount = _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        Swap1InchUnoswapHookParams memory params = abi.decode(data, (Swap1InchUnoswapHookParams));
-
-        return IERC20(params.token).balanceOf(params.recipient);
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+        address token = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+        return IERC20(token).balanceOf(account);
     }
 }

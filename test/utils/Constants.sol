@@ -55,7 +55,7 @@ abstract contract Constants {
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string public constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
-    string public constant GEARBOX_WITHDRAW_HOOK_KEY = "GearboxWithdrawHook";
+    string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant SOMELIER_STAKE_HOOK_KEY = "SomelierStakeHook";
     string public constant SOMELIER_UNBOND_ALL_HOOK_KEY = "SomelierUnbondAllHook";  
     string public constant SOMELIER_UNBOND_HOOK_KEY = "SomelierUnbondHook";
