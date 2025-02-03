@@ -20,7 +20,7 @@ contract ERC5115YieldSourceOracleTest is Helpers {
     }
 
     function test_getPricePerShare() public view {
-        uint256 pricePerShare = oracle.getPricePerShare(address(vault), address(underlying));
+        uint256 pricePerShare = oracle.getPricePerShare(address(vault));
         assertEq(pricePerShare, 1e18);
     }
 
@@ -28,10 +28,7 @@ contract ERC5115YieldSourceOracleTest is Helpers {
         address[] memory yieldSourceAddresses = new address[](1);
         yieldSourceAddresses[0] = address(vault);
 
-        address[] memory assets = new address[](1);
-        assets[0] = address(underlying);
-
-        uint256[] memory prices = oracle.getPricePerShareMultiple(assets, yieldSourceAddresses);
+        uint256[] memory prices = oracle.getPricePerShareMultiple(yieldSourceAddresses);
         assertEq(prices[0], 1e18);
     }
 }

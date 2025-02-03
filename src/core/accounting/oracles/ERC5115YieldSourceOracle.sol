@@ -25,26 +25,23 @@ contract ERC5115YieldSourceOracle {
     */
 
     /// @notice Get the price per share for a deposit into a yield source
-    /// @param asset The address of the asset
     /// @param yieldSourceAddress The address of the yield source
     /// @return price The price per share
-    function getPricePerShare(address asset, address yieldSourceAddress) external view returns (uint256 price) {
-        price = ERC5115YieldSourceOracleLibrary.getPricePerShare(asset, yieldSourceAddress);
+    function getPricePerShare(address yieldSourceAddress) external view returns (uint256 price) {
+        price = ERC5115YieldSourceOracleLibrary.getPricePerShare(yieldSourceAddress);
     }
 
     /// @notice Get the price per share for a deposit into multiple yield sources
-    /// @param assets The addresses of the assets
     /// @param yieldSourceAddresses The addresses of the yield sources
     /// @return prices The price per share per yield source
     function getPricePerShareMultiple(
-        address[] memory assets,
         address[] memory yieldSourceAddresses
     )
         external
         view
         returns (uint256[] memory prices)
     {
-        prices = ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses, assets);
+        prices = ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses);
     }
 
     // ToDo: Implement this with the metadata library

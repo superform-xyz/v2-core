@@ -165,7 +165,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     string[] public chainsNames = [ETHEREUM_KEY, OPTIMISM_KEY, BASE_KEY];
 
-    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY];
+    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY, SUSDE_KEY];
 
     address[] public spokePoolV3Addresses =
         [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
@@ -240,6 +240,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Fund underlying tokens
         _fundUSDCTokens(10_000);
+
+        _fundSUSDETokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -700,9 +702,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
-        existingUnderlyingTokens[ETH][DAI_KEY] = CHAIN_1_DAI;
-        existingUnderlyingTokens[ETH][USDC_KEY] = CHAIN_1_USDC;
-        existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
+        existingUnderlyingTokens[1][DAI_KEY] = CHAIN_1_DAI;
+        existingUnderlyingTokens[1][USDC_KEY] = CHAIN_1_USDC;
+        existingUnderlyingTokens[1][WETH_KEY] = CHAIN_1_WETH;
+        existingUnderlyingTokens[1][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Optimism tokens
         existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
@@ -733,10 +736,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
-        // existingVaults[10][1]["DAI"][0] = address(0);
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_10_AloeUSDC;
         vm.label(existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDC_KEY], ALOE_USDC_VAULT_KEY);
-        // existingVaults[10][1]["WETH"][0] = address(0);
 
         /// @dev Base 4626 vault addresses
         existingVaults[8453][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
@@ -757,8 +758,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(
             existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
         );
-        //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults =
-        // ERC5115_VAULTS;
+
+        /// @dev 5115 real pendle ethena vaults on mainnet
+        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
+
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
         //    ERC5115_VAULTS_NAMES;
         //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
@@ -842,6 +846,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         }
     }
 
+    function _fundSUSDETokens(uint256 amount) internal {
+        vm.selectFork(FORKS[chainIds[0]]);
+        deal(existingUnderlyingTokens[chainIds[0]][SUSDE_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
+    }
+
     function _setSuperRegistryAddresses() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
@@ -882,13 +891,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](1);
+                new ISuperLedger.YieldSourceOracleConfigArgs[](2);
             configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
             });
+            configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            });
+            // configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
+            //     yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            //     yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
+            //     feePercent: 100,
+            //     feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            // });
             ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
         }
@@ -1140,6 +1161,42 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             aggregationExecutor,
             permitData,
             swapData
+        );
+    }
+
+    function _createRequestDeposit7540VaultHookData(
+        address yieldSource,
+        bytes32 yieldSourceOracleId,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            yieldSourceOracleId,
+            yieldSource, 
+            controller, 
+            amount, 
+            usePrevHookAmount
+        );
+    }
+
+    function _createDeposit5115VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool usePrevHookAmount,
+        bool lockForSP
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            yieldSourceOracleId, 
+            yieldSource, 
+            tokenIn, 
+            amount,
+            minSharesOut,
+            usePrevHookAmount,
+            lockForSP
         );
     }
 }

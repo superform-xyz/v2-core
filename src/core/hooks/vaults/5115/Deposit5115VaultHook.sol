@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Superform
-import { IERC5115 } from "../../../interfaces/vendors/vaults/5115/IERC5115.sol";
+import { IStandardizedYield } from "../../../interfaces/vendors/pendle/IStandardizedYield.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -19,14 +19,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Deposit5115VaultHook
 /// @dev data has the following structure
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-/// @notice         bool depositFromInternalBalance = _decodeBool(data, 136);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 137);
-/// @notice         bool lockForSP = _decodeBool(data, 138);
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
+/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @notice         bool lockForSP = _decodeBool(data, 157);
 contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
 
     using HookDataDecoder for bytes;
@@ -51,10 +50,9 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     {
         address yieldSource = data.extractYieldSource();
         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        uint256 amount = _decodeAmount(data);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 104, 32), 0);
-        bool depositFromInternalBalance = _decodeBool(data, 136);
-        bool usePrevHookAmount = _decodeBool(data, 137);
+        bool usePrevHookAmount = _decodeBool(data, 136);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -67,7 +65,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC5115.redeem, (account, amount, tokenIn, minSharesOut, depositFromInternalBalance))
+            callData: abi.encodeCall(IStandardizedYield.deposit, (account, tokenIn, amount, minSharesOut))
         });
     }
 
@@ -75,9 +73,9 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address,address account, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 138);
+        lockForSP = _decodeBool(data, 137);
         spToken = data.extractYieldSource();
     }
 
