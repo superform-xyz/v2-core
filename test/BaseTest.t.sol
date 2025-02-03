@@ -1165,7 +1165,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createRequestDeposit7540VaultHookData(
-        address account,
         address yieldSource,
         bytes32 yieldSourceOracleId,
         address controller,
@@ -1173,7 +1172,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bool usePrevHookAmount
     ) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            account, 
             yieldSourceOracleId,
             yieldSource, 
             controller, 
@@ -1183,7 +1181,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDeposit5115VaultHookData(
-        address account,
         bytes32 yieldSourceOracleId,
         address yieldSource,
         address tokenIn,
@@ -1194,7 +1191,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bool lockForSP
     ) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            account, 
             yieldSourceOracleId, 
             yieldSource, 
             tokenIn, 
