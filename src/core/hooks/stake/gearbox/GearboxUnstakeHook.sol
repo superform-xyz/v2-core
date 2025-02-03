@@ -13,18 +13,17 @@ import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearbo
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title GearboxWithdrawHook
+/// @title GearboxUnstakeHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         bool lockForSP = _decodeBool(data, 105);
-contract GearboxWithdrawHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         bool lockForSP = _decodeBool(data, 85);
+contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant AMOUNT_POSITION = 52;
     // forgefmt: disable-start
     address public transient assetOut;
     // forgefmt: disable-end
@@ -34,6 +33,7 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -42,8 +42,8 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 104);
+        uint256 amount = _decodeAmount(data);
+        bool usePrevHookAmount = _decodeBool(data, 84);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -63,29 +63,33 @@ contract GearboxWithdrawHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
         address yieldSource = data.extractYieldSource();
         /// @dev in Gearbox, the staking token is the assetOut
         assetOut = IGearboxFarmingPool(yieldSource).stakingToken();
-        outAmount = _getBalance(data);
-        lockForSP = _decodeBool(data, 105);
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 85);
         spToken = yieldSource;
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount =  _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount =  _getBalance(account, data) - outAmount;
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return _decodeAmount(data);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        return IERC20(assetOut).balanceOf(data.extractAccount());
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+    
+    function _getBalance(address account, bytes memory) private view returns (uint256) {
+        return IERC20(assetOut).balanceOf(account);
     }
 }

@@ -62,7 +62,7 @@ import { Swap1InchUnoswapHook } from "../src/core/hooks/swappers/1inch/Swap1Inch
 // Stake hooks
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
+import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
 
 // --- Yearn
 import { YearnUnstakeHook } from "../src/core/hooks/stake/yearn/YearnUnstakeHook.sol";
@@ -123,7 +123,7 @@ struct Addresses {
     Swap1InchGenericRouterHook swap1InchGenericRouterHook;
     Swap1InchUnoswapHook swap1InchUnoswapHook;
     GearboxStakeHook gearboxStakeHook;
-    GearboxWithdrawHook gearboxWithdrawHook;
+    GearboxUnstakeHook gearboxUnstakeHook;
     // YearnStakeHook yearnStakeHook;
     YearnUnstakeHook yearnUnstakeHook;
     YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
@@ -608,18 +608,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY]);
 
-            Addr.gearboxWithdrawHook =
-                new GearboxWithdrawHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.gearboxWithdrawHook), GEARBOX_WITHDRAW_HOOK_KEY);
-            hookAddresses[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY] = address(Addr.gearboxWithdrawHook);
-            hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY] = Hook(
-                GEARBOX_WITHDRAW_HOOK_KEY,
+            Addr.gearboxUnstakeHook =
+                new GearboxUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.gearboxUnstakeHook), GEARBOX_UNSTAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = address(Addr.gearboxUnstakeHook);
+            hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = Hook(
+                GEARBOX_UNSTAKE_HOOK_KEY,
                 HookCategory.Claims,
                 HookCategory.Stakes,
-                address(Addr.gearboxWithdrawHook),
+                address(Addr.gearboxUnstakeHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_WITHDRAW_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY]);
 
             Addr.yearnClaimOneRewardHook =
                 new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -708,14 +708,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[1][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Optimism tokens
-        existingUnderlyingTokens[10][DAI_KEY] = CHAIN_10_DAI;
-        existingUnderlyingTokens[10][USDC_KEY] = CHAIN_10_USDC;
-        existingUnderlyingTokens[10][WETH_KEY] = CHAIN_10_WETH;
+        existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
+        existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
+        existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
 
         // Base tokens
-        existingUnderlyingTokens[8453][DAI_KEY] = CHAIN_8453_DAI;
-        existingUnderlyingTokens[8453][USDC_KEY] = CHAIN_8453_USDC;
-        existingUnderlyingTokens[8453][WETH_KEY] = CHAIN_8453_WETH;
+        existingUnderlyingTokens[BASE][DAI_KEY] = CHAIN_8453_DAI;
+        existingUnderlyingTokens[BASE][USDC_KEY] = CHAIN_8453_USDC;
+        existingUnderlyingTokens[BASE][WETH_KEY] = CHAIN_8453_WETH;
 
         /// @dev Setup realVaultAddresses
         mapping(
@@ -1028,7 +1028,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDepositHookData(
-        address receiver,
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
@@ -1039,11 +1038,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
     }
 
     function _createWithdrawHookData(
-        address receiver,
         bytes32 yieldSourceOracleId,
         address vault,
         address owner,
@@ -1055,10 +1053,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
     }
 
-    function _createDebridgeSendFundsAndExecuteHookData(
+     function _createDebridgeSendFundsAndExecuteHookData(
         uint256 value,
         address account,
         address inputToken,
@@ -1141,8 +1139,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 msgValue,
         address srcToken,
         address dstToken,
-        address srcReceiver,
-        address dstReceiver,
         uint256 inputAmount,
         uint256 minDstAmount,
         uint256 flags,
@@ -1159,8 +1155,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             msgValue,
             srcToken,
             dstToken,
-            srcReceiver,
-            dstReceiver,
             inputAmount,
             minDstAmount,
             flags,
