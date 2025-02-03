@@ -2,20 +2,20 @@
 pragma solidity >=0.8.28;
 
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
-import { ERC4626YieldSourceOracleLibrary } from "../../libraries/accounting/ERC4626YieldSourceOracleLibrary.sol";
+import { FluidYieldSourceOracleLibrary } from "../../libraries/accounting/FluidYieldSourceOracleLibrary.sol";
 
-/// @title ERC4626YieldSourceOracle
+/// @title FluidYieldSourceOracle
 /// @author Superform Labs
-/// @notice Oracle for 4626 Vaults
-contract ERC4626YieldSourceOracle is IYieldSourceOracle {
+/// @notice Oracle for Fluid yield source
+contract FluidYieldSourceOracle is IYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
     function getTVL(address yieldSourceAddress, address ownerOfShares) public view returns (uint256 tvl) {
-        tvl = ERC4626YieldSourceOracleLibrary.getTVL(yieldSourceAddress, ownerOfShares);
+        revert("Not implemented");
     }
 
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view returns (uint256 price) {
-        price = ERC4626YieldSourceOracleLibrary.getPricePerShare(yieldSourceAddress);
+        price = FluidYieldSourceOracleLibrary.getPricePerShare(yieldSourceAddress);
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -24,6 +24,6 @@ contract ERC4626YieldSourceOracle is IYieldSourceOracle {
         view
         returns (uint256[] memory prices)
     {
-        prices = ERC4626YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses);
+        prices = FluidYieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses);
     }
 }

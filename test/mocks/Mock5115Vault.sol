@@ -31,6 +31,11 @@ contract Mock5115Vault {
         return 1e18;
     }
 
+    function getTokensOut() external view returns (address[] memory tokensOut) {
+        tokensOut = new address[](1);
+        tokensOut[0] = address(asset);
+    }
+
     function previewDeposit(
         address, //tokenIn
         uint256 amountTokenToDeposit
@@ -43,7 +48,7 @@ contract Mock5115Vault {
     }
 
     function previewRedeem(
-        address, //tokenIn
+        address, //tokenOut
         uint256 amountSharesToRedeem
     )
         external
