@@ -82,6 +82,7 @@ import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClai
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 
 // external
 import {
@@ -130,6 +131,7 @@ struct Addresses {
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
+    ERC7540YieldSourceOracle erc7540YieldSourceOracle;
     SuperMerkleValidator superMerkleValidator;
 }
 
@@ -329,6 +331,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
             vm.label(address(A.erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A.erc5115YieldSourceOracle);
+
+            A.erc7540YieldSourceOracle = new ERC7540YieldSourceOracle();
+            vm.label(address(A.erc7540YieldSourceOracle), ERC7540_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ERC7540_YIELD_SOURCE_ORACLE_KEY] = address(A.erc7540YieldSourceOracle);
         }
     }
 
@@ -703,6 +709,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[1][DAI_KEY] = CHAIN_1_DAI;
         existingUnderlyingTokens[1][USDC_KEY] = CHAIN_1_USDC;
         existingUnderlyingTokens[1][WETH_KEY] = CHAIN_1_WETH;
+        existingUnderlyingTokens[1][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Optimism tokens
         existingUnderlyingTokens[10][DAI_KEY] = CHAIN_10_DAI;
@@ -757,23 +764,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(
             existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
         );
-        //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults =
-        // ERC5115_VAULTS;
-        //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
-        //    ERC5115_VAULTS_NAMES;
-        //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
-        //mapping(uint64 chainId => mapping(address realVault => ChosenAssets chosenAssets)) storage erc5115ChosenAssets
-        // =
-        //    ERC5115S_CHOSEN_ASSETS;
 
         /// @dev  pendle ethena - market: SUSDE-MAINNET-SEP2024
-        /// sUSDe sUSDe
-        // erc5115Vaults[1][0] = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
-        // erc5115VaultsNames[1][0] = "sUSDe";
-        // erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetIn =
-        //     0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
-        // erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetOut =
-        //     0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
 
         /// ezETH
         /// @dev pendle renzo - market:  SY ezETH
@@ -842,6 +836,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         }
     }
 
+    function _fundSUSDETokens(uint256 amount) internal {
+        vm.selectFork(FORKS[chainIds[0]]);
+        deal(existingUnderlyingTokens[chainIds[0]][SUSDE_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
+    }
+
     function _setSuperRegistryAddresses() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
@@ -882,10 +881,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](1);
+                new ISuperLedger.YieldSourceOracleConfigArgs[](3);
             configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            });
+            configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            });
+            configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
             });
