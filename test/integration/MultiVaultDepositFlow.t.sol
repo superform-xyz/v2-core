@@ -102,7 +102,6 @@ contract MultiVaultDepositFlow is BaseTest {
             amountPerVault,
             0,
             false,
-            false,
             false
         );
         

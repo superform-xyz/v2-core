@@ -1186,7 +1186,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address tokenIn,
         uint256 amount,
         uint256 minSharesOut,
-        bool depositFromInternalBalance,
         bool usePrevHookAmount,
         bool lockForSP
     ) internal pure returns (bytes memory) {
@@ -1196,7 +1195,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             tokenIn, 
             amount,
             minSharesOut,
-            depositFromInternalBalance,
             usePrevHookAmount,
             lockForSP
         );
