@@ -33,7 +33,7 @@ contract Mock5115Vault {
     }
 
     function previewDeposit(
-        address tokenIn,
+        address, //tokenIn
         uint256 amountTokenToDeposit
     )
         external
@@ -44,7 +44,7 @@ contract Mock5115Vault {
     }
 
     function previewRedeem(
-        address tokenOut, 
+        address, //tokenOut
         uint256 amountSharesToRedeem
     )
         external
