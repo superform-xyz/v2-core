@@ -223,66 +223,25 @@ read_branch_latest() {
         log "INFO" "Successfully downloaded latest.json from S3"
 
         # Read the file and validate JSON
-        response=$(cat "$latest_file_path")
+        content=$(cat "$latest_file_path")
 
         # Validate the content from file
-        if ! echo "$response" | jq '.' >/dev/null 2>&1; then
-            log "WARN" "Invalid JSON in latest file, resetting to default"
-            response="{\"networks\":{},\"updated_at\":null}"
+        if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+            log "ERROR" "Invalid JSON in latest file, resetting to default"
+            log "ERROR" "Response: $content"
+            content="{\"networks\":{},\"updated_at\":null}"
+        else
+            log "INFO" "Successfully validated latest.json from S3"
         fi
     else
         log "WARN" "latest.json not found in S3, initializing empty file"
-        response="{\"networks\":{},\"updated_at\":null}"
+        content="{\"networks\":{},\"updated_at\":null}"
     fi
     
     # Debug the raw response
-    log "DEBUG" "Raw GitHub API response: $response"
+    log "DEBUG" "Raw JSON content: $content"
     
-    # Check if response is valid JSON
-    if ! echo "$response" | jq '.' >/dev/null 2>&1; then
-        log "ERROR" "Invalid JSON response from GitHub API"
-        log "ERROR" "Response: $response"
-        echo "{\"networks\":{},\"updated_at\":null}"
-        return 0
-    fi
-    
-    # Check for API error responses
-    if [ "$(echo "$response" | jq -r '.message // empty')" == "Not Found" ]; then
-        log "INFO" "No existing latest file found, creating new one"
-        echo "{\"networks\":{},\"updated_at\":null}"
-        return 0
-    fi
-    
-    # Check for other API errors
-    if [ "$(echo "$response" | jq -r '.message // empty')" != "" ]; then
-        log "DEBUG" "GitHub API info: $(echo "$response" | jq -r '.message')"
-        echo "{\"networks\":{},\"updated_at\":null}"
-        return 0
-    fi
-    
-    # Try to decode content
-    content=$(echo "$response" | jq -r '.content // empty')
-    if [ -z "$content" ]; then
-        log "ERROR" "No content field in GitHub response"
-        echo "{\"networks\":{},\"updated_at\":null}"
-        return 0
-    fi
-    
-    decoded_content=$(echo "$content" | base64 --decode)
-    if [ $? -ne 0 ]; then
-        log "ERROR" "Failed to decode base64 content"
-        echo "{\"networks\":{},\"updated_at\":null}"
-        return 0
-    fi
-    
-    # Validate decoded content is valid JSON
-    if ! echo "$decoded_content" | jq '.' >/dev/null 2>&1; then
-        log "ERROR" "Decoded content is not valid JSON"
-        echo "{\"networks\":{},\"updated_at\":null}"
-        return 0
-    fi
-    
-    echo "$decoded_content"
+    echo "$content"
 }
 
 # Generate salt for a network
