@@ -303,10 +303,15 @@ check_vnets() {
     fi
     
     log "INFO" "Checking for existing VNET for network: $network_slug"
-    
+
     # Read from branch latest file
     content=$(read_branch_latest)
+
+    log "DEBUG: Content received from read_branch_latest:"
+    echo "$content"
+
     vnet_id=$(echo "$content" | jq -r ".networks[\"$network_slug\"].vnet_id // empty")
+    log "DEBUG" "VNET ID from latest file: $vnet_id"
     
     if [ -n "$vnet_id" ]; then
         log "INFO" "Found existing VNET ID: $vnet_id"
