@@ -111,7 +111,7 @@ jobs:
 
   vnet-deploy:
     needs: ["test"]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/') || contains(github.ref, '-test-'))
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/') || contains(github.ref, '-test-'))
     runs-on: "SuperformCore3"
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
