@@ -2,7 +2,8 @@
 pragma solidity =0.8.28;
 
 // External
-import { ERC4626, ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC4626.sol";
+import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { AccessControl } from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
@@ -29,7 +30,7 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 /// @title SuperVault
 /// @notice A vault that allows users to deposit and withdraw assets across multiple yield sources
 /// @author SuperForm Labs
-contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
+contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVault {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -45,18 +46,23 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
     bytes32 public constant AUTHORIZE_OPERATOR_TYPEHASH =
         keccak256("AuthorizeOperator(address controller,address operator,bool approved,bytes32 nonce,uint256 deadline)");
 
+    /*//////////////////////////////////////////////////////////////
+                                IMMUTABLES
+    //////////////////////////////////////////////////////////////*/
+
     // Domain separator
     bytes32 private immutable _DOMAIN_SEPARATOR;
     bytes32 private immutable _NAME_HASH;
     bytes32 private immutable _VERSION_HASH;
     uint256 public immutable deploymentChainId;
 
+    // 4626
+    IERC20 private immutable _asset;
+    uint8 private immutable _underlyingDecimals;
+
     /*//////////////////////////////////////////////////////////////
                                 STATE
     //////////////////////////////////////////////////////////////*/
-
-    // Asset configuration
-    IERC20 private immutable _asset;
 
     // Global configuration
     GlobalConfig public globalConfig;
@@ -95,7 +101,6 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         GlobalConfig memory globalConfig_,
         FeeConfig memory feeConfig_
     )
-        ERC4626(IERC20(asset_))
         ERC20(name_, symbol_)
     {
         if (asset_ == address(0)) revert INVALID_ASSET();
@@ -109,6 +114,8 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
         if (globalConfig_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
         if (feeConfig_.feeBps > 10_000) revert INVALID_FEE();
         if (feeConfig_.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
+        (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
+        _underlyingDecimals = success ? assetDecimals : 18;
         _asset = IERC20(asset_);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(STRATEGIST_ROLE, strategist_);
@@ -645,6 +652,16 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
                         ERC4626 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
 
+    /// @inheritdoc IERC20Metadata
+    function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
+        return _underlyingDecimals;
+    }
+
+    /// @inheritdoc IERC4626
+    function asset() public view virtual returns (address) {
+        return address(_asset);
+    }
+
     /// @inheritdoc IERC4626
     function totalAssets() public view override returns (uint256) {
         // Total assets is the sum of all assets in yield sources plus idle assets
@@ -915,5 +932,20 @@ contract SuperVault is ERC4626, AccessControl, IERC7540Vault, ISuperVault {
 
         address recoveredSigner = ecrecover(digest, v, r, s);
         return recoveredSigner != address(0) && recoveredSigner == signer;
+    }
+
+    /**
+     * @dev Attempts to fetch the asset decimals. A return value of false indicates that the attempt failed in some way.
+     */
+    function _tryGetAssetDecimals(address asset_) private view returns (bool ok, uint8 assetDecimals) {
+        (bool success, bytes memory encodedDecimals) =
+            address(asset_).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
+        if (success && encodedDecimals.length >= 32) {
+            uint256 returnedDecimals = abi.decode(encodedDecimals, (uint256));
+            if (returnedDecimals <= type(uint8).max) {
+                return (true, uint8(returnedDecimals));
+            }
+        }
+        return (false, 0);
     }
 }
