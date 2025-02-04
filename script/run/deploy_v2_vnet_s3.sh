@@ -31,7 +31,7 @@
 #     - Timestamps for tracking deployment history
 #
 # Usage:
-#   ./deploy_v2_vnet.sh <branch_name>
+#   ./deploy_v2_vnet.sh_s3 <branch_name>
 #   
 #   Parameters:
 #     branch_name: Name of the branch (required)
@@ -45,6 +45,7 @@
 #
 #   2. CI Environment:
 #      - Uses GitHub environment variables
+#      - Stores latest.json in S3 bucket
 #      - Maintains deployment history in branch-specific directories
 #      - Reuses existing VNETs when possible
 #      - Updates deployment records in latest.json
@@ -54,6 +55,7 @@
 #   - curl: For API calls
 #   - forge: For contract deployment
 #   - op: For local secret management (local mode only)
+#   - aws: For S3 operations (CI mode only)
 #   - GitHub environment variables (CI mode only)
 #
 # Environment Variables:
@@ -61,10 +63,8 @@
 #   - TENDERLY_ACCESS_KEY: Access key for Tenderly API
 #   
 #   Required for CI mode:
-#   - GITHUB_TOKEN: GitHub API token
-#   - GITHUB_REPOSITORY: Repository name (owner/repo)
 #   - GITHUB_REF_NAME: Branch name
-#   - GITHUB_RUN_ID: Unique identifier for the workflow run
+#   - S3_BUCKET_NAME: S3 bucket name for storing latest.json
 #
 # Error Handling:
 #   - Automatic cleanup of VNETs on failure
@@ -160,7 +160,7 @@ if is_local_run; then
 else
     log "INFO" "Running in CI environment"
     # Only source .env if any required variable is missing
-    if [ -z "${GITHUB_TOKEN:-}" ] || [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_REF_NAME:-}" ] || [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
+    if [ -z "${GITHUB_REF_NAME:-}" ] || [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
         if [ ! -f .env ]; then
             log "ERROR" ".env file is required when environment variables are missing"
             exit 1
@@ -182,14 +182,6 @@ fi
 
 # Validate CI-specific environment variables
 if ! is_local_run; then
-    if [ -z "${GITHUB_TOKEN:-}" ]; then
-        log "ERROR" "GITHUB_TOKEN environment variable is required for CI mode"
-        exit 1
-    fi
-    if [ -z "${GITHUB_REPOSITORY:-}" ]; then
-        log "ERROR" "GITHUB_REPOSITORY environment variable is required for CI mode"
-        exit 1
-    fi
     if [ -z "${GITHUB_REF_NAME:-}" ]; then
         log "ERROR" "GITHUB_REF_NAME environment variable is required for CI mode"
         exit 1
@@ -225,9 +217,23 @@ fi
 
 # Function to read branch-level latest file
 read_branch_latest() {
-    log "DEBUG" "Reading branch latest file from GitHub: https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME"
-    response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
+    latest_file_path="/tmp/latest.json"
+
+    if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path"; then
+        log "INFO" "Successfully downloaded latest.json from S3"
+
+        # Read the file and validate JSON
+        response=$(cat "$latest_file_path")
+
+        # Validate the content from file
+        if ! echo "$response" | jq '.' >/dev/null 2>&1; then
+            log "WARN" "Invalid JSON in latest file, resetting to default"
+            response="{\"networks\":{},\"updated_at\":null}"
+        fi
+    else
+        log "WARN" "latest.json not found in S3, initializing empty file"
+        response="{\"networks\":{},\"updated_at\":null}"
+    fi
     
     # Debug the raw response
     log "DEBUG" "Raw GitHub API response: $response"
@@ -277,31 +283,6 @@ read_branch_latest() {
     fi
     
     echo "$decoded_content"
-}
-
-# Function to update branch-level latest file with optimistic locking
-update_branch_latest() {
-    local content=$1
-    local initial_sha=$2
-    
-    update_response=$(curl -s -X PUT \
-        -H "Authorization: token $GITHUB_TOKEN" \
-        -H "Accept: application/vnd.github.v3+json" \
-        "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME" \
-        -d @- << EOF
-{
-    "message": "Update deployment info for job $GITHUB_RUN_ID",
-    "content": "$(echo "$content" | base64)",
-    "sha": "$initial_sha",
-    "branch": "$GITHUB_REF_NAME"
-}
-EOF
-    )
-    
-    if [ "$(echo "$update_response" | jq -r '.message // empty')" != "" ]; then
-        return 1
-    fi
-    return 0
 }
 
 # Generate salt for a network
