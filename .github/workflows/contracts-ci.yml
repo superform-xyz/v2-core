@@ -169,8 +169,7 @@ jobs:
         run: ./script/run/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
 
       - name: Get deployed addresses for Ethereum
