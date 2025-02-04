@@ -120,7 +120,6 @@ get_network_slug() {
 ###################################################################################
 
 # Environment and Chain IDs
-ENVIRONMENT=1  # Environment 1 for tenderly vnet execution
 ETH_CHAIN_ID=1
 BASE_CHAIN_ID=8453
 OPTIMISM_CHAIN_ID=10
@@ -146,8 +145,6 @@ fi
 # Base output directory for local file operations
 OUTPUT_BASE_DIR="script/output"
 
-# GitHub API path (relative to repo root)
-GITHUB_API_PATH="script/output"
 
 ###################################################################################
 # Authentication Setup
