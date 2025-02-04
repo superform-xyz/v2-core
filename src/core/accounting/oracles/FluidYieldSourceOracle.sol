@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
+// external
+import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+
+// Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
 import { IFluidLendingStakingRewards } from "../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
@@ -8,6 +12,12 @@ import { IFluidLendingStakingRewards } from "../../interfaces/vendors/fluid/IFlu
 /// @author Superform Labs
 /// @notice Oracle for Fluid yield source
 contract FluidYieldSourceOracle is IYieldSourceOracle {
+    /// @inheritdoc IYieldSourceOracle
+    function decimals(address yieldSourceAddress) external view returns (uint8) {
+        address rewardsToken = IFluidLendingStakingRewards(yieldSourceAddress).rewardsToken();
+        return IERC20Metadata(rewardsToken).decimals();
+    }
+
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view returns (uint256 pricePerShare) {
         pricePerShare = IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();

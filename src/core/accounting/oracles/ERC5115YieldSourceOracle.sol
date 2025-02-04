@@ -9,6 +9,11 @@ import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOrac
 /// @notice Oracle for 5115 Vaults
 contract ERC5115YieldSourceOracle is IYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
+    function decimals(address) external pure returns (uint8) {
+        return 18;
+    }
+
+    /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view returns (uint256 pricePerShare) {
         // Get the exchange rate from the StandardizedYield contract
         // This represents how many assets (in 1e18) one SY token is worth

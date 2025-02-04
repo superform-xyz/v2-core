@@ -1,19 +1,27 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+// external
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
+// Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
+
 
 /// @title ERC4626YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for 4626 Vaults
 contract ERC4626YieldSourceOracle is IYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
+    function decimals(address yieldSourceAddress) external view returns (uint8) {
+        return IERC4626(yieldSourceAddress).decimals();
+    }
+
+    /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view returns (uint256 pricePerShare) {
         IERC4626 yieldSource = IERC4626(yieldSourceAddress);
-        uint256 decimals = yieldSource.decimals();
-        pricePerShare = yieldSource.convertToAssets(10 ** decimals);
+        uint256 _decimals = yieldSource.decimals();
+        pricePerShare = yieldSource.convertToAssets(10 ** _decimals);
     }
 
     /// @inheritdoc IYieldSourceOracle

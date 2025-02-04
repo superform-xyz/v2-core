@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
+// external
+import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+
+// Superform
 import { IERC7540 } from "../../interfaces/vendors/vaults/7540/IERC7540.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
 
 /// @title ERC7540YieldSourceOracle
@@ -10,10 +13,16 @@ import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOrac
 /// @notice Oracle for synchronous deposit and redeem 7540 Vaults
 contract ERC7540YieldSourceOracle is IYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
+    function decimals(address yieldSourceAddress) external view returns (uint8) {
+        address share = IERC7540(yieldSourceAddress).share();
+        return IERC20Metadata(share).decimals();
+    }
+
+    /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view returns (uint256 pricePerShare) {
         address share = IERC7540(yieldSourceAddress).share();
-        uint256 decimals = ERC20(share).decimals();
-        pricePerShare = IERC7540(yieldSourceAddress).convertToAssets(10 ** decimals);
+        uint256 _decimals = IERC20Metadata(share).decimals();
+        pricePerShare = IERC7540(yieldSourceAddress).convertToAssets(10 ** _decimals);
     }
 
     /// @inheritdoc IYieldSourceOracle

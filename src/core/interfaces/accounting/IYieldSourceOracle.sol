@@ -15,6 +15,9 @@ interface IYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Returns the number of decimals of the yield source shares
+    /// @return decimals The number of decimals of the yield source shares
+    function decimals(address yieldSourceAddress) external view returns (uint8);
 
     /// @notice Derives the price of an action
     /// @param yieldSourceAddress The yield source to derive the price for

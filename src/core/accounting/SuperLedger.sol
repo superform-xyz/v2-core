@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+// external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+// Superform
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
@@ -192,18 +195,23 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
                 }
                 continue;
             }
+            address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
 
             // Convert available shares to assets using historical PPS
-            uint256 availableAssets = availableShares * entry.price;
+            uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
+            uint256 newPricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSource);
+            uint256 availableAssets = availableShares * newPricePerShare / (10 ** decimals);
 
             // Calculate how many assets to consume from this entry
             uint256 assetsConsumed = remainingAssets > availableAssets ? availableAssets : remainingAssets;
 
             // Calculate corresponding shares to consume based on the proportion of assets consumed
             uint256 sharesConsumed = availableShares * assetsConsumed / availableAssets;
+            uint256 assetsConsumedInEntryPrice = sharesConsumed * entry.price / (10 ** decimals);
+
 
             // Update cost basis using historical price
-            costBasis += assetsConsumed;
+            costBasis += assetsConsumedInEntryPrice;
             remainingAssets -= assetsConsumed;
             entry.amountSharesAvailableToConsume -= sharesConsumed;
 
@@ -212,14 +220,17 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
                     ++currentIndex;
                 }
             }
+
         }
 
         userLedger[user][yieldSource].unconsumedEntries = currentIndex;
 
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+
         if (profit > 0) {
             YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
             if (config.feePercent == 0) revert FEE_NOT_SET();
+
 
             // Calculate fee in assets but don't transfer - let the executor handle it
             feeAmount = (profit * config.feePercent) / 10_000;
