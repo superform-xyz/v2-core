@@ -119,11 +119,15 @@ abstract contract Constants {
     string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
     
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
-    address public constant CHAIN_1_FluidVault = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
+    address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;
     address public constant CHAIN_1_EulerVault = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
     address public constant CHAIN_1_MorphoVault = 0xdd0f28e19C1780eb6396170735D45153D261490d;
     address public constant CHAIN_1_CentrifugeUSDC = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
+    address public constant CHAIN_1_YearnVault = 0xd8063123BBA3B480569244AE66BFE72B6c84b00d;
+    address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
     address public constant CHAIN_1_PendleEthena = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
+
+    address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
@@ -138,7 +142,6 @@ abstract contract Constants {
     address public constant CHAIN_10_SPOKE_POOL_V3_ADDRESS = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
     address public constant CHAIN_10_DEBRIDGE_GATE_ADDRESS = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
     address public constant CHAIN_10_DEBRIDGE_GATE_ADMIN_ADDRESS = 0xA52842cD43fA8c4B6660E443194769531d45b265;
-    address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
 
     address public constant CHAIN_8453_SPOKE_POOL_V3_ADDRESS = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address public constant CHAIN_8453_DEBRIDGE_GATE_ADDRESS = 0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF;

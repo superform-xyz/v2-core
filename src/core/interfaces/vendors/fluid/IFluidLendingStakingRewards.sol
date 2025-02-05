@@ -8,6 +8,7 @@ interface IFluidLendingStakingRewards {
     function rewardsToken() external view returns (address);
     function stakingToken() external view returns (address);
     function balanceOf(address account) external view returns (uint256);    
+    function rewardPerToken() external view returns (uint256 rewardPerToken_);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS

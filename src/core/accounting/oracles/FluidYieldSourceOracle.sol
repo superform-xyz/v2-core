@@ -2,26 +2,25 @@
 pragma solidity >=0.8.28;
 
 // external
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
+import { IFluidLendingStakingRewards } from "../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
 
-
-/// @title ERC4626YieldSourceOracle
+/// @title FluidYieldSourceOracle
 /// @author Superform Labs
-/// @notice Oracle for 4626 Vaults
-contract ERC4626YieldSourceOracle is IYieldSourceOracle {
+/// @notice Oracle for Fluid yield source
+contract FluidYieldSourceOracle is IYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
     function decimals(address yieldSourceAddress) external view returns (uint8) {
-        return IERC4626(yieldSourceAddress).decimals();
+        address rewardsToken = IFluidLendingStakingRewards(yieldSourceAddress).rewardsToken();
+        return IERC20Metadata(rewardsToken).decimals();
     }
 
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view returns (uint256 pricePerShare) {
-        IERC4626 yieldSource = IERC4626(yieldSourceAddress);
-        uint256 _decimals = yieldSource.decimals();
-        pricePerShare = yieldSource.convertToAssets(10 ** _decimals);
+        pricePerShare = IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -32,9 +31,9 @@ contract ERC4626YieldSourceOracle is IYieldSourceOracle {
     {
         uint256 length = yieldSourceAddresses.length;
         pricesPerShare = new uint256[](length);
-
         for (uint256 i = 0; i < length;) {
-            pricesPerShare[i] = getPricePerShare(yieldSourceAddresses[i]);
+            address yieldAddress = yieldSourceAddresses[i];
+            pricesPerShare[i] = IFluidLendingStakingRewards(yieldAddress).rewardPerToken();
             unchecked {
                 ++i;
             }
@@ -43,10 +42,8 @@ contract ERC4626YieldSourceOracle is IYieldSourceOracle {
 
     /// @inheritdoc IYieldSourceOracle
     function getTVL(address yieldSourceAddress, address ownerOfShares) public view returns (uint256 tvl) {
-        IERC4626 yieldSource = IERC4626(yieldSourceAddress);
-        uint256 shares = yieldSource.balanceOf(ownerOfShares);
-        if (shares == 0) return 0;
-        return yieldSource.convertToAssets(shares);
+        tvl = IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares)
+            * IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
     }
 
     /// @inheritdoc IYieldSourceOracle

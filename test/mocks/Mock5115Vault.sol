@@ -27,13 +27,17 @@ contract Mock5115Vault {
         decimals = uint8(asset.decimals());
     }
 
+    function exchangeRate() external pure returns (uint256) {
+        return 1e18;
+    }
+
     function getTokensOut() external view returns (address[] memory tokensOut) {
         tokensOut = new address[](1);
         tokensOut[0] = address(asset);
     }
 
     function previewDeposit(
-        address tokenIn,
+        address, //tokenIn
         uint256 amountTokenToDeposit
     )
         external
@@ -44,7 +48,7 @@ contract Mock5115Vault {
     }
 
     function previewRedeem(
-        address tokenOut, 
+        address, //tokenOut
         uint256 amountSharesToRedeem
     )
         external

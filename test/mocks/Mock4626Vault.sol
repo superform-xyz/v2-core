@@ -42,6 +42,14 @@ contract Mock4626Vault is ERC4626 {
         return shares;
     }
 
+    function convertToAssets(uint256 shares) public pure override returns (uint256 assets) {
+        return shares;
+    }
+
+    function convertToShares(uint256 assets) public pure override returns (uint256 shares) {
+        return assets;
+    }
+
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         require(assets > 0, AMOUNT_NOT_VALID());
         uint256 amount = lessAmount ? assets / 2 : assets;
