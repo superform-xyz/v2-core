@@ -765,38 +765,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
         );
 
-        /// @dev 5115 real pendle ethena vaults on mainnet
+        /// @dev 5115 real pendle ethena vault on mainnet
         existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
         vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
-
-        //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
-        //    ERC5115_VAULTS_NAMES;
-        //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
-        //mapping(uint64 chainId => mapping(address realVault => ChosenAssets chosenAssets)) storage erc5115ChosenAssets
-        // =
-        //    ERC5115S_CHOSEN_ASSETS;
-
-        /// @dev  pendle ethena - market: SUSDE-MAINNET-SEP2024
-        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
-        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
-
-        /// ezETH
-        /// @dev pendle renzo - market:  SY ezETH
-        // erc5115Vaults[1][1] = 0x22E12A50e3ca49FB183074235cB1db84Fe4C716D;
-        // erc5115VaultsNames[1][1] = "ezETH";
-        // erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetIn =
-        //     0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
-        // erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetOut =
-        //     0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
-
-        /// ezETH
-        /// @dev pendle aave usdt - market:  SY aUSDT
-        // erc5115Vaults[1][2] = 0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74;
-        // erc5115VaultsNames[1][2] = "aUSDT";
-        // erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetIn =
-        //     0xdAC17F958D2ee523a2206206994597C13D831ec7;
-        // erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetOut =
-        //     0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a;
 
         /// wstETH
         /// @dev pendle wrapped st ETH from LDO - market:  SY wstETH
@@ -806,33 +777,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
         // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
-
-        /// ezETH
-        /// @dev pendle renzo - market: EZETH-BSC-SEP2024
-        // erc5115Vaults[56][0] = 0xe49269B5D31299BcE407c8CcCf241274e9A93C9A;
-        // erc5115VaultsNames[56][0] = "ezETH";
-        // erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetIn =
-        //     0x2416092f143378750bb29b79eD961ab195CcEea5;
-        // erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetOut =
-        //     0x2416092f143378750bb29b79eD961ab195CcEea5;
-
-        /// USDC aARBUsdc
-        /// @dev pendle aave - market: SY aUSDC
-        // erc5115Vaults[42_161][0] = 0x50288c30c37FA1Ec6167a31E575EA8632645dE20;
-        // erc5115VaultsNames[42_161][0] = "USDC";
-        // erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetIn =
-        //     0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-        // erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetOut =
-        //     0x724dc807b04555b71ed48a6896b6F41593b8C637;
-
-        /// wstETH
-        /// @dev pendle wrapped st ETH from LDO - market: SY wstETH
-        // erc5115Vaults[42_161][1] = 0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df;
-        // erc5115VaultsNames[42_161][1] = "wstETH";
-        // erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetIn =
-        //     0x5979D7b546E38E414F7E9822514be443A4800529;
-        // erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetOut =
-        //     0x5979D7b546E38E414F7E9822514be443A4800529;
     }
 
     function _fundUSDCTokens(uint256 amount) internal {
@@ -892,7 +836,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](2);
+                new ISuperLedger.YieldSourceOracleConfigArgs[](3);
             configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -1028,7 +972,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
     }
 
-    function _createDepositHookData(
+    function _createDeposit4626VaultHookData(
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
@@ -1042,7 +986,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
     }
 
-    function _createWithdrawHookData(
+    function _createWithdraw4626VaultHookData(
         bytes32 yieldSourceOracleId,
         address vault,
         address owner,
@@ -1166,8 +1110,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createRequestDeposit7540VaultHookData(
-        address yieldSource,
         bytes32 yieldSourceOracleId,
+        address yieldSource,
         address controller,
         uint256 amount,
         bool usePrevHookAmount
@@ -1178,6 +1122,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             controller, 
             amount, 
             usePrevHookAmount
+        );
+    }
+
+    function _createDeposit7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            yieldSourceOracleId,
+            yieldSource, 
+            controller, 
+            amount, 
+            usePrevHookAmount
+        );
+    }
+
+    function _createWithdraw7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            yieldSourceOracleId, 
+            yieldSource, 
+            owner, 
+            amount, 
+            usePrevHookAmount, 
+            lockForSP
         );
     }
 
@@ -1199,5 +1177,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             usePrevHookAmount,
             lockForSP
         );
+    }
+
+    function _createTransferERC20HookData(
+        address token,
+        address to,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(token, to, amount, usePrevHookAmount);
     }
 }
