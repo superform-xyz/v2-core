@@ -71,7 +71,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
-        hooksData[1] = _createDepositHookData(
+        hooksData[1] = _createDeposit4626VaultHookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
 
@@ -90,7 +90,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
-        hooksData[1] = _createDepositHookData(
+        hooksData[1] = _createDeposit4626VaultHookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
 
@@ -108,7 +108,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
         hooksData = new bytes[](2);
-        hooksData[0] = _createWithdrawHookData(
+        hooksData[0] = _createWithdraw4626VaultHookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddressEth,
             accountEth,
@@ -148,12 +148,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         bytes[] memory dstHooksData = new bytes[](2);
         dstHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, previewRedeemAmount, false);
-        dstHooksData[1] = _createDepositHookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceAddressBase,
-            previewRedeemAmount,
-            false,
-            false
+        dstHooksData[1] = _createDeposit4626VaultHookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, previewRedeemAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
@@ -172,7 +168,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
-        srcHooksData[1] = _createDepositHookData(
+        srcHooksData[1] = _createDeposit4626VaultHookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
         srcHooksData[2] = _createApproveHookData(underlyingEth_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
@@ -209,9 +205,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         LocalVars memory vars;
         vm.selectFork(FORKS[ETH]);
 
-
-        console2.log("------------ accountBase", accountBase);  
-        console2.log("------------ accountEth", accountEth);  
+        console2.log("------------ accountBase", accountBase);
+        console2.log("------------ accountEth", accountEth);
 
         vars.intentAmount = 100e8;
 
@@ -226,12 +221,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vars.dstHooksData = new bytes[](2);
         vars.dstHooksData[0] =
             _createApproveHookData(underlyingBase_WETH, yieldSourceAddressBaseWeth, vars.intentAmount, false);
-        vars.dstHooksData[1] = _createDepositHookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceAddressBaseWeth,
-            vars.intentAmount,
-            false,
-            false
+        vars.dstHooksData[1] = _createDeposit4626VaultHookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBaseWeth, vars.intentAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
@@ -282,7 +273,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vars.srcHooksData[0] =
             _createApproveHookData(underlyingOp_USDC, SPOKE_POOL_V3_ADDRESSES[OP], vars.intentAmount / 2, false);
         console2.log("--------- existingUnderlyingTokens[OP][USDC_KEY]", existingUnderlyingTokens[OP][USDC_KEY]);
-        console2.log("--------- existingUnderlyingTokens[BASE][WETH_KEY]", existingUnderlyingTokens[BASE][WETH_KEY]);   
+        console2.log("--------- existingUnderlyingTokens[BASE][WETH_KEY]", existingUnderlyingTokens[BASE][WETH_KEY]);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             existingUnderlyingTokens[OP][USDC_KEY],
             existingUnderlyingTokens[BASE][WETH_KEY],
@@ -300,13 +291,17 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         srcUserOpData = _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entry));
         // balance is received and everything is executed
         _processAcrossV3Message(OP, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+
+
+        vm.selectFork(FORKS[BASE]);
+        console2.log("--------- vaultInstance4626Base.balanceOf(accountBase)", vaultInstanceBase.balanceOf(accountBase));
     }
 
     function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
-        console2.log("------------ accoountEth", accountEth); 
-        console2.log("------------ accountBase", accountBase); 
+        console2.log("------------ accountEth", accountEth);
+        console2.log("------------ accountBase", accountBase);
 
         uint256 amount = 1e10;
 
@@ -320,7 +315,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         bytes[] memory dstHooksData = new bytes[](2);
         dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, amount, false);
-        dstHooksData[1] = _createDepositHookData(
+        dstHooksData[1] = _createDeposit4626VaultHookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, amount, false, false
         );
 
