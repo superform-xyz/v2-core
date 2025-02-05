@@ -4,8 +4,7 @@ pragma solidity >=0.8.28;
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockStakingProtocol } from "../../../mocks/MockStakingProtocol.sol";
-import { FluidYieldSourceOracle } from
-    "../../../../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
+import { FluidYieldSourceOracle } from "../../../../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
 
 contract FluidYieldSourceOracleTest is Helpers {
     FluidYieldSourceOracle public oracle;
@@ -26,7 +25,7 @@ contract FluidYieldSourceOracleTest is Helpers {
     function test_getPricePerShareMultiple() public view {
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(stakingProtocol);
-        uint256[] memory prices = oracle.getPricePerShareMultiple(finalTargets, address(underlying));
+        uint256[] memory prices = oracle.getPricePerShareMultiple(finalTargets);
         assertEq(prices[0], 1e18);
     }
 }

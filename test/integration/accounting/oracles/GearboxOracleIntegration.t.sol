@@ -31,7 +31,7 @@ contract GearboxOracleIntegration is BaseE2ETest {
     function test_GearboxIntegration_getPricePerShareMultiple() public view {
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(yieldSource);
-        uint256[] memory prices = oracle.getPricePerShareMultiple(finalTargets, address(underlying));
+        uint256[] memory prices = oracle.getPricePerShareMultiple(finalTargets);
         assertGt(prices[0], 0);
     }
 

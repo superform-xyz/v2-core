@@ -25,23 +25,19 @@ contract Mock7540Vault {
         return address(assetToken);
     }
 
-    function previewDeposit(
-        uint256 amountTokenToDeposit
-    )
-        external
-        pure
-        returns (uint256 amountSharesOut)
-    {
+    function previewDeposit(uint256 amountTokenToDeposit) external pure returns (uint256 amountSharesOut) {
         amountSharesOut = amountTokenToDeposit;
     }
 
-    function previewRedeem(
-        uint256 amountSharesToRedeem
-    )
-        external
-        pure
-        returns (uint256 amountTokenOut)
-    {
+    function previewRedeem(uint256 amountSharesToRedeem) external pure returns (uint256 amountTokenOut) {
         amountTokenOut = amountSharesToRedeem;
+    }
+
+    function convertToAssets(uint256 shares) public pure returns (uint256 assets) {
+        return shares;
+    }
+
+    function convertToShares(uint256 assets) public pure returns (uint256 shares) {
+        return assets;
     }
 }

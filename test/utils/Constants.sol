@@ -123,7 +123,7 @@ abstract contract Constants {
     address public constant CHAIN_1_EulerVault = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
     address public constant CHAIN_1_MorphoVault = 0xdd0f28e19C1780eb6396170735D45153D261490d;
     address public constant CHAIN_1_CentrifugeUSDC = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
-    address public constant CHAIN_1_YearnVault = 0xd8063123BBA3B480569244AE66BFE72B6c84b00d;
+    address public constant CHAIN_1_YearnVault = 0x028eC7330ff87667b6dfb0D94b954c820195336c;
     address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
     address public constant CHAIN_1_PendleEthena = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
 
