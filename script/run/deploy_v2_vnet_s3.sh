@@ -234,10 +234,7 @@ read_branch_latest() {
         log "WARN" "latest.json not found in S3, initializing empty file"
         content="{\"networks\":{},\"updated_at\":null}"
     fi
-    
-    # Debug the raw response
-    log "DEBUG" "Raw JSON content: $content"
-    
+   
     echo "$content"
 }
 
@@ -306,9 +303,7 @@ check_vnets() {
 
     # Read from branch latest file
     content=$(read_branch_latest)
-
-    log "DEBUG: Content received from read_branch_latest:"
-    echo "$content"
+    log "DEBUG: Content received from read_branch_latest: $content"
 
     vnet_id=$(echo "$content" | jq -r ".networks[\"$network_slug\"].vnet_id // empty")
     log "DEBUG" "VNET ID from latest file: $vnet_id"
