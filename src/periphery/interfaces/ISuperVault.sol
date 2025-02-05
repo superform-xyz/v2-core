@@ -50,6 +50,7 @@ interface ISuperVault {
     error CANCELLATION_IS_PENDING();
     error INVALID_DEPOSIT_CLAIM();
     error NOT_IMPLEMENTED();
+    error INCOMPLETE_DEPOSIT_MATCH();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -92,6 +93,21 @@ interface ISuperVault {
         uint256 availableAmount; // Only used in deposit to check initial balance
         // Variables for share calculations
         uint256 shares; // Used in deposit for minting shares
+    }
+
+    struct MatchVars {
+        // Variables for deposit processing
+        uint256 depositAssets; // Assets requested in the deposit
+        uint256 sharesNeeded; // Total shares needed for this deposit
+        uint256 remainingShares; // Remaining shares needed to fulfill deposit
+        // Variables for redeem processing
+        uint256 redeemShares; // Shares available from redeemer
+        uint256 sharesToUse; // Shares to take from current redeemer
+        // Variables for historical assets calculation
+        uint256 lastConsumedIndex; // Last consumed share price point index
+        uint256 finalAssets; // Final assets after fee calculation
+        // Price tracking
+        uint256 currentPricePerShare; // Current price per share for calculations
     }
 
     struct SharePricePoint {
@@ -190,4 +206,11 @@ interface ISuperVault {
     function cancelDeposit(address controller) external;
 
     function cancelRedeem(address controller) external;
+
+    /// @notice Match redeem requests with deposit requests directly, without accessing yield sources
+    /// @dev Each deposit request must be fully matched with one or more redeem requests. Redeem requests can be
+    /// partially fulfilled.
+    /// @param redeemUsers Array of users with pending redeem requests
+    /// @param depositUsers Array of users with pending deposit requests
+    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external;
 }

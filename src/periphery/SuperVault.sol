@@ -369,6 +369,110 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         }
     }
 
+    /// @notice Match redeem requests with deposit requests directly, without accessing yield sources
+    /// @param redeemUsers Array of users with pending redeem requests
+    /// @param depositUsers Array of users with pending deposit requests
+    function matchRequests(
+        address[] calldata redeemUsers,
+        address[] calldata depositUsers
+    )
+        external
+        onlyRole(STRATEGIST_ROLE)
+    {
+        uint256 redeemLength = redeemUsers.length;
+        uint256 depositLength = depositUsers.length;
+        if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
+
+        MatchVars memory vars;
+        vars.currentPricePerShare = getSuperVaultPPS();
+
+        // Track shares used from each redeemer in memory
+        uint256[] memory sharesUsedByRedeemer = new uint256[](redeemLength);
+
+        // Process deposits first, matching with redeem requests
+        // Full deposit fulfilment is prioritized vs outflows from the SuperVault (which can be partially matched)
+        for (uint256 i; i < depositLength;) {
+            address depositor = depositUsers[i];
+            SuperVaultState storage depositState = superVaultState[depositor];
+            vars.depositAssets = depositState.pendingDepositRequest;
+            if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
+
+            // Calculate shares needed at current price
+            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _underlyingDecimals, vars.currentPricePerShare);
+            vars.remainingShares = vars.sharesNeeded;
+
+            // Try to fulfill with redeem requests
+            for (uint256 j; j < redeemLength && vars.remainingShares > 0;) {
+                address redeemer = redeemUsers[j];
+                SuperVaultState storage redeemState = superVaultState[redeemer];
+                vars.redeemShares = redeemState.pendingRedeemRequest;
+                if (vars.redeemShares == 0) {
+                    unchecked {
+                        ++j;
+                    }
+                    continue;
+                }
+
+                // Calculate how many shares we can take from this redeemer
+                vars.sharesToUse = vars.redeemShares > vars.remainingShares ? vars.remainingShares : vars.redeemShares;
+
+                // Update redeemer's state and accumulate shares used
+                redeemState.pendingRedeemRequest -= vars.sharesToUse;
+                sharesUsedByRedeemer[j] += vars.sharesToUse;
+
+                vars.remainingShares -= vars.sharesToUse;
+
+                unchecked {
+                    ++j;
+                }
+            }
+
+            // Verify deposit was fully matched
+            if (vars.remainingShares > 0) revert INCOMPLETE_DEPOSIT_MATCH();
+
+            // Add share price point for the deposit
+            depositState.sharePricePoints.push(
+                SharePricePoint({ shares: vars.sharesNeeded, pricePerShare: vars.currentPricePerShare })
+            );
+
+            // Clear deposit request and update state
+            depositState.pendingDepositRequest = 0;
+            depositState.maxMint += vars.sharesNeeded;
+            emit DepositClaimable(depositor, REQUEST_ID, vars.depositAssets, vars.sharesNeeded);
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Process accumulated shares for redeemers
+        for (uint256 i; i < redeemLength;) {
+            uint256 sharesUsed = sharesUsedByRedeemer[i];
+
+            if (sharesUsed > 0) {
+                address redeemer = redeemUsers[i];
+                SuperVaultState storage redeemState = superVaultState[redeemer];
+
+                // Calculate historical assets and process fees once for total shares used
+                (vars.finalAssets, vars.lastConsumedIndex) =
+                    _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
+
+                // Update share price point cursor
+                if (vars.lastConsumedIndex > redeemState.sharePricePointCursor) {
+                    redeemState.sharePricePointCursor = vars.lastConsumedIndex;
+                }
+
+                // Update maxWithdraw and emit event once
+                redeemState.maxWithdraw += vars.finalAssets;
+                emit RedeemClaimable(redeemer, REQUEST_ID, vars.finalAssets, sharesUsed);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
@@ -1029,10 +1133,11 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         uint256 historicalAssets = 0;
         uint256 sharePricePointsLength = state.sharePricePoints.length;
         uint256 remainingShares = requestedShares;
-        lastConsumedIndex = state.sharePricePointCursor;
+        uint256 currentIndex = state.sharePricePointCursor;
+        lastConsumedIndex = currentIndex;
 
         // Calculate historicalAssets for each share price point
-        for (uint256 j = state.sharePricePointCursor; j < sharePricePointsLength && remainingShares > 0;) {
+        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
             historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _underlyingDecimals);

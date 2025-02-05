@@ -52,7 +52,7 @@ The EIP7540 must be followed to the letter.
 6. Ability to request to redeem assets - COMPLETE
     1. Users send approved vault shares to redeem via requestRedeem of ERC7540
     2. Shares are burned and a request to redeem is placed in a queue
-7. Strategists take each user address's address to fulfill the redeem and pass it to a 'fulfillRedeemRequests' function
+7. Strategists take each user's address to fulfill the redeem and pass it to a 'fulfillRedeemRequests' function - COMPLETE
     1. A function to fulfill redeem requests is called by a keeper (fulfillment of each user request must be done in full). The keeper passes:
         1. List of yield sources to redeem from
         2. Calldata and hooks per yield source
@@ -62,13 +62,13 @@ The EIP7540 must be followed to the letter.
     3. For each user, the ledger is looked upon to get entries for the user's assets
         1. Given we inscribe shares, we must convert shares to assets at each PPS when they were inscribed, to properly determine the PNL in assets
     4. Assets are moved to claimable for each user fulfilled this way and each user can call ERC4626 redeem to get their assets
-8. Strategists are able to call a 'matchRequests' function that performs the following:
+8. Strategists are able to call a 'matchRequests' function that performs the following:  - COMPLETE
     1. Users that have pending redeem requests are matched with users that have pending deposit requests
     2. For pending redeem requests only look at number of assets requested. These users have shares temporarily locked available to give depositors who need them
     3. For pending deposit requests, we only need at number of shares requested, these users have money available as "freeFunds" state variable in the vault
     4. When matching, no yield sources access is made
-    5. A redeem request can be fulfilled by one or more deposits
-    6. But at the end of distribution, if any redeem request or deposit request is not fully fulfilled the function reverts
+    5. Each users' deposit request is prioritized to be fulfilled by one or more user requests to redeem shares (their shares are transferred to these users)
+    6. All deposit requests must be fully filled, but redeem requests don't need to be consumed entirely (meaning, some pendingRequestRedeem can be left over)    
     7. This function assumes the keeper knows exactly the match needed
     8. For users receiving shares, an entry is inscribed into the accounting ledger system to track that action and the respective PPS
     9. For users receiving assets, the ledger is looked upon to get entries for the user's assets. Given we inscribed shares in deposit(), we must convert shares to assets at each PPS when it was inscribed, to properly determine the PNL in assets.
@@ -85,7 +85,7 @@ The EIP7540 must be followed to the letter.
     1. Users are able to call cancelRedeemRequest and cancelDepositRequest to cancel their requests
     2. This is made according to IERC7540CancelDeposit and IERC7540CancelRedeem
     3. Other functions should have checks to ensure they cannot act upon requests that have a cancelation request
-12. Access Control
+12. Access Control 
     1. Transfer strategist role to new address
     2. Strategist-only functions for critical operations
     3. Cannot transfer to zero address
