@@ -91,6 +91,7 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 
+import { console2 } from "forge-std/console2.sol";
 struct Addresses {
     ISuperRbac superRbac;
     ISuperLedger superLedger;
@@ -1044,6 +1045,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory hookData)
     {
         bytes memory dstUserOpData = _encodeUserOp(userOpData); 
+        console2.log("--------- dstUserOpData.length", dstUserOpData.length);
         hookData = abi.encodePacked(
             uint256(0),
             _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
@@ -1062,14 +1064,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     function _encodeUserOp(UserOpData memory userOpData) internal pure returns (bytes memory) {
         return abi.encodePacked(
-            userOpData.userOp.sender,
+            userOpData.userOp.sender, // account
+            uint256(0), // intent amount ? not sure what's this
+            userOpData.userOp.sender, // sender
             userOpData.userOp.nonce,
             userOpData.userOp.initCode.length,
             userOpData.userOp.initCode,
+            userOpData.userOp.callData.length,
             userOpData.userOp.callData,
             userOpData.userOp.accountGasLimits,
             userOpData.userOp.preVerificationGas,
             userOpData.userOp.gasFees,
+            userOpData.userOp.paymasterAndData.length,
             userOpData.userOp.paymasterAndData,
             userOpData.userOp.signature
         );
