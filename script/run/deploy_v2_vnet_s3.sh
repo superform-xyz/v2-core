@@ -216,7 +216,7 @@ fi
 read_branch_latest() {
     latest_file_path="/tmp/latest.json"
 
-    if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path"; then
+    if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path" --quiet; then
         log "INFO" "Successfully downloaded latest.json from S3"
 
         # Read the file and validate JSON
@@ -235,7 +235,7 @@ read_branch_latest() {
         content="{\"networks\":{},\"updated_at\":null}"
     fi
    
-    echo "$content" | jq '.'
+    echo "$content"
 }
 
 # Generate salt for a network
