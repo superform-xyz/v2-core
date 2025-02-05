@@ -1043,21 +1043,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         view
         returns (bytes memory hookData)
     {
-        bytes memory dstUserOpData = abi.encodePacked(
-            account,
-            intentAmount,
-            userOpData.userOp.sender,
-            userOpData.userOp.nonce,
-            userOpData.userOp.initCode.length,
-            userOpData.userOp.initCode,
-            userOpData.userOp.accountGasLimits,
-            userOpData.userOp.preVerificationGas,
-            userOpData.userOp.gasFees,
-            userOpData.userOp.paymasterAndData.length,
-            userOpData.userOp.paymasterAndData,
-            userOpData.userOp.signature.length,
-            userOpData.userOp.signature
-        );
+        bytes memory dstUserOpData = _encodeUserOp(userOpData); 
         hookData = abi.encodePacked(
             uint256(0),
             _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
@@ -1071,6 +1057,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             uint32(0),
             usePrevHookAmount,
             dstUserOpData
+        );
+    }
+
+    function _encodeUserOp(UserOpData memory userOpData) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            userOpData.userOp.sender,
+            userOpData.userOp.nonce,
+            userOpData.userOp.initCode.length,
+            userOpData.userOp.initCode,
+            userOpData.userOp.callData,
+            userOpData.userOp.accountGasLimits,
+            userOpData.userOp.preVerificationGas,
+            userOpData.userOp.gasFees,
+            userOpData.userOp.paymasterAndData,
+            userOpData.userOp.signature
         );
     }
 
