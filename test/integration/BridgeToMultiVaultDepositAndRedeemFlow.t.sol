@@ -98,26 +98,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         console2.log("--------- balance_Base_USDC_Before", balance_Base_USDC_Before);
     }
 
-    function _createUserOpData(
-        address[] memory hooksAddresses, 
-        bytes[] memory hooksData,
-        uint64 chainId
-    ) internal returns (UserOpData memory) {
-        if (chainId == ETH) {
-            ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-            return _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute));
-        } else if (chainId == OP) {
-            ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-            return _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute));
-        } else {
-            ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-            return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
-        }
-    }
-
     function test_Bridge_To_MultiVault_Deposit_Flow() public {
         uint256 amount = 1e8;
         uint256 amountPerVault = amount / 2;
@@ -174,8 +154,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             amountPerVault / 2,
             ETH,
             true,
-            accountETH,
-            amountPerVault,
             ethUserOpData
         );
 
@@ -218,7 +196,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         opHooksData[1] = _createDeposit4626VaultHookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource4626AddressOP_USDC,
-            amountPerVault, 
+            amountPerVault / 2, 
             true,
             false
         );
@@ -246,12 +224,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksDataOP[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC,
             underlyingOP_USDC,
-            amountPerVault / 2,
-            amountPerVault / 2,
+            amountPerVault, // amountPerVault / 2,
+            amountPerVault, // amountPerVault / 2,
             OP,
             true,
-            accountOP,
-            amountPerVault,
             opUserOpData
         );
 
@@ -262,6 +238,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
 
         // EXECUTE OP
+        // _processAcrossV3Message(BASE, OP, executeOp(srcUserOpDataOP), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
         _processAcrossV3Message(BASE, OP, executeOp(srcUserOpDataOP), RELAYER_TYPE.ENOUGH_BALANCE, accountOP);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - (amountPerVault * 2));
@@ -270,9 +247,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         console2.log("--------- vaultInstance4626OP.balanceOf(accountOp)", vaultInstance4626OP.balanceOf(accountOP));
         //assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP);
 
-        console2.log("--------- IERC20(underlyingOP_USDC).balanceOf(accountOP)", IERC20(underlyingOP_USDC).balanceOf(accountOP));
-        console2.log("--------- IERC20(underlyingOP_USDC).balanceOf(yieldSource4626AddressOP_USDC)", IERC20(underlyingOP_USDC).balanceOf(yieldSource4626AddressOP_USDC));
-        console2.log("--------- vaultInstance4626OP.balanceOf(SPOKE_POOL_V3_ADDRESSES[OP])", vaultInstance4626OP.balanceOf(SPOKE_POOL_V3_ADDRESSES[OP]));
+        console2.log(
+            "--------- IERC20(underlyingOP_USDC).balanceOf(accountOP)", 
+            IERC20(underlyingOP_USDC).balanceOf(accountOP)
+        );
+
+        console2.log("--------- SpokePoolV3", SPOKE_POOL_V3_ADDRESSES[OP]);
+        console2.log("--------- SuperExecutor", address(superExecutorOnOP));
     }
 
     function test_Bridge_To_MultiVault_Deposit_Redeem_Bridge_Back_Flow() public {
@@ -346,8 +327,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             amountPerVault / 2,
             BASE,
             true,
-            accountBase,
-            amountPerVault,
             baseUserOpData
         );
 
@@ -417,8 +396,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             amountPerVault / 2,
             BASE,
             true,
-            accountBase,
-            amountPerVault,
             baseUserOpData
         );
 
@@ -431,5 +408,25 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.selectFork(FORKS[BASE]);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault);
+    }
+
+    function _createUserOpData(
+        address[] memory hooksAddresses, 
+        bytes[] memory hooksData,
+        uint64 chainId
+    ) internal returns (UserOpData memory) {
+        if (chainId == ETH) {
+            ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            return _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute));
+        } else if (chainId == OP) {
+            ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            return _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute));
+        } else {
+            ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
+        }
     }
 }

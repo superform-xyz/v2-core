@@ -1036,8 +1036,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 outputAmount,
         uint64 destinationChainId,
         bool usePrevHookAmount,
-        address account,
-        uint256 intentAmount,
         UserOpData memory userOpData
     )
         internal
