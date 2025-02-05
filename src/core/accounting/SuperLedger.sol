@@ -180,7 +180,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         returns (uint256 feeAmount)
     {
         uint256 remainingAssets = amountAssets;
-        console2.log("-------- Processing outflow --------remainingAssets", remainingAssets);
         uint256 costBasis;
 
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
@@ -188,85 +187,177 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         if (len == 0) return 0;
 
         uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
-        console2.log("-------- Processing outflow --------currentIndex", currentIndex);
 
         while (remainingAssets > 0) {
             if (currentIndex >= len) revert INSUFFICIENT_SHARES();
 
             LedgerEntry storage entry = entries[currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
-            console2.log("-------- Processing outflow --------availableShares", availableShares);
 
             if (availableShares == 0) {
-                console2.log("-------- Processing outflow --------availableShares == 0");
                 unchecked {
                     ++currentIndex;
                 }
                 continue;
             }
             address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
-            console2.log("-------- Processing outflow --------yieldSourceOracle", yieldSourceOracle);
-            console2.log("-------- Processing outflow --------yieldSource", yieldSource);
 
             // get decimals and current price per share
             uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
             uint256 newPricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSource);
-            console2.log("-------- Processing outflow --------newPricePerShare", newPricePerShare);
 
             // calculate how many shares would be consumed at the current price
-            //uint256 remainingSharesAtCurrentPrice = ((remainingAssets * (10 ** decimals) + newPricePerShare) - 1) / newPricePerShare;
             uint256 remainingSharesAtCurrentPrice = (remainingAssets * (10 ** decimals)) / newPricePerShare;
-            console2.log("-------- Processing outflow --------remainingSharesAtCurrentPrice", remainingSharesAtCurrentPrice);   
 
             // consume shares
-            uint256 sharesConsumed = availableShares > remainingSharesAtCurrentPrice ? remainingSharesAtCurrentPrice : availableShares;
+            uint256 sharesConsumed =
+                availableShares > remainingSharesAtCurrentPrice ? remainingSharesAtCurrentPrice : availableShares;
             entry.amountSharesAvailableToConsume -= sharesConsumed;
-            if (entry.amountSharesAvailableToConsume < 100) entry.amountSharesAvailableToConsume = 0; //rounding dust protection
+            entry.amountSharesAvailableToConsume = _applyDustProtection(entry.amountSharesAvailableToConsume);
 
-            //uint256 actualAmountConsumed = ((sharesConsumed * newPricePerShare) + (10 ** decimals) - 1) / (10 ** decimals);
-            uint256 actualAmountConsumed = (sharesConsumed * newPricePerShare)  / (10 ** decimals);
-            console2.log("-------- Processing outflow --------entry.amountSharesAvailableToConsume", entry.amountSharesAvailableToConsume);
-            console2.log("-------- Processing outflow --------sharesConsumed", sharesConsumed);
-            console2.log("-------- Processing outflow --------actualAmountConsumed", actualAmountConsumed);
-
+            uint256 actualAmountConsumed = (sharesConsumed * newPricePerShare) / (10 ** decimals);
 
             // Update cost basis using historical price
-            //uint256 assetsConsumedInEntryPrice = ((sharesConsumed * entry.price) + (10 ** decimals) - 1) / (10 ** decimals); 
-            uint256 assetsConsumedInEntryPrice = sharesConsumed * entry.price / (10 ** decimals); 
+            uint256 assetsConsumedInEntryPrice = sharesConsumed * entry.price / (10 ** decimals);
             costBasis += assetsConsumedInEntryPrice;
-            console2.log("-------- Processing outflow --------costBasis", costBasis);
 
-            // because of rounding errors when amount is slightly bigger than remainingAssets 
+            // because of rounding errors when amount is slightly bigger than remainingAssets
             remainingAssets = actualAmountConsumed > remainingAssets ? 0 : remainingAssets - actualAmountConsumed;
-            console2.log("-------- Processing outflow --------remainingAssets", remainingAssets);
-            if (remainingAssets < 100) remainingAssets = 0; //rounding dust protection
+            remainingAssets = _applyDustProtection(remainingAssets);
 
-            console2.log("!!-------- Processing outflow --------sharesConsumed", sharesConsumed);
-            console2.log("!!-------- Processing outflow --------availableShares", availableShares);
             if (sharesConsumed == availableShares) {
-                console2.log("-------- Processing outflow --------sharesConsumed == availableShares");
                 unchecked {
                     ++currentIndex;
                 }
             }
-
         }
 
         userLedger[user][yieldSource].unconsumedEntries = currentIndex;
 
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-        console2.log("-------- Processing outflow --------amountAssets", amountAssets);
-        console2.log("-------- Processing outflow --------costBasis", costBasis);
-        console2.log("-------- Processing outflow --------profit", profit);
 
         if (profit > 0) {
             YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
             if (config.feePercent == 0) revert FEE_NOT_SET();
 
-
             // Calculate fee in assets but don't transfer - let the executor handle it
             feeAmount = (profit * config.feePercent) / 10_000;
         }
+    }
+
+    /**
+     * function _processOutflow(
+     *     address user,
+     *     address yieldSource,
+     *     bytes32 yieldSourceOracleId,
+     *     uint256 amountAssets
+     * )
+     *     internal
+     *     returns (uint256 feeAmount)
+     * {
+     *     uint256 remainingAssets = amountAssets;
+     *     console2.log("-------- Processing outflow --------remainingAssets", remainingAssets);
+     *     uint256 costBasis;
+     *
+     *     LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
+     *     uint256 len = entries.length;
+     *     if (len == 0) return 0;
+     *
+     *     uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
+     *     console2.log("-------- Processing outflow --------currentIndex", currentIndex);
+     *
+     *     while (remainingAssets > 0) {
+     *         if (currentIndex >= len) revert INSUFFICIENT_SHARES();
+     *
+     *         LedgerEntry storage entry = entries[currentIndex];
+     *         uint256 availableShares = entry.amountSharesAvailableToConsume;
+     *         console2.log("-------- Processing outflow --------availableShares", availableShares);
+     *
+     *         if (availableShares == 0) {
+     *             console2.log("-------- Processing outflow --------availableShares == 0");
+     *             unchecked {
+     *                 ++currentIndex;
+     *             }
+     *             continue;
+     *         }
+     *         address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
+     *         console2.log("-------- Processing outflow --------yieldSourceOracle", yieldSourceOracle);
+     *         console2.log("-------- Processing outflow --------yieldSource", yieldSource);
+     *
+     *         // get decimals and current price per share
+     *         uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
+     *         uint256 newPricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSource);
+     *         console2.log("-------- Processing outflow --------newPricePerShare", newPricePerShare);
+     *
+     *         // calculate how many shares would be consumed at the current price
+     *         //uint256 remainingSharesAtCurrentPrice = ((remainingAssets * (10 ** decimals) + newPricePerShare) - 1) /
+     * newPricePerShare;
+     *         uint256 remainingSharesAtCurrentPrice = (remainingAssets * (10 ** decimals)) / newPricePerShare;
+     *         console2.log("-------- Processing outflow --------remainingSharesAtCurrentPrice",
+     * remainingSharesAtCurrentPrice);   
+     *
+     *         // consume shares
+     *         uint256 sharesConsumed = availableShares > remainingSharesAtCurrentPrice ? remainingSharesAtCurrentPrice
+     * : availableShares;
+     *         entry.amountSharesAvailableToConsume -= sharesConsumed;
+     *         if (entry.amountSharesAvailableToConsume < 100) entry.amountSharesAvailableToConsume = 0; //rounding dust
+     * protection
+     *
+     *         //uint256 actualAmountConsumed = ((sharesConsumed * newPricePerShare) + (10 ** decimals) - 1) / (10 **
+     * decimals);
+     *         uint256 actualAmountConsumed = (sharesConsumed * newPricePerShare)  / (10 ** decimals);
+     *         console2.log("-------- Processing outflow --------entry.amountSharesAvailableToConsume",
+     * entry.amountSharesAvailableToConsume);
+     *         console2.log("-------- Processing outflow --------sharesConsumed", sharesConsumed);
+     *         console2.log("-------- Processing outflow --------actualAmountConsumed", actualAmountConsumed);
+     *
+     *
+     *         // Update cost basis using historical price
+     *         //uint256 assetsConsumedInEntryPrice = ((sharesConsumed * entry.price) + (10 ** decimals) - 1) / (10 **
+     * decimals); 
+     *         uint256 assetsConsumedInEntryPrice = sharesConsumed * entry.price / (10 ** decimals); 
+     *         costBasis += assetsConsumedInEntryPrice;
+     *         console2.log("-------- Processing outflow --------costBasis", costBasis);
+     *
+     *         // because of rounding errors when amount is slightly bigger than remainingAssets 
+     *         remainingAssets = actualAmountConsumed > remainingAssets ? 0 : remainingAssets - actualAmountConsumed;
+     *         console2.log("-------- Processing outflow --------remainingAssets", remainingAssets);
+     *         if (remainingAssets < 100) remainingAssets = 0; //rounding dust protection
+     *
+     *         console2.log("!!-------- Processing outflow --------sharesConsumed", sharesConsumed);
+     *         console2.log("!!-------- Processing outflow --------availableShares", availableShares);
+     *         if (sharesConsumed == availableShares) {
+     *             console2.log("-------- Processing outflow --------sharesConsumed == availableShares");
+     *             unchecked {
+     *                 ++currentIndex;
+     *             }
+     *         }
+     *
+     *     }
+     *
+     *     userLedger[user][yieldSource].unconsumedEntries = currentIndex;
+     *
+     *     uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+     *     console2.log("-------- Processing outflow --------amountAssets", amountAssets);
+     *     console2.log("-------- Processing outflow --------costBasis", costBasis);
+     *     console2.log("-------- Processing outflow --------profit", profit);
+     *
+     *     if (profit > 0) {
+     *         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
+     *         if (config.feePercent == 0) revert FEE_NOT_SET();
+     *
+     *
+     *         // Calculate fee in assets but don't transfer - let the executor handle it
+     *         feeAmount = (profit * config.feePercent) / 10_000;
+     *     }
+     * }
+     */
+    function _applyDustProtection(uint256 value) internal pure returns (uint256) {
+        return _isDust(value) ? 0 : value;
+    }
+
+    function _isDust(uint256 value) internal pure returns (bool) {
+        return value < 100;
     }
 
     function _getAddress(bytes32 id_) internal view returns (address) {
