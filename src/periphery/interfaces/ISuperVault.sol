@@ -12,6 +12,7 @@ interface ISuperVault {
     //////////////////////////////////////////////////////////////*/
     error ZERO_AMOUNT();
     error ZERO_ADDRESS();
+    error ZERO_LENGTH();
     error YIELD_SOURCE_ALREADY_EXISTS();
     error YIELD_SOURCE_NOT_FOUND();
     error INVALID_ALLOCATION();
@@ -54,7 +55,7 @@ interface ISuperVault {
     //////////////////////////////////////////////////////////////*/
 
     event YieldSourceAdded(address indexed source, address indexed oracle);
-    event YieldSourceRemoved(address indexed source);
+    event YieldSourceDeactivated(address indexed source);
     event YieldSourceProposed(address indexed source, address indexed oracle, uint256 effectiveTime);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
     event YieldSourceReactivated(address indexed source);
@@ -66,6 +67,9 @@ interface ISuperVault {
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
     /// @notice Event emitted when a deposit request is fulfilled
     event DepositFulfilled(address indexed controller, address indexed owner, uint256 shares);
+    event DepositRequestCancelled(address indexed controller, address sender);
+    event RedeemRequestCancelled(address indexed controller, address sender);
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -78,13 +82,16 @@ interface ISuperVault {
     }
 
     struct FulfillmentVars {
-        uint256 totalRequestedAssets;
-        uint256 totalAssets;
-        uint256 totalSupply;
-        uint256 pricePerShare;
-        uint256 vaultDecimals;
-        address prevHook;
-        uint256 spentAssets;
+        // Common variables used in both deposit and redeem flows
+        uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
+        uint256 spentAmount; // Running total of assets/shares spent in hooks
+        uint256 pricePerShare; // Current price per share, used for calculations
+        uint256 requestedAmount; // Individual user's requested amount
+        address prevHook; // Previous hook in sequence for hook chaining
+        // Deposit-specific variables
+        uint256 availableAmount; // Only used in deposit to check initial balance
+        // Variables for share calculations
+        uint256 shares; // Used in deposit for minting shares
     }
 
     struct SharePricePoint {
@@ -112,23 +119,11 @@ interface ISuperVault {
     }
 
     struct SuperVaultState {
-        /// @dev Shares that can be claimed using `mint()`
-        uint256 maxMint;
-        /// @dev Assets that can be claimed using `withdraw()`
-        uint256 maxWithdraw;
-        /// @dev Remaining deposit request in assets
         uint256 pendingDepositRequest;
-        /// @dev Remaining redeem request in shares
         uint256 pendingRedeemRequest;
-        /// @dev Assets that can be claimed using `claimCancelDepositRequest()`
-        uint256 claimableCancelDepositRequest;
-        /// @dev Shares that can be claimed using `claimCancelRedeemRequest()`
-        uint256 claimableCancelRedeemRequest;
-        /// @dev Indicates whether the depositRequest was requested to be cancelled
-        bool pendingCancelDepositRequest;
-        /// @dev Indicates whether the redeemRequest was requested to be cancelled
-        bool pendingCancelRedeemRequest;
-        /// @dev FIFO queue of share price points for tracking entry prices
+        uint256 maxMint;
+        uint256 maxWithdraw;
+        uint256 sharePricePointCursor;
         SharePricePoint[] sharePricePoints;
     }
 
@@ -143,6 +138,13 @@ interface ISuperVault {
     function getHookRootEffectiveTime() external view returns (uint256);
     function getYieldSourcesList() external view returns (address[] memory);
     function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
+
+    /// @notice Get the current price per share of the SuperVault
+    /// @dev If total supply is 0, returns 1 unit in vault decimals as the initial price per share.
+    /// Otherwise, calculates the current price based on total assets and total supply.
+    /// @return pricePerShare The current price per share in vault decimals (1 share = pricePerShare / 10^decimals
+    /// assets)
+    function getSuperVaultPPS() external view returns (uint256 pricePerShare);
 
     /*//////////////////////////////////////////////////////////////
                             ADMIN FUNCTIONS
@@ -161,9 +163,9 @@ interface ISuperVault {
     /// @param newOracle Address of the new oracle
     function updateYieldSourceOracle(address source, address newOracle) external;
 
-    /// @notice Remove a yield source
-    /// @param source Address of the yield source to remove
-    function removeYieldSource(address source) external;
+    /// @notice Deactivate a yield source
+    /// @param source Address of the yield source to deactivate
+    function deactivateYieldSource(address source) external;
 
     /// @notice Reactivate a previously removed yield source
     /// @param source Address of the yield source to reactivate
@@ -184,4 +186,8 @@ interface ISuperVault {
     /// @param feeBps New fee in basis points
     /// @param recipient New fee recipient address
     function updateFeeConfig(uint256 feeBps, address recipient) external;
+
+    function cancelDeposit(address controller) external;
+
+    function cancelRedeem(address controller) external;
 }

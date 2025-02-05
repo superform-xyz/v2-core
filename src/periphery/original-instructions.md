@@ -12,7 +12,7 @@ The EIP7540 must be followed to the letter.
 # Core Functionalities
 
 
-1. Yield Source Management and Configuration
+1. Yield Source Management and Configuration - COMPLETE
     1. Global configurations for
         1. VaultCap: Maximum assets per individual yield source - used to limit the amount of assets that can be deposited into a single yield source in allocations by managers
         2. SuperVaultCap: Maximum total assets across all yield sources - used to limit the amount of assets that can be deposited into the vault by users
@@ -29,10 +29,10 @@ The EIP7540 must be followed to the letter.
         1. Associated yield source oracle address
         2. Active status
     6. Configure the fee in BPS for the vault with a given recipient address gated by a role manager
-2. Ability to request to deposit assets via requestDeposit of ERC7540
+2. Ability to request to deposit assets via requestDeposit of ERC7540  - COMPLETE
     1. Users send assets via ERC7540 requestDeposit
     2. Assets are transferred to the vault for future allocation by a strategist
-3. Strategists take each user address's address to fulfill the deposit and pass it to a 'fulfillDepositRequests' function
+3. Strategists take each user address's address to fulfill the deposit and pass it to a 'fulfillDepositRequests' function  - COMPLETE
     1. Funds deposited by the users can be deposited via a fulfillDepositRequests function by a keeper (fulfillment of each user request must be done in full)
     2. This fulfillment happens to the yield sources that are active and have the hook addresses that are allowed to be used via the merkle root check
     3. Calldata is prebuilt and passed into each hook build function. Each hook build function returns an Execution struct. This struct contains the target (which is a yield source present in this system) and the calldata to be executed on the target. For this purpose v2-core hooks are used.
@@ -46,10 +46,10 @@ The EIP7540 must be followed to the letter.
     3. The function will then execute the allocations one by one by calling the appropriate selectors and calldata passed in. Each hook build function of a hook returns an Execution struct. This struct contains the target and the calldata passed in to be executed on the target. For this purpose v2-core is used.
     4. VaultCap, MaxAllocationRate and VaultThreshold must be checked accordingly during the allocation process
         1. For MaxAllocationRate, we temporarly calculate the allocation percentage for each yield source and check if it is within the limit
-5. User claims their shares by calling ERC4626 deposit
+5. User claims their shares by calling ERC4626 deposit - COMPLETE
     1. The deposit function will check if the user has any shares to claim
     2. If the user has shares to claim, the shares are transferred to the user
-6. Ability to request to redeem assets
+6. Ability to request to redeem assets - COMPLETE
     1. Users send approved vault shares to redeem via requestRedeem of ERC7540
     2. Shares are burned and a request to redeem is placed in a queue
 7. Strategists take each user address's address to fulfill the redeem and pass it to a 'fulfillRedeemRequests' function
@@ -72,7 +72,7 @@ The EIP7540 must be followed to the letter.
     7. This function assumes the keeper knows exactly the match needed
     8. For users receiving shares, an entry is inscribed into the accounting ledger system to track that action and the respective PPS
     9. For users receiving assets, the ledger is looked upon to get entries for the user's assets. Given we inscribed shares in deposit(), we must convert shares to assets at each PPS when it was inscribed, to properly determine the PNL in assets.
-9. Ability to claim their assets by calling ERC4626 redeem
+9. Ability to claim their assets by calling ERC4626 redeem - COMPLETE
     1. Each user can call ERC4626 redeem to get their assets once in claimable state
     2. The redeem function will check if the user has any assets to claim
     3. If the user has assets to claim, the assets are transferred to the user
@@ -81,7 +81,7 @@ The EIP7540 must be followed to the letter.
     1. A keeper is able to call claim with a list of yield sources to claim from and approved selectors which are matched against the merkle root
     2. Calldata is prebuilt and passed into each hook build function. Each hook build function returns an Execution struct. This struct contains the target (which is a yield source present in this system) and the calldata to be executed on the target. For this purpose v2-core hooks are used.
     3. The claimed rewards are available in the vault's balance. Strategists can pass in these amounts to allocate them to yield sources to reinvest (by passing a swap hook)
-11. Implement ERC7540 cancelation flow of requests
+11. Implement ERC7540 cancelation flow of requests  - COMPLETE
     1. Users are able to call cancelRedeemRequest and cancelDepositRequest to cancel their requests
     2. This is made according to IERC7540CancelDeposit and IERC7540CancelRedeem
     3. Other functions should have checks to ensure they cannot act upon requests that have a cancelation request
