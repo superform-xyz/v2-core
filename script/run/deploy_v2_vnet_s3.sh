@@ -235,7 +235,7 @@ read_branch_latest() {
         content="{\"networks\":{},\"updated_at\":null}"
     fi
    
-    echo "$content"
+    echo "$content" | jq '.'
 }
 
 # Generate salt for a network
