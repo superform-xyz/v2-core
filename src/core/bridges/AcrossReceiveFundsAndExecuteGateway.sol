@@ -132,8 +132,9 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
 
         console2.log("--------- offset6", offset);
 
-        codeLength = msg.data.length;
-        console2.log("--------- calldata length", msg.data.length);
+        codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        offset += 32;
+        console2.log("--------- calldata length", codeLength);
 
         userOp.callData = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
