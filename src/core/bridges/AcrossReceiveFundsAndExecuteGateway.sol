@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 // external
 import {
     IMinimalEntryPoint, PackedUserOperation
@@ -47,13 +49,15 @@ import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
 /// @notice  userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, 72, 32), 0);
 /// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 104, 32), 0);
 /// @notice  userOp.initCode = BytesLib.slice(message, 104, codeLength);
-/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 136, 32), 0);
-/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 168, 32), 0);
-/// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 168, 32), 0);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 200, 32), 0);
-/// @notice  userOp.paymasterAndData = BytesLib.slice(message, 200, codeLength);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 232, 32), 0);
-/// @notice  userOp.signature = BytesLib.slice(message, 232, codeLength);
+/// @notice  codeLength = msg.data.length
+/// @notice  userOp.callData = BytesLib.slice(message, 104 + codeLength, codeLength);
+/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 104 + codeLength, 32), 0);
+/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 136 + codeLength, 32), 0);   
+/// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 168 + codeLength, 32), 0);
+/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 200 + codeLength, 32), 0);  
+/// @notice  userOp.paymasterAndData = BytesLib.slice(message, 200 + codeLength, codeLength);
+/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 232 + codeLength, 32), 0);
+/// @notice  userOp.signature = BytesLib.slice(message, 296 + codeLength, codeLength);
 contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
@@ -95,33 +99,70 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         // decode instruction
         uint256 offset = 0;
         address account = BytesLib.toAddress(BytesLib.slice(message, offset, 20), 0);
+
+        console2.log("--------- account", account);
         offset += 20;
+        console2.log("--------- offset1", offset);
+
         uint256 intentAmount = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        console2.log("--------- intentAmount", intentAmount);
         offset += 32;
+        console2.log("--------- offset2", offset);
 
         PackedUserOperation memory userOp;
         userOp.sender = BytesLib.toAddress(BytesLib.slice(message, offset, 20), 0);
+        console2.log("--------- userOp.sender", userOp.sender);
+
         offset += 20;
+        console2.log("--------- offset3", offset);
+
         userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        console2.log("--------- userOp.nonce", userOp.nonce);
+
         offset += 32;
+        console2.log("--------- offset4", offset);
+
         uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        console2.log("--------- codeLength", codeLength);
         offset += 32;
+        console2.log("--------- offset5", offset);
+
         userOp.initCode = BytesLib.slice(message, offset, codeLength);
+        //offset += codeLength;
+
+        console2.log("--------- offset6", offset);
+
+        codeLength = msg.data.length;
+        console2.log("--------- calldata length", msg.data.length);
+
+        userOp.callData = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
+
+        console2.log("--------- offset6", offset);
         userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, offset, 32), 0);
+
         offset += 32;
+        console2.log("--------- offset7", offset);
+
         userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+        console2.log("--------- offset8", offset);
+
         userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+        console2.log("--------- offset9", offset);
         codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+        console2.log("--------- codeLength", codeLength);
         userOp.paymasterAndData = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
+        console2.log("--------- offset9", offset);
         codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+        console2.log("--------- codeLength", codeLength);
         userOp.signature = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
+        console2.log("--------- offset10", offset);
 
         IERC20 token = IERC20(tokenSent);
 
