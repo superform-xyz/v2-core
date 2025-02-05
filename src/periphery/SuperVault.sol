@@ -620,6 +620,57 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         _checkVaultCaps(inflowTargets);
     }
 
+    /// @inheritdoc ISuperVault
+    function claimRewards(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata
+    )
+        external
+        onlyKeeper
+        whenNotPaused
+    {
+        uint256 hooksLength = hooks.length;
+        if (hooksLength == 0) revert ZERO_LENGTH();
+        if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        address prevHook;
+        // Process each hook in sequence
+        for (uint256 i; i < hooksLength;) {
+            // Validate hook via merkle proof
+            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+
+            // Build executions for this hook
+            ISuperHook hookContract = ISuperHook(hooks[i]);
+            Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata[i]);
+            // prevent any hooks with more than one execution
+            if (executions.length > 1) revert INVALID_HOOK();
+
+            // Validate hook type is neither INFLOW nor OUTFLOW
+            ISuperHook.HookType hookType = ISuperHookResult(hooks[i]).hookType();
+            if (hookType == ISuperHook.HookType.INFLOW || hookType == ISuperHook.HookType.OUTFLOW) {
+                revert INVALID_HOOK();
+            }
+
+            // Validate target is an active yield source
+            YieldSource storage source = yieldSources[executions[0].target];
+            if (!source.isActive) revert INVALID_YIELD_SOURCE();
+
+            // Execute the transaction
+            (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+            if (!success) revert EXECUTION_FAILED();
+
+            // Update prevHook for next iteration
+            prevHook = hooks[i];
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/

@@ -249,6 +249,18 @@ interface ISuperVault {
     )
         external;
 
+    /// @notice Claim rewards from yield sources
+    /// @dev Only callable by keeper role. Hooks must be neither INFLOW nor OUTFLOW type.
+    /// @param hooks Array of hooks to use for claiming rewards
+    /// @param hookProofs Array of merkle proofs for hooks
+    /// @param hookCalldata Array of calldata for hooks
+    function claimRewards(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata
+    )
+        external;
+
     /// @notice Pause all vault operations except emergency withdrawals
     function pause() external;
 

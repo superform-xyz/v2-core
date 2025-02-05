@@ -85,14 +85,14 @@ The EIP7540 must be followed to the letter.
     1. Users are able to call cancelRedeemRequest and cancelDepositRequest to cancel their requests
     2. This is made according to IERC7540CancelDeposit and IERC7540CancelRedeem
     3. Other functions should have checks to ensure they cannot act upon requests that have a cancelation request
-12. Access Control 
+12. Access Control    - COMPLETE
     1. Transfer strategist role to new address
     2. Strategist-only functions for critical operations
     3. Cannot transfer to zero address
-13. Emergency Controls
+13. Emergency Controls   - COMPLETE
     1. Emergency pause functionality
     2. Emergency withdrawal mechanisms
-14. Relevant interfaces for SuperVaults
+14. Relevant interfaces for SuperVaults   - COMPLETE
     1. All errors in CAMEL_CASE
     2. All events and structs are placed in this interface
     3. Should have the scaffolding of the main functions that are core to this contract (it shouldn't inherit or put functions from ERC7540 or ERC4626)
