@@ -40,7 +40,7 @@ The EIP7540 must be followed to the letter.
         1. Note, when redeeming, we only know assets, but here we inscribed shares
     5. All users' requests fulfilled this way are moved to claimable and each user can call ERC4626 deposit to get their shares
     6. Only a single hooks, yield sources and calldata sequence is used for all users being fulfilled at once
-4. Ability to allocate funds deployed by the SuperVault in any way desired (withdraw/deposits at will), via an 'allocate' function by strategists
+4. Ability to allocate funds deployed by the SuperVault in any way desired (withdraw/deposits at will), via an 'allocate' function by strategists - COMPLETE
     1. Strategists pass a list of yield sources, calldata and hooks per yield source, proofs of hooks per yield source to a function that will execute the allocations
     2. The function will verify the selectors via Merkle proof verification
     3. The function will then execute the allocations one by one by calling the appropriate selectors and calldata passed in. Each hook build function of a hook returns an Execution struct. This struct contains the target and the calldata passed in to be executed on the target. For this purpose v2-core is used.
@@ -98,7 +98,8 @@ The EIP7540 must be followed to the letter.
     3. Should have the scaffolding of the main functions that are core to this contract (it shouldn't inherit or put functions from ERC7540 or ERC4626)
     4. Format according to solidity natspec (https://docs.soliditylang.org/en/latest/style-guide.html)  
 15. SuperVaults factory
-    1. Create new SuperVaults on demand with new parameters
+    1. Proxy Implementation pattern for SuperVaults to reduce init size
+    2. Create new SuperVaults on demand with new parameters
         1. **Vault Cap:** Hard cap on the total allocation to a single vault (e.g., 1000000000 USDC).
         2. **Super Vault Cap**: Total cap on the SuperVault
         3. **Vault Threshold**: Vaults must meet a threshold total value locked (e.g., 1000000 USDC) to be eligible for allocations, reducing risk from low-liquidity pools.

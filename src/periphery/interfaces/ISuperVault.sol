@@ -2,6 +2,7 @@
 pragma solidity =0.8.28;
 
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 
 /// @title ISuperVault
 /// @notice Interface for SuperVault contract that manages multiple yield sources
@@ -30,8 +31,10 @@ interface ISuperVault {
     error INVALID_CONTROLLER_OR_OPERATOR();
     error UNAUTHORIZED();
     error INVALID_ASSET();
+    error INVALID_MANAGER();
     error INVALID_STRATEGIST();
     error INVALID_KEEPER();
+    error INVALID_EMERGENCY_ADMIN();
     error INVALID_AMOUNT();
     error INVALID_OWNER();
     error INVALID_CONTROLLER();
@@ -51,6 +54,11 @@ interface ISuperVault {
     error INVALID_DEPOSIT_CLAIM();
     error NOT_IMPLEMENTED();
     error INCOMPLETE_DEPOSIT_MATCH();
+    error PAUSED();
+    error NOT_PAUSED();
+    error EMERGENCY_WITHDRAWAL_FAILED();
+    error INSUFFICIENT_FREE_ASSETS();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -70,6 +78,10 @@ interface ISuperVault {
     event DepositFulfilled(address indexed controller, address indexed owner, uint256 shares);
     event DepositRequestCancelled(address indexed controller, address sender);
     event RedeemRequestCancelled(address indexed controller, address sender);
+    event EmergencyWithdrawal(address indexed recipient, uint256 assets);
+    event Paused(address indexed account);
+    event Unpaused(address indexed account);
+    event StrategistTransferred(address indexed oldStrategist, address indexed newStrategist);
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -143,6 +155,17 @@ interface ISuperVault {
         SharePricePoint[] sharePricePoints;
     }
 
+    struct AllocationVars {
+        // Hook execution variables
+        address prevHook;
+        uint256 amount;
+        // Current yield source state
+        uint256 currentYieldSourceAssets;
+        // Hook type and execution
+        ISuperHook.HookType hookType;
+        Execution[] executions;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -213,4 +236,34 @@ interface ISuperVault {
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
     function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external;
+
+    /// @notice Allocate funds between yield sources
+    /// @dev Only callable by strategist role. Allows reallocation of funds between yield sources.
+    /// @param hooks Array of hooks to use for allocations
+    /// @param hookProofs Array of merkle proofs for hooks
+    /// @param hookCalldata Array of calldata for hooks
+    function allocate(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata
+    )
+        external;
+
+    /// @notice Pause all vault operations except emergency withdrawals
+    function pause() external;
+
+    /// @notice Unpause vault operations
+    function unpause() external;
+
+    /// @notice Emergency withdraw free assets from the vault
+    /// @dev Only works when paused and only transfers free assets (not those in yield sources)
+    /// @param recipient Address to receive the withdrawn assets
+    /// @param amount Amount of free assets to withdraw
+    function emergencyWithdraw(address recipient, uint256 amount) external;
+
+    /// @notice Set an address for a given role
+    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
+    /// @param role The role identifier
+    /// @param account The address to set for the role
+    function setAddress(bytes32 role, address account) external;
 }

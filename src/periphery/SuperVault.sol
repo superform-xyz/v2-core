@@ -5,7 +5,6 @@ pragma solidity =0.8.28;
 import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { AccessControl } from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
@@ -24,7 +23,7 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 /// @title SuperVault
 /// @notice A vault that allows users to deposit and withdraw assets across multiple yield sources
 /// @author SuperForm Labs
-contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVault {
+contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -32,10 +31,14 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
-    bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
-    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
     uint256 public constant ONE_WEEK = 7 days;
     uint256 private constant REQUEST_ID = 0;
+
+    // Role identifiers
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
+    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
+    bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
 
     // EIP712 TypeHash
     bytes32 public constant AUTHORIZE_OPERATOR_TYPEHASH =
@@ -58,6 +61,9 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /*//////////////////////////////////////////////////////////////
                                 STATE
     //////////////////////////////////////////////////////////////*/
+
+    // Role-based access control
+    mapping(bytes32 => address) public addresses;
 
     // Global configuration
     GlobalConfig public globalConfig;
@@ -84,23 +90,58 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     // Authorization tracking
     mapping(address controller => mapping(bytes32 nonce => bool used)) private _authorizations;
 
+    // Emergency controls
+    bool public paused;
+
+    /// @notice Modifier to check if contract is not paused
+    modifier whenNotPaused() {
+        if (paused) revert PAUSED();
+        _;
+    }
+
+    // Modifiers for role checks
+    modifier onlyManager() {
+        if (msg.sender != addresses[MANAGER_ROLE]) revert UNAUTHORIZED();
+        _;
+    }
+
+    modifier onlyStrategist() {
+        if (msg.sender != addresses[STRATEGIST_ROLE]) revert UNAUTHORIZED();
+        _;
+    }
+
+    modifier onlyKeeper() {
+        if (msg.sender != addresses[KEEPER_ROLE]) revert UNAUTHORIZED();
+        _;
+    }
+
+    modifier onlyEmergencyAdmin() {
+        if (msg.sender != addresses[EMERGENCY_ADMIN_ROLE]) revert UNAUTHORIZED();
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+
     constructor(
         address asset_,
         string memory name_,
         string memory symbol_,
+        address manager_,
         address strategist_,
         address keeper_,
+        address emergencyAdmin_,
         GlobalConfig memory globalConfig_,
         FeeConfig memory feeConfig_
     )
         ERC20(name_, symbol_)
     {
         if (asset_ == address(0)) revert INVALID_ASSET();
+        if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (keeper_ == address(0)) revert INVALID_KEEPER();
+        if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
         if (globalConfig_.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (globalConfig_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (globalConfig_.maxAllocationRate == 0 || globalConfig_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -109,12 +150,16 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         if (globalConfig_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
         if (feeConfig_.feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (feeConfig_.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
+
         (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
         _underlyingDecimals = success ? assetDecimals : 18;
         _asset = IERC20(asset_);
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(STRATEGIST_ROLE, strategist_);
-        _grantRole(KEEPER_ROLE, keeper_);
+
+        // Initialize roles
+        addresses[MANAGER_ROLE] = manager_;
+        addresses[STRATEGIST_ROLE] = strategist_;
+        addresses[KEEPER_ROLE] = keeper_;
+        addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
 
         // Initialize EIP712 domain separator
         _NAME_HASH = keccak256(bytes("SuperVault"));
@@ -132,14 +177,18 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     //--ERC7540--
 
     /// @inheritdoc IERC7540Deposit
-    function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256) {
+    function requestDeposit(
+        uint256 assets,
+        address controller,
+        address owner
+    )
+        external
+        whenNotPaused
+        returns (uint256)
+    {
         if (assets == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
-
-        // Check against SuperVaultCap
-        // TODO: Note to Vik - this check here increases a lot the gas costs for the user due to totalAssets() call
-        if (totalAssets() + assets > globalConfig.superVaultCap) revert VAULT_CAP_EXCEEDED();
 
         if (_asset.balanceOf(owner) < assets) revert INVALID_AMOUNT();
 
@@ -173,7 +222,15 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     }
 
     /// @inheritdoc IERC7540Redeem
-    function requestRedeem(uint256 shares, address controller, address owner) external returns (uint256) {
+    function requestRedeem(
+        uint256 shares,
+        address controller,
+        address owner
+    )
+        external
+        whenNotPaused
+        returns (uint256)
+    {
         if (shares == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
@@ -266,7 +323,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         bytes[] calldata hookCalldata
     )
         external
-        onlyRole(STRATEGIST_ROLE)
+        onlyKeeper
     {
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
@@ -282,8 +339,12 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         vars.availableAmount = _asset.balanceOf(address(this));
         if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
-        // Process hooks
-        vars = _processHooks(hooks, hookProofs, hookCalldata, vars, true);
+        // Process hooks and get targeted yield sources
+        address[] memory targetedYieldSources;
+        (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, true);
+
+        // Check vault caps after all hooks are processed
+        _checkVaultCaps(targetedYieldSources);
 
         vars.pricePerShare = getSuperVaultPPS();
 
@@ -322,7 +383,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         bytes[] calldata hookCalldata
     )
         external
-        onlyRole(STRATEGIST_ROLE)
+        onlyKeeper
     {
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
@@ -335,7 +396,8 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         vars.totalRequestedAmount = _validateRequests(usersLength, users, false);
 
         // Process hooks
-        vars = _processHooks(hooks, hookProofs, hookCalldata, vars, false);
+        address[] memory targetedYieldSources;
+        (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, false);
 
         vars.pricePerShare = getSuperVaultPPS();
 
@@ -372,13 +434,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @notice Match redeem requests with deposit requests directly, without accessing yield sources
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
-    function matchRequests(
-        address[] calldata redeemUsers,
-        address[] calldata depositUsers
-    )
-        external
-        onlyRole(STRATEGIST_ROLE)
-    {
+    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external onlyStrategist {
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
         if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
@@ -473,13 +529,104 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         }
     }
 
+    /// @inheritdoc ISuperVault
+    function allocate(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata
+    )
+        external
+        onlyStrategist
+    {
+        uint256 hooksLength = hooks.length;
+        if (hooksLength == 0) revert ZERO_LENGTH();
+        if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        AllocationVars memory vars;
+        address[] memory inflowTargets = new address[](hooksLength);
+        uint256 inflowCount;
+        // Process each hook in sequence
+        for (uint256 i; i < hooksLength;) {
+            // Validate hook via merkle proof
+            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+
+            // Build executions for this hook
+            ISuperHook hookContract = ISuperHook(hooks[i]);
+            vars.executions = hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
+            // prevent any hooks with more than one execution
+            if (vars.executions.length > 1) revert INVALID_HOOK();
+
+            // Get amount from hook
+            vars.amount = ISuperHookInflowOutflow(hooks[i]).decodeAmount(hookCalldata[i]);
+
+            // Validate target is an active yield source
+            YieldSource storage source = yieldSources[vars.executions[0].target];
+            if (!source.isActive) revert INVALID_YIELD_SOURCE();
+
+            vars.hookType = ISuperHookResult(hooks[i]).hookType();
+            // For inflows, check allocation rates and track targets
+            if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                // Get current total assets in yield source
+                vars.currentYieldSourceAssets = IERC4626(vars.executions[0].target).convertToAssets(
+                    IERC4626(vars.executions[0].target).balanceOf(address(this))
+                );
+
+                // Check allocation rate
+                if (
+                    (vars.currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets())
+                        > globalConfig.maxAllocationRate
+                ) {
+                    revert MAX_ALLOCATION_RATE_EXCEEDED();
+                }
+
+                // Check vault threshold
+                if (vars.currentYieldSourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+
+                // Track inflow target
+                inflowTargets[inflowCount++] = vars.executions[0].target;
+
+                // Approve spending
+                _asset.approve(vars.executions[0].target, vars.amount);
+            }
+
+            // Execute the transaction
+            (bool success,) =
+                vars.executions[0].target.call{ value: vars.executions[0].value }(vars.executions[0].callData);
+            if (!success) revert EXECUTION_FAILED();
+
+            // Reset approval if it was an inflow
+            if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                _asset.approve(vars.executions[0].target, 0);
+            }
+
+            // Update prevHook for next iteration
+            vars.prevHook = hooks[i];
+
+            unchecked {
+                ++i;
+            }
+        }
+        // Resize array to actual count if needed
+        if (inflowCount < hooksLength) {
+            // Get the memory pointer of the array
+            assembly {
+                mstore(inflowTargets, inflowCount)
+            }
+        }
+
+        // Check vault caps for all inflow targets after processing
+        _checkVaultCaps(inflowTargets);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Propose a new yield source
     /// @param source Address of the yield source
     /// @param oracle Address of the yield source oracle
-    function proposeYieldSource(address source, address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function proposeYieldSource(address source, address oracle) external onlyManager {
         if (source == address(0)) revert INVALID_YIELD_SOURCE();
         if (oracle == address(0)) revert INVALID_ORACLE();
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
@@ -519,7 +666,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @notice Update oracle for an existing yield source
     /// @param source Address of the yield source
     /// @param newOracle Address of the new oracle
-    function updateYieldSourceOracle(address source, address newOracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateYieldSourceOracle(address source, address newOracle) external onlyManager {
         if (newOracle == address(0)) revert INVALID_ORACLE();
         YieldSource storage yieldSource = yieldSources[source];
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
@@ -532,7 +679,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
     /// @notice Deactivate a yield source
     /// @param source Address of the yield source to deactivate
-    function deactivateYieldSource(address source) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function deactivateYieldSource(address source) external onlyManager {
         YieldSource storage yieldSource = yieldSources[source];
         if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_FOUND();
 
@@ -546,7 +693,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
     /// @notice Reactivate a previously removed yield source
     /// @param source Address of the yield source to reactivate
-    function reactivateYieldSource(address source) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function reactivateYieldSource(address source) external onlyManager {
         YieldSource storage yieldSource = yieldSources[source];
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
         if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_EXISTS();
@@ -561,7 +708,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
     /// @notice Update global configuration
     /// @param config New global configuration
-    function updateGlobalConfig(GlobalConfig calldata config) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateGlobalConfig(GlobalConfig calldata config) external onlyManager {
         if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (config.maxAllocationRate == 0 || config.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -575,7 +722,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
     /// @notice Propose a new hook root
     /// @param newRoot New hook root to propose
-    function proposeHookRoot(bytes32 newRoot) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function proposeHookRoot(bytes32 newRoot) external onlyManager {
         proposedHookRoot = newRoot;
         hookRootEffectiveTime = block.timestamp + ONE_WEEK;
         emit HookRootProposed(newRoot, hookRootEffectiveTime);
@@ -595,12 +742,57 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @notice Update fee configuration
     /// @param feeBps New fee in basis points
     /// @param recipient New fee recipient
-    function updateFeeConfig(uint256 feeBps, address recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateFeeConfig(uint256 feeBps, address recipient) external onlyManager {
         if (feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
         feeConfig = FeeConfig({ feeBps: feeBps, recipient: recipient });
         emit FeeConfigUpdated(feeBps, recipient);
+    }
+
+    /// @notice Set an address for a given role
+    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
+    /// @param role The role identifier
+    /// @param account The address to set for the role
+    function setAddress(bytes32 role, address account) external onlyManager {
+        // Prevent setting zero address
+        if (account == address(0)) revert ZERO_ADDRESS();
+
+        // Prevent manager from changing themselves
+        if (role == MANAGER_ROLE && account != msg.sender) revert UNAUTHORIZED();
+
+        addresses[role] = account;
+    }
+
+    /// @notice Pause all vault operations except emergency withdrawals
+    function pause() external onlyEmergencyAdmin {
+        if (paused) revert PAUSED();
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
+    /// @notice Unpause vault operations
+    function unpause() external onlyEmergencyAdmin {
+        if (!paused) revert NOT_PAUSED();
+        paused = false;
+        emit Unpaused(msg.sender);
+    }
+
+    /// @notice Emergency withdraw free assets from the vault
+    /// @dev Only works when paused and only transfers free assets (not those in yield sources)
+    /// @param recipient Address to receive the withdrawn assets
+    /// @param amount Amount of free assets to withdraw
+    function emergencyWithdraw(address recipient, uint256 amount) external onlyEmergencyAdmin {
+        if (!paused) revert NOT_PAUSED();
+        if (recipient == address(0)) revert ZERO_ADDRESS();
+
+        // Check we have enough free assets
+        uint256 freeAssets = _asset.balanceOf(address(this));
+        if (amount > freeAssets) revert INSUFFICIENT_FREE_ASSETS();
+
+        // Transfer free assets to recipient
+        _asset.safeTransfer(recipient, amount);
+        emit EmergencyWithdrawal(recipient, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -769,13 +961,13 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @inheritdoc IERC4626
     function convertToShares(uint256 assets) public view override returns (uint256) {
         uint256 supply = totalSupply();
-        return supply == 0 ? assets : assets.mulDiv(supply, totalAssets());
+        return supply == 0 ? assets : Math.mulDiv(assets, supply, totalAssets(), Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToAssets(uint256 shares) public view override returns (uint256) {
         uint256 supply = totalSupply();
-        return supply == 0 ? shares : shares.mulDiv(totalAssets(), supply);
+        return supply == 0 ? shares : Math.mulDiv(shares, totalAssets(), supply, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
@@ -819,7 +1011,15 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     }
 
     /// @inheritdoc IERC7540Deposit
-    function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address controller
+    )
+        public
+        whenNotPaused
+        returns (uint256 shares)
+    {
         _validateController(controller);
         shares = convertToShares(assets);
 
@@ -840,7 +1040,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     }
 
     /// @inheritdoc IERC7540Deposit
-    function mint(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
+    function mint(uint256 shares, address receiver, address controller) public whenNotPaused returns (uint256 assets) {
         _validateController(controller);
 
         SuperVaultState storage state = superVaultState[controller];
@@ -863,7 +1063,16 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256 shares) {
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    )
+        public
+        override
+        whenNotPaused
+        returns (uint256 shares)
+    {
         _validateController(owner);
         shares = convertToShares(assets);
 
@@ -879,7 +1088,16 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     }
 
     /// @inheritdoc IERC4626
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    )
+        public
+        override
+        whenNotPaused
+        returns (uint256 assets)
+    {
         _validateController(owner);
         assets = convertToAssets(shares);
 
@@ -898,10 +1116,10 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
                             ERC165 INTERFACE
     //////////////////////////////////////////////////////////////*/
 
-    function supportsInterface(bytes4 interfaceId) public view override(AccessControl) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return interfaceId == type(IERC7540Vault).interfaceId || interfaceId == type(ISuperVault).interfaceId
             || interfaceId == type(IERC165).interfaceId || interfaceId == type(IERC7741).interfaceId
-            || interfaceId == type(IERC4626).interfaceId || super.supportsInterface(interfaceId);
+            || interfaceId == type(IERC4626).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -998,6 +1216,8 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @param hookCalldata Array of calldata for hooks
     /// @param vars Fulfillment variables
     /// @param isDeposit Whether this is a deposit fulfillment
+    /// @return vars Updated fulfillment variables
+    /// @return targetedYieldSources Array of yield sources targeted by inflow hooks
     function _processHooks(
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
@@ -1006,27 +1226,43 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         bool isDeposit
     )
         internal
-        returns (FulfillmentVars memory)
+        returns (FulfillmentVars memory, address[] memory)
     {
         uint256 hooksLength = hooks.length;
+        // Track targeted yield sources for inflow operations
+        address[] memory targetedYieldSources = new address[](hooksLength);
+        uint256 targetedSourcesCount;
+        address target;
         for (uint256 i; i < hooksLength;) {
             // Validate hook via merkle proof
             if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
 
             // Process hook executions
-            (vars.prevHook, vars.spentAmount) = isDeposit
+            (vars.prevHook, vars.spentAmount, target) = isDeposit
                 ? _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAmount)
                 : _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAmount);
 
+            // Track targeted yield source for inflow operations
+            if (isDeposit) {
+                targetedYieldSources[targetedSourcesCount++] = target;
+            }
+
             unchecked {
-                i++;
+                ++i;
             }
         }
 
         // Verify all amounts were spent
         if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
-        return vars;
+        // Resize array to actual count if needed
+        if (targetedSourcesCount < hooksLength) {
+            assembly {
+                mstore(targetedYieldSources, targetedSourcesCount)
+            }
+        }
+
+        return (vars, targetedYieldSources);
     }
 
     function _processInflowHookExecution(
@@ -1036,15 +1272,11 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         uint256 spentAmount
     )
         internal
-        returns (address, uint256)
+        returns (address, uint256, address)
     {
         // Process common hook execution logic
         (Execution[] memory executions, uint256 amount) =
             _processCommonHookExecution(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW);
-
-        // Validate yield source constraints
-        // Check vault caps
-        if (amount > globalConfig.vaultCap) revert VAULT_CAP_EXCEEDED();
 
         // Get current total assets in yield source
         uint256 currentYieldSourceAssets =
@@ -1074,7 +1306,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         // Update spent assets
         spentAmount += amount;
 
-        return (hook, spentAmount);
+        return (hook, spentAmount, executions[0].target);
     }
 
     function _processOutflowHookExecution(
@@ -1084,7 +1316,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         uint256 spentAmount
     )
         internal
-        returns (address, uint256)
+        returns (address, uint256, address)
     {
         // Process common hook execution logic
         (Execution[] memory executions, uint256 shares) =
@@ -1097,7 +1329,21 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         // Update spent amount (tracking shares)
         spentAmount += shares;
 
-        return (hook, spentAmount);
+        return (hook, spentAmount, executions[0].target);
+    }
+
+    /// @notice Check vault caps for targeted yield sources
+    /// @param targetedYieldSources Array of yield sources to check
+    function _checkVaultCaps(address[] memory targetedYieldSources) internal view {
+        // Note: This check is gas expensive due to getTVL calls
+        for (uint256 i; i < targetedYieldSources.length;) {
+            address source = targetedYieldSources[i];
+            uint256 yieldSourceTVL = IYieldSourceOracle(yieldSources[source].oracle).getTVL(source, address(this));
+            if (yieldSourceTVL > globalConfig.vaultCap) revert VAULT_CAP_EXCEEDED();
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @notice Calculate fee on profit and transfer to recipient
