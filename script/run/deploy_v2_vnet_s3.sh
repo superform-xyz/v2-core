@@ -680,7 +680,7 @@ update_latest_file() {
         latest_file_path="/tmp/latest.json"
 
         # Download latest.json from S3
-        if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path"; then
+        if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path" --quiet; then
             log "INFO" "Successfully downloaded latest.json from S3"
 
             # Read the file and validate JSON
@@ -847,7 +847,7 @@ update_latest_file() {
         log "INFO" "Sending update request to GitHub API"
         echo "$content" | jq '.' > "$latest_file_path"
 
-        if aws s3 cp "$latest_file_path" "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json"; then
+        if aws s3 cp "$latest_file_path" "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" --quiet; then
             log "SUCCESS" "Successfully uploaded latest.json to S3"
         else
             log "ERROR" "Failed to upload latest.json to S3"
