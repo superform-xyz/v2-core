@@ -83,7 +83,7 @@ abstract contract Constants {
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
 
     // oracle keys
-    string internal constant ORACLE_REGISTRY_KEY = "OracleRegistry";
+    string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";

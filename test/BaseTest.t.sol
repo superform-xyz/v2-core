@@ -77,7 +77,7 @@ import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClai
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { OracleRegistry } from "../src/core/accounting/oracles/OracleRegistry.sol";
+import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
 
@@ -128,7 +128,7 @@ struct Addresses {
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
     FluidYieldSourceOracle fluidYieldSourceOracle;
-    OracleRegistry oracleRegistry;
+    SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
 }
 
@@ -288,10 +288,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superRegistry), SUPER_REGISTRY_KEY);
             contractAddresses[chainIds[i]][SUPER_REGISTRY_KEY] = address(A.superRegistry);
 
-            // Deploy OracleRegistry
-            A.oracleRegistry = new OracleRegistry(address(this), new address[](0), new uint256[](0), new address[](0));
-            vm.label(address(A.oracleRegistry), ORACLE_REGISTRY_KEY);
-            contractAddresses[chainIds[i]][ORACLE_REGISTRY_KEY] = address(A.oracleRegistry);
+            // Deploy SuperOracle
+            A.oracleRegistry = new SuperOracle(address(this), new address[](0), new uint256[](0), new address[](0));
+            vm.label(address(A.oracleRegistry), SUPER_ORACLE_KEY);
+            contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A.oracleRegistry);
 
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
             vm.label(address(A.superRbac), SUPER_RBAC_KEY);
@@ -883,7 +883,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_BUNDLER_ID(), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainIds[i], ORACLE_REGISTRY_KEY)
+                superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
         }
     }

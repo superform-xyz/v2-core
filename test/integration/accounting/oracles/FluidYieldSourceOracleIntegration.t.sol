@@ -16,7 +16,7 @@ contract FluidYieldSourceOracleIntegration is BaseE2ETest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        oracle = new FluidYieldSourceOracle(_getContract(ETH, "OracleRegistry"));
+        oracle = new FluidYieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
         yieldSource = IFluidLendingStakingRewards(CHAIN_1_FluidVault);
         underlying = yieldSource.stakingToken();
     }

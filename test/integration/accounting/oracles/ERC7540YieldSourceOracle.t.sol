@@ -16,7 +16,7 @@ contract ERC7540YieldSourceOracleTest is BaseE2ETest {
     function setUp() public virtual override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
-        oracle = new ERC7540YieldSourceOracle(_getContract(ETH, "OracleRegistry"));
+        oracle = new ERC7540YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
         underlying = new MockERC20("Underlying", "UND", 18);
         vault = new Mock7540Vault(IERC20(address(underlying)), "Vault", "VAULT");
     }

@@ -3,8 +3,7 @@ pragma solidity >=0.8.28;
 
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
-import { ERC4626YieldSourceOracle } from
-    "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
 import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
 
@@ -17,7 +16,7 @@ contract GearboxOracleIntegration is BaseE2ETest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        oracle = new ERC4626YieldSourceOracle(_getContract(ETH, "OracleRegistry"));
+        oracle = new ERC4626YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
         yieldSource = IERC4626(CHAIN_1_GearboxVault);
         underlying = yieldSource.asset();
     }
@@ -27,13 +26,10 @@ contract GearboxOracleIntegration is BaseE2ETest {
         assertGt(price, 0);
     }
 
-
     function test_GearboxIntegration_getPricePerShareMultiple() public view {
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(yieldSource);
         uint256[] memory prices = oracle.getPricePerShareMultiple(finalTargets);
         assertGt(prices[0], 0);
     }
-
-
 }

@@ -3,14 +3,14 @@ pragma solidity ^0.8.28;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
-import { IOracleRegistry } from "../../interfaces/accounting/IOracleRegistry.sol";
+import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
 import { AggregatorV3Interface } from "../../interfaces/vendors/chainlink/AggregatorV3Interface.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 
-/// @title OracleRegistry
+/// @title SuperOracle
 /// @author Superform Labs
 /// @notice Registry for managing oracle providers and getting quotes
-contract OracleRegistry is Ownable, IOracleRegistry, IOracle {
+contract SuperOracle is Ownable, ISuperOracle, IOracle {
     /// @notice Mapping of base asset to array of oracle providers
     mapping(address base => mapping(uint256 provider => address oracle)) private oracles;
 
@@ -54,7 +54,7 @@ contract OracleRegistry is Ownable, IOracleRegistry, IOracle {
 
     // -- Get quote functions --
 
-    /// @inheritdoc IOracleRegistry
+    /// @inheritdoc ISuperOracle
     function getQuoteFromProvider(
         uint256 baseAmount,
         address base,
@@ -114,7 +114,7 @@ contract OracleRegistry is Ownable, IOracleRegistry, IOracle {
 
     // -- External configuration functions --
 
-    /// @inheritdoc IOracleRegistry
+    /// @inheritdoc ISuperOracle
     function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
@@ -126,7 +126,7 @@ contract OracleRegistry is Ownable, IOracleRegistry, IOracle {
         _addISO4217Quote(quote);
     }
 
-    /// @inheritdoc IOracleRegistry
+    /// @inheritdoc ISuperOracle
     function queueOracleUpdate(
         address[] calldata bases,
         uint256[] calldata providers,
@@ -150,7 +150,7 @@ contract OracleRegistry is Ownable, IOracleRegistry, IOracle {
         emit OracleUpdateQueued(bases, providers, oracleAddresses, block.timestamp);
     }
 
-    /// @inheritdoc IOracleRegistry
+    /// @inheritdoc ISuperOracle
     function executeOracleUpdate() external {
         if (pendingUpdate.timestamp == 0) revert NO_PENDING_UPDATE();
         if (block.timestamp < pendingUpdate.timestamp + TIMELOCK_PERIOD) revert TIMELOCK_NOT_ELAPSED();
@@ -162,7 +162,7 @@ contract OracleRegistry is Ownable, IOracleRegistry, IOracle {
         delete pendingUpdate;
     }
 
-    /// @inheritdoc IOracleRegistry
+    /// @inheritdoc ISuperOracle
     function getOracleAddress(address base, uint256 provider) external view returns (address oracle) {
         oracle = oracles[base][provider];
         if (oracle == address(0)) revert NO_ORACLES_CONFIGURED();

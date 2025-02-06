@@ -55,7 +55,7 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { OracleRegistry } from "../src/core/accounting/oracles/OracleRegistry.sol";
+import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
 
@@ -133,14 +133,14 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
         );
 
-        // Deploy OracleRegistry
+        // Deploy SuperOracle
         deployedContracts.oracleRegistry = __deployContract(
             deployer,
-            ORACLE_REGISTRY_KEY,
+            SUPER_ORACLE_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, ORACLE_REGISTRY_KEY),
+            __getSalt(configuration.owner, configuration.deployer, SUPER_ORACLE_KEY),
             abi.encodePacked(
-                type(OracleRegistry).creationCode,
+                type(SuperOracle).creationCode,
                 abi.encode(configuration.owner, new address[](0), new uint256[](0), new address[](0))
             )
         );
@@ -257,8 +257,8 @@ contract DeployV2 is Script, Configuration {
         superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, SUPER_EXECUTOR_KEY));
         superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
         superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
-        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, ORACLE_REGISTRY_KEY));
-        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, ORACLE_REGISTRY_KEY));
+        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, SUPER_ORACLE_KEY));
+        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, SUPER_ORACLE_KEY));
     }
 
     /*//////////////////////////////////////////////////////////////

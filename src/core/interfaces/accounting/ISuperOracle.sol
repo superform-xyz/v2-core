@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @title IOracleRegistry
+/// @title ISuperOracle
 /// @author Superform Labs
-/// @notice Interface for Oracle Registry
-interface IOracleRegistry {
+/// @notice Interface for SuperOracle
+interface ISuperOracle {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
