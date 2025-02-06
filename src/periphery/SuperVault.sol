@@ -37,7 +37,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     // Role identifiers
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
-    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
     bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
 
     // EIP712 TypeHash
@@ -76,6 +75,11 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     bytes32 public proposedHookRoot;
     uint256 public hookRootEffectiveTime;
 
+    // Emergency withdrawable configuration
+    bool public emergencyWithdrawable;
+    bool public proposedEmergencyWithdrawable;
+    uint256 public emergencyWithdrawableEffectiveTime;
+
     // Yield source configuration
     mapping(address => YieldSource) public yieldSources;
     address[] public yieldSourcesList;
@@ -90,15 +94,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     // Authorization tracking
     mapping(address controller => mapping(bytes32 nonce => bool used)) private _authorizations;
 
-    // Emergency controls
-    bool public paused;
-
-    /// @notice Modifier to check if contract is not paused
-    modifier whenNotPaused() {
-        if (paused) revert PAUSED();
-        _;
-    }
-
     // Modifiers for role checks
     modifier onlyManager() {
         if (msg.sender != addresses[MANAGER_ROLE]) revert UNAUTHORIZED();
@@ -107,11 +102,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     modifier onlyStrategist() {
         if (msg.sender != addresses[STRATEGIST_ROLE]) revert UNAUTHORIZED();
-        _;
-    }
-
-    modifier onlyKeeper() {
-        if (msg.sender != addresses[KEEPER_ROLE]) revert UNAUTHORIZED();
         _;
     }
 
@@ -130,17 +120,16 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         string memory symbol_,
         address manager_,
         address strategist_,
-        address keeper_,
         address emergencyAdmin_,
         GlobalConfig memory globalConfig_,
-        FeeConfig memory feeConfig_
+        FeeConfig memory feeConfig_,
+        bool emergencyWithdrawable_
     )
         ERC20(name_, symbol_)
     {
         if (asset_ == address(0)) revert INVALID_ASSET();
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
-        if (keeper_ == address(0)) revert INVALID_KEEPER();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
         if (globalConfig_.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (globalConfig_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
@@ -158,7 +147,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Initialize roles
         addresses[MANAGER_ROLE] = manager_;
         addresses[STRATEGIST_ROLE] = strategist_;
-        addresses[KEEPER_ROLE] = keeper_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
 
         // Initialize EIP712 domain separator
@@ -169,6 +157,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
         globalConfig = globalConfig_;
         feeConfig = feeConfig_;
+        emergencyWithdrawable = emergencyWithdrawable_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -177,15 +166,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     //--ERC7540--
 
     /// @inheritdoc IERC7540Deposit
-    function requestDeposit(
-        uint256 assets,
-        address controller,
-        address owner
-    )
-        external
-        whenNotPaused
-        returns (uint256)
-    {
+    function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256) {
         if (assets == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
@@ -222,15 +203,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC7540Redeem
-    function requestRedeem(
-        uint256 shares,
-        address controller,
-        address owner
-    )
-        external
-        whenNotPaused
-        returns (uint256)
-    {
+    function requestRedeem(uint256 shares, address controller, address owner) external returns (uint256) {
         if (shares == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
@@ -323,7 +296,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         bytes[] calldata hookCalldata
     )
         external
-        onlyKeeper
+        onlyStrategist
     {
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
@@ -383,7 +356,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         bytes[] calldata hookCalldata
     )
         external
-        onlyKeeper
+        onlyStrategist
     {
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
@@ -627,8 +600,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         bytes[] calldata hookCalldata
     )
         external
-        onlyKeeper
-        whenNotPaused
+        onlyStrategist
     {
         uint256 hooksLength = hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
@@ -815,26 +787,30 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         addresses[role] = account;
     }
 
-    /// @notice Pause all vault operations except emergency withdrawals
-    function pause() external onlyEmergencyAdmin {
-        if (paused) revert PAUSED();
-        paused = true;
-        emit Paused(msg.sender);
+    /// @notice Propose a change to emergency withdrawable status
+    /// @param newWithdrawable The new emergency withdrawable status to propose
+    function proposeEmergencyWithdrawable(bool newWithdrawable) external onlyManager {
+        proposedEmergencyWithdrawable = newWithdrawable;
+        emergencyWithdrawableEffectiveTime = block.timestamp + ONE_WEEK;
+        emit EmergencyWithdrawableProposed(newWithdrawable, emergencyWithdrawableEffectiveTime);
     }
 
-    /// @notice Unpause vault operations
-    function unpause() external onlyEmergencyAdmin {
-        if (!paused) revert NOT_PAUSED();
-        paused = false;
-        emit Unpaused(msg.sender);
+    /// @notice Execute the proposed emergency withdrawable update after timelock
+    function executeEmergencyWithdrawableUpdate() external {
+        if (block.timestamp < emergencyWithdrawableEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        emergencyWithdrawable = proposedEmergencyWithdrawable;
+        proposedEmergencyWithdrawable = false;
+        emergencyWithdrawableEffectiveTime = 0;
+        emit EmergencyWithdrawableUpdated(emergencyWithdrawable);
     }
 
     /// @notice Emergency withdraw free assets from the vault
-    /// @dev Only works when paused and only transfers free assets (not those in yield sources)
+    /// @dev Only works when emergency withdrawals are enabled
     /// @param recipient Address to receive the withdrawn assets
     /// @param amount Amount of free assets to withdraw
     function emergencyWithdraw(address recipient, uint256 amount) external onlyEmergencyAdmin {
-        if (!paused) revert NOT_PAUSED();
+        if (!emergencyWithdrawable) revert EMERGENCY_WITHDRAWALS_DISABLED();
         if (recipient == address(0)) revert ZERO_ADDRESS();
 
         // Check we have enough free assets
@@ -1062,15 +1038,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC7540Deposit
-    function deposit(
-        uint256 assets,
-        address receiver,
-        address controller
-    )
-        public
-        whenNotPaused
-        returns (uint256 shares)
-    {
+    function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
         _validateController(controller);
         shares = convertToShares(assets);
 
@@ -1091,7 +1059,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC7540Deposit
-    function mint(uint256 shares, address receiver, address controller) public whenNotPaused returns (uint256 assets) {
+    function mint(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
         _validateController(controller);
 
         SuperVaultState storage state = superVaultState[controller];
@@ -1114,16 +1082,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(
-        uint256 assets,
-        address receiver,
-        address owner
-    )
-        public
-        override
-        whenNotPaused
-        returns (uint256 shares)
-    {
+    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256 shares) {
         _validateController(owner);
         shares = convertToShares(assets);
 
@@ -1139,16 +1098,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function redeem(
-        uint256 shares,
-        address receiver,
-        address owner
-    )
-        public
-        override
-        whenNotPaused
-        returns (uint256 assets)
-    {
+    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
         _validateController(owner);
         assets = convertToAssets(shares);
 

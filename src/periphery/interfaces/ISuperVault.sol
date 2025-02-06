@@ -16,7 +16,6 @@ interface ISuperVault {
     error ZERO_LENGTH();
     error YIELD_SOURCE_ALREADY_EXISTS();
     error YIELD_SOURCE_NOT_FOUND();
-    error INVALID_ALLOCATION();
     error INVALID_VAULT_CAP();
     error INVALID_SUPER_VAULT_CAP();
     error INVALID_MAX_ALLOCATION_RATE();
@@ -26,39 +25,28 @@ interface ISuperVault {
     error INVALID_ORACLE();
     error TIMELOCK_NOT_EXPIRED();
     error INVALID_HOOK_ROOT();
-    error INVALID_HOOK_PROOF();
+    error INVALID_HOOK();
     error INVALID_OWNER_OR_OPERATOR();
-    error INVALID_CONTROLLER_OR_OPERATOR();
     error UNAUTHORIZED();
     error INVALID_ASSET();
     error INVALID_MANAGER();
     error INVALID_STRATEGIST();
-    error INVALID_KEEPER();
     error INVALID_EMERGENCY_ADMIN();
     error INVALID_AMOUNT();
-    error INVALID_OWNER();
-    error INVALID_CONTROLLER();
     error INVALID_YIELD_SOURCE();
     error REQUEST_NOT_FOUND();
-    error REQUEST_ALREADY_CANCELLED();
-    error REQUEST_ALREADY_CLAIMED();
     error INVALID_SIGNATURE();
-    error INVALID_HOOK();
-    error INVALID_TARGET();
     error EXECUTION_FAILED();
     error VAULT_CAP_EXCEEDED();
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error VAULT_THRESHOLD_NOT_MET();
     error ARRAY_LENGTH_MISMATCH();
-    error CANCELLATION_IS_PENDING();
     error INVALID_DEPOSIT_CLAIM();
     error NOT_IMPLEMENTED();
     error INCOMPLETE_DEPOSIT_MATCH();
-    error PAUSED();
-    error NOT_PAUSED();
-    error EMERGENCY_WITHDRAWAL_FAILED();
     error INSUFFICIENT_FREE_ASSETS();
-
+    error EMERGENCY_WITHDRAWALS_DISABLED();
+    error INVALID_CONTROLLER();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -74,14 +62,11 @@ interface ISuperVault {
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
-    /// @notice Event emitted when a deposit request is fulfilled
-    event DepositFulfilled(address indexed controller, address indexed owner, uint256 shares);
+    event EmergencyWithdrawableProposed(bool newWithdrawable, uint256 effectiveTime);
+    event EmergencyWithdrawableUpdated(bool withdrawable);
     event DepositRequestCancelled(address indexed controller, address sender);
     event RedeemRequestCancelled(address indexed controller, address sender);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
-    event Paused(address indexed account);
-    event Unpaused(address indexed account);
-    event StrategistTransferred(address indexed oldStrategist, address indexed newStrategist);
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -261,14 +246,8 @@ interface ISuperVault {
     )
         external;
 
-    /// @notice Pause all vault operations except emergency withdrawals
-    function pause() external;
-
-    /// @notice Unpause vault operations
-    function unpause() external;
-
     /// @notice Emergency withdraw free assets from the vault
-    /// @dev Only works when paused and only transfers free assets (not those in yield sources)
+    /// @dev Only transfers free assets (not those in yield sources)
     /// @param recipient Address to receive the withdrawn assets
     /// @param amount Amount of free assets to withdraw
     function emergencyWithdraw(address recipient, uint256 amount) external;
