@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-
-import { console2 } from "forge-std/console2.sol";
-
 // external
 import {
     IMinimalEntryPoint, PackedUserOperation
@@ -154,9 +151,6 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         userOps[0] = userOp;
         // Execute the userOp through EntryPoint
         IMinimalEntryPoint(entryPointAddress).handleOps(userOps, _getSuperBundler());
-
-        console2.log("--------- SuperBundler", _getSuperBundler());
-        console2.log("--------- SuperBundler Balance", IERC20(tokenSent).balanceOf(_getSuperBundler()));
 
         emit AcrossFundsReceivedAndExecuted(account);
     }
