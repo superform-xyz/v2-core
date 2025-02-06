@@ -9,6 +9,8 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
@@ -64,9 +66,12 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
             return 0;
         } else {
+            console2.log("-------- Processing outflow --------");
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
+                console2.log("-------- Processing outflow --------config.feePercent", config.feePercent);
                 feeAmount = _processOutflowV2(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets, usedShares);
+                console2.log("-------- Processing outflow --------feeAmount", feeAmount);
 
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
@@ -194,6 +199,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             LedgerEntry storage entry = entries[currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
+            console2.log("-------- Processing outflow --------availableShares", availableShares);
 
             // if no shares available on current entry, move to the next
             if (availableShares == 0) {
@@ -208,12 +214,18 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             // remove from current entry
             uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+            console2.log("-------- Processing outflow --------availableShares", availableShares);
+            console2.log("-------- Processing outflow --------remainingShares", remainingShares);
+            console2.log("-------- Processing outflow --------sharesConsumed", sharesConsumed);
             entry.amountSharesAvailableToConsume -= sharesConsumed;
             remainingShares -= sharesConsumed;
+            console2.log("-------- Processing outflow --------entry.amountSharesAvailableToConsume", entry.amountSharesAvailableToConsume);
 
             costBasis += sharesConsumed * entry.price / (10 ** decimals);
+            console2.log("-------- Processing outflow --------costBasis", costBasis);
 
             if (sharesConsumed == availableShares) {
+                console2.log("-------- Processing outflow --------sharesConsumed == availableShares");
                 unchecked {
                     ++currentIndex;
                 }
@@ -224,6 +236,9 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         userLedger[user][yieldSource].unconsumedEntries = currentIndex;
 
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+        console2.log("-------- Processing outflow --------amountAssets", amountAssets);
+        console2.log("-------- Processing outflow --------costBasis", costBasis);
+        console2.log("-------- Processing outflow --------profit", profit);
 
         if (profit > 0) {
             YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
@@ -278,6 +293,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             uint256 sharesConsumed =
                 availableShares > remainingSharesAtCurrentPrice ? remainingSharesAtCurrentPrice : availableShares;
             entry.amountSharesAvailableToConsume -= sharesConsumed;
+            console2.log("-------- Processing outflow --------entry.amountSharesAvailableToConsume", entry.amountSharesAvailableToConsume);
             entry.amountSharesAvailableToConsume = _applyDustProtection(entry.amountSharesAvailableToConsume);
 
             uint256 actualAmountConsumed = (sharesConsumed * newPricePerShare) / (10 ** decimals);
@@ -288,6 +304,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             // because of rounding errors when amount is slightly bigger than remainingAssets
             remainingAssets = actualAmountConsumed > remainingAssets ? 0 : remainingAssets - actualAmountConsumed;
+            console2.log("-------- Processing outflow --------remainingAssets", remainingAssets);
             remainingAssets = _applyDustProtection(remainingAssets);
 
             // sum of all sharesConsumed * entry.price = > amount consumed
