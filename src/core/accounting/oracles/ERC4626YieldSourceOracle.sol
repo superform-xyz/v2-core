@@ -6,12 +6,15 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
-
+import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
 
 /// @title ERC4626YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for 4626 Vaults
 contract ERC4626YieldSourceOracle is IYieldSourceOracle {
+    /// @notice USD address constant based on ISO 4217 code
+    address public constant USD = address(840);
+
     /// @inheritdoc IYieldSourceOracle
     function decimals(address yieldSourceAddress) external view returns (uint8) {
         return IERC4626(yieldSourceAddress).decimals();
@@ -82,6 +85,129 @@ contract ERC4626YieldSourceOracle is IYieldSourceOracle {
             }
 
             totalTvls[i] = totalTvl;
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getPricePerShareUSD(
+        address yieldSourceAddress,
+        address base,
+        address oracle
+    )
+        external
+        view
+        returns (uint256 pricePerShareUSD)
+    {
+        // Validate base asset
+        if (base != IERC4626(yieldSourceAddress).asset()) revert INVALID_BASE_ASSET();
+
+        // Get price per share in base asset terms
+        uint256 baseAmount = getPricePerShare(yieldSourceAddress);
+
+        // Convert to USD using oracle
+        pricePerShareUSD = IOracle(oracle).getQuote(baseAmount, base, USD);
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getPricePerShareMultipleUSD(
+        address[] memory yieldSourceAddresses,
+        address[] memory baseAddresses,
+        address[] memory oracleAddresses
+    )
+        external
+        view
+        returns (uint256[] memory pricesPerShareUSD)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != baseAddresses.length || length != oracleAddresses.length) revert ARRAY_LENGTH_MISMATCH();
+
+        pricesPerShareUSD = new uint256[](length);
+
+        for (uint256 i = 0; i < length;) {
+            // Validate base asset
+            if (baseAddresses[i] != IERC4626(yieldSourceAddresses[i]).asset()) revert INVALID_BASE_ASSET();
+
+            // Get price per share in base asset terms
+            uint256 baseAmount = getPricePerShare(yieldSourceAddresses[i]);
+
+            // Convert to USD using oracle
+            pricesPerShareUSD[i] = IOracle(oracleAddresses[i]).getQuote(baseAmount, baseAddresses[i], USD);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLUSD(
+        address yieldSourceAddress,
+        address ownerOfShares,
+        address base,
+        address oracle
+    )
+        external
+        view
+        returns (uint256 tvlUSD)
+    {
+        // Validate base asset
+        if (base != IERC4626(yieldSourceAddress).asset()) revert INVALID_BASE_ASSET();
+
+        // Get TVL in base asset terms
+        uint256 baseAmount = getTVL(yieldSourceAddress, ownerOfShares);
+
+        // Convert to USD using oracle
+        tvlUSD = IOracle(oracle).getQuote(baseAmount, base, USD);
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLMultipleUSD(
+        address[] memory yieldSourceAddresses,
+        address[][] memory ownersOfShares,
+        address[] memory baseAddresses,
+        address[] memory oracleAddresses
+    )
+        external
+        view
+        returns (uint256[][] memory userTvlsUSD, uint256[] memory totalTvlsUSD)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != ownersOfShares.length || length != baseAddresses.length || length != oracleAddresses.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        userTvlsUSD = new uint256[][](length);
+        totalTvlsUSD = new uint256[](length);
+
+        for (uint256 i = 0; i < length;) {
+            // Validate base asset
+            if (baseAddresses[i] != IERC4626(yieldSourceAddresses[i]).asset()) revert INVALID_BASE_ASSET();
+
+            address yieldSource = yieldSourceAddresses[i];
+            address[] memory owners = ownersOfShares[i];
+            uint256 ownersLength = owners.length;
+
+            userTvlsUSD[i] = new uint256[](ownersLength);
+            uint256 totalTvlUSD = 0;
+
+            for (uint256 j = 0; j < ownersLength;) {
+                // Get TVL in base asset terms
+                uint256 baseAmount = getTVL(yieldSource, owners[j]);
+
+                // Convert to USD using oracle
+                uint256 userTvlUSD = IOracle(oracleAddresses[i]).getQuote(baseAmount, baseAddresses[i], USD);
+                userTvlsUSD[i][j] = userTvlUSD;
+                totalTvlUSD += userTvlUSD;
+
+                unchecked {
+                    ++j;
+                }
+            }
+
+            totalTvlsUSD[i] = totalTvlUSD;
             unchecked {
                 ++i;
             }

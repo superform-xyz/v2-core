@@ -3,11 +3,15 @@ pragma solidity >=0.8.28;
 
 import { IStandardizedYield } from "../../interfaces/vendors/pendle/IStandardizedYield.sol";
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
+import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
 
 /// @title ERC5115YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for 5115 Vaults
 contract ERC5115YieldSourceOracle is IYieldSourceOracle {
+    /// @notice USD address constant based on ISO 4217 code
+    address public constant USD = address(840);
+
     /// @inheritdoc IYieldSourceOracle
     function decimals(address) external pure returns (uint8) {
         return 18;
@@ -84,5 +88,148 @@ contract ERC5115YieldSourceOracle is IYieldSourceOracle {
                 ++i;
             }
         }
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getPricePerShareUSD(
+        address yieldSourceAddress,
+        address base,
+        address oracle
+    )
+        external
+        view
+        returns (uint256 pricePerShareUSD)
+    {
+        // For ERC5115, base must be one of the accepted input tokens
+        _validateBaseToken(yieldSourceAddress, base);
+
+        // Get price per share in base asset terms
+        uint256 baseAmount = getPricePerShare(yieldSourceAddress);
+
+        // Convert to USD using oracle
+        pricePerShareUSD = IOracle(oracle).getQuote(baseAmount, base, USD);
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getPricePerShareMultipleUSD(
+        address[] memory yieldSourceAddresses,
+        address[] memory baseAddresses,
+        address[] memory oracleAddresses
+    )
+        external
+        view
+        returns (uint256[] memory pricesPerShareUSD)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != baseAddresses.length || length != oracleAddresses.length) revert ARRAY_LENGTH_MISMATCH();
+
+        pricesPerShareUSD = new uint256[](length);
+
+        for (uint256 i = 0; i < length;) {
+            // For ERC5115, base must be one of the accepted input tokens
+            _validateBaseToken(yieldSourceAddresses[i], baseAddresses[i]);
+
+            // Get price per share in base asset terms
+            uint256 baseAmount = getPricePerShare(yieldSourceAddresses[i]);
+
+            // Convert to USD using oracle
+            pricesPerShareUSD[i] = IOracle(oracleAddresses[i]).getQuote(baseAmount, baseAddresses[i], USD);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLUSD(
+        address yieldSourceAddress,
+        address ownerOfShares,
+        address base,
+        address oracle
+    )
+        external
+        view
+        returns (uint256 tvlUSD)
+    {
+        // For ERC5115, base must be one of the accepted input tokens
+        _validateBaseToken(yieldSourceAddress, base);
+
+        // Get TVL in base asset terms
+        uint256 baseAmount = getTVL(yieldSourceAddress, ownerOfShares);
+
+        // Convert to USD using oracle
+        tvlUSD = IOracle(oracle).getQuote(baseAmount, base, USD);
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLMultipleUSD(
+        address[] memory yieldSourceAddresses,
+        address[][] memory ownersOfShares,
+        address[] memory baseAddresses,
+        address[] memory oracleAddresses
+    )
+        external
+        view
+        returns (uint256[][] memory userTvlsUSD, uint256[] memory totalTvlsUSD)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != ownersOfShares.length || length != baseAddresses.length || length != oracleAddresses.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        userTvlsUSD = new uint256[][](length);
+        totalTvlsUSD = new uint256[](length);
+
+        for (uint256 i = 0; i < length;) {
+            // For ERC5115, base must be one of the accepted input tokens
+            _validateBaseToken(yieldSourceAddresses[i], baseAddresses[i]);
+
+            address yieldSource = yieldSourceAddresses[i];
+            address[] memory owners = ownersOfShares[i];
+            uint256 ownersLength = owners.length;
+
+            userTvlsUSD[i] = new uint256[](ownersLength);
+            uint256 totalTvlUSD = 0;
+
+            for (uint256 j = 0; j < ownersLength;) {
+                // Get TVL in base asset terms
+                uint256 baseAmount = getTVL(yieldSource, owners[j]);
+
+                // Convert to USD using oracle
+                uint256 userTvlUSD = IOracle(oracleAddresses[i]).getQuote(baseAmount, baseAddresses[i], USD);
+                userTvlsUSD[i][j] = userTvlUSD;
+                totalTvlUSD += userTvlUSD;
+
+                unchecked {
+                    ++j;
+                }
+            }
+
+            totalTvlsUSD[i] = totalTvlUSD;
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @notice Validates if a base token is accepted by the yield source as an asset out
+    /// @param yieldSourceAddress The yield source to check
+    /// @param base The token to validate
+    function _validateBaseToken(address yieldSourceAddress, address base) internal view {
+        address[] memory tokensIn = IStandardizedYield(yieldSourceAddress).getTokensOut();
+        bool isValid = false;
+
+        for (uint256 i = 0; i < tokensIn.length;) {
+            if (tokensIn[i] == base) {
+                isValid = true;
+                break;
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (!isValid) revert INVALID_BASE_ASSET();
     }
 }
