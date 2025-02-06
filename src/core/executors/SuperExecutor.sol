@@ -116,8 +116,10 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
-                ISuperHookResult(address(hook)).outAmount()
+                ISuperHookResult(address(hook)).outAmount(),
+                ISuperHookResultOutflow(address(hook)).usedShares()
             );
+
 
             // If there's a fee to collect (only for outflows)
             if (feeAmount > 0) {

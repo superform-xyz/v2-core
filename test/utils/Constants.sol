@@ -107,10 +107,12 @@ abstract contract Constants {
 
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";
+    string public constant ERC5115_VAULT_KEY = "ERC5115";
     string public constant AAVE_VAULT_KEY = "AaveVault";
     string public constant ALOE_USDC_VAULT_KEY = "AloeUSDC";
     string public constant FLUID_VAULT_KEY = "FluidVault";
     string public constant EULER_VAULT_KEY = "EulerVault";
+
     string public constant MORPHO_VAULT_KEY = "MorphoVault";
     string public constant CENTRIFUGE_USDC_VAULT_KEY = "CentrifugeUSDC";
     string public constant MORPHO_GAUNTLET_USDC_PRIME_KEY = "MorphoGauntletUSDCPrime";

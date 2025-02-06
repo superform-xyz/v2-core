@@ -7,16 +7,14 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
 import { MockRegistry } from "../../../mocks/MockRegistry.sol";
+import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../../../src/core/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
 
 import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
+// 4626 vault
 contract YearnV3PriceIntegration is BaseE2ETest {
     MockRegistry nexusRegistry;
     address[] attesters;
@@ -192,7 +190,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         // it should still have 2 entries in the ledger and unconsumed entries index should be 1
         // in a real case scenario, the `redeem` call would have returned amount * 4 (since pps is doubled now)
         // however, in this case, it returns ~amount * 2 (as pps for real Yearn is 1.06$), so we're left with 1 unconsumed entry
-        _executeAndValidateWithdraw(nexusAccount, entry, 2, 1);
+        _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
     }
 
     function test_ValidateFees_TwoEntries_And_FullWithdrawalWithOneTx_Yearn() public {
@@ -292,8 +290,6 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedger.getLedger(nexusAccount, address(yearnVault));
 
-        console2.log("-------- Processing outflow --------entries.length", entries.length);
-        console2.log("-------- Processing outflow --------unconsumedEntries", unconsumedEntries);
         assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
         assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch"); 
     }

@@ -80,13 +80,15 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     function preExecute(address, address account,bytes memory data) external  onlyExecutor {
         assetOut = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0); // tokenOut from data
         outAmount = _getBalance(account, data);
+        usedShares = _getSharesBalance(account, data);
         lockForSP = _decodeBool(data, 138);
         spToken = data.extractYieldSource();
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(account, data) - outAmount ;
+        outAmount = _getBalance(account, data) - outAmount;
+        usedShares = usedShares - _getSharesBalance(account, data);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -104,4 +106,10 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(assetOut).balanceOf(account);
     }
+
+    function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
+        address yieldSource = data.extractYieldSource();
+        return IStandardizedYield(yieldSource).balanceOf(account);
+    }
+
 }

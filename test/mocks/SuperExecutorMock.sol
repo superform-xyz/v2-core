@@ -119,7 +119,8 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
-                ISuperHookResult(address(hook)).outAmount()
+                ISuperHookResult(address(hook)).outAmount(),
+                0
             );
         }
     }

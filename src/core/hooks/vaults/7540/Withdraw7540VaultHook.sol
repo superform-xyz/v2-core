@@ -77,6 +77,7 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         address yieldSource = data.extractYieldSource();
         assetOut = IERC7540(yieldSource).asset();
         outAmount = _getBalance(account, data);
+        usedShares = _getSharesBalance(account, data);
         lockForSP = _decodeBool(data, 105);
         spToken = yieldSource;
     }
@@ -84,6 +85,7 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(account, data) - outAmount;
+        usedShares = usedShares - _getSharesBalance(account, data);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -100,5 +102,10 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(assetOut).balanceOf(account);
+    }
+
+    function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
+        address yieldSource = data.extractYieldSource();
+        return IERC7540(yieldSource).balanceOf(account);
     }
 }
