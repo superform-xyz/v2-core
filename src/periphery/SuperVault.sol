@@ -5,7 +5,6 @@ pragma solidity =0.8.28;
 import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { AccessControl } from "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
@@ -14,13 +13,7 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 // Interfaces
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import {
-    IERC7540Vault,
-    IERC7540Operator,
-    IERC7540Deposit,
-    IERC7540Redeem,
-    IERC7540CancelDeposit,
-    IERC7540CancelRedeem,
-    IERC7741
+    IERC7540Vault, IERC7540Operator, IERC7540Deposit, IERC7540Redeem, IERC7741
 } from "./interfaces/IERC7540Vault.sol";
 
 // Core
@@ -30,17 +23,21 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 /// @title SuperVault
 /// @notice A vault that allows users to deposit and withdraw assets across multiple yield sources
 /// @author SuperForm Labs
-contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVault {
+contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
-    bytes32 public constant KEEPER_ROLE = keccak256("KEEPER_ROLE");
+    uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 public constant ONE_WEEK = 7 days;
     uint256 private constant REQUEST_ID = 0;
+
+    // Role identifiers
+    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
+    bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
 
     // EIP712 TypeHash
     bytes32 public constant AUTHORIZE_OPERATOR_TYPEHASH =
@@ -64,6 +61,9 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
                                 STATE
     //////////////////////////////////////////////////////////////*/
 
+    // Role-based access control
+    mapping(bytes32 => address) public addresses;
+
     // Global configuration
     GlobalConfig public globalConfig;
 
@@ -75,13 +75,18 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     bytes32 public proposedHookRoot;
     uint256 public hookRootEffectiveTime;
 
+    // Emergency withdrawable configuration
+    bool public emergencyWithdrawable;
+    bool public proposedEmergencyWithdrawable;
+    uint256 public emergencyWithdrawableEffectiveTime;
+
     // Yield source configuration
     mapping(address => YieldSource) public yieldSources;
     address[] public yieldSourcesList;
     mapping(address => ProposedYieldSource) public proposedYieldSources;
 
     // Request tracking
-    mapping(address controller => SuperVaultState state) public superVaultState;
+    mapping(address controller => SuperVaultState state) private superVaultState;
 
     /// @inheritdoc IERC7540Operator
     mapping(address owner => mapping(address operator => bool)) public isOperator;
@@ -89,37 +94,60 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     // Authorization tracking
     mapping(address controller => mapping(bytes32 nonce => bool used)) private _authorizations;
 
+    // Modifiers for role checks
+    modifier onlyManager() {
+        if (msg.sender != addresses[MANAGER_ROLE]) revert UNAUTHORIZED();
+        _;
+    }
+
+    modifier onlyStrategist() {
+        if (msg.sender != addresses[STRATEGIST_ROLE]) revert UNAUTHORIZED();
+        _;
+    }
+
+    modifier onlyEmergencyAdmin() {
+        if (msg.sender != addresses[EMERGENCY_ADMIN_ROLE]) revert UNAUTHORIZED();
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+
     constructor(
         address asset_,
         string memory name_,
         string memory symbol_,
+        address manager_,
         address strategist_,
-        address keeper_,
+        address emergencyAdmin_,
         GlobalConfig memory globalConfig_,
-        FeeConfig memory feeConfig_
+        FeeConfig memory feeConfig_,
+        bool emergencyWithdrawable_
     )
         ERC20(name_, symbol_)
     {
         if (asset_ == address(0)) revert INVALID_ASSET();
+        if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
-        if (keeper_ == address(0)) revert INVALID_KEEPER();
+        if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
         if (globalConfig_.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (globalConfig_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
-        if (globalConfig_.maxAllocationRate == 0 || globalConfig_.maxAllocationRate > 10_000) {
+        if (globalConfig_.maxAllocationRate == 0 || globalConfig_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
             revert INVALID_MAX_ALLOCATION_RATE();
         }
         if (globalConfig_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
-        if (feeConfig_.feeBps > 10_000) revert INVALID_FEE();
+        if (feeConfig_.feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (feeConfig_.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
+
         (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
         _underlyingDecimals = success ? assetDecimals : 18;
         _asset = IERC20(asset_);
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(STRATEGIST_ROLE, strategist_);
-        _grantRole(KEEPER_ROLE, keeper_);
+
+        // Initialize roles
+        addresses[MANAGER_ROLE] = manager_;
+        addresses[STRATEGIST_ROLE] = strategist_;
+        addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
 
         // Initialize EIP712 domain separator
         _NAME_HASH = keccak256(bytes("SuperVault"));
@@ -129,6 +157,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
         globalConfig = globalConfig_;
         feeConfig = feeConfig_;
+        emergencyWithdrawable = emergencyWithdrawable_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -142,9 +171,6 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
 
-        // Check against SuperVaultCap
-        if (totalAssets() + assets > globalConfig.superVaultCap) revert VAULT_CAP_EXCEEDED();
-
         if (_asset.balanceOf(owner) < assets) revert INVALID_AMOUNT();
 
         // Transfer assets to vault
@@ -152,7 +178,6 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
         SuperVaultState storage state = superVaultState[controller];
 
-        if (state.pendingCancelDepositRequest) revert CANCELLATION_IS_PENDING();
         // Create deposit request
         state.pendingDepositRequest = state.pendingDepositRequest + assets;
 
@@ -160,32 +185,21 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         return REQUEST_ID;
     }
 
-    /// @inheritdoc IERC7540CancelDeposit
-    function cancelDepositRequest(uint256, address controller) external {
+    /// @notice Cancel a pending deposit request and return assets to the user
+    /// @param controller The controller address
+    function cancelDeposit(address controller) external {
         _validateController(controller);
         SuperVaultState storage state = superVaultState[controller];
-        if (state.pendingDepositRequest == 0) revert REQUEST_NOT_FOUND();
-        if (state.pendingCancelDepositRequest) revert CANCELLATION_IS_PENDING();
-        state.pendingCancelDepositRequest = true;
+        uint256 assets = state.pendingDepositRequest;
+        if (assets == 0) revert REQUEST_NOT_FOUND();
 
-        emit CancelDepositRequest(controller, REQUEST_ID, msg.sender);
-    }
+        // Clear the request
+        state.pendingDepositRequest = 0;
 
-    function claimCancelDepositRequest(
-        uint256, /*requestId*/
-        address receiver,
-        address controller
-    )
-        external
-        returns (uint256 assets)
-    {
-        _validateController(controller);
-        assets = superVaultState[controller].claimableCancelDepositRequest;
-        superVaultState[controller].claimableCancelDepositRequest = 0;
-        if (assets > 0) {
-            _asset.safeTransferFrom(address(this), receiver, assets);
-        }
-        emit CancelDepositClaim(receiver, controller, REQUEST_ID, msg.sender, assets);
+        // Return assets to user
+        _asset.safeTransfer(msg.sender, assets);
+
+        emit DepositRequestCancelled(controller, msg.sender);
     }
 
     /// @inheritdoc IERC7540Redeem
@@ -204,41 +218,27 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
         // Create redeem request
         SuperVaultState storage state = superVaultState[controller];
-        if (state.pendingCancelRedeemRequest) revert CANCELLATION_IS_PENDING();
         state.pendingRedeemRequest = state.pendingRedeemRequest + shares;
 
         emit RedeemRequest(controller, owner, REQUEST_ID, msg.sender, shares);
         return REQUEST_ID;
     }
 
-    /// @inheritdoc IERC7540CancelRedeem
-    function cancelRedeemRequest(uint256, address controller) external {
+    /// @notice Cancel a pending redeem request and return shares to the user
+    /// @param controller The controller address
+    function cancelRedeem(address controller) external {
         _validateController(controller);
         SuperVaultState storage state = superVaultState[controller];
-        if (state.pendingRedeemRequest == 0) revert REQUEST_NOT_FOUND();
-        if (state.pendingCancelRedeemRequest) revert CANCELLATION_IS_PENDING();
-        state.pendingCancelRedeemRequest = true;
-        state.claimableCancelRedeemRequest = state.claimableCancelRedeemRequest + state.pendingRedeemRequest;
-        delete state.pendingCancelRedeemRequest;
+        uint256 shares = state.pendingRedeemRequest;
+        if (shares == 0) revert REQUEST_NOT_FOUND();
 
-        emit CancelRedeemRequest(controller, REQUEST_ID, msg.sender);
-    }
+        // Clear the request
+        state.pendingRedeemRequest = 0;
 
-    function claimCancelRedeemRequest(
-        uint256, /*requestId*/
-        address receiver,
-        address controller
-    )
-        external
-        returns (uint256 shares)
-    {
-        _validateController(controller);
-        shares = superVaultState[controller].claimableCancelRedeemRequest;
-        superVaultState[controller].claimableCancelRedeemRequest = 0;
-        if (shares > 0) {
-            _transfer(address(this), receiver, shares);
-        }
-        emit CancelRedeemClaim(receiver, controller, REQUEST_ID, msg.sender, shares);
+        // Return shares to user
+        _transfer(address(this), msg.sender, shares);
+
+        emit RedeemRequestCancelled(controller, msg.sender);
     }
 
     //--Operator Management--
@@ -289,11 +289,6 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Fulfill deposit requests for multiple users
-    /// @param users Array of user addresses to fulfill deposits for
-    /// @param hooks Array of hook addresses to use for building executions
-    /// @param hookProofs Array of merkle proofs for hook verification, one per hook
-    /// @param hookCalldata Array of calldata to pass to hooks for building executions
     function fulfillDepositRequests(
         address[] calldata users,
         address[] calldata hooks,
@@ -301,82 +296,346 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         bytes[] calldata hookCalldata
     )
         external
-        onlyRole(STRATEGIST_ROLE)
+        onlyStrategist
     {
-        // Validate array lengths match
-        if (hooks.length != hookProofs.length || hooks.length != hookCalldata.length) {
-            revert ARRAY_LENGTH_MISMATCH();
-        }
+        uint256 usersLength = users.length;
+        uint256 hooksLength = hooks.length;
 
-        // Check there is at least one active yield source
-        bool hasActiveSource = false;
-        for (uint256 i = 0; i < yieldSourcesList.length; i++) {
-            if (yieldSources[yieldSourcesList[i]].isActive) {
-                hasActiveSource = true;
-                break;
-            }
-        }
-        if (!hasActiveSource) revert INVALID_YIELD_SOURCE();
+        _validateFulfillArrays(usersLength, hooksLength, hookProofs.length, hookCalldata.length);
 
         FulfillmentVars memory vars;
 
         // Validate requests and get total assets
-        vars.totalRequestedAssets = _validateDepositRequests(users);
+        vars.totalRequestedAmount = _validateRequests(usersLength, users, true);
 
         // Check we have enough free assets to fulfill these requests
-        uint256 availableAssets = _asset.balanceOf(address(this));
-        if (availableAssets < vars.totalRequestedAssets) revert INVALID_AMOUNT();
+        vars.availableAmount = _asset.balanceOf(address(this));
+        if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
-        // Get total value (including free funds)
-        vars.totalAssets = totalAssets();
+        // Process hooks and get targeted yield sources
+        address[] memory targetedYieldSources;
+        (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, true);
 
-        // Process each hook in sequence
-        for (uint256 i = 0; i < hooks.length; i++) {
-            // Validate hook via merkle proof
-            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+        // Check vault caps after all hooks are processed
+        _checkVaultCaps(targetedYieldSources);
 
-            // Process hook executions
-            (vars.prevHook, vars.spentAssets) =
-                _processHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAssets);
-        }
+        vars.pricePerShare = getSuperVaultPPS();
 
-        // Verify all assets were spent
-        if (vars.spentAssets != vars.totalRequestedAssets) revert INVALID_AMOUNT();
-
-        vars.totalSupply = totalSupply();
-        vars.vaultDecimals = decimals();
-        // Calculate price per share
-        if (vars.totalSupply == 0) {
-            // For first deposit, set initial PPS to 1 unit in vault decimals
-            vars.pricePerShare = 10 ** vars.vaultDecimals;
-        } else {
-            // Calculate current PPS before new deposits
-            vars.pricePerShare = vars.totalAssets.mulDiv(10 ** vars.vaultDecimals, vars.totalSupply);
-        }
-
-        uint256 usersLength = users.length;
         // Update accounting for each user
-        for (uint256 i = 0; i < usersLength;) {
+        for (uint256 i; i < usersLength;) {
             address user = users[i];
             SuperVaultState storage state = superVaultState[user];
-            uint256 requestedAssets = state.pendingDepositRequest;
+            vars.requestedAmount = state.pendingDepositRequest;
 
             // Calculate user's share of total shares
-            uint256 shares = requestedAssets.mulDiv(10 ** vars.vaultDecimals, vars.pricePerShare);
+            vars.shares = vars.requestedAmount.mulDiv(10 ** _underlyingDecimals, vars.pricePerShare);
             // Add new share price point
-            state.sharePricePoints.push(SharePricePoint({ shares: shares, pricePerShare: vars.pricePerShare }));
+            state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
 
             // Move request to claimable state
             state.pendingDepositRequest = 0;
-            delete state.pendingCancelDepositRequest;
 
             // Mint shares to this vault
-            _mint(address(this), shares);
+            _mint(address(this), vars.shares);
 
-            state.maxMint += shares;
+            state.maxMint += vars.shares;
 
             // Emit event
-            emit DepositClaimable(user, REQUEST_ID, requestedAssets, shares);
+            emit DepositClaimable(user, REQUEST_ID, vars.requestedAmount, vars.shares);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function fulfillRedeemRequests(
+        address[] calldata users,
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata
+    )
+        external
+        onlyStrategist
+    {
+        uint256 usersLength = users.length;
+        uint256 hooksLength = hooks.length;
+
+        _validateFulfillArrays(usersLength, hooksLength, hookProofs.length, hookCalldata.length);
+
+        FulfillmentVars memory vars;
+
+        // Validate requests and get total shares
+        vars.totalRequestedAmount = _validateRequests(usersLength, users, false);
+
+        // Process hooks
+        address[] memory targetedYieldSources;
+        (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, false);
+
+        vars.pricePerShare = getSuperVaultPPS();
+
+        // Update accounting for each user
+        for (uint256 i; i < usersLength;) {
+            address user = users[i];
+            SuperVaultState storage state = superVaultState[user];
+
+            // Get the shares this user requested to redeem
+            vars.requestedAmount = state.pendingRedeemRequest;
+
+            // Calculate historical assets and process fees
+            uint256 lastConsumedIndex;
+            uint256 finalAssets;
+            (finalAssets, lastConsumedIndex) =
+                _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
+
+            // Update share price point cursor
+            state.sharePricePointCursor = lastConsumedIndex;
+
+            // Move request to claimable state
+            state.pendingRedeemRequest = 0;
+            state.maxWithdraw += finalAssets;
+
+            // Emit event
+            emit RedeemClaimable(user, REQUEST_ID, finalAssets, vars.requestedAmount);
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @notice Match redeem requests with deposit requests directly, without accessing yield sources
+    /// @param redeemUsers Array of users with pending redeem requests
+    /// @param depositUsers Array of users with pending deposit requests
+    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external onlyStrategist {
+        uint256 redeemLength = redeemUsers.length;
+        uint256 depositLength = depositUsers.length;
+        if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
+
+        MatchVars memory vars;
+        vars.currentPricePerShare = getSuperVaultPPS();
+
+        // Track shares used from each redeemer in memory
+        uint256[] memory sharesUsedByRedeemer = new uint256[](redeemLength);
+
+        // Process deposits first, matching with redeem requests
+        // Full deposit fulfilment is prioritized vs outflows from the SuperVault (which can be partially matched)
+        for (uint256 i; i < depositLength;) {
+            address depositor = depositUsers[i];
+            SuperVaultState storage depositState = superVaultState[depositor];
+            vars.depositAssets = depositState.pendingDepositRequest;
+            if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
+
+            // Calculate shares needed at current price
+            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _underlyingDecimals, vars.currentPricePerShare);
+            vars.remainingShares = vars.sharesNeeded;
+
+            // Try to fulfill with redeem requests
+            for (uint256 j; j < redeemLength && vars.remainingShares > 0;) {
+                address redeemer = redeemUsers[j];
+                SuperVaultState storage redeemState = superVaultState[redeemer];
+                vars.redeemShares = redeemState.pendingRedeemRequest;
+                if (vars.redeemShares == 0) {
+                    unchecked {
+                        ++j;
+                    }
+                    continue;
+                }
+
+                // Calculate how many shares we can take from this redeemer
+                vars.sharesToUse = vars.redeemShares > vars.remainingShares ? vars.remainingShares : vars.redeemShares;
+
+                // Update redeemer's state and accumulate shares used
+                redeemState.pendingRedeemRequest -= vars.sharesToUse;
+                sharesUsedByRedeemer[j] += vars.sharesToUse;
+
+                vars.remainingShares -= vars.sharesToUse;
+
+                unchecked {
+                    ++j;
+                }
+            }
+
+            // Verify deposit was fully matched
+            if (vars.remainingShares > 0) revert INCOMPLETE_DEPOSIT_MATCH();
+
+            // Add share price point for the deposit
+            depositState.sharePricePoints.push(
+                SharePricePoint({ shares: vars.sharesNeeded, pricePerShare: vars.currentPricePerShare })
+            );
+
+            // Clear deposit request and update state
+            depositState.pendingDepositRequest = 0;
+            depositState.maxMint += vars.sharesNeeded;
+            emit DepositClaimable(depositor, REQUEST_ID, vars.depositAssets, vars.sharesNeeded);
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Process accumulated shares for redeemers
+        for (uint256 i; i < redeemLength;) {
+            uint256 sharesUsed = sharesUsedByRedeemer[i];
+
+            if (sharesUsed > 0) {
+                address redeemer = redeemUsers[i];
+                SuperVaultState storage redeemState = superVaultState[redeemer];
+
+                // Calculate historical assets and process fees once for total shares used
+                (vars.finalAssets, vars.lastConsumedIndex) =
+                    _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
+
+                // Update share price point cursor
+                if (vars.lastConsumedIndex > redeemState.sharePricePointCursor) {
+                    redeemState.sharePricePointCursor = vars.lastConsumedIndex;
+                }
+
+                // Update maxWithdraw and emit event once
+                redeemState.maxWithdraw += vars.finalAssets;
+                emit RedeemClaimable(redeemer, REQUEST_ID, vars.finalAssets, sharesUsed);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @inheritdoc ISuperVault
+    function allocate(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata
+    )
+        external
+        onlyStrategist
+    {
+        uint256 hooksLength = hooks.length;
+        if (hooksLength == 0) revert ZERO_LENGTH();
+        if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        AllocationVars memory vars;
+        address[] memory inflowTargets = new address[](hooksLength);
+        uint256 inflowCount;
+        // Process each hook in sequence
+        for (uint256 i; i < hooksLength;) {
+            // Validate hook via merkle proof
+            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+
+            // Build executions for this hook
+            ISuperHook hookContract = ISuperHook(hooks[i]);
+            vars.executions = hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
+            // prevent any hooks with more than one execution
+            if (vars.executions.length > 1) revert INVALID_HOOK();
+
+            // Get amount from hook
+            vars.amount = ISuperHookInflowOutflow(hooks[i]).decodeAmount(hookCalldata[i]);
+
+            // Validate target is an active yield source
+            YieldSource storage source = yieldSources[vars.executions[0].target];
+            if (!source.isActive) revert INVALID_YIELD_SOURCE();
+
+            vars.hookType = ISuperHookResult(hooks[i]).hookType();
+            // For inflows, check allocation rates and track targets
+            if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                // Get current total assets in yield source
+                vars.currentYieldSourceAssets = IERC4626(vars.executions[0].target).convertToAssets(
+                    IERC4626(vars.executions[0].target).balanceOf(address(this))
+                );
+
+                // Check allocation rate
+                if (
+                    (vars.currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets())
+                        > globalConfig.maxAllocationRate
+                ) {
+                    revert MAX_ALLOCATION_RATE_EXCEEDED();
+                }
+
+                // Check vault threshold
+                if (vars.currentYieldSourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+
+                // Track inflow target
+                inflowTargets[inflowCount++] = vars.executions[0].target;
+
+                // Approve spending
+                _asset.approve(vars.executions[0].target, vars.amount);
+            }
+
+            // Execute the transaction
+            (bool success,) =
+                vars.executions[0].target.call{ value: vars.executions[0].value }(vars.executions[0].callData);
+            if (!success) revert EXECUTION_FAILED();
+
+            // Reset approval if it was an inflow
+            if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                _asset.approve(vars.executions[0].target, 0);
+            }
+
+            // Update prevHook for next iteration
+            vars.prevHook = hooks[i];
+
+            unchecked {
+                ++i;
+            }
+        }
+        // Resize array to actual count if needed
+        if (inflowCount < hooksLength) {
+            // Get the memory pointer of the array
+            assembly {
+                mstore(inflowTargets, inflowCount)
+            }
+        }
+
+        // Check vault caps for all inflow targets after processing
+        _checkVaultCaps(inflowTargets);
+    }
+
+    /// @inheritdoc ISuperVault
+    function claimRewards(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata
+    )
+        external
+        onlyStrategist
+    {
+        uint256 hooksLength = hooks.length;
+        if (hooksLength == 0) revert ZERO_LENGTH();
+        if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        address prevHook;
+        // Process each hook in sequence
+        for (uint256 i; i < hooksLength;) {
+            // Validate hook via merkle proof
+            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+
+            // Build executions for this hook
+            ISuperHook hookContract = ISuperHook(hooks[i]);
+            Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata[i]);
+            // prevent any hooks with more than one execution
+            if (executions.length > 1) revert INVALID_HOOK();
+
+            // Validate hook type is neither INFLOW nor OUTFLOW
+            ISuperHook.HookType hookType = ISuperHookResult(hooks[i]).hookType();
+            if (hookType == ISuperHook.HookType.INFLOW || hookType == ISuperHook.HookType.OUTFLOW) {
+                revert INVALID_HOOK();
+            }
+
+            // Validate target is an active yield source
+            YieldSource storage source = yieldSources[executions[0].target];
+            if (!source.isActive) revert INVALID_YIELD_SOURCE();
+
+            // Execute the transaction
+            (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+            if (!success) revert EXECUTION_FAILED();
+
+            // Update prevHook for next iteration
+            prevHook = hooks[i];
 
             unchecked {
                 ++i;
@@ -390,7 +649,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @notice Propose a new yield source
     /// @param source Address of the yield source
     /// @param oracle Address of the yield source oracle
-    function proposeYieldSource(address source, address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function proposeYieldSource(address source, address oracle) external onlyManager {
         if (source == address(0)) revert INVALID_YIELD_SOURCE();
         if (oracle == address(0)) revert INVALID_ORACLE();
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
@@ -430,7 +689,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @notice Update oracle for an existing yield source
     /// @param source Address of the yield source
     /// @param newOracle Address of the new oracle
-    function updateYieldSourceOracle(address source, address newOracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateYieldSourceOracle(address source, address newOracle) external onlyManager {
         if (newOracle == address(0)) revert INVALID_ORACLE();
         YieldSource storage yieldSource = yieldSources[source];
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
@@ -441,9 +700,9 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         emit YieldSourceOracleUpdated(source, oldOracle, newOracle);
     }
 
-    /// @notice Remove a yield source
-    /// @param source Address of the yield source to remove
-    function removeYieldSource(address source) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    /// @notice Deactivate a yield source
+    /// @param source Address of the yield source to deactivate
+    function deactivateYieldSource(address source) external onlyManager {
         YieldSource storage yieldSource = yieldSources[source];
         if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_FOUND();
 
@@ -452,12 +711,12 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         if (sourceShares > 0) revert INVALID_YIELD_SOURCE();
 
         yieldSource.isActive = false;
-        emit YieldSourceRemoved(source);
+        emit YieldSourceDeactivated(source);
     }
 
     /// @notice Reactivate a previously removed yield source
     /// @param source Address of the yield source to reactivate
-    function reactivateYieldSource(address source) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function reactivateYieldSource(address source) external onlyManager {
         YieldSource storage yieldSource = yieldSources[source];
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
         if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_EXISTS();
@@ -472,10 +731,12 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
     /// @notice Update global configuration
     /// @param config New global configuration
-    function updateGlobalConfig(GlobalConfig calldata config) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function updateGlobalConfig(GlobalConfig calldata config) external onlyManager {
         if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
-        if (config.maxAllocationRate == 0 || config.maxAllocationRate > 10_000) revert INVALID_MAX_ALLOCATION_RATE();
+        if (config.maxAllocationRate == 0 || config.maxAllocationRate > ONE_HUNDRED_PERCENT) {
+            revert INVALID_MAX_ALLOCATION_RATE();
+        }
         if (config.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
 
         globalConfig = config;
@@ -484,7 +745,7 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
     /// @notice Propose a new hook root
     /// @param newRoot New hook root to propose
-    function proposeHookRoot(bytes32 newRoot) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function proposeHookRoot(bytes32 newRoot) external onlyManager {
         proposedHookRoot = newRoot;
         hookRootEffectiveTime = block.timestamp + ONE_WEEK;
         emit HookRootProposed(newRoot, hookRootEffectiveTime);
@@ -504,83 +765,125 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @notice Update fee configuration
     /// @param feeBps New fee in basis points
     /// @param recipient New fee recipient
-    function updateFeeConfig(uint256 feeBps, address recipient) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (feeBps > 10_000) revert INVALID_FEE();
+    function updateFeeConfig(uint256 feeBps, address recipient) external onlyManager {
+        if (feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
         feeConfig = FeeConfig({ feeBps: feeBps, recipient: recipient });
         emit FeeConfigUpdated(feeBps, recipient);
     }
 
+    /// @notice Set an address for a given role
+    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
+    /// @param role The role identifier
+    /// @param account The address to set for the role
+    function setAddress(bytes32 role, address account) external onlyManager {
+        // Prevent setting zero address
+        if (account == address(0)) revert ZERO_ADDRESS();
+
+        // Prevent manager from changing themselves
+        if (role == MANAGER_ROLE && account != msg.sender) revert UNAUTHORIZED();
+
+        addresses[role] = account;
+    }
+
+    /// @notice Propose a change to emergency withdrawable status
+    /// @param newWithdrawable The new emergency withdrawable status to propose
+    function proposeEmergencyWithdrawable(bool newWithdrawable) external onlyManager {
+        proposedEmergencyWithdrawable = newWithdrawable;
+        emergencyWithdrawableEffectiveTime = block.timestamp + ONE_WEEK;
+        emit EmergencyWithdrawableProposed(newWithdrawable, emergencyWithdrawableEffectiveTime);
+    }
+
+    /// @notice Execute the proposed emergency withdrawable update after timelock
+    function executeEmergencyWithdrawableUpdate() external {
+        if (block.timestamp < emergencyWithdrawableEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        emergencyWithdrawable = proposedEmergencyWithdrawable;
+        proposedEmergencyWithdrawable = false;
+        emergencyWithdrawableEffectiveTime = 0;
+        emit EmergencyWithdrawableUpdated(emergencyWithdrawable);
+    }
+
+    /// @notice Emergency withdraw free assets from the vault
+    /// @dev Only works when emergency withdrawals are enabled
+    /// @param recipient Address to receive the withdrawn assets
+    /// @param amount Amount of free assets to withdraw
+    function emergencyWithdraw(address recipient, uint256 amount) external onlyEmergencyAdmin {
+        if (!emergencyWithdrawable) revert EMERGENCY_WITHDRAWALS_DISABLED();
+        if (recipient == address(0)) revert ZERO_ADDRESS();
+
+        // Check we have enough free assets
+        uint256 freeAssets = _asset.balanceOf(address(this));
+        if (amount > freeAssets) revert INSUFFICIENT_FREE_ASSETS();
+
+        // Transfer free assets to recipient
+        _asset.safeTransfer(recipient, amount);
+        emit EmergencyWithdrawal(recipient, amount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                     USER EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperVault
+    function getSuperVaultPPS() public view returns (uint256 pricePerShare) {
+        uint256 totalSupplyAmount = totalSupply();
+
+        if (totalSupplyAmount == 0) {
+            // For first deposit, set initial PPS to 1 unit in vault decimals
+            pricePerShare = 10 ** _underlyingDecimals;
+        } else {
+            // Calculate current PPS
+            pricePerShare = totalAssets().mulDiv(10 ** _underlyingDecimals, totalSupplyAmount);
+        }
+    }
+
     //--ERC7540--
 
     function pendingDepositRequest(
-        uint256 requestId,
+        uint256, /*requestId*/
         address controller
     )
         external
         view
         returns (uint256 pendingAssets)
-    { }
+    {
+        pendingAssets = superVaultState[controller].pendingDepositRequest;
+    }
 
     function claimableDepositRequest(
-        uint256 requestId,
+        uint256, /*requestId*/
         address controller
     )
         external
         view
         returns (uint256 claimableAssets)
-    { }
+    {
+        claimableAssets = maxDeposit(controller);
+    }
 
     function pendingRedeemRequest(
-        uint256 requestId,
+        uint256, /*requestId*/
         address controller
     )
         external
         view
         returns (uint256 pendingShares)
-    { }
+    {
+        pendingShares = superVaultState[controller].pendingRedeemRequest;
+    }
 
     function claimableRedeemRequest(
-        uint256 requestId,
+        uint256, /*requestId*/
         address controller
     )
         external
         view
         returns (uint256 claimableShares)
-    { }
-
-    function pendingCancelDepositRequest(
-        uint256 requestId,
-        address controller
-    )
-        external
-        view
-        returns (bool isPending)
-    { }
-
-    function claimableCancelDepositRequest(
-        uint256 requestId,
-        address controller
-    )
-        external
-        view
-        returns (uint256 claimableAssets)
-    { }
-
-    function pendingCancelRedeemRequest(uint256 requestId, address controller) external view returns (bool isPending) { }
-
-    function claimableCancelRedeemRequest(
-        uint256 requestId,
-        address controller
-    )
-        external
-        view
-        returns (uint256 claimableShares)
-    { }
+    {
+        claimableShares = maxRedeem(controller);
+    }
 
     //--Operator Management--
 
@@ -667,11 +970,15 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         // Total assets is the sum of all assets in yield sources plus idle assets
         uint256 total = _asset.balanceOf(address(this)); // Idle assets
 
+        uint256 length = yieldSourcesList.length;
         // Sum up value in yield sources
-        for (uint256 i = 0; i < yieldSourcesList.length; i++) {
+        for (uint256 i; i < length;) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
                 total += IYieldSourceOracle(yieldSources[source].oracle).getTVL(source, address(this));
+            }
+            unchecked {
+                i++;
             }
         }
 
@@ -681,33 +988,33 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
     /// @inheritdoc IERC4626
     function convertToShares(uint256 assets) public view override returns (uint256) {
         uint256 supply = totalSupply();
-        return supply == 0 ? assets : assets.mulDiv(supply, totalAssets());
+        return supply == 0 ? assets : Math.mulDiv(assets, supply, totalAssets(), Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToAssets(uint256 shares) public view override returns (uint256) {
         uint256 supply = totalSupply();
-        return supply == 0 ? shares : shares.mulDiv(totalAssets(), supply);
+        return supply == 0 ? shares : Math.mulDiv(shares, totalAssets(), supply, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
-    function maxDeposit(address) public view override returns (uint256) {
-        return globalConfig.superVaultCap - totalAssets();
+    function maxMint(address owner) public view override returns (uint256) {
+        return superVaultState[owner].maxMint;
     }
 
     /// @inheritdoc IERC4626
-    function maxMint(address) public view override returns (uint256) {
-        return convertToShares(maxDeposit(address(0)));
+    function maxDeposit(address owner) public view override returns (uint256) {
+        return convertToAssets(maxMint(owner));
     }
 
     /// @inheritdoc IERC4626
     function maxWithdraw(address owner) public view override returns (uint256) {
-        return convertToAssets(balanceOf(owner));
+        return superVaultState[owner].maxWithdraw;
     }
 
     /// @inheritdoc IERC4626
     function maxRedeem(address owner) public view override returns (uint256) {
-        return balanceOf(owner);
+        return convertToShares(superVaultState[owner].maxWithdraw);
     }
 
     /// @inheritdoc IERC4626
@@ -737,7 +1044,8 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
         SuperVaultState storage state = superVaultState[controller];
         if (shares > state.maxMint) revert INVALID_DEPOSIT_CLAIM();
-        state.maxMint = state.maxMint > shares ? state.maxMint - shares : 0;
+        uint256 maxMintMem = state.maxMint;
+        state.maxMint = maxMintMem > shares ? maxMintMem - shares : 0;
 
         // Transfer shares to receiver
         _transfer(address(this), receiver, shares);
@@ -758,7 +1066,9 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         if (shares > state.maxMint) revert INVALID_DEPOSIT_CLAIM();
         assets = convertToAssets(shares);
 
-        state.maxMint = state.maxMint > shares ? state.maxMint - shares : 0;
+        uint256 maxMintMem = state.maxMint;
+
+        state.maxMint = maxMintMem > shares ? maxMintMem - shares : 0;
 
         // Transfer shares to receiver
         _transfer(address(this), receiver, shares);
@@ -778,7 +1088,8 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
         SuperVaultState storage state = superVaultState[owner];
         if (assets > state.maxWithdraw) revert INVALID_AMOUNT();
-        state.maxWithdraw = state.maxWithdraw > assets ? state.maxWithdraw - assets : 0;
+        uint256 maxWithdrawMem = state.maxWithdraw;
+        state.maxWithdraw = maxWithdrawMem > assets ? maxWithdrawMem - assets : 0;
 
         _burn(address(this), shares);
         _asset.safeTransfer(receiver, assets);
@@ -792,8 +1103,9 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         assets = convertToAssets(shares);
 
         SuperVaultState storage state = superVaultState[owner];
-        if (shares > state.maxWithdraw) revert INVALID_AMOUNT();
-        state.maxWithdraw = state.maxWithdraw > assets ? state.maxWithdraw - assets : 0;
+        if (shares > convertToShares(state.maxWithdraw)) revert INVALID_AMOUNT();
+        uint256 maxWithdrawMem = state.maxWithdraw;
+        state.maxWithdraw = maxWithdrawMem > shares ? maxWithdrawMem - shares : 0;
 
         _burn(address(this), shares);
         _asset.safeTransfer(receiver, assets);
@@ -805,10 +1117,10 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
                             ERC165 INTERFACE
     //////////////////////////////////////////////////////////////*/
 
-    function supportsInterface(bytes4 interfaceId) public view override(AccessControl) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return interfaceId == type(IERC7540Vault).interfaceId || interfaceId == type(ISuperVault).interfaceId
             || interfaceId == type(IERC165).interfaceId || interfaceId == type(IERC7741).interfaceId
-            || interfaceId == type(IERC4626).interfaceId || super.supportsInterface(interfaceId);
+            || interfaceId == type(IERC4626).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -817,61 +1129,165 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
 
     //--Fulfilment and allocation helpers--
 
-    /// @notice Validate and get total assets for deposit requests
-    /// @param users Array of user addresses to validate
-    /// @return totalRequestedAssets Total assets to be deposited
-    function _validateDepositRequests(address[] calldata users) internal view returns (uint256 totalRequestedAssets) {
-        for (uint256 i = 0; i < users.length; i++) {
-            SuperVaultState storage state = superVaultState[users[i]];
-            if (state.pendingDepositRequest == 0) revert REQUEST_NOT_FOUND();
-            if (state.pendingCancelDepositRequest) revert CANCELLATION_IS_PENDING();
+    /// @notice Validate array lengths for fulfill functions
+    /// @param usersLength Length of users array
+    /// @param hooksLength Length of hooks array
+    /// @param hookProofsLength Length of hook proofs array
+    /// @param hookCalldataLength Length of hook calldata array
+    function _validateFulfillArrays(
+        uint256 usersLength,
+        uint256 hooksLength,
+        uint256 hookProofsLength,
+        uint256 hookCalldataLength
+    )
+        internal
+        pure
+    {
+        if (usersLength == 0 || hooksLength == 0) revert ZERO_LENGTH();
 
-            totalRequestedAssets += state.pendingDepositRequest;
+        // Validate array lengths match
+        if (hooksLength != hookProofsLength || hooksLength != hookCalldataLength) {
+            revert ARRAY_LENGTH_MISMATCH();
         }
     }
 
-    /// @notice Process a single hook's executions
+    /// @notice Validate requests and get total amount
+    /// @param usersLength Length of users array
+    /// @param users Array of user addresses
+    /// @param isDeposit Whether this is a deposit request validation
+    /// @return totalRequested Total amount requested (assets for deposits, shares for redeems)
+    function _validateRequests(
+        uint256 usersLength,
+        address[] calldata users,
+        bool isDeposit
+    )
+        internal
+        view
+        returns (uint256 totalRequested)
+    {
+        for (uint256 i; i < usersLength;) {
+            uint256 pendingRequest = isDeposit
+                ? superVaultState[users[i]].pendingDepositRequest
+                : superVaultState[users[i]].pendingRedeemRequest;
+
+            if (pendingRequest == 0) revert REQUEST_NOT_FOUND();
+            totalRequested += pendingRequest;
+            unchecked {
+                i++;
+            }
+        }
+    }
+
+    /// @notice Common hook execution logic shared between deposit and redeem flows
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param spentAssets Running total of assets spent so far
-    /// @return (address, uint256) The hook address and updated spent assets amount
-    function _processHookExecution(
+    /// @param expectedHookType The expected type of hook (INFLOW/OUTFLOW)
+    function _processCommonHookExecution(
         address hook,
         address prevHook,
         bytes calldata hookCalldata,
-        uint256 spentAssets
+        ISuperHook.HookType expectedHookType
     )
         internal
-        returns (address, uint256)
+        view
+        returns (Execution[] memory executions, uint256 amount)
     {
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
-        Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata);
+        executions = hookContract.build(prevHook, address(this), hookCalldata);
         // prevent any hooks with more than one execution
         if (executions.length > 1) revert INVALID_HOOK();
 
-        // Only process INFLOW hooks
+        // Validate hook type
         ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
-        if (hookType != ISuperHook.HookType.INFLOW) revert INVALID_HOOK();
+        if (hookType != expectedHookType) revert INVALID_HOOK();
 
         // Get amount from hook
-        uint256 amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
+        amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
-        // Validate target is an active yield source and check constraints
+        // Validate target is an active yield source
         YieldSource storage source = yieldSources[executions[0].target];
         if (!source.isActive) revert INVALID_YIELD_SOURCE();
+    }
 
-        // Validate yield source constraints
-        // Check vault caps
-        if (amount > globalConfig.vaultCap) revert VAULT_CAP_EXCEEDED();
+    /// @notice Process hooks for both deposit and redeem fulfillment
+    /// @param hooks Array of hook addresses
+    /// @param hookProofs Array of merkle proofs for hooks
+    /// @param hookCalldata Array of calldata for hooks
+    /// @param vars Fulfillment variables
+    /// @param isDeposit Whether this is a deposit fulfillment
+    /// @return vars Updated fulfillment variables
+    /// @return targetedYieldSources Array of yield sources targeted by inflow hooks
+    function _processHooks(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata,
+        FulfillmentVars memory vars,
+        bool isDeposit
+    )
+        internal
+        returns (FulfillmentVars memory, address[] memory)
+    {
+        uint256 hooksLength = hooks.length;
+        // Track targeted yield sources for inflow operations
+        address[] memory targetedYieldSources = new address[](hooksLength);
+        uint256 targetedSourcesCount;
+        address target;
+        for (uint256 i; i < hooksLength;) {
+            // Validate hook via merkle proof
+            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+
+            // Process hook executions
+            (vars.prevHook, vars.spentAmount, target) = isDeposit
+                ? _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAmount)
+                : _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAmount);
+
+            // Track targeted yield source for inflow operations
+            if (isDeposit) {
+                targetedYieldSources[targetedSourcesCount++] = target;
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Verify all amounts were spent
+        if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+
+        // Resize array to actual count if needed
+        if (targetedSourcesCount < hooksLength) {
+            assembly {
+                mstore(targetedYieldSources, targetedSourcesCount)
+            }
+        }
+
+        return (vars, targetedYieldSources);
+    }
+
+    function _processInflowHookExecution(
+        address hook,
+        address prevHook,
+        bytes calldata hookCalldata,
+        uint256 spentAmount
+    )
+        internal
+        returns (address, uint256, address)
+    {
+        // Process common hook execution logic
+        (Execution[] memory executions, uint256 amount) =
+            _processCommonHookExecution(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW);
 
         // Get current total assets in yield source
         uint256 currentYieldSourceAssets =
             IERC4626(executions[0].target).convertToAssets(IERC4626(executions[0].target).balanceOf(address(this)));
 
         // Check allocation rate
-        if ((currentYieldSourceAssets + amount).mulDiv(10_000, totalAssets()) > globalConfig.maxAllocationRate) {
+        if (
+            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets())
+                > globalConfig.maxAllocationRate
+        ) {
             revert MAX_ALLOCATION_RATE_EXCEEDED();
         }
 
@@ -889,9 +1305,108 @@ contract SuperVault is ERC20, AccessControl, IERC7540Vault, IERC4626, ISuperVaul
         _asset.approve(executions[0].target, 0);
 
         // Update spent assets
-        spentAssets += amount;
+        spentAmount += amount;
 
-        return (hook, spentAssets);
+        return (hook, spentAmount, executions[0].target);
+    }
+
+    function _processOutflowHookExecution(
+        address hook,
+        address prevHook,
+        bytes calldata hookCalldata,
+        uint256 spentAmount
+    )
+        internal
+        returns (address, uint256, address)
+    {
+        // Process common hook execution logic
+        (Execution[] memory executions, uint256 shares) =
+            _processCommonHookExecution(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW);
+
+        // Execute the transaction
+        (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
+        if (!success) revert EXECUTION_FAILED();
+
+        // Update spent amount (tracking shares)
+        spentAmount += shares;
+
+        return (hook, spentAmount, executions[0].target);
+    }
+
+    /// @notice Check vault caps for targeted yield sources
+    /// @param targetedYieldSources Array of yield sources to check
+    function _checkVaultCaps(address[] memory targetedYieldSources) internal view {
+        // Note: This check is gas expensive due to getTVL calls
+        for (uint256 i; i < targetedYieldSources.length;) {
+            address source = targetedYieldSources[i];
+            uint256 yieldSourceTVL = IYieldSourceOracle(yieldSources[source].oracle).getTVL(source, address(this));
+            if (yieldSourceTVL > globalConfig.vaultCap) revert VAULT_CAP_EXCEEDED();
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    /// @notice Calculate fee on profit and transfer to recipient
+    /// @param currentAssets Current value of shares in assets
+    /// @param historicalAssets Historical value of shares in assets
+    /// @return uint256 Assets after fee deduction
+    function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) internal returns (uint256) {
+        if (currentAssets > historicalAssets) {
+            uint256 profit = currentAssets - historicalAssets;
+            uint256 fee = profit.mulDiv(feeConfig.feeBps, ONE_HUNDRED_PERCENT);
+            currentAssets -= fee;
+
+            // Transfer fee to recipient if non-zero
+            if (fee > 0) {
+                _asset.safeTransfer(feeConfig.recipient, fee);
+            }
+        }
+        return currentAssets;
+    }
+
+    /// @notice Calculate historical assets and process fees
+    /// @param state User's vault state
+    /// @param requestedShares Shares being redeemed
+    /// @param currentPricePerShare Current price per share
+    function _calculateHistoricalAssetsAndProcessFees(
+        SuperVaultState storage state,
+        uint256 requestedShares,
+        uint256 currentPricePerShare
+    )
+        internal
+        returns (uint256 finalAssets, uint256 lastConsumedIndex)
+    {
+        uint256 historicalAssets = 0;
+        uint256 sharePricePointsLength = state.sharePricePoints.length;
+        uint256 remainingShares = requestedShares;
+        uint256 currentIndex = state.sharePricePointCursor;
+        lastConsumedIndex = currentIndex;
+
+        // Calculate historicalAssets for each share price point
+        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
+            SharePricePoint memory point = state.sharePricePoints[j];
+            uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _underlyingDecimals);
+
+            // Update point's remaining shares or mark for deletion
+            if (sharesFromPoint == point.shares) {
+                // Point fully consumed, move cursor
+                lastConsumedIndex = j + 1;
+            } else if (sharesFromPoint < point.shares) {
+                // Point partially consumed, update shares
+                state.sharePricePoints[j].shares -= sharesFromPoint;
+            }
+
+            remainingShares -= sharesFromPoint;
+            unchecked {
+                ++j;
+            }
+        }
+
+        // Calculate current value and process fees
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _underlyingDecimals);
+        finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
     }
 
     //--Misc helpers--
