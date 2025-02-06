@@ -66,4 +66,8 @@ interface ISuperRegistry {
     // -- SuperBundler
     /// @dev Get the ID of the super bundler.
     function SUPER_BUNDLER_ID() external view returns (bytes32);
+
+    // -- Oracle Registry
+    /// @dev Get the ID of the oracle registry.
+    function ORACLE_REGISTRY_ID() external view returns (bytes32);
 }

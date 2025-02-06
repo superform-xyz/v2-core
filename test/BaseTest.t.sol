@@ -77,6 +77,9 @@ import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClai
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
+import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
 
 // external
 import {
@@ -123,6 +126,9 @@ struct Addresses {
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
+    ERC7540YieldSourceOracle erc7540YieldSourceOracle;
+    FluidYieldSourceOracle fluidYieldSourceOracle;
+    SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
 }
 
@@ -282,6 +288,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superRegistry), SUPER_REGISTRY_KEY);
             contractAddresses[chainIds[i]][SUPER_REGISTRY_KEY] = address(A.superRegistry);
 
+            // Deploy SuperOracle
+            A.oracleRegistry = new SuperOracle(address(this), new address[](0), new uint256[](0), new address[](0));
+            vm.label(address(A.oracleRegistry), SUPER_ORACLE_KEY);
+            contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A.oracleRegistry);
+
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
             vm.label(address(A.superRbac), SUPER_RBAC_KEY);
             contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
@@ -317,13 +328,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A.superMerkleValidator);
 
             /// @dev action oracles
-            A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
+            A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.erc4626YieldSourceOracle), ERC4626_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC4626_YIELD_SOURCE_ORACLE_KEY] = address(A.erc4626YieldSourceOracle);
 
-            A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
+            A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A.erc5115YieldSourceOracle);
+
+            A.erc7540YieldSourceOracle = new ERC7540YieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.erc7540YieldSourceOracle), ERC7540_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ERC7540_YIELD_SOURCE_ORACLE_KEY] = address(A.erc7540YieldSourceOracle);
+
+            A.fluidYieldSourceOracle = new FluidYieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
         }
     }
 
@@ -606,11 +625,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(Addr.gearboxUnstakeHook), GEARBOX_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = address(Addr.gearboxUnstakeHook);
             hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = Hook(
-                GEARBOX_UNSTAKE_HOOK_KEY,
-                HookCategory.Claims,
-                HookCategory.Stakes,
-                address(Addr.gearboxUnstakeHook),
-                ""
+                GEARBOX_UNSTAKE_HOOK_KEY, HookCategory.Claims, HookCategory.Stakes, address(Addr.gearboxUnstakeHook), ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY]);
 
@@ -699,7 +714,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[ETH][USDC_KEY] = CHAIN_1_USDC;
         existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
         existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
-
 
         // Optimism tokens
         existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
@@ -868,6 +882,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_BUNDLER_ID(), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(
+                superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainIds[i], SUPER_ORACLE_KEY)
+            );
         }
     }
 
@@ -1051,7 +1068,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
     }
 
-     function _createDebridgeSendFundsAndExecuteHookData(
+    function _createDebridgeSendFundsAndExecuteHookData(
         uint256 value,
         address account,
         address inputToken,
@@ -1165,14 +1182,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address controller,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId,
-            yieldSource, 
-            controller, 
-            amount, 
-            usePrevHookAmount
-        );
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
     }
 
     function _createDeposit5115VaultHookData(
@@ -1183,15 +1198,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 minSharesOut,
         bool usePrevHookAmount,
         bool lockForSP
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(
-            yieldSourceOracleId, 
-            yieldSource, 
-            tokenIn, 
-            amount,
-            minSharesOut,
-            usePrevHookAmount,
-            lockForSP
+            yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
         );
     }
 }
