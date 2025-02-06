@@ -17,7 +17,7 @@ contract GearboxOracleIntegration is BaseE2ETest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        oracle = new ERC4626YieldSourceOracle();
+        oracle = new ERC4626YieldSourceOracle(_getContract(ETH, "OracleRegistry"));
         yieldSource = IERC4626(CHAIN_1_GearboxVault);
         underlying = yieldSource.asset();
     }

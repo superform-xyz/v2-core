@@ -55,6 +55,9 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { OracleRegistry } from "../src/core/accounting/oracles/OracleRegistry.sol";
+import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
 
 contract DeployV2 is Script, Configuration {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
@@ -80,6 +83,7 @@ contract DeployV2 is Script, Configuration {
         address acrossReceiveFundsAndExecuteGateway;
         address debridgeReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
+        address oracleRegistry;
     }
 
     modifier broadcast(uint256 env) {
@@ -128,6 +132,19 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_REGISTRY_KEY),
             abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
         );
+
+        // Deploy OracleRegistry
+        deployedContracts.oracleRegistry = __deployContract(
+            deployer,
+            ORACLE_REGISTRY_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ORACLE_REGISTRY_KEY),
+            abi.encodePacked(
+                type(OracleRegistry).creationCode,
+                abi.encode(configuration.owner, new address[](0), new uint256[](0), new address[](0))
+            )
+        );
+
         // Deploy SuperExecutor
         deployedContracts.superExecutor = __deployContract(
             deployer,
@@ -204,7 +221,7 @@ contract DeployV2 is Script, Configuration {
         _deployHooks(deployer, deployedContracts.superRegistry, chainId);
 
         // Deploy Oracles
-        _deployOracles(deployer, chainId);
+        _deployOracles(deployer, deployedContracts.superRegistry, chainId);
     }
 
     function _configure(uint64 chainId) internal {
@@ -233,7 +250,6 @@ contract DeployV2 is Script, Configuration {
             superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, SUPER_POSITION_SENTINEL_KEY)
         );
         superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, SUPER_RBAC_KEY));
-
         superRegistry.setAddress(
             superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
@@ -241,6 +257,8 @@ contract DeployV2 is Script, Configuration {
         superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, SUPER_EXECUTOR_KEY));
         superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
         superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
+        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, ORACLE_REGISTRY_KEY));
+        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, ORACLE_REGISTRY_KEY));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -392,16 +410,32 @@ contract DeployV2 is Script, Configuration {
 
     function _deployOracles(
         ISuperDeployer deployer,
+        address registry,
         uint64 chainId
     )
         private
         returns (address[] memory oracleAddresses)
     {
-        uint256 len = 2;
+        uint256 len = 4;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
-        oracles[0] = OracleDeployment(ERC4626_YIELD_SOURCE_ORACLE_KEY, type(ERC4626YieldSourceOracle).creationCode);
-        oracles[1] = OracleDeployment(ERC5115_YIELD_SOURCE_ORACLE_KEY, type(ERC5115YieldSourceOracle).creationCode);
+
+        oracles[0] = OracleDeployment(
+            ERC4626_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode, abi.encode(registry))
+        );
+        oracles[1] = OracleDeployment(
+            ERC5115_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode, abi.encode(registry))
+        );
+        oracles[2] = OracleDeployment(
+            ERC7540_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(registry))
+        );
+        oracles[3] = OracleDeployment(
+            FLUID_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(FluidYieldSourceOracle).creationCode, abi.encode(registry))
+        );
 
         for (uint256 i = 0; i < len;) {
             OracleDeployment memory oracle = oracles[i];

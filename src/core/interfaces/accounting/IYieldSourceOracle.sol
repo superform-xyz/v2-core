@@ -9,15 +9,16 @@ interface IYieldSourceOracle {
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Error thrown when array lengths do not match in batch operations
+    /// @notice Error when array lengths do not match in batch operations
     error ARRAY_LENGTH_MISMATCH();
 
-    /// @notice Error thrown when base asset is not valid for the yield source
+    /// @notice Error when base asset is not valid for the yield source
     error INVALID_BASE_ASSET();
 
     /*//////////////////////////////////////////////////////////////
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
     /// @notice Returns the number of decimals of the yield source shares
     /// @return decimals The number of decimals of the yield source shares
     function decimals(address yieldSourceAddress) external view returns (uint8);
@@ -57,12 +58,10 @@ interface IYieldSourceOracle {
     /// @notice Returns the price per share in USD terms
     /// @param yieldSourceAddress The yield source to derive the price for
     /// @param base The underlying asset of the yield source
-    /// @param oracle The oracle to use for USD conversion
     /// @return pricePerShareUSD The price per share in USD terms
     function getPricePerShareUSD(
         address yieldSourceAddress,
-        address base,
-        address oracle
+        address base
     )
         external
         view
@@ -71,12 +70,10 @@ interface IYieldSourceOracle {
     /// @notice Returns the price per share in USD terms for multiple yield sources
     /// @param yieldSourceAddresses Array of yield sources to derive the price for
     /// @param baseAddresses Array of underlying assets for each yield source
-    /// @param oracleAddresses Array of oracles to use for USD conversion for each yield source
     /// @return pricesPerShareUSD Array of prices in USD terms for each yield source
     function getPricePerShareMultipleUSD(
         address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses,
-        address[] memory oracleAddresses
+        address[] memory baseAddresses
     )
         external
         view
@@ -86,13 +83,11 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddress The yield source to derive TVL for
     /// @param ownerOfShares The owner of the shares
     /// @param base The underlying asset of the yield source
-    /// @param oracle The oracle to use for USD conversion
     /// @return tvlUSD The TVL in USD terms
     function getTVLUSD(
         address yieldSourceAddress,
         address ownerOfShares,
-        address base,
-        address oracle
+        address base
     )
         external
         view
@@ -102,14 +97,12 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddresses Array of yield sources to derive TVL for
     /// @param ownersOfShares Array of arrays containing owner addresses for each yield source
     /// @param baseAddresses Array of underlying assets for each yield source
-    /// @param oracleAddresses Array of oracles to use for USD conversion for each yield source
     /// @return userTvlsUSD Array of arrays containing TVLs in USD terms for each owner in each yield source
     /// @return totalTvlsUSD Array containing total TVL in USD terms for each yield source
     function getTVLMultipleUSD(
         address[] memory yieldSourceAddresses,
         address[][] memory ownersOfShares,
-        address[] memory baseAddresses,
-        address[] memory oracleAddresses
+        address[] memory baseAddresses
     )
         external
         view

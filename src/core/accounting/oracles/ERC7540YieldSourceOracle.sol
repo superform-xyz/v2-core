@@ -8,13 +8,17 @@ import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadat
 import { IERC7540 } from "../../interfaces/vendors/vaults/7540/IERC7540.sol";
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
 import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
+import { SuperRegistryImplementer } from "../../utils/SuperRegistryImplementer.sol";
+import { SuperRegistry } from "../../settings/SuperRegistry.sol";
 
 /// @title ERC7540YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for synchronous deposit and redeem 7540 Vaults
-contract ERC7540YieldSourceOracle is IYieldSourceOracle {
+contract ERC7540YieldSourceOracle is SuperRegistryImplementer, IYieldSourceOracle {
     /// @notice USD address constant based on ISO 4217 code
     address public constant USD = address(840);
+
+    constructor(address _superRegistry) SuperRegistryImplementer(_superRegistry) { }
 
     /// @inheritdoc IYieldSourceOracle
     function decimals(address yieldSourceAddress) external view returns (uint8) {
@@ -94,8 +98,7 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShareUSD(
         address yieldSourceAddress,
-        address base,
-        address oracle
+        address base
     )
         external
         view
@@ -107,24 +110,24 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
         // Get price per share in base asset terms
         uint256 baseAmount = getPricePerShare(yieldSourceAddress);
 
-        // Convert to USD using oracle
-        pricePerShareUSD = IOracle(oracle).getQuote(baseAmount, base, USD);
+        // Convert to USD using oracle registry
+        pricePerShareUSD = _getOracleRegistry().getQuote(baseAmount, base, USD);
     }
 
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShareMultipleUSD(
         address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses,
-        address[] memory oracleAddresses
+        address[] memory baseAddresses
     )
         external
         view
         returns (uint256[] memory pricesPerShareUSD)
     {
         uint256 length = yieldSourceAddresses.length;
-        if (length != baseAddresses.length || length != oracleAddresses.length) revert ARRAY_LENGTH_MISMATCH();
+        if (length != baseAddresses.length) revert ARRAY_LENGTH_MISMATCH();
 
         pricesPerShareUSD = new uint256[](length);
+        IOracle registry = _getOracleRegistry();
 
         for (uint256 i = 0; i < length;) {
             // Validate base asset
@@ -133,8 +136,8 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
             // Get price per share in base asset terms
             uint256 baseAmount = getPricePerShare(yieldSourceAddresses[i]);
 
-            // Convert to USD using oracle
-            pricesPerShareUSD[i] = IOracle(oracleAddresses[i]).getQuote(baseAmount, baseAddresses[i], USD);
+            // Convert to USD using oracle registry
+            pricesPerShareUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], USD);
 
             unchecked {
                 ++i;
@@ -146,8 +149,7 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
     function getTVLUSD(
         address yieldSourceAddress,
         address ownerOfShares,
-        address base,
-        address oracle
+        address base
     )
         external
         view
@@ -159,28 +161,28 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
         // Get TVL in base asset terms
         uint256 baseAmount = getTVL(yieldSourceAddress, ownerOfShares);
 
-        // Convert to USD using oracle
-        tvlUSD = IOracle(oracle).getQuote(baseAmount, base, USD);
+        // Convert to USD using oracle registry
+        tvlUSD = _getOracleRegistry().getQuote(baseAmount, base, USD);
     }
 
     /// @inheritdoc IYieldSourceOracle
     function getTVLMultipleUSD(
         address[] memory yieldSourceAddresses,
         address[][] memory ownersOfShares,
-        address[] memory baseAddresses,
-        address[] memory oracleAddresses
+        address[] memory baseAddresses
     )
         external
         view
         returns (uint256[][] memory userTvlsUSD, uint256[] memory totalTvlsUSD)
     {
         uint256 length = yieldSourceAddresses.length;
-        if (length != ownersOfShares.length || length != baseAddresses.length || length != oracleAddresses.length) {
+        if (length != ownersOfShares.length || length != baseAddresses.length) {
             revert ARRAY_LENGTH_MISMATCH();
         }
 
         userTvlsUSD = new uint256[][](length);
         totalTvlsUSD = new uint256[](length);
+        IOracle registry = _getOracleRegistry();
 
         for (uint256 i = 0; i < length;) {
             // Validate base asset
@@ -197,8 +199,8 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
                 // Get TVL in base asset terms
                 uint256 baseAmount = getTVL(yieldSource, owners[j]);
 
-                // Convert to USD using oracle
-                uint256 userTvlUSD = IOracle(oracleAddresses[i]).getQuote(baseAmount, baseAddresses[i], USD);
+                // Convert to USD using oracle registry
+                uint256 userTvlUSD = registry.getQuote(baseAmount, baseAddresses[i], USD);
                 userTvlsUSD[i][j] = userTvlUSD;
                 totalTvlUSD += userTvlUSD;
 
@@ -212,5 +214,11 @@ contract ERC7540YieldSourceOracle is IYieldSourceOracle {
                 ++i;
             }
         }
+    }
+
+    /// @notice Returns the oracle registry from SuperRegistry
+    /// @return registry The oracle registry contract
+    function _getOracleRegistry() internal view returns (IOracle) {
+        return IOracle(superRegistry.getAddress(superRegistry.ORACLE_REGISTRY_ID()));
     }
 }
