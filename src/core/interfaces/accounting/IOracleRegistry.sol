@@ -15,6 +15,9 @@ interface IOracleRegistry {
     /// @notice Error when no oracles are configured for base asset
     error NO_ORACLES_CONFIGURED();
 
+    /// @notice Error when no valid reported prices are found
+    error NO_VALID_REPORTED_PRICES();
+
     /// @notice Error when caller is not admin
     error NOT_ADMIN();
 
@@ -26,6 +29,18 @@ interface IOracleRegistry {
 
     /// @notice Error when there is already a pending update
     error PENDING_UPDATE_EXISTS();
+
+    /// @notice Error when oracle data is untrusted
+    error ORACLE_UNTRUSTED_DATA();
+
+    /// @notice Error when provider max staleness period is not set
+    error NO_PENDING_UPDATE();
+
+    /// @notice Error when ISO 4217 quote is invalid
+    error INVALID_ISO4217_QUOTE();
+
+    /// @notice Error when ISO 4217 quote is already supported
+    error ISO4217_QUOTE_ALREADY_SUPPORTED();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -49,6 +64,15 @@ interface IOracleRegistry {
     /// @param providers Array of provider indexes
     /// @param oracleAddresses Array of oracle addresses
     event OracleUpdateExecuted(address[] bases, uint256[] providers, address[] oracleAddresses);
+
+    /// @notice Emitted when provider max staleness period is updated
+    /// @param provider Provider index
+    /// @param newMaxStaleness New maximum staleness period in seconds
+    event ProviderMaxStalenessUpdated(uint256 provider, uint256 newMaxStaleness);
+
+    /// @notice Emitted when a new ISO 4217 quote is added
+    /// @param quote The quote address added
+    event ISO4217QuoteAdded(address indexed quote);
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -100,4 +124,9 @@ interface IOracleRegistry {
 
     /// @notice Execute queued oracle update after timelock period
     function executeOracleUpdate() external;
+
+    /// @notice Set the maximum staleness period for a specific provider
+    /// @param provider Provider index
+    /// @param newMaxStaleness New maximum staleness period in seconds
+    function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external;
 }
