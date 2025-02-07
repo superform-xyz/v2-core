@@ -80,6 +80,7 @@ abstract contract Constants {
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string public constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
+    
     // tokens
     string public constant DAI_KEY = "DAI";
     string public constant USDC_KEY = "USDC";
