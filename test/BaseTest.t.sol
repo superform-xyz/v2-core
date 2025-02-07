@@ -94,6 +94,7 @@ import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 
 import { console2 } from "forge-std/console2.sol";
+
 struct Addresses {
     ISuperRbac superRbac;
     ISuperLedger superLedger;
@@ -986,7 +987,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
     }
 
-    function _createDeposit4626VaultHookData(
+    function _createDeposit4626HookData(
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
@@ -1008,13 +1009,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 minSharesOut,
         bool usePrevHookAmount,
         bool lockSP
-
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
+        hookData =
+            abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
     }
 
     function _create5115DepositHookData(
@@ -1025,16 +1026,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 minSharesOut,
         bool usePrevHookAmount,
         bool lockSP
-
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
+        hookData =
+            abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
     }
 
-    function _createWithdraw4626VaultHookData(
+    function _createWithdraw4626HookData(
         bytes32 yieldSourceOracleId,
         address vault,
         address owner,
@@ -1062,11 +1063,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount, lockSP);
+        hookData = abi.encodePacked(
+            yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount, lockSP
+        );
     }
 
-
-     function _createDebridgeSendFundsAndExecuteHookData(
+    function _createDebridgeSendFundsAndExecuteHookData(
         uint256 value,
         address account,
         address inputToken,
@@ -1111,7 +1113,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         view
         returns (bytes memory hookData)
     {
-        bytes memory dstUserOpData = _encodeUserOp(userOpData); 
+        bytes memory dstUserOpData = _encodeUserOp(userOpData);
         hookData = abi.encodePacked(
             uint256(0),
             _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
@@ -1183,48 +1185,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address controller,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId,
-            yieldSource, 
-            controller, 
-            amount, 
-            usePrevHookAmount
-        );
-    }
-
-    function _createDeposit7540VaultHookData(
-        bytes32 yieldSourceOracleId,
-        address yieldSource,
-        address controller,
-        uint256 amount,
-        bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId,
-            yieldSource, 
-            controller, 
-            amount, 
-            usePrevHookAmount
-        );
-    }
-
-    function _createWithdraw7540VaultHookData(
-        bytes32 yieldSourceOracleId,
-        address yieldSource,
-        address owner,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    ) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId, 
-            yieldSource, 
-            owner, 
-            amount, 
-            usePrevHookAmount, 
-            lockForSP
-        );
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
     }
 
     function _createDeposit7540VaultHookData(
@@ -1248,15 +1214,41 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 amount,
         bool usePrevHookAmount,
         bool lockForSP
-    ) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId, 
-            yieldSource, 
-            owner, 
-            amount, 
-            usePrevHookAmount, 
-            lockForSP
-        );
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createDeposit7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
+    }
+
+    function _createWithdraw7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
     }
 
     function _createDeposit5115VaultHookData(
@@ -1282,7 +1274,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address to,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(token, to, amount, usePrevHookAmount);
     }
 }

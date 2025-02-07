@@ -57,7 +57,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
         underlyingOP_USDCe = existingUnderlyingTokens[OP]["USDCe"];
 
-        yieldSource7540AddressETH_USDC = realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
+        yieldSource7540AddressETH_USDC =
+            realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
         vm.makePersistent(yieldSource7540AddressETH_USDC);
         vm.label(yieldSource7540AddressETH_USDC, "yieldSource7540AddressETH_USDC");
 
@@ -102,27 +103,19 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         address[] memory eth7540HooksAddresses = new address[](2);
         eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         eth7540HooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
-        
+
         bytes[] memory eth7540HooksData = new bytes[](2);
-        eth7540HooksData[0] = _createApproveHookData(
-            underlyingETH_USDC,
-            yieldSource7540AddressETH_USDC,
-            amountPerVault,
-            false
-        );
+        eth7540HooksData[0] =
+            _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
         eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
             bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
-            amountPerVault, 
+            amountPerVault,
             true
         );
 
-        UserOpData memory ethUserOpData = _createUserOpData(
-            eth7540HooksAddresses,
-            eth7540HooksData,
-            ETH
-        );
+        UserOpData memory ethUserOpData = _createUserOpData(eth7540HooksAddresses, eth7540HooksData, ETH);
 
         // BASE IS SRC
         vm.selectFork(FORKS[BASE]);
@@ -132,27 +125,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory srcHooksDataETH = new bytes[](2);
-        srcHooksDataETH[0] = _createApproveHookData(
-            underlyingBase_USDC,
-            SPOKE_POOL_V3_ADDRESSES[BASE],
-            amountPerVault,
-            false
-        );
+        srcHooksDataETH[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
         srcHooksDataETH[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC,
-            underlyingETH_USDC,
-            amountPerVault / 2,
-            amountPerVault / 2,
-            ETH,
-            true,
-            ethUserOpData
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault / 2, amountPerVault / 2, ETH, true, ethUserOpData
         );
 
-        UserOpData memory srcUserOpDataETH = _createUserOpData(
-            srcHooksAddresses,
-            srcHooksDataETH,
-            BASE
-        );
+        UserOpData memory srcUserOpDataETH = _createUserOpData(srcHooksAddresses, srcHooksDataETH, BASE);
 
         // EXECUTE ETH
         _processAcrossV3Message(BASE, ETH, executeOp(srcUserOpDataETH), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
@@ -178,25 +157,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         opHooksAddresses[1] = _getHookAddress(OP, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory opHooksData = new bytes[](2);
-        opHooksData[0] = _createApproveHookData(
-            underlyingOP_USDCe,
-            yieldSource4626AddressOP_USDCe,
-            amountPerVault,
-            false
-        );
-        opHooksData[1] = _createDeposit4626VaultHookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSource4626AddressOP_USDCe,
-            amountPerVault, 
-            true,
-            false
+        opHooksData[0] =
+            _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, amountPerVault, false);
+        opHooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressOP_USDCe, amountPerVault, true, false
         );
 
-        UserOpData memory opUserOpData = _createUserOpData(
-            opHooksAddresses,
-            opHooksData,
-            OP
-        );
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
 
         // BASE IS SRC
         vm.selectFork(FORKS[BASE]);
@@ -207,27 +174,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksAddressesOP[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory srcHooksDataOP = new bytes[](2);
-        srcHooksDataOP[0] = _createApproveHookData(
-            underlyingBase_USDC,
-            SPOKE_POOL_V3_ADDRESSES[BASE],
-            amountPerVault,
-            false
-        );
+        srcHooksDataOP[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
         srcHooksDataOP[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC,
-            underlyingOP_USDCe,
-            amountPerVault,
-            amountPerVault,
-            OP,
-            true,
-            opUserOpData
+            underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, opUserOpData
         );
 
-        UserOpData memory srcUserOpDataOP = _createUserOpData(
-            srcHooksAddressesOP,
-            srcHooksDataOP,
-            BASE
-        );
+        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE);
 
         // EXECUTE OP
         _processAcrossV3Message(BASE, OP, executeOp(srcUserOpDataOP), RELAYER_TYPE.ENOUGH_BALANCE, accountOP);
@@ -266,18 +219,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         baseHooksAddresses[0] = _getHookAddress(BASE, TRANSFER_ERC20_HOOK_KEY);
 
         bytes[] memory baseHooksData = new bytes[](1);
-        baseHooksData[0] = _createTransferERC20HookData(
-            underlyingBase_USDC,
-            accountBase,
-            amountPerVault,
-            false
-        );
+        baseHooksData[0] = _createTransferERC20HookData(underlyingBase_USDC, accountBase, amountPerVault, false);
 
-        UserOpData memory baseUserOpData = _createUserOpData(
-            baseHooksAddresses,
-            baseHooksData,
-            BASE
-        );
+        UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE);
 
         // OP IS SRC
         vm.selectFork(FORKS[OP]);
@@ -294,7 +238,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         opHooksAddresses[2] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory opHooksData = new bytes[](3);
-        opHooksData[0] = _createWithdraw4626VaultHookData(
+        opHooksData[0] = _createWithdraw4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource4626AddressOP_USDCe,
             accountOP,
@@ -302,27 +246,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             false,
             false
         );
-        opHooksData[1] = _createApproveHookData(
-            underlyingOP_USDCe,
-            SPOKE_POOL_V3_ADDRESSES[OP],
-            amountPerVault,
-            true
-        );
+        opHooksData[1] = _createApproveHookData(underlyingOP_USDCe, SPOKE_POOL_V3_ADDRESSES[OP], amountPerVault, true);
         opHooksData[2] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingOP_USDCe,
-            underlyingBase_USDC,
-            amountPerVault / 2,
-            amountPerVault / 2,
-            BASE,
-            true,
-            baseUserOpData
+            underlyingOP_USDCe, underlyingBase_USDC, amountPerVault / 2, amountPerVault / 2, BASE, true, baseUserOpData
         );
 
-        UserOpData memory opUserOpData = _createUserOpData(
-            opHooksAddresses,
-            opHooksData,
-            OP
-        );
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
 
         _processAcrossV3Message(OP, BASE, executeOp(opUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
 
@@ -344,13 +273,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // BASE IS DST
         vm.selectFork(FORKS[BASE]);
 
-        uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase); 
+        uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
-        UserOpData memory baseUserOpData = _createUserOpData(
-            new address[](0),
-            new bytes[](0),
-            BASE
-        );
+        UserOpData memory baseUserOpData = _createUserOpData(new address[](0), new bytes[](0), BASE);
 
         // ETH IS SRC
         vm.selectFork(FORKS[ETH]);
@@ -375,27 +300,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         //     false
         // );
         ethHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            vaultAddress,
-            accountBase,
-            amountPerVault,
-            false,
-            false
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), vaultAddress, accountBase, amountPerVault, false, false
         );
-        ethHooksData[1] = _createApproveHookData(
-            underlyingBase_USDC,
-            SPOKE_POOL_V3_ADDRESSES[ETH],
-            amountPerVault,
-            false
-        );
+        ethHooksData[1] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
         ethHooksData[2] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC,
-            underlyingBase_USDC,
-            amountPerVault / 2,
-            amountPerVault / 2,
-            BASE,
-            true,
-            baseUserOpData
+            underlyingETH_USDC, underlyingBase_USDC, amountPerVault / 2, amountPerVault / 2, BASE, true, baseUserOpData
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
@@ -410,10 +320,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     }
 
     function _createUserOpData(
-        address[] memory hooksAddresses, 
+        address[] memory hooksAddresses,
         bytes[] memory hooksData,
         uint64 chainId
-    ) internal returns (UserOpData memory) {
+    )
+        internal
+        returns (UserOpData memory)
+    {
         if (chainId == ETH) {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

@@ -44,7 +44,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDeposit4626VaultHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
@@ -69,10 +69,10 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDeposit4626VaultHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
-        hooksData[2] = _createWithdraw4626VaultHookData(
+        hooksData[2] = _createWithdraw4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, false
         );
         // assure account has tokens

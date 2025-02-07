@@ -134,7 +134,7 @@ contract SuperMerkleValidatorTest is BaseTest {
         // hooks data
         bytes[] memory hooksData = new bytes[](2);
         bytes memory approveData = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        bytes memory depositData = _createDeposit4626VaultHookData(
+        bytes memory depositData = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
 
