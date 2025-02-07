@@ -1190,6 +1190,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
     }
 
+    function _createRequestWithdraw7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount);
+    }
+
     function _createWithdraw7540VaultHookData(
         bytes32 yieldSourceOracleId,
         address yieldSource,
