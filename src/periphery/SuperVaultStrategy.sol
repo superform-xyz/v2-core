@@ -61,7 +61,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Yield source configuration
     mapping(address source => YieldSource sourceConfig) private yieldSources;
     address[] private yieldSourcesList;
-    mapping(address source => ProposedYieldSource proposedSourceConfig) private proposedYieldSources;
 
     // Request tracking
     mapping(address controller => SuperVaultState state) private superVaultState;
@@ -631,10 +630,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Propose a new yield source
+    /// @notice Add a new yield source to the system
     /// @param source Address of the yield source
     /// @param oracle Address of the yield source oracle
-    function proposeYieldSource(address source, address oracle) external {
+    function addYieldSource(address source, address oracle) external {
         _requireManager();
         if (source == address(0)) revert INVALID_YIELD_SOURCE();
         if (oracle == address(0)) revert INVALID_ORACLE();
@@ -644,32 +643,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 sourceAssets = IERC4626(source).totalAssets();
         if (sourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
-        // Create proposal
-        proposedYieldSources[source] = ProposedYieldSource({
-            source: source,
-            oracle: oracle,
-            effectiveTime: block.timestamp + ONE_WEEK,
-            isPending: true
-        });
-
-        emit YieldSourceProposed(source, oracle, block.timestamp + ONE_WEEK);
-    }
-
-    /// @notice Execute a proposed yield source addition after timelock
-    /// @param source Address of the yield source to execute proposal for
-    function executeYieldSourceProposal(address source) external {
-        ProposedYieldSource memory proposal = proposedYieldSources[source];
-        if (!proposal.isPending) revert REQUEST_NOT_FOUND();
-        if (block.timestamp < proposal.effectiveTime) revert TIMELOCK_NOT_EXPIRED();
-
         // Add yield source
-        yieldSources[source] = YieldSource({ oracle: proposal.oracle, isActive: true });
+        yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
         yieldSourcesList.push(source);
 
-        // Clean up proposal
-        delete proposedYieldSources[source];
-
-        emit YieldSourceAdded(source, proposal.oracle);
+        emit YieldSourceAdded(source, oracle);
     }
 
     /// @notice Update oracle for an existing yield source
@@ -844,12 +822,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param source Address of the yield source
     function getYieldSource(address source) external view returns (YieldSource memory) {
         return yieldSources[source];
-    }
-
-    /// @notice Get the proposed yield source configuration
-    /// @param source Address of the yield source
-    function getProposedYieldSource(address source) external view returns (ProposedYieldSource memory) {
-        return proposedYieldSources[source];
     }
 
     /// @notice Get the global configuration

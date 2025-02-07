@@ -59,7 +59,6 @@ interface ISuperVaultStrategy {
     );
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceDeactivated(address indexed source);
-    event YieldSourceProposed(address indexed source, address indexed oracle, uint256 effectiveTime);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
     event YieldSourceReactivated(address indexed source);
     event GlobalConfigUpdated(
@@ -75,13 +74,6 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
-
-    struct ProposedYieldSource {
-        address source; // Address of the yield source
-        address oracle; // Address of the oracle
-        uint256 effectiveTime; // Timestamp when proposal can be executed
-        bool isPending; // Whether proposal is pending
-    }
 
     struct GlobalConfig {
         uint256 vaultCap; // Maximum assets per individual yield source
@@ -264,14 +256,10 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Propose a new yield source
+    /// @notice Add a new yield source to the system
     /// @param source Address of the yield source
     /// @param oracle Address of the yield source oracle
-    function proposeYieldSource(address source, address oracle) external;
-
-    /// @notice Execute a proposed yield source addition after timelock
-    /// @param source Address of the yield source to execute proposal for
-    function executeYieldSourceProposal(address source) external;
+    function addYieldSource(address source, address oracle) external;
 
     /// @notice Update oracle for an existing yield source
     /// @param source Address of the yield source
@@ -330,10 +318,6 @@ interface ISuperVaultStrategy {
     /// @notice Get a yield source's configuration
     /// @param source Address of the yield source
     function getYieldSource(address source) external view returns (YieldSource memory);
-
-    /// @notice Get the proposed yield source configuration
-    /// @param source Address of the yield source
-    function getProposedYieldSource(address source) external view returns (ProposedYieldSource memory);
 
     /// @notice Get the global configuration
     function getGlobalConfig() external view returns (GlobalConfig memory);
