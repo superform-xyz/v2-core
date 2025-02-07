@@ -52,6 +52,9 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     /// @inheritdoc ISuperRegistry
     bytes32 public constant SUPER_BUNDLER_ID = keccak256("SUPER_BUNDLER_ID");
 
+    /// @notice Contract IDs
+    bytes32 public constant ORACLE_REGISTRY_ID = keccak256("ORACLE_REGISTRY");
+
     constructor(address owner) Ownable(owner) { }
 
     /*//////////////////////////////////////////////////////////////

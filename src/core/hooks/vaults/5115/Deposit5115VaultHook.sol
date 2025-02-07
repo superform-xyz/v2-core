@@ -77,6 +77,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 137);
         spToken = data.extractYieldSource();
+        asset = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
     }
 
     /// @inheritdoc ISuperHook

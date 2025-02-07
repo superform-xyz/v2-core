@@ -40,8 +40,10 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         address yieldSource,
         bytes32 yieldSourceOracleId,
         bool isInflow,
-        uint256 amountSharesOrAssets
+        uint256 amountSharesOrAssets,
+        uint256 usedShares
     )
+
         external
         onlyExecutor
         returns (uint256 feeAmount)
@@ -64,7 +66,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         } else {
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
-                feeAmount = _processOutflow(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets);
+                feeAmount = _processOutflow(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets, usedShares);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
@@ -165,55 +167,50 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient);
     }
 
-    function _processOutflow(
+     function _processOutflow(
         address user,
         address yieldSource,
         bytes32 yieldSourceOracleId,
-        uint256 amountAssets
+        uint256 amountAssets,
+        uint256 usedShares
     )
         internal
         returns (uint256 feeAmount)
+
     {
-        uint256 remainingAssets = amountAssets;
+        uint256 remainingShares = usedShares;
         uint256 costBasis;
 
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
         uint256 len = entries.length;
         if (len == 0) return 0;
 
+
         uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
 
-        while (remainingAssets > 0) {
+        while (remainingShares > 0) {
             if (currentIndex >= len) revert INSUFFICIENT_SHARES();
 
             LedgerEntry storage entry = entries[currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
 
+            // if no shares available on current entry, move to the next
             if (availableShares == 0) {
                 unchecked {
                     ++currentIndex;
                 }
                 continue;
             }
+            
             address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
-
-            // Convert available shares to assets using historical PPS
             uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
-            uint256 newPricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSource);
-            uint256 availableAssets = availableShares * newPricePerShare / (10 ** decimals);
 
-            // Calculate how many assets to consume from this entry
-            uint256 assetsConsumed = remainingAssets > availableAssets ? availableAssets : remainingAssets;
-
-            // Calculate corresponding shares to consume based on the proportion of assets consumed
-            uint256 sharesConsumed = availableShares * assetsConsumed / availableAssets;
-            uint256 assetsConsumedInEntryPrice = sharesConsumed * entry.price / (10 ** decimals);
-
-
-            // Update cost basis using historical price
-            costBasis += assetsConsumedInEntryPrice;
-            remainingAssets -= assetsConsumed;
+            // remove from current entry
+            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
             entry.amountSharesAvailableToConsume -= sharesConsumed;
+            remainingShares -= sharesConsumed;
+
+            costBasis += sharesConsumed * entry.price / (10 ** decimals);
 
             if (sharesConsumed == availableShares) {
                 unchecked {
