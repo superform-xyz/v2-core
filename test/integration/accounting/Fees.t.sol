@@ -68,7 +68,7 @@ contract FeesTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDeposit4626VaultHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
@@ -106,7 +106,7 @@ contract FeesTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDeposit4626VaultHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
 
@@ -135,7 +135,7 @@ contract FeesTest is BaseTest {
         hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
 
         hooksData = new bytes[](1);
-        hooksData[0] = _createWithdraw4626VaultHookData(
+        hooksData[0] = _createWithdraw4626HookData(
             bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddress,
             account,
@@ -173,7 +173,7 @@ contract FeesTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDeposit4626VaultHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
 
@@ -203,7 +203,7 @@ contract FeesTest is BaseTest {
         hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
 
         hooksData = new bytes[](1);
-        hooksData[0] = _createWithdraw4626VaultHookData(
+        hooksData[0] = _createWithdraw4626HookData(
             bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddress,
             account,
@@ -241,7 +241,7 @@ contract FeesTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDeposit4626VaultHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
 
@@ -269,7 +269,7 @@ contract FeesTest is BaseTest {
         hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
 
         hooksData = new bytes[](1);
-        hooksData[0] = _createWithdraw4626VaultHookData(
+        hooksData[0] = _createWithdraw4626HookData(
             bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddress,
             account,
