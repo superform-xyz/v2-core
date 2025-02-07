@@ -29,7 +29,10 @@ contract ERC4626YieldSourceOracleTest is BaseE2ETest {
     function test_getPricePerShareMultiple() public view {
         address[] memory finalTargets = new address[](1);
         finalTargets[0] = address(vault);
+        address[] memory assets = new address[](1);
+        assets[0] = address(0);
         uint256[] memory prices = oracle.getPricePerShareMultiple(finalTargets);
         assertEq(prices[0], 1e18);
+
     }
 }

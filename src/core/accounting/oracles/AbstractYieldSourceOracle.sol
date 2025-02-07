@@ -96,6 +96,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
         // Get price per share in base asset terms
         uint256 baseAmount = getPricePerShare(yieldSourceAddress);
 
+
         // Convert to USD using oracle registry with specified provider
         pricePerShareUSD = IOracle(_getOracleRegistry()).getQuote(baseAmount, base, _encodeProvider(provider));
     }
@@ -125,6 +126,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
 
             // Convert to USD using oracle registry with specified provider
             pricesPerShareUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
+
 
             unchecked {
                 ++i;

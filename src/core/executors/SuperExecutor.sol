@@ -116,21 +116,22 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
-                ISuperHookResult(address(hook)).outAmount()
+                ISuperHookResult(address(hook)).outAmount(),
+                ISuperHookResultOutflow(address(hook)).usedShares()
             );
+
+
 
             // If there's a fee to collect (only for outflows)
             if (feeAmount > 0) {
                 ISuperLedger.YieldSourceOracleConfig memory config =
                     ledger.getYieldSourceOracleConfig(yieldSourceOracleId);
                 // Get the asset token from the hook
-                address assetToken = ISuperHookResultOutflow(hook).assetOut();
+                address assetToken = ISuperHookResultOutflow(hook).asset();
                 if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
-                if (IERC20(assetToken).balanceOf(address(this)) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
+                if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
 
-                // Add fee transfer to executions
-                // TODO: use a better method to transfer?
-                uint256 balanceBefore = IERC20(assetToken).balanceOf(msg.sender);
+                uint256 balanceBefore = IERC20(assetToken).balanceOf(config.feeRecipient);
                 Execution[] memory feeExecution = new Execution[](1);
                 feeExecution[0] = Execution({
                     target: assetToken,
@@ -138,7 +139,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                     callData: abi.encodeCall(IERC20.transfer, (config.feeRecipient, feeAmount))
                 });
                 _execute(account, feeExecution);
-                uint256 balanceAfter = IERC20(assetToken).balanceOf(msg.sender);
+                uint256 balanceAfter = IERC20(assetToken).balanceOf(config.feeRecipient);
                 if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
             }
         }

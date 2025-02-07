@@ -90,6 +90,7 @@ abstract contract Constants {
     address public constant CHAIN_1_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public constant CHAIN_1_WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
     address public constant CHAIN_1_SUSDE = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+    address public constant CHAIN_1_USDE = 0x4c9EDD5852cd905f086C759E8383e09bff1E68B3;
 
     address public constant CHAIN_10_DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     address public constant CHAIN_10_USDC = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
@@ -107,10 +108,12 @@ abstract contract Constants {
 
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";
+    string public constant ERC5115_VAULT_KEY = "ERC5115";
     string public constant AAVE_VAULT_KEY = "AaveVault";
     string public constant ALOE_USDC_VAULT_KEY = "AloeUSDC";
     string public constant FLUID_VAULT_KEY = "FluidVault";
     string public constant EULER_VAULT_KEY = "EulerVault";
+
     string public constant MORPHO_VAULT_KEY = "MorphoVault";
     string public constant CENTRIFUGE_USDC_VAULT_KEY = "CentrifugeUSDC";
     string public constant MORPHO_GAUNTLET_USDC_PRIME_KEY = "MorphoGauntletUSDCPrime";
@@ -123,16 +126,16 @@ abstract contract Constants {
     address public constant CHAIN_1_EulerVault = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
     address public constant CHAIN_1_MorphoVault = 0xdd0f28e19C1780eb6396170735D45153D261490d;
     address public constant CHAIN_1_CentrifugeUSDC = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
-    address public constant CHAIN_1_YearnVault = 0xd8063123BBA3B480569244AE66BFE72B6c84b00d;
+    address public constant CHAIN_1_YearnVault = 0x028eC7330ff87667b6dfb0D94b954c820195336c;
     address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
-    address public constant CHAIN_1_PendleEthena = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
+    address public constant CHAIN_1_PendleEthena = 0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185;
 
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
 
-    // bridges
+    // bridgesa
     string public constant DEBRIDGE_GATE_ADDRESS_KEY = "DeBridgeGateAddress";
 
     address public constant CHAIN_1_SPOKE_POOL_V3_ADDRESS = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;

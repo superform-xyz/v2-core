@@ -85,16 +85,19 @@ interface ISuperLedger {
     /// @param yieldSourceOracleId The yield source id
     /// @param isInflow Whether this is an inflow (true) or outflow (false)
     /// @param amountSharesOrAssets The amount of shares or assets
+    /// @param usedShares The amount of shares used by the OUTFLOW hook (0 for INFLOWS)
     /// @return feeAmount The amount of fee to be collected in the asset being withdrawn (only for outflows)
     function updateAccounting(
         address user,
         address yieldSource,
         bytes32 yieldSourceOracleId,
         bool isInflow,
-        uint256 amountSharesOrAssets
+        uint256 amountSharesOrAssets,
+        uint256 usedShares
     )
         external
         returns (uint256 feeAmount);
+
 
     /// @notice Registers hooks and sets their oracle configs in one transaction
     /// @param configs Array of oracle configurations

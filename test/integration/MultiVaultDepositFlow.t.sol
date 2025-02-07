@@ -41,7 +41,7 @@ contract MultiVaultDepositFlow is BaseTest {
         underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
         underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["SUSDe"];
 
-        yieldSource5115AddressSUSDe = realVaultAddresses[ETH]["ERC5115"]["PendleEthena"]["sUSDe"];
+        yieldSource5115AddressSUSDe = realVaultAddresses[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY];
 
         yieldSource7540AddressUSDC = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
 

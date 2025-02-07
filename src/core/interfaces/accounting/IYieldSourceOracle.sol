@@ -53,6 +53,7 @@ interface IYieldSourceOracle {
     function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
         external
         view
+
         returns (uint256[] memory pricesPerShare);
 
     /// @notice Derives the TVL in a yield source by a given owner of shares
