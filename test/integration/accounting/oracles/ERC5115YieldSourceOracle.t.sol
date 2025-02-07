@@ -29,8 +29,10 @@ contract ERC5115YieldSourceOracleTest is BaseE2ETest {
     function test_getPricePerShareMultiple() public view {
         address[] memory yieldSourceAddresses = new address[](1);
         yieldSourceAddresses[0] = address(vault);
-
+        address[] memory assets = new address[](1);
+        assets[0] = address(underlying);
         uint256[] memory prices = oracle.getPricePerShareMultiple(yieldSourceAddresses);
         assertEq(prices[0], 1e18);
+
     }
 }

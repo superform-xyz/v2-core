@@ -763,14 +763,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
 
         /// @dev 7540 real centrifuge vaults on mainnet
-        existingVaults[1][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
+        existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
         vm.label(
             existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
         );
 
         /// @dev 5115 real pendle ethena vaults on mainnet
-        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
-        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
+        existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY], PENDLE_ETHEANA_KEY);
 
         //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
         //    ERC5115_VAULTS_NAMES;
@@ -1053,6 +1053,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
     }
 
+    function _create5115DepositHookData(
+        bytes32 yieldSourceOracleId,
+        address vault,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool usePrevHookAmount,
+        bool lockSP
+
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
+    }
+
     function _createWithdrawHookData(
         bytes32 yieldSourceOracleId,
         address vault,
@@ -1068,7 +1085,24 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
     }
 
-    function _createDebridgeSendFundsAndExecuteHookData(
+    function _create5115WithdrawHookData(
+        bytes32 yieldSourceOracleId,
+        address vault,
+        address tokenOut,
+        uint256 shares,
+        uint256 minTokenOut,
+        bool usePrevHookAmount,
+        bool lockSP
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount, lockSP);
+    }
+
+
+     function _createDebridgeSendFundsAndExecuteHookData(
         uint256 value,
         address account,
         address inputToken,

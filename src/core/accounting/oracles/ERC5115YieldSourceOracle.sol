@@ -14,19 +14,15 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function decimals(address /*yieldSourceAddress*/ ) external pure override returns (uint8) {
+    function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
         return 18;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
-        // Get the exchange rate from the StandardizedYield contract
-        // This represents how many assets (in 1e18) one SY token is worth
         pricePerShare = IStandardizedYield(yieldSourceAddress).exchangeRate();
-
-        // Note: exchangeRate is already normalized to 1e18, so no additional scaling needed
-        // If exchangeRate is 2e18, it means 1 SY token = 2 asset tokens
     }
+
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {

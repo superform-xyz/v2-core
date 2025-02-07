@@ -16,6 +16,9 @@ interface ISuperHookResult {
     function lockForSP() external view returns (bool);
     /// @notice The lock token of the hook
     function spToken() external view returns (address);
+    
+    /// @notice The asset token being withdrawn or deposited
+    function asset() external view returns (address);
 }
 
 interface ISuperHookInflowOutflow {
@@ -23,12 +26,14 @@ interface ISuperHookInflowOutflow {
 }
 
 interface ISuperHookResultOutflow is ISuperHookResult {
-    /// @notice The asset token being withdrawn
-    function assetOut() external view returns (address);
+
+    /// @notice The amount of shares processed by the hook
+    function usedShares() external view returns (uint256);
 }
 
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
+
                                  ENUMS
     //////////////////////////////////////////////////////////////*/
     enum HookType {
