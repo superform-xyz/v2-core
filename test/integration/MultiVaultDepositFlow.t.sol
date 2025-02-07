@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 // Tests
 import { BaseTest } from "../BaseTest.t.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
@@ -38,12 +39,12 @@ contract MultiVaultDepositFlow is BaseTest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
-        underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["SUSDe"];
+        underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
+        underlyingETH_sUSDe = existingUnderlyingTokens[ETH][SUSDE_KEY];
 
         yieldSource5115AddressSUSDe = realVaultAddresses[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY];
 
-        yieldSource7540AddressUSDC = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
+        yieldSource7540AddressUSDC = realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
 
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
@@ -82,7 +83,7 @@ contract MultiVaultDepositFlow is BaseTest {
             amountPerVault,
             false
         );
-        hooksData[1] = _createDeposit7540VaultHookData(
+        hooksData[1] = _createRequestDeposit7540VaultHookData(
             bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressUSDC,
             0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,

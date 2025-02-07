@@ -338,7 +338,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A.erc5115YieldSourceOracle);
 
-            A.erc7540YieldSourceOracle = new ERC7540YieldSourceOracle();
+            A.erc7540YieldSourceOracle = new ERC7540YieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.erc7540YieldSourceOracle), ERC7540_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC7540_YIELD_SOURCE_ORACLE_KEY] = address(A.erc7540YieldSourceOracle);
 
@@ -773,8 +773,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
 
         /// @dev 5115 real pendle ethena vault on mainnet
-        existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"] = CHAIN_1_PendleEthena;
-        vm.label(existingVaults[1]["ERC5115"]["PendleEthena"]["sUSDe"], "PendleEthena");
+        existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY], "PendleEthena");
 
         /// wstETH
         /// @dev pendle wrapped st ETH from LDO - market:  SY wstETH
@@ -1018,23 +1018,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
     }
 
-    function _create5115DepositHookData(
-        bytes32 yieldSourceOracleId,
-        address vault,
-        address tokenIn,
-        uint256 amount,
-        uint256 minSharesOut,
-        bool usePrevHookAmount,
-        bool lockSP
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData =
-            abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
-    }
-
     function _createWithdraw4626HookData(
         bytes32 yieldSourceOracleId,
         address vault,
@@ -1191,35 +1174,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory)
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
-    }
-
-    function _createDeposit7540VaultHookData(
-        bytes32 yieldSourceOracleId,
-        address yieldSource,
-        address controller,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
-    }
-
-    function _createWithdraw7540VaultHookData(
-        bytes32 yieldSourceOracleId,
-        address yieldSource,
-        address owner,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
     }
 
     function _createDeposit7540VaultHookData(
