@@ -16,6 +16,3 @@
 [submodule "lib/modulekit"]
 	path = lib/modulekit
 	url = https://github.com/rhinestonewtf/modulekit
-[submodule "lib/BoringSolidity"]
-	path = lib/BoringSolidity
-	url = https://github.com/boringcrypto/BoringSolidity

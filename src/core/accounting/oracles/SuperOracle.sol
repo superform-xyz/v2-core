@@ -5,23 +5,23 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
 import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
 import { AggregatorV3Interface } from "../../interfaces/vendors/chainlink/AggregatorV3Interface.sol";
-import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { BoringERC20 } from "../../interfaces/vendors/BoringSolidity/BoringERC20.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs
 /// @notice Registry for managing oracle providers and getting quotes
 contract SuperOracle is Ownable, ISuperOracle, IOracle {
+    using BoringERC20 for IERC20;
+
     /// @notice Mapping of base asset to array of oracle providers
-    mapping(address base => mapping(uint256 provider => address oracle)) private oracles;
+    mapping(address base => mapping(uint256 provider => address oracle)) private usdQuotedOracle;
 
     /// @notice Mapping of provider to max staleness period
     mapping(uint256 provider => uint256 maxStaleness) public providerMaxStaleness;
 
-    /// @notice Mapping to check if an ISO 4217 quote address is supported
-    mapping(address => bool) public isISO4217QuoteSupported;
-
-    /// @notice Array of supported ISO 4217 quote addresses
-    address[] public iso4217Quotes;
+    /// @notice There is a single supported quote in this oracle system: USD
+    address private constant USD = address(840);
 
     /// @notice Timelock period for oracle updates
     uint256 private constant TIMELOCK_PERIOD = 1 weeks;
@@ -47,9 +47,6 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
             }
         }
         _configureOracles(initialBases, initialProviders, initialOracleAddresses);
-
-        // Add USD as first supported ISO 4217 quote
-        _addISO4217Quote(address(840));
     }
 
     // -- Get quote functions --
@@ -65,7 +62,7 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
         view
         returns (uint256 quoteAmount)
     {
-        address oracle = oracles[base][oracleProvider];
+        address oracle = usdQuotedOracle[base][oracleProvider];
         if (oracle == address(0)) revert NO_ORACLES_CONFIGURED();
 
         // If average (0), calculate average of all oracles
@@ -75,7 +72,7 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
 
             // Start from index 1 to skip the average provider
             for (uint256 i = 1; i < MAX_PROVIDERS;) {
-                address providerOracle = oracles[base][i];
+                address providerOracle = usdQuotedOracle[base][i];
                 if (providerOracle == address(0)) break; // Stop if we hit an empty slot
 
                 uint256 quote_ = _getQuoteFromOracle(providerOracle, baseAmount, base, quote, false, i);
@@ -102,10 +99,11 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
     /// @inheritdoc IOracle
     function getQuote(uint256 baseAmount, address base, address quote) external view returns (uint256 quoteAmount) {
         // Extract provider from quote address if it's ISO 4217 code
+        // Note: it is always assumed a provider is encoded in the quote address and not in a base
         uint256 provider = _extractProvider(quote);
 
         // If no provider encoded or provider has no oracle, use average
-        if (provider == 0 || oracles[base][provider] == address(0)) {
+        if (provider == 0 || usdQuotedOracle[base][provider] == address(0)) {
             provider = ORACLE_PROVIDER_AVERAGE;
         }
 
@@ -118,12 +116,6 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
     function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
-    }
-
-    /// @notice Add a new supported ISO 4217 quote address
-    /// @param quote The quote address to add
-    function addISO4217Quote(address quote) external onlyOwner {
-        _addISO4217Quote(quote);
     }
 
     /// @inheritdoc ISuperOracle
@@ -164,7 +156,7 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
 
     /// @inheritdoc ISuperOracle
     function getOracleAddress(address base, uint256 provider) external view returns (address oracle) {
-        oracle = oracles[base][provider];
+        oracle = usdQuotedOracle[base][provider];
         if (oracle == address(0)) revert NO_ORACLES_CONFIGURED();
     }
 
@@ -185,7 +177,7 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
         if (length != providers.length || length != oracleAddresses.length) revert ARRAY_LENGTH_MISMATCH();
 
         for (uint256 i = 0; i < length;) {
-            oracles[bases[i]][providers[i]] = oracleAddresses[i];
+            usdQuotedOracle[bases[i]][providers[i]] = oracleAddresses[i];
             // Set default staleness if not already set
             if (providerMaxStaleness[providers[i]] == 0) {
                 providerMaxStaleness[providers[i]] = 1 days;
@@ -224,8 +216,8 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
 
         // Get decimals
         uint8 feedDecimals = _getOracleDecimals(AggregatorV3Interface(oracle));
-        uint8 baseDecimals = IERC20Metadata(base).decimals();
-        uint8 quoteDecimals = IERC20Metadata(quote).decimals();
+        uint8 baseDecimals = IERC20(base).safeDecimals();
+        uint8 quoteDecimals = IERC20(quote).safeDecimals();
 
         // Calculate quote amount with proper decimal scaling
         quoteAmount =
@@ -236,26 +228,11 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
     /// @param quote The quote address
     /// @return provider The provider ID (0 if not encoded)
     function _extractProvider(address quote) internal view returns (uint256 provider) {
-        // Check if quote is supported
-        if (!isISO4217QuoteSupported[quote]) return 0;
-
         // Extract provider from upper bits
         provider = uint160(quote) >> 20;
 
         // Verify the lower 20 bits match a supported quote
         address extractedQuote = address(uint160(quote) & ((1 << 20) - 1));
-        if (extractedQuote != quote) return 0;
-    }
-
-    /// @notice Internal function to add a supported ISO 4217 quote
-    /// @param quote The quote address to add
-    function _addISO4217Quote(address quote) internal {
-        if (quote == address(0)) revert INVALID_ISO4217_QUOTE();
-        if (isISO4217QuoteSupported[quote]) revert ISO4217_QUOTE_ALREADY_SUPPORTED();
-
-        iso4217Quotes.push(quote);
-        isISO4217QuoteSupported[quote] = true;
-
-        emit ISO4217QuoteAdded(quote);
+        if (extractedQuote != USD) revert UNSUPPORTED_QUOTE();
     }
 }
