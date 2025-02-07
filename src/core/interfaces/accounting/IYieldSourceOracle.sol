@@ -43,16 +43,14 @@ interface IYieldSourceOracle {
     function decimals(address yieldSourceAddress) external view returns (uint8);
 
     /// @notice Derives the price of an action
-    /// @param asset The asset to derive the price for
     /// @param yieldSourceAddress The yield source to derive the price for
     /// @return pricePerShare The price of the action
-    function getPricePerShare(address asset, address yieldSourceAddress) external view returns (uint256 pricePerShare);
+    function getPricePerShare(address yieldSourceAddress) external view returns (uint256 pricePerShare);
 
     /// @notice Derives the price of an action for multiple yield sources
-    /// @param assets Array of assets to derive the price for
     /// @param yieldSourceAddresses Array of yield sources to derive the price for
     /// @return pricesPerShare Array of prices for each yield source
-    function getPricePerShareMultiple(address[] memory assets, address[] memory yieldSourceAddresses)
+    function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
         external
         view
 

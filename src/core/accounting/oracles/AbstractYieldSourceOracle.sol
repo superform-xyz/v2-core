@@ -19,13 +19,13 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
     function decimals(address yieldSourceAddress) external view virtual returns (uint8);
 
     /// @inheritdoc IYieldSourceOracle
-    function getPricePerShare(address, address yieldSourceAddress) public view virtual returns (uint256 pricePerShare);
+    function getPricePerShare(address yieldSourceAddress) public view virtual returns (uint256 pricePerShare);
 
     /// @inheritdoc IYieldSourceOracle
     function getTVL(address yieldSourceAddress, address ownerOfShares) public view virtual returns (uint256 tvl);
 
     /// @inheritdoc IYieldSourceOracle
-    function getPricePerShareMultiple(address[] memory assets, address[] memory yieldSourceAddresses)
+    function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
         external
         view
         returns (uint256[] memory pricesPerShare)
@@ -34,7 +34,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
         pricesPerShare = new uint256[](length);
 
         for (uint256 i = 0; i < length;) {
-            pricesPerShare[i] = getPricePerShare(assets[i], yieldSourceAddresses[i]);
+            pricesPerShare[i] = getPricePerShare(yieldSourceAddresses[i]);
             unchecked {
                 ++i;
             }
@@ -94,7 +94,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
         _validateBaseAsset(yieldSourceAddress, base);
 
         // Get price per share in base asset terms
-        uint256 baseAmount = getPricePerShare(base, yieldSourceAddress);
+        uint256 baseAmount = getPricePerShare(yieldSourceAddress);
 
 
         // Convert to USD using oracle registry with specified provider
@@ -122,7 +122,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
             _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
 
             // Get price per share in base asset terms
-            uint256 baseAmount = getPricePerShare(baseAddresses[i], yieldSourceAddresses[i]);
+            uint256 baseAmount = getPricePerShare(yieldSourceAddresses[i]);
 
             // Convert to USD using oracle registry with specified provider
             pricesPerShareUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));

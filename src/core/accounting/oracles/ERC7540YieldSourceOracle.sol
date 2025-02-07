@@ -22,7 +22,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address, address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
         address share = IERC7540(yieldSourceAddress).share();
         uint256 _decimals = IERC20Metadata(share).decimals();
         pricePerShare = IERC7540(yieldSourceAddress).convertToAssets(10 ** _decimals);

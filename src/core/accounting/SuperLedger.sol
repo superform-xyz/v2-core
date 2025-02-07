@@ -9,8 +9,6 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
@@ -39,7 +37,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     /// @inheritdoc ISuperLedger
     function updateAccounting(
         address user,
-        address asset,
         address yieldSource,
         bytes32 yieldSourceOracleId,
         bool isInflow,
@@ -57,7 +54,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
         if (isInflow) {
             // Get price from oracle
-            uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(asset, yieldSource);
+            uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
             if (pps == 0) revert INVALID_PRICE();
 
             // Always inscribe in the ledger, even if feePercent is set to 0
@@ -235,14 +232,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             // Calculate fee in assets but don't transfer - let the executor handle it
             feeAmount = (profit * config.feePercent) / 10_000;
         }
-    }
-
-    function _applyDustProtection(uint256 value) internal pure returns (uint256) {
-        return _isDust(value) ? 0 : value;
-    }
-
-    function _isDust(uint256 value) internal pure returns (bool) {
-        return value < 100;
     }
 
     function _getAddress(bytes32 id_) internal view returns (address) {

@@ -88,7 +88,7 @@ contract FeesTest is BaseTest {
         assertEq(accSharesAfter, sharesPreviewed);
 
 
-        uint256 pricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(address(0), address(vaultInstance));
+        uint256 pricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(address(vaultInstance));
         uint256 shares = vaultInstance.previewDeposit(amount);
         
 

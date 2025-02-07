@@ -19,7 +19,7 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address, address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
         IERC4626 yieldSource = IERC4626(yieldSourceAddress);
         uint256 _decimals = yieldSource.decimals();
         pricePerShare = yieldSource.convertToAssets(10 ** _decimals);

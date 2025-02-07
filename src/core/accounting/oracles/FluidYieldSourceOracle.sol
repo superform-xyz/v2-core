@@ -22,7 +22,7 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address, address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
         pricePerShare = IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
     }
 

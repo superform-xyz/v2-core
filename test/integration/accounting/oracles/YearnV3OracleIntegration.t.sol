@@ -22,7 +22,7 @@ contract YearnYieldSourceOracleIntegration is BaseE2ETest {
     }
 
     function test_YearnIntegration_getPricePerShare() public view {
-        uint256 price = oracle.getPricePerShare(address(0), address(yieldSource));
+        uint256 price = oracle.getPricePerShare(address(yieldSource));
         assertGt(price, 0);
     }
 
@@ -31,7 +31,7 @@ contract YearnYieldSourceOracleIntegration is BaseE2ETest {
         finalTargets[0] = address(yieldSource);
         address[] memory assets = new address[](1);
         assets[0] = address(0);
-        uint256[] memory prices = oracle.getPricePerShareMultiple(assets, finalTargets);
+        uint256[] memory prices = oracle.getPricePerShareMultiple(finalTargets);
         assertGt(prices[0], 0);
     }
 }
