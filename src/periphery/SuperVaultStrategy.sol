@@ -25,33 +25,33 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
-    uint256 public constant ONE_WEEK = 7 days;
+    uint256 private constant ONE_WEEK = 7 days;
 
     // Role identifiers
-    bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 public constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
-    bytes32 public constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
+    bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
+    bytes32 private constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
+    bytes32 private constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                                 STATE
     //////////////////////////////////////////////////////////////*/
-    bool public initialized;
-    address public vault;
-    IERC20 public asset;
-    uint8 public underlyingDecimals;
+    bool private _initialized;
+    address private _vault;
+    IERC20 private _asset;
+    uint8 private _vaultDecimals;
     // Role-based access control
     mapping(bytes32 role => address roleAddress) public addresses;
 
     // Global configuration
-    GlobalConfig public globalConfig;
+    GlobalConfig private globalConfig;
 
     // Fee configuration
-    FeeConfig public feeConfig;
+    FeeConfig private feeConfig;
 
     // Hook root configuration
-    bytes32 public hookRoot;
-    bytes32 public proposedHookRoot;
-    uint256 public hookRootEffectiveTime;
+    bytes32 private hookRoot;
+    bytes32 private proposedHookRoot;
+    uint256 private hookRootEffectiveTime;
 
     // Emergency withdrawable configuration
     bool public emergencyWithdrawable;
@@ -59,32 +59,28 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     uint256 public emergencyWithdrawableEffectiveTime;
 
     // Yield source configuration
-    mapping(address source => YieldSource sourceConfig) public yieldSources;
-    address[] public yieldSourcesList;
-    mapping(address source => ProposedYieldSource proposedSourceConfig) public proposedYieldSources;
+    mapping(address source => YieldSource sourceConfig) private yieldSources;
+    address[] private yieldSourcesList;
+    mapping(address source => ProposedYieldSource proposedSourceConfig) private proposedYieldSources;
 
     // Request tracking
     mapping(address controller => SuperVaultState state) private superVaultState;
 
-    // Modifiers for role checks
-    modifier onlyManager() {
+    // Convert modifiers to internal functions
+    function _requireManager() internal view {
         if (msg.sender != addresses[MANAGER_ROLE]) revert UNAUTHORIZED();
-        _;
     }
 
-    modifier onlyStrategist() {
+    function _requireStrategist() internal view {
         if (msg.sender != addresses[STRATEGIST_ROLE]) revert UNAUTHORIZED();
-        _;
     }
 
-    modifier onlyEmergencyAdmin() {
+    function _requireEmergencyAdmin() internal view {
         if (msg.sender != addresses[EMERGENCY_ADMIN_ROLE]) revert UNAUTHORIZED();
-        _;
     }
 
-    modifier onlyVault() {
-        if (msg.sender != vault) revert UNAUTHORIZED();
-        _;
+    function _requireVault() internal view {
+        if (msg.sender != _vault) revert UNAUTHORIZED();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -99,7 +95,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         external
     {
-        if (initialized) revert ALREADY_INITIALIZED();
+        if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
@@ -111,10 +107,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
         if (config_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
 
-        initialized = true;
-        vault = vault_;
-        asset = IERC20(IERC4626(vault_).asset());
-        underlyingDecimals = IERC20Metadata(vault_).decimals();
+        _initialized = true;
+        _vault = vault_;
+        _asset = IERC20(IERC4626(vault_).asset());
+        _vaultDecimals = IERC20Metadata(vault_).decimals();
 
         // Initialize roles
         addresses[MANAGER_ROLE] = manager_;
@@ -131,11 +127,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Update state for a new deposit request
     /// @param controller The controller address
     /// @param assets Amount of assets being deposited
-    function handleRequestDeposit(address controller, uint256 assets) external onlyVault {
+    function handleRequestDeposit(address controller, uint256 assets) external {
+        _requireVault();
         if (assets == 0) revert ZERO_AMOUNT();
 
         // Transfer assets from vault
-        asset.safeTransferFrom(msg.sender, address(this), assets);
+        _asset.safeTransferFrom(msg.sender, address(this), assets);
 
         // Update state
         SuperVaultState storage state = superVaultState[controller];
@@ -145,20 +142,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Update state for a deposit request cancellation
     /// @param controller The controller address
     /// @param assets Amount of assets to return
-    function handleCancelDeposit(address controller, uint256 assets) external onlyVault {
+    function handleCancelDeposit(address controller, uint256 assets) external {
+        _requireVault();
         if (assets == 0) revert ZERO_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
         state.pendingDepositRequest = 0;
 
         // Return assets to vault
-        asset.safeTransfer(vault, assets);
+        _asset.safeTransfer(_vault, assets);
     }
 
     /// @notice Update state for a new redeem request
     /// @param controller The controller address
     /// @param shares Amount of shares being redeemed
-    function handleRequestRedeem(address controller, uint256 shares) external onlyVault {
+    function handleRequestRedeem(address controller, uint256 shares) external {
+        _requireVault();
         if (shares == 0) revert ZERO_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -167,7 +166,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Update state for a redeem request cancellation
     /// @param controller The controller address
-    function handleCancelRedeem(address controller) external onlyVault {
+    function handleCancelRedeem(address controller) external {
+        _requireVault();
         SuperVaultState storage state = superVaultState[controller];
         state.pendingRedeemRequest = 0;
     }
@@ -175,7 +175,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Handle deposit claim by updating maxMint state
     /// @param controller The controller address
     /// @param shares Amount of shares being claimed
-    function handleDeposit(address controller, uint256 shares) external onlyVault {
+    function handleDeposit(address controller, uint256 shares) external {
+        _requireVault();
         if (shares == 0) revert ZERO_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -188,7 +189,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Handle withdraw claim by updating maxWithdraw state
     /// @param controller The controller address
     /// @param assets Amount of assets being claimed
-    function handleWithdraw(address controller, uint256 assets) external onlyVault {
+    function handleWithdraw(address controller, uint256 assets) external {
+        _requireVault();
         if (assets == 0) revert ZERO_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -198,7 +200,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.maxWithdraw -= assets;
 
         // Transfer assets to vault
-        asset.safeTransfer(vault, assets);
+        _asset.safeTransfer(_vault, assets);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -212,8 +214,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         bytes[] calldata hookCalldata
     )
         external
-        onlyStrategist
     {
+        _requireStrategist();
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
 
@@ -225,7 +227,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         vars.totalRequestedAmount = _validateRequests(usersLength, users, true);
 
         // Check we have enough free assets to fulfill these requests
-        vars.availableAmount = asset.balanceOf(address(this));
+        vars.availableAmount = _asset.balanceOf(address(this));
         if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
         // Process hooks and get targeted yield sources
@@ -244,7 +246,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.requestedAmount = state.pendingDepositRequest;
 
             // Calculate user's share of total shares
-            vars.shares = vars.requestedAmount.mulDiv(10 ** underlyingDecimals, vars.pricePerShare);
+            vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare);
             // Add new share price point
             state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
 
@@ -252,12 +254,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             state.pendingDepositRequest = 0;
 
             // Mint shares to escrow
-            ISuperVault(vault).mintShares(vars.shares);
+            ISuperVault(_vault).mintShares(vars.shares);
 
             state.maxMint += vars.shares;
 
             // Call vault callback instead of emitting event directly
-            ISuperVault(vault).onDepositClaimable(user, vars.requestedAmount, vars.shares);
+            ISuperVault(_vault).onDepositClaimable(user, vars.requestedAmount, vars.shares);
 
             unchecked {
                 ++i;
@@ -272,8 +274,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         bytes[] calldata hookCalldata
     )
         external
-        onlyStrategist
     {
+        _requireStrategist();
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
 
@@ -312,7 +314,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             state.maxWithdraw += finalAssets;
 
             // Call vault callback instead of emitting event directly
-            ISuperVault(vault).onRedeemClaimable(user, finalAssets, vars.requestedAmount);
+            ISuperVault(_vault).onRedeemClaimable(user, finalAssets, vars.requestedAmount);
 
             unchecked {
                 ++i;
@@ -323,7 +325,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Match redeem requests with deposit requests directly, without accessing yield sources
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
-    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external onlyStrategist {
+    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external {
+        _requireStrategist();
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
         if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
@@ -343,7 +346,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
-            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** underlyingDecimals, vars.currentPricePerShare);
+            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _vaultDecimals, vars.currentPricePerShare);
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
@@ -385,7 +388,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             depositState.maxMint += vars.sharesNeeded;
 
             // Call vault callback instead of emitting event directly
-            ISuperVault(vault).onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded);
+            ISuperVault(_vault).onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded);
 
             unchecked {
                 ++i;
@@ -413,7 +416,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 redeemState.maxWithdraw += vars.finalAssets;
 
                 // Call vault callback instead of emitting event directly
-                ISuperVault(vault).onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed);
+                ISuperVault(_vault).onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed);
             }
 
             unchecked {
@@ -429,8 +432,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         bytes[] calldata hookCalldata
     )
         external
-        onlyStrategist
     {
+        _requireStrategist();
         uint256 hooksLength = hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
@@ -481,7 +484,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 inflowTargets[inflowCount++] = vars.executions[0].target;
 
                 // Approve spending
-                asset.safeIncreaseAllowance(vars.executions[0].target, vars.amount);
+                _asset.safeIncreaseAllowance(vars.executions[0].target, vars.amount);
             }
 
             // Execute the transaction
@@ -491,7 +494,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             // Reset approval if it was an inflow
             if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                asset.forceApprove(vars.executions[0].target, 0);
+                _asset.forceApprove(vars.executions[0].target, 0);
             }
 
             // Update prevHook for next iteration
@@ -520,8 +523,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         bytes[] calldata hookCalldata
     )
         external
-        onlyStrategist
     {
+        _requireStrategist();
         uint256 hooksLength = hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
@@ -583,22 +586,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in vault decimals
-            pricePerShare = 10 ** underlyingDecimals;
+            pricePerShare = 10 ** _vaultDecimals;
         } else {
             // Calculate current PPS
-            pricePerShare = totalAssets().mulDiv(10 ** underlyingDecimals, totalSupplyAmount);
+            pricePerShare = totalAssets().mulDiv(10 ** _vaultDecimals, totalSupplyAmount);
         }
     }
 
     /// @inheritdoc ISuperVaultStrategy
     function totalSupply() public view returns (uint256) {
-        return IERC4626(vault).totalSupply();
+        return IERC4626(_vault).totalSupply();
     }
 
     /// @inheritdoc ISuperVaultStrategy
     function totalAssets() public view returns (uint256) {
         // Total assets is the sum of all assets in yield sources plus idle assets
-        uint256 total = asset.balanceOf(address(this)); // Idle assets
+        uint256 total = _asset.balanceOf(address(this)); // Idle assets
 
         uint256 length = yieldSourcesList.length;
         // Sum up value in yield sources
@@ -631,7 +634,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Propose a new yield source
     /// @param source Address of the yield source
     /// @param oracle Address of the yield source oracle
-    function proposeYieldSource(address source, address oracle) external onlyManager {
+    function proposeYieldSource(address source, address oracle) external {
+        _requireManager();
         if (source == address(0)) revert INVALID_YIELD_SOURCE();
         if (oracle == address(0)) revert INVALID_ORACLE();
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
@@ -671,7 +675,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Update oracle for an existing yield source
     /// @param source Address of the yield source
     /// @param newOracle Address of the new oracle
-    function updateYieldSourceOracle(address source, address newOracle) external onlyManager {
+    function updateYieldSourceOracle(address source, address newOracle) external {
+        _requireManager();
         if (newOracle == address(0)) revert INVALID_ORACLE();
         YieldSource storage yieldSource = yieldSources[source];
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
@@ -684,7 +689,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Deactivate a yield source
     /// @param source Address of the yield source to deactivate
-    function deactivateYieldSource(address source) external onlyManager {
+    function deactivateYieldSource(address source) external {
+        _requireManager();
         YieldSource storage yieldSource = yieldSources[source];
         if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_FOUND();
 
@@ -698,7 +704,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Reactivate a previously removed yield source
     /// @param source Address of the yield source to reactivate
-    function reactivateYieldSource(address source) external onlyManager {
+    function reactivateYieldSource(address source) external {
+        _requireManager();
         YieldSource storage yieldSource = yieldSources[source];
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
         if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_EXISTS();
@@ -713,7 +720,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Update global configuration
     /// @param config New global configuration
-    function updateGlobalConfig(GlobalConfig calldata config) external onlyManager {
+    function updateGlobalConfig(GlobalConfig calldata config) external {
+        _requireManager();
         if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (config.maxAllocationRate == 0 || config.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -727,7 +735,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Propose a new hook root
     /// @param newRoot New hook root to propose
-    function proposeHookRoot(bytes32 newRoot) external onlyManager {
+    function proposeHookRoot(bytes32 newRoot) external {
+        _requireManager();
         proposedHookRoot = newRoot;
         hookRootEffectiveTime = block.timestamp + ONE_WEEK;
         emit HookRootProposed(newRoot, hookRootEffectiveTime);
@@ -747,7 +756,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Update fee configuration
     /// @param feeBps New fee in basis points
     /// @param recipient New fee recipient
-    function updateFeeConfig(uint256 feeBps, address recipient) external onlyManager {
+    function updateFeeConfig(uint256 feeBps, address recipient) external {
+        _requireManager();
         if (feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
@@ -759,7 +769,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
     /// @param role The role identifier
     /// @param account The address to set for the role
-    function setAddress(bytes32 role, address account) external onlyManager {
+    function setAddress(bytes32 role, address account) external {
+        _requireManager();
         // Prevent setting zero address
         if (account == address(0)) revert ZERO_ADDRESS();
 
@@ -771,7 +782,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Propose a change to emergency withdrawable status
     /// @param newWithdrawable The new emergency withdrawable status to propose
-    function proposeEmergencyWithdrawable(bool newWithdrawable) external onlyManager {
+    function proposeEmergencyWithdrawable(bool newWithdrawable) external {
+        _requireManager();
         proposedEmergencyWithdrawable = newWithdrawable;
         emergencyWithdrawableEffectiveTime = block.timestamp + ONE_WEEK;
         emit EmergencyWithdrawableProposed(newWithdrawable, emergencyWithdrawableEffectiveTime);
@@ -791,26 +803,53 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @dev Only works when emergency withdrawals are enabled
     /// @param recipient Address to receive the withdrawn assets
     /// @param amount Amount of free assets to withdraw
-    function emergencyWithdraw(address recipient, uint256 amount) external onlyEmergencyAdmin {
+    function emergencyWithdraw(address recipient, uint256 amount) external {
+        _requireEmergencyAdmin();
         if (!emergencyWithdrawable) revert EMERGENCY_WITHDRAWALS_DISABLED();
         if (recipient == address(0)) revert ZERO_ADDRESS();
 
         // Check we have enough free assets
-        uint256 freeAssets = asset.balanceOf(address(this));
+        uint256 freeAssets = _asset.balanceOf(address(this));
         if (amount > freeAssets) revert INSUFFICIENT_FREE_ASSETS();
 
         // Transfer free assets to recipient
-        asset.safeTransfer(recipient, amount);
+        _asset.safeTransfer(recipient, amount);
         emit EmergencyWithdrawal(recipient, amount);
     }
     /*//////////////////////////////////////////////////////////////
                         MANAGEMENT VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Get whether the contract is initialized
+
+    function isInitialized() external view returns (bool) {
+        return _initialized;
+    }
+
+    /// @notice Get the vault address
+    function getVault() external view returns (address) {
+        return _vault;
+    }
+
+    /// @notice Get the asset address
+    function getAsset() external view returns (address) {
+        return address(_asset);
+    }
+
+    /// @notice Get the vault decimals
+    function getVaultDecimals() external view returns (uint8) {
+        return _vaultDecimals;
+    }
+
     /// @notice Get a yield source's configuration
     /// @param source Address of the yield source
-
     function getYieldSource(address source) external view returns (YieldSource memory) {
         return yieldSources[source];
+    }
+
+    /// @notice Get the proposed yield source configuration
+    /// @param source Address of the yield source
+    function getProposedYieldSource(address source) external view returns (ProposedYieldSource memory) {
+        return proposedYieldSources[source];
     }
 
     /// @notice Get the global configuration
@@ -1024,14 +1063,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (currentYieldSourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
         // Approve assets to target
-        asset.safeIncreaseAllowance(executions[0].target, amount);
+        _asset.safeIncreaseAllowance(executions[0].target, amount);
 
         // Execute the transaction
         (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
         if (!success) revert EXECUTION_FAILED();
 
         // Reset approval
-        asset.forceApprove(executions[0].target, 0);
+        _asset.forceApprove(executions[0].target, 0);
 
         // Update spent assets
         spentAmount += amount;
@@ -1088,7 +1127,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             // Transfer fee to recipient if non-zero
             if (fee > 0) {
-                asset.safeTransfer(feeConfig.recipient, fee);
+                _asset.safeTransfer(feeConfig.recipient, fee);
             }
         }
         return currentAssets;
@@ -1116,7 +1155,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** underlyingDecimals);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _vaultDecimals);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1134,7 +1173,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** underlyingDecimals);
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
     }
 }

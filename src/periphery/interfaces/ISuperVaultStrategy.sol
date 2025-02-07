@@ -289,6 +289,23 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Get whether the contract is initialized
+    /// @return Whether the contract is initialized
+    function isInitialized() external view returns (bool);
+
+    /// @notice Get the vault address
+    /// @return The vault address
+    function getVault() external view returns (address);
+
+    /// @notice Get the asset address
+    /// @return The asset address
+    function getAsset() external view returns (address);
+
+    /// @notice Get the vault decimals
+    /// @return The vault decimals
+    function getVaultDecimals() external view returns (uint8);
+
     /// @notice Get the current price per share of the SuperVault
     /// @return pricePerShare The current price per share in underlying decimals
     function getSuperVaultPPS() external view returns (uint256 pricePerShare);
@@ -313,6 +330,10 @@ interface ISuperVaultStrategy {
     /// @notice Get a yield source's configuration
     /// @param source Address of the yield source
     function getYieldSource(address source) external view returns (YieldSource memory);
+
+    /// @notice Get the proposed yield source configuration
+    /// @param source Address of the yield source
+    function getProposedYieldSource(address source) external view returns (ProposedYieldSource memory);
 
     /// @notice Get the global configuration
     function getGlobalConfig() external view returns (GlobalConfig memory);

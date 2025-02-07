@@ -331,7 +331,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function asset() public view virtual returns (address) {
+    function asset() public view virtual override returns (address) {
         return address(_asset);
     }
 
