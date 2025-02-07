@@ -16,6 +16,15 @@ test = "test"
 cbor_metadata = true
 libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./" }]
+remappings = [
+  "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
+  "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
+  "modulekit/=lib/modulekit/src/",
+  "@prb/math/=lib/modulekit/node_modules/@prb/math/src/",
+  "@solady/=lib/solady/",
+  "@account-abstraction/=lib/modulekit/node_modules/account-abstraction/contracts/",
+  "@pigeon/=lib/pigeon/src/",
+]
 
 [profile.ci-sizes]
 cache_path = "cache"
@@ -33,8 +42,6 @@ test = "src"
 cbor_metadata = true
 libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./" }]
-
-# remappings
 remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
   "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
@@ -44,6 +51,7 @@ remappings = [
   "@account-abstraction/=lib/modulekit/node_modules/account-abstraction/contracts/",
   "@pigeon/=lib/pigeon/src/",
 ]
+
 
 [profile.ci]
 fuzz = { runs = 10_000 }
