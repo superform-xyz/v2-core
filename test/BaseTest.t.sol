@@ -707,12 +707,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
         existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
 
-
         // Optimism tokens
         existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
         existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
         existingUnderlyingTokens[OP][USDCe_KEY] = CHAIN_10_USDCe;
+        vm.label(existingUnderlyingTokens[OP][USDCe_KEY], "USDCe");
 
         // Base tokens
         existingUnderlyingTokens[BASE][DAI_KEY] = CHAIN_8453_DAI;
@@ -926,8 +926,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.expectEmit(true, true, true, true);
             emit IAcrossV3Receiver.AcrossFundsReceivedButNotEnoughBalance(account);
         } else {
-            //vm.expectEmit(true, true, true, true);
-            //emit IAcrossV3Receiver.AcrossFundsReceivedAndExecuted(account);
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossV3Receiver.AcrossFundsReceivedAndExecuted(account);
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
@@ -1049,7 +1049,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory hookData)
     {
         bytes memory dstUserOpData = _encodeUserOp(userOpData); 
-        console2.log("--------- dstUserOpData.length", dstUserOpData.length);
         hookData = abi.encodePacked(
             uint256(0),
             _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
