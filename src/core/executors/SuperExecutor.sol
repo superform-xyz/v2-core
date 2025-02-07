@@ -109,10 +109,12 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
             bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
+            address assetToken = ISuperHookResultOutflow(hook).asset();
 
             // Update accounting and get fee amount if any
             uint256 feeAmount = ledger.updateAccounting(
                 account,
+                assetToken,
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
@@ -121,12 +123,12 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             );
 
 
+
             // If there's a fee to collect (only for outflows)
             if (feeAmount > 0) {
                 ISuperLedger.YieldSourceOracleConfig memory config =
                     ledger.getYieldSourceOracleConfig(yieldSourceOracleId);
                 // Get the asset token from the hook
-                address assetToken = ISuperHookResultOutflow(hook).assetOut();
                 if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
                 if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
 

@@ -39,6 +39,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     /// @inheritdoc ISuperLedger
     function updateAccounting(
         address user,
+        address asset,
         address yieldSource,
         bytes32 yieldSourceOracleId,
         bool isInflow,
@@ -56,7 +57,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
         if (isInflow) {
             // Get price from oracle
-            uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+            uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(asset, yieldSource);
             if (pps == 0) revert INVALID_PRICE();
 
             // Always inscribe in the ledger, even if feePercent is set to 0
@@ -66,13 +67,9 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
             return 0;
         } else {
-            console2.log("-------- Processing outflow --------");
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
-                console2.log("-------- Processing outflow --------config.feePercent", config.feePercent);
-                feeAmount = _processOutflowV2(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets, usedShares);
-                console2.log("-------- Processing outflow --------feeAmount", feeAmount);
-
+                feeAmount = _processOutflow(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets, usedShares);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
@@ -173,7 +170,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient);
     }
 
-     function _processOutflowV2(
+     function _processOutflow(
         address user,
         address yieldSource,
         bytes32 yieldSourceOracleId,
@@ -199,7 +196,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             LedgerEntry storage entry = entries[currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
-            console2.log("-------- Processing outflow --------availableShares", availableShares);
 
             // if no shares available on current entry, move to the next
             if (availableShares == 0) {
@@ -214,18 +210,12 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             // remove from current entry
             uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
-            console2.log("-------- Processing outflow --------availableShares", availableShares);
-            console2.log("-------- Processing outflow --------remainingShares", remainingShares);
-            console2.log("-------- Processing outflow --------sharesConsumed", sharesConsumed);
             entry.amountSharesAvailableToConsume -= sharesConsumed;
             remainingShares -= sharesConsumed;
-            console2.log("-------- Processing outflow --------entry.amountSharesAvailableToConsume", entry.amountSharesAvailableToConsume);
 
             costBasis += sharesConsumed * entry.price / (10 ** decimals);
-            console2.log("-------- Processing outflow --------costBasis", costBasis);
 
             if (sharesConsumed == availableShares) {
-                console2.log("-------- Processing outflow --------sharesConsumed == availableShares");
                 unchecked {
                     ++currentIndex;
                 }
@@ -236,9 +226,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         userLedger[user][yieldSource].unconsumedEntries = currentIndex;
 
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-        console2.log("-------- Processing outflow --------amountAssets", amountAssets);
-        console2.log("-------- Processing outflow --------costBasis", costBasis);
-        console2.log("-------- Processing outflow --------profit", profit);
 
         if (profit > 0) {
             YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
@@ -250,85 +237,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         }
     }
 
-    function _processOutflow(
-        address user,
-        address yieldSource,
-        bytes32 yieldSourceOracleId,
-        uint256 amountAssets
-    )
-        internal
-        returns (uint256 feeAmount)
-    {
-        uint256 remainingAssets = amountAssets;
-        uint256 costBasis;
-
-        LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
-        uint256 len = entries.length;
-        if (len == 0) return 0;
-
-        uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
-
-        while (remainingAssets > 0) {
-            if (currentIndex >= len) revert INSUFFICIENT_SHARES();
-
-            LedgerEntry storage entry = entries[currentIndex];
-            uint256 availableShares = entry.amountSharesAvailableToConsume;
-
-            if (availableShares == 0) {
-                unchecked {
-                    ++currentIndex;
-                }
-                continue;
-            }
-            address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
-
-            // get decimals and current price per share
-            uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
-            uint256 newPricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSource);
-
-            // calculate how many shares would be consumed at the current price
-            uint256 remainingSharesAtCurrentPrice = (remainingAssets * (10 ** decimals)) / newPricePerShare;
-
-            // consume shares
-            uint256 sharesConsumed =
-                availableShares > remainingSharesAtCurrentPrice ? remainingSharesAtCurrentPrice : availableShares;
-            entry.amountSharesAvailableToConsume -= sharesConsumed;
-            console2.log("-------- Processing outflow --------entry.amountSharesAvailableToConsume", entry.amountSharesAvailableToConsume);
-            entry.amountSharesAvailableToConsume = _applyDustProtection(entry.amountSharesAvailableToConsume);
-
-            uint256 actualAmountConsumed = (sharesConsumed * newPricePerShare) / (10 ** decimals);
-
-            // Update cost basis using historical price
-            uint256 assetsConsumedInEntryPrice = sharesConsumed * entry.price / (10 ** decimals);
-            costBasis += assetsConsumedInEntryPrice;
-
-            // because of rounding errors when amount is slightly bigger than remainingAssets
-            remainingAssets = actualAmountConsumed > remainingAssets ? 0 : remainingAssets - actualAmountConsumed;
-            console2.log("-------- Processing outflow --------remainingAssets", remainingAssets);
-            remainingAssets = _applyDustProtection(remainingAssets);
-
-            // sum of all sharesConsumed * entry.price = > amount consumed
-            // profit = amount received - amount consumed
-            if (sharesConsumed == availableShares) {
-                unchecked {
-                    ++currentIndex;
-                }
-            }
-        }
-
-        userLedger[user][yieldSource].unconsumedEntries = currentIndex;
-
-        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-
-        if (profit > 0) {
-            YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
-            if (config.feePercent == 0) revert FEE_NOT_SET();
-
-            // Calculate fee in assets but don't transfer - let the executor handle it
-            feeAmount = (profit * config.feePercent) / 10_000;
-        }
-    }
-     
     function _applyDustProtection(uint256 value) internal pure returns (uint256) {
         return _isDust(value) ? 0 : value;
     }

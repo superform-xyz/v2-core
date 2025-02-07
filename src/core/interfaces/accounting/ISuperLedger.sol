@@ -81,6 +81,7 @@ interface ISuperLedger {
 
     /// @notice Updates accounting for a user's yield source interaction
     /// @param user The user address
+    /// @param asset The asset address
     /// @param yieldSource The yield source address
     /// @param yieldSourceOracleId The yield source id
     /// @param isInflow Whether this is an inflow (true) or outflow (false)
@@ -89,6 +90,7 @@ interface ISuperLedger {
     /// @return feeAmount The amount of fee to be collected in the asset being withdrawn (only for outflows)
     function updateAccounting(
         address user,
+        address asset,
         address yieldSource,
         bytes32 yieldSourceOracleId,
         bool isInflow,

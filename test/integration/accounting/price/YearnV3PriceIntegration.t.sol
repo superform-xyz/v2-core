@@ -40,7 +40,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
         mockSignature = abi.encodePacked(hex"41414141");
 
-        oracle = new ERC4626YieldSourceOracle();
+        oracle = new ERC4626YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
 
         superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superLedger = SuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
@@ -71,7 +71,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        uint256 pricePerShareOne = oracle.getPricePerShare(address(yearnVault));
+        uint256 pricePerShareOne = oracle.getPricePerShare(address(0), address(yearnVault));
         uint256 sharesOne = yearnVault.previewDeposit(amount);
 
         // prepare data & execute through entry point
@@ -89,7 +89,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         _getTokens(underlying, nexusAccount, amount);
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
-        uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));
+        uint256 pricePerShareTwo = oracle.getPricePerShare(address(0), address(yearnVault));
         uint256 sharesTwo = yearnVault.previewDeposit(amount);
 
         // assert price per share
@@ -129,7 +129,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
         // time passing won't change anything as the vault needs deposits; let's mock the call
         // double the price per share
-        uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));
+        uint256 pricePerShareTwo = oracle.getPricePerShare(address(0), address(yearnVault));
         vm.mockCall(
             address(yearnVault),
             abi.encodeWithSelector(IERC4626.convertToAssets.selector, 10 ** yearnVault.decimals()),
@@ -172,7 +172,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
         // time passing won't change anything as the vault needs deposits; let's mock the call
         // double the price per share
-        uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));
+        uint256 pricePerShareTwo = oracle.getPricePerShare(address(0), address(yearnVault));
         vm.mockCall(
             address(yearnVault),
             abi.encodeWithSelector(IERC4626.convertToAssets.selector, 10 ** yearnVault.decimals()),
@@ -270,7 +270,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
     }
 
     function _executeAndValidateDeposit(address nexusAccount, ISuperExecutor.ExecutorEntry memory entry, uint256 amount, uint256 expectedEntriesCount) private {
-        uint256 pricePerShare = oracle.getPricePerShare(address(yearnVault));
+        uint256 pricePerShare = oracle.getPricePerShare(address(0), address(yearnVault));
         uint256 shares = yearnVault.previewDeposit(amount);
 
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
@@ -295,10 +295,10 @@ contract YearnV3PriceIntegration is BaseE2ETest {
     }
 
     function _mockPricePerShareDouble() private {
-        uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));
+        uint256 pricePerShareTwo = oracle.getPricePerShare(address(0), address(yearnVault));
         vm.mockCall(
             address(oracle),
-            abi.encodeWithSelector(ERC4626YieldSourceOracle.getPricePerShare.selector, address(yearnVault)),
+            abi.encodeWithSelector(ERC4626YieldSourceOracle.getPricePerShare.selector, address(0), address(yearnVault)),
             abi.encode(pricePerShareTwo * 2)
         );
     }

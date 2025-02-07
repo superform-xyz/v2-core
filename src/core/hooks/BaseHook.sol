@@ -15,6 +15,7 @@ abstract contract BaseHook is SuperRegistryImplementer {
     uint256 public transient usedShares;
     bool public transient lockForSP;
     address public transient spToken;
+    address public transient asset;
     // forgefmt: disable-end
 
 

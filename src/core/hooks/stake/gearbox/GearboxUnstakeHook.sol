@@ -24,9 +24,6 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
-    // forgefmt: disable-start
-    address public transient assetOut;
-    // forgefmt: disable-end
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -65,8 +62,8 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external onlyExecutor {
         address yieldSource = data.extractYieldSource();
-        /// @dev in Gearbox, the staking token is the assetOut
-        assetOut = IGearboxFarmingPool(yieldSource).stakingToken();
+        /// @dev in Gearbox, the staking token is the asset
+        asset = IGearboxFarmingPool(yieldSource).stakingToken();
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 85);
         spToken = yieldSource;
@@ -90,6 +87,6 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     }
     
     function _getBalance(address account, bytes memory) private view returns (uint256) {
-        return IERC20(assetOut).balanceOf(account);
+        return IERC20(asset).balanceOf(account);
     }
 }

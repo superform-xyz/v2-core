@@ -25,9 +25,6 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
-    // forgefmt: disable-start
-    address public transient assetOut;
-    // forgefmt: disable-end
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -67,7 +64,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external onlyExecutor {
-        assetOut = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
+        asset = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 85);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
@@ -91,6 +88,6 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     }
     
     function _getBalance(address account, bytes memory) private view returns (uint256) {
-        return IFluidLendingStakingRewards(assetOut).balanceOf(account);
+        return IFluidLendingStakingRewards(asset).balanceOf(account);
     }
 }

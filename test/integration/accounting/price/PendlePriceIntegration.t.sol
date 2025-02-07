@@ -43,7 +43,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         mockSignature = abi.encodePacked(hex"41414141");
 
-        oracle = new ERC5115YieldSourceOracle();
+        oracle = new ERC5115YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
 
         superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superLedger = SuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
@@ -77,7 +77,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        uint256 pricePerShareOne = oracle.getPricePerShare(address(pendleVault));
+        uint256 pricePerShareOne = oracle.getPricePerShare(underlying,address(pendleVault));
         uint256 sharesOne = pendleVault.previewDeposit(underlying, amount);
 
 
@@ -97,7 +97,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         _getTokens(underlying, nexusAccount, amount);
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
-        uint256 pricePerShareTwo = oracle.getPricePerShare(address(pendleVault));
+        uint256 pricePerShareTwo = oracle.getPricePerShare(underlying,address(pendleVault));
         uint256 sharesTwo = pendleVault.previewDeposit(underlying, amount);
 
 
@@ -176,14 +176,13 @@ contract PendlePriceIntegration is BaseE2ETest {
         // previewRedeem
         uint256 previewRedeemBefore = pendleVault.previewRedeem(underlying, pendleVault.balanceOf(nexusAccount));
         // create multiple deposits to increase PPS
-        uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
+        uint256 ppsBefore = oracle.getPricePerShare(underlying, address(pendleVault));
         _performMultipleDeposits(underlying, IERC4626(underlying).asset(), 50, SMALL);
-        uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
-        assertGt(ppsAfter, ppsBefore);
+        uint256 ppsAfter = oracle.getPricePerShare(underlying, address(pendleVault));
+        assertEq(ppsAfter, ppsBefore); // in Pendle shares are 1:1 with amount
+
 
         uint256 previewRedeemAfter = pendleVault.previewRedeem(underlying, pendleVault.balanceOf(nexusAccount));
-        console2.log("previewRedeemBefore", previewRedeemBefore);
-        console2.log("previewRedeemAfter", previewRedeemAfter);
         //assertGt(previewRedeemAfter, previewRedeemBefore);
 
 
@@ -257,7 +256,7 @@ contract PendlePriceIntegration is BaseE2ETest {
     }
 
     function _executeAndValidateDeposit(address nexusAccount, ISuperExecutor.ExecutorEntry memory entry, uint256 amount, uint256 expectedEntriesCount) private {
-        uint256 pricePerShare = oracle.getPricePerShare(address(pendleVault));
+        uint256 pricePerShare = oracle.getPricePerShare(underlying, address(pendleVault));
         uint256 shares = pendleVault.previewDeposit(underlying, amount);
 
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);

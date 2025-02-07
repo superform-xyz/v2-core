@@ -57,13 +57,12 @@ abstract contract Constants {
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant SOMELIER_STAKE_HOOK_KEY = "SomelierStakeHook";
-    string public constant SOMELIER_UNBOND_ALL_HOOK_KEY = "SomelierUnbondAllHook";  
+    string public constant SOMELIER_UNBOND_ALL_HOOK_KEY = "SomelierUnbondAllHook";
     string public constant SOMELIER_UNBOND_HOOK_KEY = "SomelierUnbondHook";
     string public constant SOMELIER_UNSTAKE_ALL_HOOK_KEY = "SomelierUnstakeAllHook";
     string public constant SOMELIER_UNSTAKE_HOOK_KEY = "SomelierUnstakeHook";
     string public constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string public constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";
-
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
@@ -76,10 +75,11 @@ abstract contract Constants {
     string public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+    string public constant SUPER_ORACLE_KEY = "SuperOracle";
     string public constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
-
+    string public constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
     // tokens
     string public constant DAI_KEY = "DAI";
     string public constant USDC_KEY = "USDC";
@@ -99,7 +99,7 @@ abstract contract Constants {
     address public constant CHAIN_8453_USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     address public constant CHAIN_8453_WETH = 0x4200000000000000000000000000000000000006;
 
-    // permit2 
+    // permit2
     address public constant PERMIT2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
 
     // 1inch
