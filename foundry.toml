@@ -17,6 +17,23 @@ cbor_metadata = true
 libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./" }]
 
+[profile.ci-sizes]
+cache_path = "cache"
+auto_detect_solc = false
+bytecode_hash = "none"
+fuzz = { runs = 1_000 }
+gas_reports = ["*"]
+optimizer = true
+optimizer_runs = 10_000
+out = "out"
+script = "src"
+solc = "0.8.28"
+src = "src"
+test = "src"
+cbor_metadata = true
+libs = ['lib']
+fs_permissions = [{ access = "read-write", path = "./" }]
+
 # remappings
 remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
