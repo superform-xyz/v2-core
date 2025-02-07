@@ -17,9 +17,9 @@ deploy-poc:
 build :; forge build && $(MAKE) generate
 ftest :; forge test
 
-test-vvv :; forge test --match-test test_Bridge_To_MultiVault_Deposit_Flow -vvvv
+test-vvv :; forge test --match-test test_bridge_To_OP_And_Deposit -vvvv
 
-test-integration :; forge test --match-test test_Deposit_Redeem_4626_Mainnet_Flow -vvvv
+test-integration :; forge test --match-test test_sendFundsFromTwoChainsAndDeposit -vvvv
 
 .PHONY: generate
 generate:
