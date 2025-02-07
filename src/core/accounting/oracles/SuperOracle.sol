@@ -227,7 +227,7 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
     /// @notice Extract provider ID from quote address
     /// @param quote The quote address
     /// @return provider The provider ID (0 if not encoded)
-    function _extractProvider(address quote) internal view returns (uint256 provider) {
+    function _extractProvider(address quote) internal pure returns (uint256 provider) {
         // Extract provider from upper bits
         provider = uint160(quote) >> 20;
 
