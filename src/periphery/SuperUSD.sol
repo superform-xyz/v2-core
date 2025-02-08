@@ -16,7 +16,10 @@ import { IERC7540Vault, IERC7540Operator, IERC7540Deposit, IERC7540Redeem } from
 /// @title SuperUSD
 /// @notice Stablecoin vault implementing ERC-7575 and ERC-7540
 /// @author SuperForm Labs
-abstract contract SuperUSD is ERC20, ISuperUSD {
+
+/// @dev TODO: need to implement pipes to go from USDC to AUSD, etc. as is the deposit asset must go directly to the appropriate vault
+/// @dev perhaps easiest to not have multiasset support at all, and just have a single asset vault (USDC) with pipes to go to the appropriate vault
+contract SuperUSD is ERC20, ISuperUSD {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
