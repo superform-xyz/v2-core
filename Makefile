@@ -17,7 +17,7 @@ deploy-poc:
 build :; forge build && $(MAKE) generate
 ftest :; forge test
 
-test-vvv :; forge test --match-test test_get5115PricePerShare -vvvv
+test-vvv :; forge test --match-test test_sendFundsFromTwoChainsAndDeposit -vvvv
 
 test-integration :; forge test --match-test test_Deposit_Redeem_4626_Mainnet_Flow -vvvv
 

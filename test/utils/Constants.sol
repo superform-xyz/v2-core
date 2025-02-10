@@ -13,6 +13,9 @@ abstract contract Constants {
     uint256 public constant USER2_KEY = 0x2;
     uint256 public constant MANAGER_KEY = 0x3;
     uint256 public constant ACROSS_RELAYER_KEY = 0x4;
+    uint256 public constant STRATEGIST_KEY = 0x5;
+    uint256 public constant EMERGENCY_ADMIN_KEY = 0x6;
+    uint256 public constant FEE_RECIPIENT_KEY = 0x7;
     // registry
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
 
