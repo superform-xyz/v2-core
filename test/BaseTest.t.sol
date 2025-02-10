@@ -1191,7 +1191,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
         hookData = abi.encodePacked(
             uint256(0),
-            _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
+            _getContract(destinationChainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
             inputToken,
             outputToken,
             inputAmount,

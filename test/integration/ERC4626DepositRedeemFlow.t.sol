@@ -12,7 +12,6 @@ import { IDeBridgeGate } from "../../src/core/interfaces/vendors/bridges/debridg
 
 import { BaseTest } from "../BaseTest.t.sol";
 
-import { console2 } from "forge-std/console2.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 contract ERC4626DepositRedeemFlowTest is BaseTest {
@@ -132,8 +131,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
     }
 
-    //TODO: temporary; uncomment when the issue is fixed
-    /**
     function test_RebalanceCrossChain_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
@@ -199,7 +196,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         _processAcrossV3Message(ETH, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
     }
- */
+
+    
     struct LocalVars {
         uint256 intentAmount;
         address[] dstHooksAddresses;
@@ -207,8 +205,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         address[] srcHooksAddresses;
         bytes[] srcHooksData;
     }
- //TODO: temporary; uncomment when the issue is fixed
-    /**
+
+
+
     function test_sendFundsFromTwoChainsAndDeposit() public {
         LocalVars memory vars;
         vm.selectFork(FORKS[ETH]);
@@ -297,7 +296,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // balance is received and everything is executed
         _processAcrossV3Message(OP, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
     }
-*/
+
+    
     function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
