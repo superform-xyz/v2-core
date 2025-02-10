@@ -59,6 +59,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     uint256 public balance_Base_USDC_Before;
 
+    struct HookData {
+        bytes16 from;
+        bytes16 to;
+    }
+
     function setUp() public override {
         super.setUp();
 
@@ -100,17 +105,24 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
 
+        restrictionManager.unfreeze(share, accountETH);
+
         restrictionManager.updateMember(
             share,
             accountETH,
             type(uint64).max
         );
 
-        ITranche(share).setHookData(
-            accountETH,
-            bytes16(bytes32(uint256(uint160(accountETH))))
-        );
+        // HookData memory hookData = HookData({
+        //     from: bytes16(bytes32(uint256(uint160(accountETH)))),
+        //     to: bytes16(bytes32(uint256(uint160(yieldSource7540AddressETH_USDC))))
+        // });
 
+        // ITranche(share).setHookData(
+        //     accountETH,
+        //     bytes16(bytes32(hookData))
+        // );
+    
         ITranche(share).setHookData(
             accountETH,
             bytes16(bytes32(uint256(uint160(yieldSource7540AddressETH_USDC))))
@@ -364,19 +376,19 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
     
-        bytes memory message = abi.encodePacked(
-            uint8(IInvestmentManager.Call.FulfilledDepositRequest),
-            uint64(4139607887), // vault poolId
-            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), // trancheId
-            accountETH,
-            uint128(242333941209166991950178742833476896417),
-            amountPerVault,
-            uint128(2000)
-        );
-        investmentManager.handle(message);
+        // bytes memory message = abi.encodePacked(
+        //     uint8(IInvestmentManager.Call.FulfilledDepositRequest),
+        //     uint64(4139607887), // vault poolId
+        //     bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), // trancheId
+        //     accountETH,
+        //     uint128(242333941209166991950178742833476896417),
+        //     amountPerVault,
+        //     uint128(2000)
+        // );
+        // investmentManager.handle(message);
 
         investmentManager.fulfillDepositRequest(
-            4139607887, // This could be incorrect
+            4139607887,
             bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), 
             accountETH, 
             uint128(242333941209166991950178742833476896417), 
