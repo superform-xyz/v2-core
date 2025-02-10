@@ -101,6 +101,21 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
     }
 
+    function test_OP_Bridge_Deposit_Redeem_Flow() public {
+        test_bridge_To_OP_And_Deposit();
+        test_redeem_From_OP();
+    }
+
+    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
+        test_bridge_To_OP_And_Deposit();
+        _redeem_From_OP_And_Bridge_Back_To_Base();
+    }
+
+    function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
+        test_Bridge_To_ETH_And_Deposit();
+        _redeem_From_ETH_And_Bridge_Back_To_Base();
+    }
+
     function test_Bridge_To_ETH_And_Deposit() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -292,26 +307,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault);
     }
 
-    function test_OP_Bridge_Deposit_Redeem_Flow() public {
-        test_bridge_To_OP_And_Deposit();
-        test_redeem_From_OP();
-    }
-
-    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
-        test_bridge_To_OP_And_Deposit();
-        _redeem_From_OP_And_Bridge_Back_To_Base();
-    }
-
-    function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
-        test_Bridge_To_ETH_And_Deposit();
-        _redeem_From_ETH_And_Bridge_Back_To_Base();
-    }
-
-    // function test_Bridge_To_MultiVault_Deposit_Redeem_Bridge_Back_Flow() public {
-    //     _redeem_From_OP_And_Bridge_Back_To_Base();
-    //     _redeem_From_ETH_And_Bridge_Back_To_Base();
-    // }
-
     function _redeem_From_ETH_And_Bridge_Back_To_Base() internal {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -325,36 +320,33 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // ETH IS SRC
         vm.selectFork(FORKS[ETH]);
 
-        vm.prank(0x1804c8AB1F12E6bbf3894d4083f33e07309d1f38);
+        investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
+        vm.startPrank(0x6f9dba3D3A3ab083BcA60Ef82784cf12A6eC24b8);
+    
         bytes memory message = abi.encodePacked(
             IInvestmentManager.Call.FulfilledDepositRequest,
-            uint64(4139607887),
-            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273),
+            uint64(4139607887), // vault poolId
+            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), // trancheId
             accountETH,
             uint128(242333941209166991950178742833476896417),
             amountPerVault,
             uint256(2000)
         );
-
         investmentManager.handle(message);
+        // investmentManager.requestDeposit(yieldSource7540AddressETH_USDC, amountPerVault, accountETH, accountETH, accountETH);
+        // investmentManager.fulfillDepositRequest(4139607887, bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), accountETH, uint128(242333941209166991950178742833476896417), uint128(amountPerVault), uint128(2000));
+        //investmentManager.mint(yieldSource7540AddressETH_USDC, amountPerVault, accountETH, accountETH);
 
         uint256 userBalanceSharesBefore = IERC20(yieldSource7540AddressETH_USDC).balanceOf(accountETH);
 
         console2.log("--------- userBalanceSharesBefore", userBalanceSharesBefore);
 
         address[] memory ethHooksAddresses = new address[](3);
-        //ethHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         ethHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
         ethHooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         ethHooksAddresses[2] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory ethHooksData = new bytes[](3);
-        // ethHooksData[0] = _createApproveHookData(
-        //     vaultAddress, // shares
-        //     vaultAddress,
-        //     amountPerVault,
-        //     false
-        // );
         ethHooksData[0] = _createRequestWithdraw7540VaultHookData(
             bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC, accountBase, amountPerVault, false
