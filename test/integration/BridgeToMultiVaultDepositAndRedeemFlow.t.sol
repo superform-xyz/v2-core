@@ -22,6 +22,12 @@ import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
+interface RestrictionManagerLike {
+    function root() external view returns (address);
+
+    function updateMember(address token, address user, uint64 validUntil) external;
+}
+
 contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IERC7540 public vaultInstance7540ETH;
     IERC4626 public vaultInstance4626OP;
@@ -55,7 +61,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IRoot public root;
 
     IInvestmentManager public investmentManager;
-    IRestrictionManager public restrictionManager;
+    RestrictionManagerLike public restrictionManager;
 
     uint256 public balance_Base_USDC_Before;
 
@@ -67,7 +73,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCe_KEY];
-        
+
         // Set up the 7540 yield source
         yieldSource7540AddressETH_USDC =
             realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
@@ -78,45 +84,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         yieldSourceOracle7540 = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
         vm.label(yieldSourceOracle7540, "yieldSourceOracle7540");
-
-        vm.selectFork(FORKS[ETH]);
-
-        address share = IERC7540(yieldSource7540AddressETH_USDC).share();
-        console2.log("--------- share", share);
-
-        ITranche(share).hook();
-
-        root = IRoot(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
-
-        restrictionManager = IRestrictionManager(0x4737C3f62Cc265e786b280153fC666cEA2fBc0c0);
-
-        investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
-
-        //vm.startPrank(0x6f9dba3D3A3ab083BcA60Ef82784cf12A6eC24b8);
-
-        //vm.prank(0x8D566ADACe57ee5DD2BF98953B804991D634211A);
-
-        //root.endorse(accountETH);
-
-        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
-
-        restrictionManager.updateMember(
-            share,
-            accountETH,
-            type(uint64).max
-        );
-
-        ITranche(share).setHookData(
-            accountETH,
-            bytes16(bytes32(uint256(uint160(accountETH))))
-        );
-
-        ITranche(share).setHookData(
-            accountETH,
-            bytes16(bytes32(uint256(uint160(yieldSource7540AddressETH_USDC))))
-        );
-
-        vm.stopPrank();
 
         // Set up the 4626 yield source
         yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
@@ -140,6 +107,23 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.selectFork(FORKS[BASE]);
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        vm.selectFork(FORKS[ETH]);
+
+        address share = IERC7540(yieldSource7540AddressETH_USDC).share();
+        console2.log("--------- share", share);
+
+        ITranche(share).hook();
+
+        address mngr = ITranche(share).hook();
+
+        restrictionManager = RestrictionManagerLike(mngr);
+
+        vm.startPrank(RestrictionManagerLike(mngr).root());
+
+        restrictionManager.updateMember(share, accountETH, type(uint64).max);
+
+        vm.stopPrank();
     }
 
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
@@ -174,11 +158,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
             bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
-            //0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
             accountETH,
             amountPerVault,
             true
-        ); 
+        );
 
         UserOpData memory ethUserOpData = _createUserOpData(eth7540HooksAddresses, eth7540HooksData, ETH);
 
@@ -363,24 +346,24 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
-    
+
         bytes memory message = abi.encodePacked(
             uint8(IInvestmentManager.Call.FulfilledDepositRequest),
-            uint64(4139607887), // vault poolId
+            uint64(4_139_607_887), // vault poolId
             bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), // trancheId
             accountETH,
-            uint128(242333941209166991950178742833476896417),
+            uint128(242_333_941_209_166_991_950_178_742_833_476_896_417),
             amountPerVault,
             uint128(2000)
         );
         investmentManager.handle(message);
 
         investmentManager.fulfillDepositRequest(
-            4139607887, // This could be incorrect
-            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), 
-            accountETH, 
-            uint128(242333941209166991950178742833476896417), 
-            uint128(amountPerVault), 
+            4_139_607_887, // This could be incorrect
+            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273),
+            accountETH,
+            uint128(242_333_941_209_166_991_950_178_742_833_476_896_417),
+            uint128(amountPerVault),
             uint128(2000)
         );
 
@@ -400,7 +383,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         bytes[] memory ethHooksData = new bytes[](3);
         ethHooksData[0] = _createRequestWithdraw7540VaultHookData(
             bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSource7540AddressETH_USDC, accountBase, amountPerVault, false
+            yieldSource7540AddressETH_USDC,
+            accountBase,
+            amountPerVault,
+            false
         );
         ethHooksData[1] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
