@@ -11,8 +11,11 @@ import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.
 
 // Vault Interfaces
 import { IInvestmentManager } from "../../src/core/interfaces/vendors/centrifuge/IInvestmentManager.sol";
+import { IRestrictionManager } from "../../src/core/interfaces/vendors/centrifuge/IRestrictionManager.sol";
 import { IStandardizedYield } from "../../src/core/interfaces/vendors/pendle/IStandardizedYield.sol";
 import { IERC7540 } from "../../src/core/interfaces/vendors/vaults/7540/IERC7540.sol";
+import { ITranche } from "../../src/core/interfaces/vendors/centrifuge/ITranch.sol";
+import { IRoot } from "../../src/core/interfaces/vendors/centrifuge/IRoot.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
@@ -49,7 +52,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     ISuperExecutor public superExecutorOnETH;
     ISuperExecutor public superExecutorOnOP;
 
+    IRoot public root;
+
     IInvestmentManager public investmentManager;
+    IRestrictionManager public restrictionManager;
 
     uint256 public balance_Base_USDC_Before;
 
@@ -73,12 +79,47 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         yieldSourceOracle7540 = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
         vm.label(yieldSourceOracle7540, "yieldSourceOracle7540");
 
+        vm.selectFork(FORKS[ETH]);
+
+        address share = IERC7540(yieldSource7540AddressETH_USDC).share();
+        console2.log("--------- share", share);
+
+        ITranche(share).hook();
+
+        root = IRoot(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+
+        restrictionManager = IRestrictionManager(0x4737C3f62Cc265e786b280153fC666cEA2fBc0c0);
+
         investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
+
+        //vm.startPrank(0x6f9dba3D3A3ab083BcA60Ef82784cf12A6eC24b8);
+
+        //vm.prank(0x8D566ADACe57ee5DD2BF98953B804991D634211A);
+
+        //root.endorse(accountETH);
+
+        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+
+        restrictionManager.updateMember(
+            share,
+            accountETH,
+            type(uint64).max
+        );
+
+        ITranche(share).setHookData(
+            accountETH,
+            bytes16(bytes32(uint256(uint160(accountETH))))
+        );
+
+        ITranche(share).setHookData(
+            accountETH,
+            bytes16(bytes32(uint256(uint160(yieldSource7540AddressETH_USDC))))
+        );
+
+        vm.stopPrank();
 
         // Set up the 4626 yield source
         yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
-        vm.makePersistent(yieldSource4626AddressOP_USDCe);
-
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
 
         yieldSourceOracle4626 = _getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY);
@@ -133,10 +174,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
             bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
-            0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
+            //0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
+            accountETH,
             amountPerVault,
             true
-        );
+        ); 
 
         UserOpData memory ethUserOpData = _createUserOpData(eth7540HooksAddresses, eth7540HooksData, ETH);
 
@@ -320,22 +362,31 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // ETH IS SRC
         vm.selectFork(FORKS[ETH]);
 
-        investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
-        vm.startPrank(0x6f9dba3D3A3ab083BcA60Ef82784cf12A6eC24b8);
+        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
     
         bytes memory message = abi.encodePacked(
-            IInvestmentManager.Call.FulfilledDepositRequest,
+            uint8(IInvestmentManager.Call.FulfilledDepositRequest),
             uint64(4139607887), // vault poolId
             bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), // trancheId
             accountETH,
             uint128(242333941209166991950178742833476896417),
             amountPerVault,
-            uint256(2000)
+            uint128(2000)
         );
         investmentManager.handle(message);
-        // investmentManager.requestDeposit(yieldSource7540AddressETH_USDC, amountPerVault, accountETH, accountETH, accountETH);
-        // investmentManager.fulfillDepositRequest(4139607887, bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), accountETH, uint128(242333941209166991950178742833476896417), uint128(amountPerVault), uint128(2000));
+
+        investmentManager.fulfillDepositRequest(
+            4139607887, // This could be incorrect
+            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), 
+            accountETH, 
+            uint128(242333941209166991950178742833476896417), 
+            uint128(amountPerVault), 
+            uint128(2000)
+        );
+
         //investmentManager.mint(yieldSource7540AddressETH_USDC, amountPerVault, accountETH, accountETH);
+
+        vm.stopPrank();
 
         uint256 userBalanceSharesBefore = IERC20(yieldSource7540AddressETH_USDC).balanceOf(accountETH);
 
