@@ -36,11 +36,8 @@ interface ISuperOracle {
     /// @notice Error when provider max staleness period is not set
     error NO_PENDING_UPDATE();
 
-    /// @notice Error when ISO 4217 quote is invalid
-    error INVALID_ISO4217_QUOTE();
-
-    /// @notice Error when ISO 4217 quote is already supported
-    error ISO4217_QUOTE_ALREADY_SUPPORTED();
+    /// @notice Error when quote is not supported (only USD is supported)
+    error UNSUPPORTED_QUOTE();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -69,10 +66,6 @@ interface ISuperOracle {
     /// @param provider Provider index
     /// @param newMaxStaleness New maximum staleness period in seconds
     event ProviderMaxStalenessUpdated(uint256 provider, uint256 newMaxStaleness);
-
-    /// @notice Emitted when a new ISO 4217 quote is added
-    /// @param quote The quote address added
-    event ISO4217QuoteAdded(address indexed quote);
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS

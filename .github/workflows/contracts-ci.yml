@@ -57,7 +57,7 @@ jobs:
         run: pnpm install
 
       - name: "Build the contracts and print their size"
-        run: "forge build"
+        run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
 
       - name: "Add build summary"
         run: |

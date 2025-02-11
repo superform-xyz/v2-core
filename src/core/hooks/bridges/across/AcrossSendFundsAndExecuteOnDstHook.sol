@@ -10,7 +10,6 @@ import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { IAcrossSpokePoolV3 } from "../../../interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
-import { IAcrossV3Interpreter } from "../../../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
