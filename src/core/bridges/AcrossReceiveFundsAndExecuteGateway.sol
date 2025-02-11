@@ -47,8 +47,8 @@ import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
 /// @notice  userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, 72, 32), 0);
 /// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 104, 32), 0);
 /// @notice  userOp.initCode = BytesLib.slice(message, 104, codeLength);
-/// @notice  codeLength = msg.data.length
 /// @notice  userOp.callData = BytesLib.slice(message, 104 + codeLength, codeLength);
+/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 104 + codeLength, 32), 0);
 /// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 104 + codeLength, 32), 0);
 /// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 136 + codeLength, 32), 0);
 /// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 168 + codeLength, 32), 0);
