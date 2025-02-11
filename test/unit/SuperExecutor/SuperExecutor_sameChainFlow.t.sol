@@ -9,7 +9,13 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 
+import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+
+import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
+
+import "forge-std/console.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest {
     IERC4626 public vaultInstance;
@@ -87,5 +93,40 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
         assertGt(accSharesAfter, 0);
+    }
+
+    function test_SwapThroughMockOdosRouter(uint256 amount) external {
+        amount = _bound(amount);
+
+        MockERC20 inputToken = new MockERC20("A","A",18);
+        MockERC20 outputToken = new MockERC20("B","B",18);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+
+        _getTokens(address(inputToken), odosRouters[ETH], amount);
+        _getTokens(address(outputToken), odosRouters[ETH], amount);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(address(inputToken), odosRouters[ETH], amount, false);
+        hooksData[1] = _createOdosSwapHookData(
+            address(inputToken),
+            amount,
+            account,
+            address(outputToken),
+            0,
+            amount,
+            "",
+            address(this),
+            uint32(0),
+            false
+        );
+
+        // it should execute all hooks
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
     }
 }

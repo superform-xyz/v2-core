@@ -13,6 +13,9 @@ abstract contract Constants {
     uint256 public constant USER2_KEY = 0x2;
     uint256 public constant MANAGER_KEY = 0x3;
     uint256 public constant ACROSS_RELAYER_KEY = 0x4;
+    uint256 public constant STRATEGIST_KEY = 0x5;
+    uint256 public constant EMERGENCY_ADMIN_KEY = 0x6;
+    uint256 public constant FEE_RECIPIENT_KEY = 0x7;
     // registry
     bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
 
@@ -36,6 +39,7 @@ abstract contract Constants {
     string public constant BASE_RPC_URL_KEY = "BASE_RPC_URL"; // Native token: ETH
 
     // hooks
+    string public constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
     string public constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string public constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string public constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
