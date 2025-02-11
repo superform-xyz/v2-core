@@ -50,9 +50,9 @@ import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
 /// @notice  codeLength = msg.data.length
 /// @notice  userOp.callData = BytesLib.slice(message, 104 + codeLength, codeLength);
 /// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 104 + codeLength, 32), 0);
-/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 136 + codeLength, 32), 0);   
+/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 136 + codeLength, 32), 0);
 /// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 168 + codeLength, 32), 0);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 200 + codeLength, 32), 0);  
+/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 200 + codeLength, 32), 0);
 /// @notice  userOp.paymasterAndData = BytesLib.slice(message, 200 + codeLength, codeLength);
 /// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 232 + codeLength, 32), 0);
 /// @notice  userOp.signature = BytesLib.slice(message, 296 + codeLength, codeLength);
@@ -97,7 +97,7 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         uint256 offset = 0;
         address account = BytesLib.toAddress(BytesLib.slice(message, offset, 20), 0);
         offset += 20;
-        
+
         uint256 intentAmount = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
 

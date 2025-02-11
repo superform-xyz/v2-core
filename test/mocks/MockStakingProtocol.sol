@@ -9,7 +9,7 @@ contract MockStakingProtocol {
     constructor(address _stakingToken) {
         stakingToken = _stakingToken; //for Fluid
         asset = _stakingToken; //for Yearn
-        TOKEN = _stakingToken; 
+        TOKEN = _stakingToken;
     }
 
     /// @notice Mock the rewardPerToken function

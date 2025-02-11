@@ -98,8 +98,8 @@ contract SuperExecutor_sameChainFlow is BaseTest {
     function test_SwapThroughMockOdosRouter(uint256 amount) external {
         amount = _bound(amount);
 
-        MockERC20 inputToken = new MockERC20("A","A",18);
-        MockERC20 outputToken = new MockERC20("B","B",18);
+        MockERC20 inputToken = new MockERC20("A", "A", 18);
+        MockERC20 outputToken = new MockERC20("B", "B", 18);
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -111,16 +111,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(inputToken), odosRouters[ETH], amount, false);
         hooksData[1] = _createOdosSwapHookData(
-            address(inputToken),
-            amount,
-            account,
-            address(outputToken),
-            0,
-            amount,
-            "",
-            address(this),
-            uint32(0),
-            false
+            address(inputToken), amount, account, address(outputToken), 0, amount, "", address(this), uint32(0), false
         );
 
         // it should execute all hooks

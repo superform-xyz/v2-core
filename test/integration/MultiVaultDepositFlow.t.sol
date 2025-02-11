@@ -74,15 +74,9 @@ contract MultiVaultDepositFlow is BaseTest {
         hooksAddresses[1] = _getHookAddress(ETH, "RequestDeposit7540VaultHook");
         hooksAddresses[2] = _getHookAddress(ETH, "ApproveERC20Hook");
         hooksAddresses[3] = _getHookAddress(ETH, "Deposit5115VaultHook");
-        
 
         bytes[] memory hooksData = new bytes[](4);
-        hooksData[0] = _createApproveHookData(
-            underlyingETH_USDC,
-            yieldSource7540AddressUSDC,
-            amountPerVault,
-            false
-        );
+        hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressUSDC, amountPerVault, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
             bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressUSDC,
@@ -90,12 +84,7 @@ contract MultiVaultDepositFlow is BaseTest {
             amountPerVault,
             true
         );
-        hooksData[2] = _createApproveHookData(
-            underlyingETH_sUSDe,
-            yieldSource5115AddressSUSDe,
-            amountPerVault,
-            false
-        );
+        hooksData[2] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, amountPerVault, false);
         hooksData[3] = _createDeposit5115VaultHookData(
             bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource5115AddressSUSDe,
@@ -105,7 +94,6 @@ contract MultiVaultDepositFlow is BaseTest {
             true,
             false
         );
-        
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -113,11 +101,7 @@ contract MultiVaultDepositFlow is BaseTest {
 
         vm.expectEmit(true, true, true, false);
         emit IERC7540.DepositRequest(
-            0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
-            accountETH, 
-            0, 
-            accountETH,
-            amountPerVault
+            0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86, accountETH, 0, accountETH, amountPerVault
         );
         vm.expectEmit(true, true, true, false);
         emit IStandardizedYield.Deposit(accountETH, accountETH, underlyingETH_sUSDe, amountPerVault, amountPerVault);

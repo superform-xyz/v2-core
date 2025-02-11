@@ -84,7 +84,6 @@ contract Swap1InchGenericRouterHook is BaseHook, Base1InchHook, ISuperHook {
         uint256 swapDataOffset = 221 + permitDataLength;
         params.swapData = BytesLib.slice(data, swapDataOffset, data.length - swapDataOffset);
 
-
         if (params.description.srcReceiver == address(0) || params.description.dstReceiver == address(0)) {
             revert ADDRESS_NOT_VALID();
         }

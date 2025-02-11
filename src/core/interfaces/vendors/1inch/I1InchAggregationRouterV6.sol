@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-
 /// @dev is modified and imported from https://etherscan.io/address/0x111111125421ca6dc452d289314280a0f8842a65#code
 
 type Address is uint256;
@@ -268,5 +267,12 @@ interface I1InchAggregationRouterV6 {
         uint256 flags;
     }
 
-    function swap(IAggregationExecutor executor, SwapDescription calldata desc, bytes calldata permit, bytes calldata data) external payable;
+    function swap(
+        IAggregationExecutor executor,
+        SwapDescription calldata desc,
+        bytes calldata permit,
+        bytes calldata data
+    )
+        external
+        payable;
 }

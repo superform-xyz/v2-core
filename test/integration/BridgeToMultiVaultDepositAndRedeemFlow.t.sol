@@ -134,10 +134,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         poolManager = IPoolManager(0x91808B5E2F6d7483D41A681034D7c9DbB64B9E29);
 
         assetId = poolManager.assetToId(underlyingETH_USDC);
-        assertEq(
-            assetId, 
-            uint128(242_333_941_209_166_991_950_178_742_833_476_896_417)
-        );
+        assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -203,6 +200,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         _processAcrossV3Message(BASE, ETH, executeOp(srcUserOpDataETH), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
+
+        // DEPOSIT
+        uint256 userShares = _executeDepositFlow(amountPerVault);
+        assertEq(userShares, amountPerVault);
     }
 
     function _redeem_From_ETH_And_Bridge_Back_To_Base() internal {
@@ -215,12 +216,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory baseUserOpData = _createUserOpData(new address[](0), new bytes[](0), BASE);
 
-        // DEPOSIT
-        uint256 userShares = _executeDepositFlow(amountPerVault);
-        assertEq(userShares, amountPerVault);
-
         // REDEEM
-        uint256 userAssets = _executeRedeemFlow(userShares);
+        uint256 userAssets = _executeRedeemFlow(amountPerVault);
         assertEq(userAssets, amountPerVault);
 
         // BRIDGE BACK
@@ -232,12 +229,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory ethHooksData = new bytes[](2);
         ethHooksData[0] =
-            _createApproveHookData(
-                underlyingETH_USDC, 
-                SPOKE_POOL_V3_ADDRESSES[ETH], 
-                amountPerVault, 
-                false
-             );
+            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
         ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingETH_USDC, underlyingBase_USDC, amountPerVault, amountPerVault, BASE, true, baseUserOpData
         );
@@ -345,12 +337,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
 
         investmentManager.fulfillDepositRequest(
-            poolId,
-            trancheId,
-            accountETH,
-            assetId,
-            uint128(amountPerVault),
-            uint128(amountPerVault)
+            poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(amountPerVault)
         );
 
         vm.stopPrank();
@@ -371,12 +358,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
 
         investmentManager.fulfillRedeemRequest(
-            poolId,
-            trancheId,
-            accountETH,
-            assetId,
-            uint128(amountPerVault),
-            uint128(amountPerVault)
+            poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(amountPerVault)
         );
 
         vm.prank(accountETH);

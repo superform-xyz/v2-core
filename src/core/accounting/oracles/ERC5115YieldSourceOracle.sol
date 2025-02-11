@@ -23,7 +23,6 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         pricePerShare = IStandardizedYield(yieldSourceAddress).exchangeRate();
     }
 
-
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {
         IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);

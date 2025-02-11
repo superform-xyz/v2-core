@@ -363,18 +363,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             MockOdosRouterV2 odosRouter = new MockOdosRouterV2();
             odosRouters[chainIds[i]] = address(odosRouter);
             vm.label(address(odosRouter), "MockOdosRouterV2");
-            Addr.swapOdosHook = new SwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter));
+            Addr.swapOdosHook =
+                new SwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter));
             vm.label(address(Addr.swapOdosHook), SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(Addr.swapOdosHook);
             hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
-                SWAP_ODOS_HOOK_KEY,
-                HookCategory.Swaps,
-                HookCategory.TokenApprovals,
-                address(Addr.swapOdosHook),
-                ""
+                SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(Addr.swapOdosHook), ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
-
 
             Addr.approveErc20Hook = new ApproveERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1275,7 +1271,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory hookData)
     {
-
-        hookData = abi.encodePacked(inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, pathDefinition.length, pathDefinition, executor, referralCode, usePrevHookAmount);
+        hookData = abi.encodePacked(
+            inputToken,
+            inputAmount,
+            inputReceiver,
+            outputToken,
+            outputQuote,
+            outputMin,
+            pathDefinition.length,
+            pathDefinition,
+            executor,
+            referralCode,
+            usePrevHookAmount
+        );
     }
 }

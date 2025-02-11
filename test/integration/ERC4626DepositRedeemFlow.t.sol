@@ -12,7 +12,6 @@ import { IDeBridgeGate } from "../../src/core/interfaces/vendors/bridges/debridg
 
 import { BaseTest } from "../BaseTest.t.sol";
 
-
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 contract ERC4626DepositRedeemFlowTest is BaseTest {
     IERC4626 public vaultInstanceEth;
@@ -190,7 +189,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         _processAcrossV3Message(ETH, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
     }
 
-    
     struct LocalVars {
         uint256 intentAmount;
         address[] dstHooksAddresses;
@@ -198,8 +196,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         address[] srcHooksAddresses;
         bytes[] srcHooksData;
     }
-
-
 
     function test_sendFundsFromTwoChainsAndDeposit() public {
         LocalVars memory vars;
@@ -284,7 +280,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vm.selectFork(FORKS[BASE]);
     }
 
-    
     function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
