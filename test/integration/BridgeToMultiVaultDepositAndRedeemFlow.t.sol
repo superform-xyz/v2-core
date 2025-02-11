@@ -216,11 +216,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory baseUserOpData = _createUserOpData(new address[](0), new bytes[](0), BASE);
 
         // DEPOSIT
-        uint256 userShares = _fulfill7540DepositRequest(amountPerVault);
+        uint256 userShares = _executeDepositFlow(amountPerVault);
         assertEq(userShares, amountPerVault);
 
         // REDEEM
-        uint256 userAssets = _fulfill7540RedeemRequest(userShares);
+        uint256 userAssets = _executeRedeemFlow(userShares);
         assertEq(userAssets, amountPerVault);
 
         // BRIDGE BACK
@@ -337,7 +337,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _fulfill7540DepositRequest(uint256 amountPerVault) internal returns (uint256 userShares) {
+    function _executeDepositFlow(uint256 amountPerVault) internal returns (uint256 userShares) {
         vm.selectFork(FORKS[ETH]);
 
         investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
@@ -361,7 +361,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
     }
 
-    function _fulfill7540RedeemRequest(uint256 amountPerVault) internal returns (uint256 userAssets) {
+    function _executeRedeemFlow(uint256 amountPerVault) internal returns (uint256 userAssets) {
         vm.selectFork(FORKS[ETH]);
 
         vm.prank(accountETH);
