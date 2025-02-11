@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity ^0.8.28;
 
-import {IMessageHandler} from "./IMessageHandler.sol";
-import {IRecoverable} from "./IRecoverable.sol";
+import { IMessageHandler } from "./IMessageHandler.sol";
+import { IRecoverable } from "./IRecoverable.sol";
 
 /// @dev Vault requests and deposit/redeem bookkeeping per user
 struct InvestmentState {
@@ -102,7 +102,10 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     }
 
     /// @notice Returns the investment state
-    function investments(address vault, address investor)
+    function investments(
+        address vault,
+        address investor
+    )
         external
         view
         returns (
@@ -131,7 +134,13 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     /// @dev    The assets required to fulfill the deposit request have to be locked and are transferred from the
     ///         owner to the escrow, even though the share payout can only happen after epoch execution.
     ///         The receiver becomes the owner of deposit request fulfillment.
-    function requestDeposit(address vault, uint256 assets, address receiver, address owner, address source)
+    function requestDeposit(
+        address vault,
+        uint256 assets,
+        address receiver,
+        address owner,
+        address source
+    )
         external
         returns (bool);
 
@@ -143,7 +152,13 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     /// @dev    The shares required to fulfill the redemption request have to be locked and are transferred from the
     ///         owner to the escrow, even though the asset payout can only happen after epoch execution.
     ///         The receiver becomes the owner of redeem request fulfillment.
-    function requestRedeem(address vault, uint256 shares, address receiver, address, /* owner */ address source)
+    function requestRedeem(
+        address vault,
+        uint256 shares,
+        address receiver,
+        address, /* owner */
+        address source
+    )
         external
         returns (bool);
 
@@ -187,7 +202,8 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
         uint128 assetId,
         uint128 assets,
         uint128 shares
-    ) external;
+    )
+        external;
 
     /// @notice Fulfills pending redeem requests after successful epoch execution on Centrifuge.
     ///         The amount of redeemed shares is burned. The amount of assets that can be claimed by the user in
@@ -202,7 +218,8 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
         uint128 assetId,
         uint128 assets,
         uint128 shares
-    ) external;
+    )
+        external;
 
     /// @notice Fulfills deposit request cancellation after successful epoch execution on Centrifuge.
     ///         The amount of assets that can be claimed by the user is locked in the escrow contract.
@@ -261,7 +278,8 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
         uint128 assetId,
         uint128 assets,
         uint128 fulfillment
-    ) external;
+    )
+        external;
 
     /// @notice Fulfills redeem request cancellation after successful epoch execution on Centrifuge.
     ///         The amount of shares that can be claimed by the user is locked in the escrow contract.
@@ -269,7 +287,13 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     ///         partial.
     /// @dev    The shares in the escrow are reserved for the user and are transferred to the user during
     ///         claimCancelRedeemRequest calls.
-    function fulfillCancelRedeemRequest(uint64 poolId, bytes16 trancheId, address user, uint128 assetId, uint128 shares)
+    function fulfillCancelRedeemRequest(
+        uint64 poolId,
+        bytes16 trancheId,
+        address user,
+        uint128 assetId,
+        uint128 shares
+    )
         external;
 
     /// @notice Triggers a redeem request on behalf of the user through Centrifuge governance.
@@ -279,7 +303,13 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     ///         got fulfilled.
     /// @dev    The user share amount required to fulfill the redeem request has to be locked in escrow,
     ///         even though the asset payout can only happen after epoch execution.
-    function triggerRedeemRequest(uint64 poolId, bytes16 trancheId, address user, uint128 assetId, uint128 shares)
+    function triggerRedeemRequest(
+        uint64 poolId,
+        bytes16 trancheId,
+        address user,
+        uint128 assetId,
+        uint128 shares
+    )
         external;
 
     // --- View functions ---
@@ -338,7 +368,12 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     ///         The shares required to fulfill the deposit have already been minted and transferred to the escrow on
     ///         fulfillDepositRequest.
     ///         Receiver has to pass all the share token restrictions in order to receive the shares.
-    function deposit(address vault, uint256 assets, address receiver, address owner)
+    function deposit(
+        address vault,
+        uint256 assets,
+        address receiver,
+        address owner
+    )
         external
         returns (uint256 shares);
 
@@ -370,7 +405,12 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     ///         on fulfillRedeemRequest.
     ///         The assets required to fulfill the withdrawal have already been reserved in escrow on
     ///         fulfillRedeemtRequest.
-    function withdraw(address vault, uint256 assets, address receiver, address owner)
+    function withdraw(
+        address vault,
+        uint256 assets,
+        address receiver,
+        address owner
+    )
         external
         returns (uint256 shares);
 
@@ -379,7 +419,11 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     ///         Assets are transferred from the escrow to the receiver.
     /// @dev    The assets required to fulfill the claim have already been reserved for the owner in escrow on
     ///         fulfillCancelDepositRequest.
-    function claimCancelDepositRequest(address vault, address receiver, address owner)
+    function claimCancelDepositRequest(
+        address vault,
+        address receiver,
+        address owner
+    )
         external
         returns (uint256 assets);
 
@@ -389,7 +433,11 @@ interface IInvestmentManager is IMessageHandler, IRecoverable {
     /// @dev    The shares required to fulfill the claim have already been reserved for the owner in escrow on
     ///         fulfillCancelRedeemRequest.
     ///         Receiver has to pass all the share token restrictions in order to receive the shares.
-    function claimCancelRedeemRequest(address vault, address receiver, address owner)
+    function claimCancelRedeemRequest(
+        address vault,
+        address receiver,
+        address owner
+    )
         external
         returns (uint256 shares);
 }
