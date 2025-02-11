@@ -3,7 +3,6 @@ pragma solidity >=0.8.28;
 
 // Tests
 import { BaseTest } from "../BaseTest.t.sol";
-import { console2 } from "forge-std/console2.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
@@ -81,7 +80,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // Set up the 7540 yield source
         yieldSource7540AddressETH_USDC =
             realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
-        vm.makePersistent(yieldSource7540AddressETH_USDC);
         vm.label(yieldSource7540AddressETH_USDC, "yieldSource7540AddressETH_USDC");
 
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressETH_USDC);
@@ -352,8 +350,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         IERC7540(yieldSource7540AddressETH_USDC).deposit(amountPerVault, accountETH, accountETH);
 
         userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
-
-        console2.log("--------- userShares", userShares);
     }
 
     function _fulfill7540RedeemRequest(uint256 amountPerVault) internal returns (uint256 userAssets) {
