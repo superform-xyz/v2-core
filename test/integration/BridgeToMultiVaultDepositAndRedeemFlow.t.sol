@@ -187,17 +187,17 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
         srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
-        bytes[] memory srcHooksDataETH = new bytes[](2);
-        srcHooksDataETH[0] =
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
-        srcHooksDataETH[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC, underlyingETH_USDC, amountPerVault / 2, amountPerVault / 2, ETH, true, amountPerVault / 2, ethUserOpData
         );
 
-        UserOpData memory srcUserOpDataETH = _createUserOpData(srcHooksAddresses, srcHooksDataETH, BASE);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
 
         // EXECUTE ETH
-        _processAcrossV3Message(BASE, ETH, executeOp(srcUserOpDataETH), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
+        _processAcrossV3Message(BASE, ETH, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
 
