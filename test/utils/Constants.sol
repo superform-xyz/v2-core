@@ -39,6 +39,7 @@ abstract contract Constants {
     string public constant BASE_RPC_URL_KEY = "BASE_RPC_URL"; // Native token: ETH
 
     // hooks
+    string public constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
     string public constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string public constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string public constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
