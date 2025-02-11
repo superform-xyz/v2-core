@@ -27,6 +27,7 @@ abstract contract Configuration is Constants {
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
         mapping(uint64 chainId => address debridgeGate) debridgeGates;
         mapping(uint64 chainId => address routers) aggregationRouters;
+        mapping(uint64 chainId => address odosRouter) odosRouters;
         SuperPositionData[] superPositions;
         RolesData[] externalRoles;
     }
@@ -88,5 +89,12 @@ abstract contract Configuration is Constants {
         configuration.aggregationRouters[ARB_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_ARB_SEPOLIA;
         configuration.aggregationRouters[BASE_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_BASE_SEPOLIA;
         configuration.aggregationRouters[OP_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_OP_SEPOLIA;
+        
+        configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
+        configuration.odosRouters[BASE_CHAIN_ID] = ODOS_ROUTER_BASE;
+        configuration.odosRouters[OPTIMISM_CHAIN_ID] = ODOS_ROUTER_OPTIMISM;
+        configuration.odosRouters[ARB_SEPOLIA_CHAIN_ID] = ODOS_ROUTER_ARB_SEPOLIA;
+        configuration.odosRouters[BASE_SEPOLIA_CHAIN_ID] = ODOS_ROUTER_BASE_SEPOLIA;
+        configuration.odosRouters[OP_SEPOLIA_CHAIN_ID] = ODOS_ROUTER_OP_SEPOLIA;
     }
 }

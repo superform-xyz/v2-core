@@ -67,6 +67,13 @@ abstract contract Constants {
     address internal constant AGGREGATION_ROUTER_BASE_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae;//TODO: not the real one
     address internal constant AGGREGATION_ROUTER_OP_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae;   //TODO: not the real one
 
+    // Odos Router addresses per chain
+    address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
+    address internal constant ODOS_ROUTER_BASE = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
+    address internal constant ODOS_ROUTER_OPTIMISM = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
+    address internal constant ODOS_ROUTER_ARB_SEPOLIA = address(0);
+    address internal constant ODOS_ROUTER_BASE_SEPOLIA = address(0);
+    address internal constant ODOS_ROUTER_OP_SEPOLIA = address(0);
 
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
@@ -91,6 +98,7 @@ abstract contract Constants {
     string internal constant FLUID_STAKE_WITH_PERMIT_HOOK_KEY = "FluidStakeWithPermitHook";
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
+    string internal constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
 
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";

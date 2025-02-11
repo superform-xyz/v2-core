@@ -56,6 +56,9 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 // --- 1inch
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 
+// --- Odos
+import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+
 // Stake hooks
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
@@ -92,6 +95,9 @@ import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 
 import "../src/core/interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
 
+import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
+
+import "forge-std/console.sol";
 
 struct Addresses {
     ISuperRbac superRbac;
@@ -118,6 +124,7 @@ struct Addresses {
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
     Swap1InchHook swap1InchHook;
+    SwapOdosHook swapOdosHook;
     GearboxStakeHook gearboxStakeHook;
     GearboxUnstakeHook gearboxUnstakeHook;
     YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
@@ -195,6 +202,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     mapping(uint64 chainId => mapping(string name => Hook hookInstance)) public hooks;
 
     mapping(uint64 chainId => AccountInstance accountInstance) public accountInstances;
+
+    mapping(uint64 chainId => address odosRouter) public odosRouters;
 
     // chainID => FORK
     mapping(uint64 chainId => uint256 fork) public FORKS;
@@ -349,6 +358,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.selectFork(FORKS[chainIds[i]]);
 
             Addresses memory Addr;
+
+            MockOdosRouterV2 odosRouter = new MockOdosRouterV2();
+            odosRouters[chainIds[i]] = address(odosRouter);
+            vm.label(address(odosRouter), "MockOdosRouterV2");
+            Addr.swapOdosHook = new SwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter));
+            vm.label(address(Addr.swapOdosHook), SWAP_ODOS_HOOK_KEY);
+            hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(Addr.swapOdosHook);
+            hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
+                SWAP_ODOS_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(Addr.swapOdosHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
+
 
             Addr.approveErc20Hook = new ApproveERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1129,7 +1154,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
         hookData = abi.encodePacked(
             uint256(0),
-            _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
+            _getContract(destinationChainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
             inputToken,
             outputToken,
             inputAmount,
@@ -1225,5 +1250,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             abi.encodeWithSelector(I1InchAggregationRouterV6.clipperSwapTo.selector, exchange, payable(account), srcToken, dstToken, amount, amount, 0, bytes32(0), bytes32(0));
 
         return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+    }
+
+    function _createOdosSwapHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+
+        hookData = abi.encodePacked(inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, pathDefinition.length, pathDefinition, executor, referralCode, usePrevHookAmount);
     }
 }

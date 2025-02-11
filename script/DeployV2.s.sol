@@ -24,6 +24,9 @@ import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentin
 import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
 
 // -- hooks
+// ---- | swappers
+import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+
 // ---- | tokens
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
@@ -306,7 +309,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 20;
+        uint256 len = 21;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
 
@@ -397,6 +400,10 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId]))
         );
 
+        hooks[20] = HookDeployment(
+            SWAP_ODOS_HOOK_KEY,
+            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(registry, configuration.owner, configuration.odosRouters[chainId]))
+        );
 
         for (uint256 i = 0; i < len;) {
             HookDeployment memory hook = hooks[i];
