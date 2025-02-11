@@ -265,8 +265,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vars.srcHooksData = new bytes[](2);
         vars.srcHooksData[0] =
             _createApproveHookData(underlyingOp_USDC, SPOKE_POOL_V3_ADDRESSES[OP], vars.intentAmount / 2, false);
-        console2.log("--------- existingUnderlyingTokens[OP][USDC_KEY]", existingUnderlyingTokens[OP][USDC_KEY]);
-        console2.log("--------- existingUnderlyingTokens[BASE][WETH_KEY]", existingUnderlyingTokens[BASE][WETH_KEY]);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             existingUnderlyingTokens[OP][USDC_KEY],
             existingUnderlyingTokens[BASE][WETH_KEY],
@@ -284,15 +282,11 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         _processAcrossV3Message(OP, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
 
         vm.selectFork(FORKS[BASE]);
-        console2.log("--------- vaultInstance4626Base.balanceOf(accountBase)", vaultInstanceBase.balanceOf(accountBase));
     }
 
     
     function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
-
-        console2.log("------------ accountEth", accountEth);
-        console2.log("------------ accountBase", accountBase);
 
         uint256 amount = 1e10;
 
