@@ -59,6 +59,15 @@ abstract contract Constants {
     address internal constant DEBRIDGE_GATE_BASE_SEPOLIA = address(0);
     address internal constant DEBRIDGE_GATE_OP_SEPOLIA = address(0);
 
+    // 1inch Aggregation Router addresses per chain
+    address internal constant AGGREGATION_ROUTER_MAINNET = 0x111111125434b319222CdBf8C261674aDB56F3ae;
+    address internal constant AGGREGATION_ROUTER_BASE = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the real one
+    address internal constant AGGREGATION_ROUTER_OPTIMISM = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the real one
+    address internal constant AGGREGATION_ROUTER_ARB_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae;//TODO: not the real one
+    address internal constant AGGREGATION_ROUTER_BASE_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae;//TODO: not the real one
+    address internal constant AGGREGATION_ROUTER_OP_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae;   //TODO: not the real one
+
+
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
@@ -81,6 +90,7 @@ abstract contract Constants {
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
     string internal constant FLUID_STAKE_WITH_PERMIT_HOOK_KEY = "FluidStakeWithPermitHook";
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
+    string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
 
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
