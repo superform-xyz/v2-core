@@ -16,7 +16,7 @@ deploy-poc:
 build :; forge build && $(MAKE) generate
 ftest :; forge test
 
-test-vvv :; forge test --match-test test_Bridge_To_ETH_And_Deposit -vvvv
+test-vvv :; forge test --match-test test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow -vvvv
 
 test-integration :; forge test --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -vvvv
 
