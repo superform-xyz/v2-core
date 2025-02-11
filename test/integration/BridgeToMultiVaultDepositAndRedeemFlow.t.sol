@@ -9,23 +9,18 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 // Vault Interfaces
-import { IInvestmentManager } from "../../src/core/interfaces/vendors/centrifuge/IInvestmentManager.sol";
-import { IRestrictionManager } from "../../src/core/interfaces/vendors/centrifuge/IRestrictionManager.sol";
-import { IStandardizedYield } from "../../src/core/interfaces/vendors/pendle/IStandardizedYield.sol";
 import { IERC7540 } from "../../src/core/interfaces/vendors/vaults/7540/IERC7540.sol";
-import { ITranche } from "../../src/core/interfaces/vendors/centrifuge/ITranch.sol";
-import { IRoot } from "../../src/core/interfaces/vendors/centrifuge/IRoot.sol";
+import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
+import { IRestrictionManager } from "../mocks/centrifuge/IRestrictionManager.sol";
+import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
+import { IPoolManager } from "../mocks/centrifuge/IPoolManager.sol";
+import { ITranche } from "../mocks/centrifuge/ITranch.sol";
+import { IRoot } from "../mocks/centrifuge/IRoot.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-
-interface RestrictionManagerLike {
-    function root() external view returns (address);
-
-    function updateMember(address token, address user, uint64 validUntil) external;
-}
 
 contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IERC7540 public vaultInstance7540ETH;
@@ -58,11 +53,16 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     ISuperExecutor public superExecutorOnOP;
 
     IRoot public root;
+    IPoolManager public poolManager;
 
     IInvestmentManager public investmentManager;
     RestrictionManagerLike public restrictionManager;
 
     uint256 public balance_Base_USDC_Before;
+
+    uint64 public poolId;
+    bytes16 public trancheId;
+    uint128 public assetId;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -125,6 +125,19 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         restrictionManager.updateMember(share, accountETH, type(uint64).max);
 
         vm.stopPrank();
+
+        poolId = vaultInstance7540ETH.poolId();
+        assertEq(poolId, 4_139_607_887);
+        trancheId = vaultInstance7540ETH.trancheId();
+        assertEq(trancheId, bytes16(0x97aa65f23e7be09fcd62d0554d2e9273));
+
+        poolManager = IPoolManager(0x91808B5E2F6d7483D41A681034D7c9DbB64B9E29);
+
+        assetId = poolManager.assetToId(underlyingETH_USDC);
+        assertEq(
+            assetId, 
+            uint128(242_333_941_209_166_991_950_178_742_833_476_896_417)
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -327,10 +340,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     function _fulfill7540DepositRequest(uint256 amountPerVault) internal returns (uint256 userShares) {
         vm.selectFork(FORKS[ETH]);
 
-        uint64 poolId = 4_139_607_887;
-        bytes16 trancheId = bytes16(0x97aa65f23e7be09fcd62d0554d2e9273);
-        uint128 assetId = uint128(242_333_941_209_166_991_950_178_742_833_476_896_417);
-
         investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
 
         vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
@@ -354,10 +363,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     function _fulfill7540RedeemRequest(uint256 amountPerVault) internal returns (uint256 userAssets) {
         vm.selectFork(FORKS[ETH]);
-
-        uint64 poolId = 4_139_607_887;
-        bytes16 trancheId = bytes16(0x97aa65f23e7be09fcd62d0554d2e9273);
-        uint128 assetId = uint128(242_333_941_209_166_991_950_178_742_833_476_896_417);
 
         vm.prank(accountETH);
         IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(amountPerVault, accountETH, accountETH);

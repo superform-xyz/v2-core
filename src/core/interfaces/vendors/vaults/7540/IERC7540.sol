@@ -164,6 +164,12 @@ interface IERC7540 is IERC7575 {
         address receiver, 
         address controller
     ) external returns (uint256 shares);
+
+    /// @notice Get the pool id
+    function poolId() external view returns (uint64);
+
+    /// @notice Get the tranche id
+    function trancheId() external view returns (bytes16);
  
 
     /*//////////////////////////////////////////////////////////////
