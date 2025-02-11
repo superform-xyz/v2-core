@@ -1115,7 +1115,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         view
         returns (bytes memory hookData)
     {
-        bytes memory dstUserOpData = _encodeUserOp(userOpData);
+        bytes memory dstUserOpData = _encodeUserOp(userOpData, intentAmount);
         hookData = abi.encodePacked(
             uint256(0),
             _getContract(destinationChainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
