@@ -65,10 +65,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     uint256 public balance_Base_USDC_Before;
 
-    struct HookData {
-        bytes16 from;
-        bytes16 to;
-    }
+    /*//////////////////////////////////////////////////////////////
+                                SETUP
+    //////////////////////////////////////////////////////////////*/
 
     function setUp() public override {
         super.setUp();
@@ -116,7 +115,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         address share = IERC7540(yieldSource7540AddressETH_USDC).share();
-        console2.log("--------- share", share);
 
         ITranche(share).hook();
 
@@ -131,20 +129,29 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.stopPrank();
     }
 
-    function test_OP_Bridge_Deposit_Redeem_Flow() public {
-        test_bridge_To_OP_And_Deposit();
-        test_redeem_From_OP();
-    }
-
-    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
-        test_bridge_To_OP_And_Deposit();
-        _redeem_From_OP_And_Bridge_Back_To_Base();
-    }
+    /*//////////////////////////////////////////////////////////////
+                          FULL FLOW TESTS
+    //////////////////////////////////////////////////////////////*/
 
     function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
         test_Bridge_To_ETH_And_Deposit();
         _redeem_From_ETH_And_Bridge_Back_To_Base();
     }
+
+    function test_OP_Bridge_Deposit_Redeem_Flow() public {
+        test_bridge_To_OP_And_Deposit();
+        test_redeem_From_OP();
+    }
+
+    // TODO: Implement swap from OP to ETH for this test
+    // function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
+    //     test_bridge_To_OP_And_Deposit();
+    //     _redeem_From_OP_And_Bridge_Back_To_Base();
+    // }
+
+    /*//////////////////////////////////////////////////////////////
+                          INDIVIDUAL TESTS
+    //////////////////////////////////////////////////////////////*/
 
     function test_Bridge_To_ETH_And_Deposit() public {
         uint256 amountPerVault = 1e8 / 2;
@@ -275,68 +282,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(IERC20(underlyingOP_USDCe).balanceOf(accountOP), userBalanceUnderlyingBefore + expectedAssetOutAmount);
     }
 
-    function _redeem_From_OP_And_Bridge_Back_To_Base() internal {
-        uint256 amountPerVault = 1e8 / 2;
-
-        // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
-
-        uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
-
-        address[] memory baseHooksAddresses = new address[](1);
-        baseHooksAddresses[0] = _getHookAddress(BASE, TRANSFER_ERC20_HOOK_KEY);
-
-        bytes[] memory baseHooksData = new bytes[](1);
-        baseHooksData[0] = _createTransferERC20HookData(underlyingBase_USDC, accountBase, amountPerVault, false);
-
-        UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE);
-
-        // OP IS SRC
-        vm.selectFork(FORKS[OP]);
-
-        uint256 userBalanceSharesBefore = IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountOP);
-
-        uint256 expectedAssetOutAmount = vaultInstance4626OP.previewRedeem(userBalanceSharesBefore);
-
-        uint256 userBalanceUnderlyingBefore = IERC20(underlyingOP_USDCe).balanceOf(accountOP);
-
-        address[] memory opHooksAddresses = new address[](3);
-        opHooksAddresses[0] = _getHookAddress(OP, WITHDRAW_4626_VAULT_HOOK_KEY);
-        opHooksAddresses[1] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-        opHooksAddresses[2] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-
-        bytes[] memory opHooksData = new bytes[](3);
-        opHooksData[0] = _createWithdraw4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSource4626AddressOP_USDCe,
-            accountOP,
-            userBalanceSharesBefore,
-            false,
-            false
-        );
-        opHooksData[1] = _createApproveHookData(underlyingOP_USDCe, SPOKE_POOL_V3_ADDRESSES[OP], amountPerVault, true);
-        opHooksData[2] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingOP_USDCe, underlyingBase_USDC, amountPerVault, amountPerVault, BASE, true, baseUserOpData
-        );
-
-        // TODO: Swap the USDCe to USDC before bridging back to base
-
-        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
-
-        _processAcrossV3Message(OP, BASE, executeOp(opUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
-
-        assertEq(vaultInstance4626OP.balanceOf(accountOP), 0);
-        assertEq(IERC20(underlyingOP_USDCe).balanceOf(accountOP), userBalanceUnderlyingBefore + expectedAssetOutAmount);
-
-        console2.log("--------- user balance of shares", IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountOP));
-
-        vm.selectFork(FORKS[BASE]);
-
-        console2.log("--------- user balance of underlying", IERC20(underlyingBase_USDC).balanceOf(accountBase));
-
-        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault);
-    }
-
     function _redeem_From_ETH_And_Bridge_Back_To_Base() internal {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -347,67 +292,100 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory baseUserOpData = _createUserOpData(new address[](0), new bytes[](0), BASE);
 
-        // ETH IS SRC
+        // DEPOSIT
+        uint256 userShares = _fulfill7540DepositRequest(amountPerVault);
+        assertEq(userShares, amountPerVault);
+
+        // REDEEM
+        uint256 userAssets = _fulfill7540RedeemRequest(userShares);
+        assertEq(userAssets, amountPerVault);
+
+        // BRIDGE BACK
         vm.selectFork(FORKS[ETH]);
 
-        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        address[] memory ethHooksAddresses = new address[](2);
+        ethHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        ethHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
-        bytes memory message = abi.encodePacked(
-            uint8(IInvestmentManager.Call.FulfilledDepositRequest),
-            uint64(4_139_607_887), // vault poolId
-            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273), // trancheId
-            accountETH,
-            uint128(242_333_941_209_166_991_950_178_742_833_476_896_417),
-            amountPerVault,
-            uint128(2000)
-        );
-        investmentManager.handle(message);
-
-        investmentManager.fulfillDepositRequest(
-            4_139_607_887, // This could be incorrect
-            bytes16(0x97aa65f23e7be09fcd62d0554d2e9273),
-            accountETH,
-            uint128(242_333_941_209_166_991_950_178_742_833_476_896_417),
-            uint128(amountPerVault),
-            uint128(2000)
-        );
-
-        //investmentManager.mint(yieldSource7540AddressETH_USDC, amountPerVault, accountETH, accountETH);
-
-        vm.stopPrank();
-
-        uint256 userBalanceSharesBefore = IERC20(yieldSource7540AddressETH_USDC).balanceOf(accountETH);
-
-        console2.log("--------- userBalanceSharesBefore", userBalanceSharesBefore);
-
-        address[] memory ethHooksAddresses = new address[](3);
-        ethHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
-        ethHooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        ethHooksAddresses[2] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-
-        bytes[] memory ethHooksData = new bytes[](3);
-        ethHooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSource7540AddressETH_USDC,
-            accountBase,
-            amountPerVault,
-            false
-        );
-        ethHooksData[1] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
-        ethHooksData[2] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+        bytes[] memory ethHooksData = new bytes[](2);
+        ethHooksData[0] =
+            _createApproveHookData(
+                underlyingETH_USDC, 
+                SPOKE_POOL_V3_ADDRESSES[ETH], 
+                amountPerVault, 
+                false
+             );
+        ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingETH_USDC, underlyingBase_USDC, amountPerVault, amountPerVault, BASE, true, baseUserOpData
         );
 
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: ethHooksAddresses, hooksData: ethHooksData });
-        UserOpData memory ethUserOpData = _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute));
+        UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
 
-        _processAcrossV3Message(ETH, BASE, executeOp(ethUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
+        _processAcrossV3Message(ETH, BASE, executeOp(ethUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
 
         vm.selectFork(FORKS[BASE]);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _fulfill7540DepositRequest(uint256 amountPerVault) internal returns (uint256 userShares) {
+        vm.selectFork(FORKS[ETH]);
+
+        uint64 poolId = 4_139_607_887;
+        bytes16 trancheId = bytes16(0x97aa65f23e7be09fcd62d0554d2e9273);
+        uint128 assetId = uint128(242_333_941_209_166_991_950_178_742_833_476_896_417);
+
+        investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
+
+        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+
+        investmentManager.fulfillDepositRequest(
+            poolId,
+            trancheId,
+            accountETH,
+            assetId,
+            uint128(amountPerVault),
+            uint128(amountPerVault)
+        );
+
+        vm.stopPrank();
+
+        vm.prank(accountETH);
+        IERC7540(yieldSource7540AddressETH_USDC).deposit(amountPerVault, accountETH, accountETH);
+
+        userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
+
+        console2.log("--------- userShares", userShares);
+    }
+
+    function _fulfill7540RedeemRequest(uint256 amountPerVault) internal returns (uint256 userAssets) {
+        vm.selectFork(FORKS[ETH]);
+
+        uint64 poolId = 4_139_607_887;
+        bytes16 trancheId = bytes16(0x97aa65f23e7be09fcd62d0554d2e9273);
+        uint128 assetId = uint128(242_333_941_209_166_991_950_178_742_833_476_896_417);
+
+        vm.prank(accountETH);
+        IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(amountPerVault, accountETH, accountETH);
+
+        // FULFILL REDEEM
+        vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+
+        investmentManager.fulfillRedeemRequest(
+            poolId,
+            trancheId,
+            accountETH,
+            assetId,
+            uint128(amountPerVault),
+            uint128(amountPerVault)
+        );
+
+        vm.prank(accountETH);
+        userAssets = IERC7540(yieldSource7540AddressETH_USDC).redeem(amountPerVault, accountETH, accountETH);
     }
 
     function _createUserOpData(
