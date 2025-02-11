@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 pragma solidity >=0.8.28;
 
-import {IMessageHandler} from "./IMessageHandler.sol";
+import { IMessageHandler } from "./IMessageHandler.sol";
 
 interface IRecoverable {
     /// @notice Used to recover any ERC-20 token.
