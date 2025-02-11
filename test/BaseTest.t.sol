@@ -1108,6 +1108,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 outputAmount,
         uint64 destinationChainId,
         bool usePrevHookAmount,
+        uint256 intentAmount,
         UserOpData memory userOpData
     )
         internal
@@ -1131,10 +1132,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
-    function _encodeUserOp(UserOpData memory userOpData) internal pure returns (bytes memory) {
+    function _encodeUserOp(UserOpData memory userOpData, uint256 intentAmount) internal pure returns (bytes memory) {
         return abi.encodePacked(
             userOpData.userOp.sender, // account
-            uint256(0), // intent amount ? not sure what's this
+            intentAmount,
             userOpData.userOp.sender, // sender
             userOpData.userOp.nonce,
             userOpData.userOp.initCode.length,

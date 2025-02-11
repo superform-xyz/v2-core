@@ -231,7 +231,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ethHooksData[0] =
             _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
         ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingBase_USDC, amountPerVault, amountPerVault, BASE, true, baseUserOpData
+            underlyingETH_USDC, underlyingBase_USDC, amountPerVault, amountPerVault, BASE, true, amountPerVault, baseUserOpData
         );
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
@@ -278,7 +278,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksDataOP[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
         srcHooksDataOP[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, opUserOpData
+            underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, amountPerVault, opUserOpData
         );
 
         UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE);

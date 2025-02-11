@@ -178,6 +178,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             previewRedeemAmount,
             BASE,
             true,
+            amount,
             dstUserOpData
         );
 
@@ -241,6 +242,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             vars.intentAmount / 2,
             BASE,
             true,
+            vars.intentAmount,
             dstUserOpData
         );
 
@@ -268,6 +270,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             vars.intentAmount / 2,
             BASE,
             true,
+            vars.intentAmount,
             dstUserOpData
         );
 
