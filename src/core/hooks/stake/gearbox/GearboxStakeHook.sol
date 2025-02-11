@@ -85,7 +85,7 @@ contract GearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         return IGearboxFarmingPool(data.extractYieldSource()).balanceOf(account);
     }
