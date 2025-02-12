@@ -396,7 +396,10 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[19] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(registry, configuration.owner, configuration.odosRouters[chainId]))
+            abi.encodePacked(
+                type(SwapOdosHook).creationCode,
+                abi.encode(registry, configuration.owner, configuration.odosRouters[chainId])
+            )
         );
 
         for (uint256 i = 0; i < len;) {

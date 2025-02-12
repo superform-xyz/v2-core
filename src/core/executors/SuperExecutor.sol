@@ -13,13 +13,14 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { ISuperCollectiveVault } from "../interfaces/ISuperCollectiveVault.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     using HookDataDecoder for bytes;
-    
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -101,6 +102,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
         // update accounting
         _updateAccounting(account, address(hook), hookData);
+
+        // check SP minting and lock assets
+        _lockForSuperPositions(account, address(hook));
     }
 
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
@@ -119,8 +123,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 ISuperHookResult(address(hook)).outAmount(),
                 ISuperHookResultOutflow(address(hook)).usedShares()
             );
-
-
 
             // If there's a fee to collect (only for outflows)
             if (feeAmount > 0) {
@@ -141,6 +143,36 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 _execute(account, feeExecution);
                 uint256 balanceAfter = IERC20(assetToken).balanceOf(config.feeRecipient);
                 if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+            }
+        }
+    }
+
+    function _lockForSuperPositions(address account, address hook) private {
+        bool lockForSP = ISuperHookResult(address(hook)).lockForSP();
+        if (lockForSP) {
+            address spToken = ISuperHookResult(hook).spToken();
+            uint256 amount = ISuperHookResult(hook).outAmount();
+
+            ISuperCollectiveVault vault;
+            try superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID")) returns (address vaultAddress) {
+                vault = ISuperCollectiveVault(vaultAddress);
+            } catch {
+                return; 
+            }
+
+            if (address(vault) != address(0)) {
+                // forge approval for vault
+                Execution[] memory execs = new Execution[](1);
+                execs[0] = Execution({
+                    target: spToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (address(vault), amount))
+                });
+                _execute(account, execs);
+
+                vault.lock(account, spToken, amount);
+
+                emit SuperPositionLocked(account, spToken, amount);
             }
         }
     }
