@@ -32,13 +32,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     address public underlyingBase_USDC;
 
-    address public yieldSourceOracleOP;
-    address public yieldSourceOracleBase;
+    address public addressOracleOP;
+    address public addressOracleETH;
+    address public addressOracleBase;
 
-    address public yieldSourceOracle7540;
     address public yieldSource7540AddressETH_USDC;
-
-    address public yieldSourceOracle4626;
     address public yieldSource4626AddressOP_USDCe;
 
     address public accountBase;
@@ -85,7 +83,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         super.setUp();
 
         // Set up the underlying tokens
-
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCe_KEY];
@@ -97,15 +94,19 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressETH_USDC);
 
-        yieldSourceOracle7540 = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
-        vm.label(yieldSourceOracle7540, YIELD_SOURCE_ORACLE_7540_KEY);
+        addressOracleETH = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
+        vm.label(addressOracleETH, YIELD_SOURCE_ORACLE_7540_KEY);
+        yieldSourceOracleETH = IYieldSourceOracle(addressOracleETH);
 
         // Set up the 4626 yield source
         yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
+
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
         vm.label(yieldSource4626AddressOP_USDCe, YIELD_SOURCE_4626_OP_USDCe_KEY);
 
-        yieldSourceOracle4626 = _getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY);
+        addressOracleOP = _getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY);
+        vm.label(addressOracleOP, YIELD_SOURCE_ORACLE_4626_KEY);
+        yieldSourceOracleOP = IYieldSourceOracle(addressOracleOP);
 
         // Set up the accounts
         accountBase = accountInstances[BASE].account;
@@ -123,9 +124,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         superLedgerOP = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
-
-        yieldSourceOracleETH = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        yieldSourceOracleOP = IYieldSourceOracle(_getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY));
 
         vm.selectFork(FORKS[BASE]);
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
@@ -232,6 +230,18 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // DEPOSIT
         uint256 userShares = _executeDepositFlow(amountPerVault);
         assertEq(userShares, amountPerVault);
+
+        // CHECK ACCOUNTING
+        uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
+        uint256 expectedShares = amountPerVault;
+
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+
+        assertEq(entries.length, 1);
+        assertEq(entries[entries.length - 1].price, pricePerShare);
+        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, expectedShares);
+        assertEq(unconsumedEntries, 0);
     }
 
     function _redeem_From_ETH_And_Bridge_Back_To_Base() internal {
@@ -258,8 +268,16 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         bytes[] memory ethHooksData = new bytes[](2);
         ethHooksData[0] =
             _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
-        ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingBase_USDC, amountPerVault, amountPerVault, BASE, true, amountPerVault, baseUserOpData
+        ethHooksData[1] 
+        = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingETH_USDC, 
+            underlyingBase_USDC, 
+            amountPerVault, 
+            amountPerVault, 
+            BASE, 
+            true, 
+            amountPerVault, 
+            baseUserOpData
         );
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
