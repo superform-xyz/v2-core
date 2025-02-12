@@ -69,14 +69,17 @@ contract Deposit7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutf
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external onlyExecutor {
         // store current balance
-        outAmount = _getBalance(account, data);
+        address yieldSource = data.extractYieldSource();
+        address shareToken = IERC7540(yieldSource).share();
+        outAmount = _getBalance(account, shareToken);
         lockForSP = _decodeBool(data, 105);
-        spToken = data.extractYieldSource();
+        spToken = yieldSource;
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(account, data) - outAmount;
+        address shareToken = IERC7540(data.extractYieldSource()).share();
+        outAmount = _getBalance(account, shareToken) - outAmount;
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -91,8 +94,7 @@ contract Deposit7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutf
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
-    function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address shareToken = IERC7540(data.extractYieldSource()).share();
+    function _getBalance(address account, address shareToken) private view returns (uint256) {
         return IERC20(shareToken).balanceOf(account);
     }
 }
