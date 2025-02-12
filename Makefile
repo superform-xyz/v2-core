@@ -10,7 +10,6 @@ ifeq ($(ENVIRONMENT), local)
 endif
 
 
-
 deploy-poc:
 	forge script script/PoC/Deploy.s.sol --broadcast --legacy --multi --verify
 
@@ -19,7 +18,7 @@ ftest :; forge test
 
 test-vvv :; forge test --match-test test_RequestDeposit -vvvv
 
-test-integration :; forge test --match-test test_Deposit_Redeem_4626_Mainnet_Flow -vvvv
+test-integration :; forge test --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -vvvv
 
 .PHONY: generate
 generate:

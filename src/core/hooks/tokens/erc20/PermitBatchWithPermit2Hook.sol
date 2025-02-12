@@ -35,7 +35,13 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     address public permit2;
 
-    constructor(address registry_, address author_, address permit2_) BaseHook(registry_, author_, HookType.NONACCOUNTING) {
+    constructor(
+        address registry_,
+        address author_,
+        address permit2_
+    )
+        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+    {
         if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
         permit2 = permit2_;
     }
@@ -65,14 +71,16 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
         uint256 offset = 117; // Start of PermitDetails array
 
         permitBatch.details = new IAllowanceTransfer.PermitDetails[](detailsCount);
-        for (uint256 i = 0; i < detailsCount; ) {
+        for (uint256 i = 0; i < detailsCount;) {
             permitBatch.details[i].token = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
             permitBatch.details[i].amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 20, 32), 0));
             permitBatch.details[i].expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 52, 32), 0));
             permitBatch.details[i].nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 84, 32), 0));
             offset += 116; // Each PermitDetails struct takes 116 bytes
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         uint256 signatureOffset = offset;

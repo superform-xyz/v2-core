@@ -71,7 +71,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external onlyExecutor {
-        outAmount =  _getBalance(account, data) - outAmount;
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -85,7 +85,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(asset).balanceOf(account);
     }

@@ -28,7 +28,6 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
 
     uint256 private constant AMOUNT_POSITION = 72;
 
-
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -51,7 +50,6 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         uint256 shares = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
-
         if (usePrevHookAmount) {
             shares = ISuperHookResultOutflow(prevHook).outAmount();
         }
@@ -71,18 +69,17 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external  onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
         address yieldSource = data.extractYieldSource();
         asset = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         lockForSP = _decodeBool(data, 105);
         spToken = yieldSource;
-
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external  onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(account, data) - outAmount;
         usedShares = usedShares - _getSharesBalance(account, data);
     }
@@ -98,7 +95,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(asset).balanceOf(account);
     }
@@ -107,5 +104,4 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         address yieldSource = data.extractYieldSource();
         return IERC4626(yieldSource).balanceOf(account);
     }
-
 }
