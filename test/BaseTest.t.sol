@@ -45,6 +45,8 @@ import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540V
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
+// -- erc7575_7540
+import { Deposit7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/Deposit7575_7540VaultHook.sol";
 
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
@@ -120,6 +122,7 @@ struct Addresses {
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
+    Deposit7575_7540VaultHook deposit7575_7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
     Swap1InchClipperRouterHook swap1InchClipperRouterHook;
@@ -485,6 +488,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY]
             );
+
+            Addr.deposit7575_7540VaultHook =
+                new Deposit7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.deposit7575_7540VaultHook), DEPOSIT_7575_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEPOSIT_7575_7540_VAULT_HOOK_KEY] = address(Addr.deposit7575_7540VaultHook);
 
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
@@ -1236,6 +1244,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory)
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createDeposit7575_7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount, lockForSP);
     }
 
     function _createDeposit5115VaultHookData(
