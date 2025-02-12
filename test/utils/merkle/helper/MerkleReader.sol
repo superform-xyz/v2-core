@@ -5,6 +5,7 @@ import "forge-std/StdJson.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { BaseTest } from "../../../BaseTest.t.sol";
+import { console } from "forge-std/console.sol";
 
 abstract contract MerkleReader is StdCheats, BaseTest {
     using stdJson for string;
@@ -32,6 +33,22 @@ abstract contract MerkleReader is StdCheats, BaseTest {
         v.rootJson = vm.readFile(string.concat(vm.projectRoot(), basePathForRoot, Strings.toString(0), ".json"));
         v.encodedRoot = vm.parseJson(v.rootJson, ".root");
         root = abi.decode(v.encodedRoot, (bytes32));
+    }
+
+    function _getMerkleProof(address hookAddress) internal view returns (bytes32[] memory proof) {
+        LocalVars memory v;
+
+        v.treeJson = vm.readFile(string.concat(vm.projectRoot(), basePathForTreeDump, Strings.toString(0), ".json"));
+
+        for (uint256 i; i < 6; ++i) {
+            v.encodedHookAddress =
+                vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), hooksAddressQueryAppend));
+            v.encodedProof = vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), proofQueryAppend));
+
+            if (abi.decode(v.encodedHookAddress, (address)) == hookAddress) {
+                proof = abi.decode(v.encodedProof, (bytes32[]));
+            }
+        }
     }
 
     /// @dev read the merkle root and proof from js generated tree

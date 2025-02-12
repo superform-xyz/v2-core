@@ -147,6 +147,11 @@ interface ISuperVaultStrategy {
         bool isActive; // Whether the source is active
     }
 
+    struct YieldSourceTVL {
+        address source;
+        uint256 tvl;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
@@ -297,9 +302,11 @@ interface ISuperVaultStrategy {
     /// @notice Get the current price per share of the SuperVault
     /// @return pricePerShare The current price per share in underlying decimals
     function getSuperVaultPPS() external view returns (uint256 pricePerShare);
+
     /// @notice Get total assets managed by the strategy
-    /// @return Total assets across all yield sources and idle assets
-    function totalAssets() external view returns (uint256);
+    /// @return totalAssets_ Total assets across all yield sources and idle assets
+    /// @return sourceTVLs Array of TVL information for each yield source
+    function totalAssets() external view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs);
 
     /// @notice Get the total supply of shares in the SuperVault
     /// @return The total number of shares currently in circulation

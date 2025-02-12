@@ -19,16 +19,32 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
-        pricePerShare = IStandardizedYield(yieldSourceAddress).exchangeRate();
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
+        return IStandardizedYield(yieldSourceAddress).exchangeRate();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
         uint256 shares = yieldSource.balanceOf(ownerOfShares);
         if (shares == 0) return 0;
         return (shares * yieldSource.exchangeRate()) / 1e18;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVL(address yieldSourceAddress) public view override returns (uint256) {
+        IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
+        uint256 totalShares = yieldSource.totalSupply();
+        if (totalShares == 0) return 0;
+        return (totalShares * yieldSource.exchangeRate()) / 1e18;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

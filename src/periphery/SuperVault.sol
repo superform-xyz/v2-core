@@ -13,8 +13,12 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import {
-    IERC7540Vault, IERC7540Operator, IERC7540Deposit, IERC7540Redeem, IERC7741
-} from "./interfaces/IERC7540Vault.sol";
+    IERC7540Vault,
+    IERC7540Operator,
+    IERC7540Deposit,
+    IERC7540Redeem,
+    IERC7741
+} from "../vendor/ERC7540/IERC7540Vault.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
 /// @title SuperVault
@@ -337,7 +341,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function totalAssets() public view override returns (uint256) {
-        return strategy.totalAssets();
+        (uint256 totalAssets_,) = strategy.totalAssets();
+        return totalAssets_;
     }
 
     /// @inheritdoc IERC4626

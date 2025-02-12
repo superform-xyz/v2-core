@@ -14,6 +14,8 @@ import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 
+import { console } from "forge-std/console.sol";
+
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -442,6 +444,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         AllocationVars memory vars;
         address[] memory inflowTargets = new address[](hooksLength);
         uint256 inflowCount;
+
+        // Get all TVLs in one call at the start
+        (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
+
         // Process each hook in sequence
         for (uint256 i; i < hooksLength;) {
             // Validate hook via merkle proof
@@ -463,21 +469,27 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.hookType = ISuperHookResult(hooks[i]).hookType();
             // For inflows, check allocation rates and track targets
             if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                // Get current total assets in yield source
-                vars.currentYieldSourceAssets = IERC4626(vars.executions[0].target).convertToAssets(
-                    IERC4626(vars.executions[0].target).balanceOf(address(this))
-                );
-
-                // Check allocation rate
+                // Find TVL for target yield source
+                uint256 currentYieldSourceAssets;
+                bool found;
+                for (uint256 j; j < sourceTVLs.length;) {
+                    if (sourceTVLs[j].source == vars.executions[0].target) {
+                        currentYieldSourceAssets = sourceTVLs[j].tvl;
+                        found = true;
+                        break;
+                    }
+                    unchecked {
+                        ++j;
+                    }
+                }
+                if (!found) revert YIELD_SOURCE_NOT_FOUND();
+                // Check allocation rate using the same totalAssets value
                 if (
-                    (vars.currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets())
+                    (currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_)
                         > globalConfig.maxAllocationRate
                 ) {
                     revert MAX_ALLOCATION_RATE_EXCEEDED();
                 }
-
-                // Check vault threshold
-                if (vars.currentYieldSourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
                 // Track inflow target
                 inflowTargets[inflowCount++] = vars.executions[0].target;
@@ -503,9 +515,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 ++i;
             }
         }
+
         // Resize array to actual count if needed
         if (inflowCount < hooksLength) {
-            // Get the memory pointer of the array
             assembly {
                 mstore(inflowTargets, inflowCount)
             }
@@ -588,7 +600,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             pricePerShare = 10 ** _vaultDecimals;
         } else {
             // Calculate current PPS
-            pricePerShare = totalAssets().mulDiv(10 ** _vaultDecimals, totalSupplyAmount);
+            (uint256 totalAssets_,) = totalAssets();
+            pricePerShare = totalAssets_.mulDiv(10 ** _vaultDecimals, totalSupplyAmount);
         }
     }
 
@@ -598,23 +611,35 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function totalAssets() public view returns (uint256) {
-        // Total assets is the sum of all assets in yield sources plus idle assets
-        uint256 total = _asset.balanceOf(address(this)); // Idle assets
-
+    function totalAssets() public view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
+        // Initialize array with length of yield sources list
         uint256 length = yieldSourcesList.length;
-        // Sum up value in yield sources
+        sourceTVLs = new YieldSourceTVL[](length);
+        uint256 activeSourceCount;
+
+        // Start with idle assets
+        totalAssets_ = _asset.balanceOf(address(this));
+
+        // Sum up value in yield sources and track TVL per source
         for (uint256 i; i < length;) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
-                total += IYieldSourceOracle(yieldSources[source].oracle).getTVL(source, address(this));
+                uint256 tvl =
+                    IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
+                totalAssets_ += tvl;
+                sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
             }
             unchecked {
-                i++;
+                ++i;
             }
         }
 
-        return total;
+        // Resize array to actual count if needed
+        if (activeSourceCount < length) {
+            assembly {
+                mstore(sourceTVLs, activeSourceCount)
+            }
+        }
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -640,8 +665,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
         // Check vault threshold
-        uint256 sourceAssets = IERC4626(source).totalAssets();
-        if (sourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+        if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
         // Add yield source
         yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
@@ -689,8 +713,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_EXISTS();
 
         // Check vault threshold
-        uint256 sourceAssets = IERC4626(source).totalAssets();
-        if (sourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+        if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
         yieldSource.isActive = true;
         emit YieldSourceReactivated(source);
@@ -859,7 +882,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param proof Merkle proof for the hook
     function isHookAllowed(address hook, bytes32[] calldata proof) public view returns (bool) {
         if (hookRoot == bytes32(0)) return false;
-        bytes32 leaf = keccak256(abi.encodePacked(hook));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(hook))));
         return MerkleProof.verify(proof, hookRoot, leaf);
     }
 
@@ -1019,20 +1042,31 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         (Execution[] memory executions, uint256 amount) =
             _processCommonHookExecution(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW);
 
-        // Get current total assets in yield source
-        uint256 currentYieldSourceAssets =
-            IERC4626(executions[0].target).convertToAssets(IERC4626(executions[0].target).balanceOf(address(this)));
+        // Get all TVLs in one call
+        (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
 
-        // Check allocation rate
+        // Find TVL for target yield source
+        uint256 currentYieldSourceAssets;
+        bool found;
+        for (uint256 i; i < sourceTVLs.length;) {
+            if (sourceTVLs[i].source == executions[0].target) {
+                currentYieldSourceAssets = sourceTVLs[i].tvl;
+                found = true;
+                break;
+            }
+            unchecked {
+                ++i;
+            }
+        }
+        if (!found) revert YIELD_SOURCE_NOT_FOUND();
+
+        // Check allocation rate using the same totalAssets value
         if (
-            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets())
+            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_)
                 > globalConfig.maxAllocationRate
         ) {
             revert MAX_ALLOCATION_RATE_EXCEEDED();
         }
-
-        // Check vault threshold
-        if (currentYieldSourceAssets < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
         // Approve assets to target
         _asset.safeIncreaseAllowance(executions[0].target, amount);
@@ -1076,10 +1110,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Check vault caps for targeted yield sources
     /// @param targetedYieldSources Array of yield sources to check
     function _checkVaultCaps(address[] memory targetedYieldSources) internal view {
-        // Note: This check is gas expensive due to getTVL calls
+        // Note: This check is gas expensive due to getTVLByOwnerOfShares calls
         for (uint256 i; i < targetedYieldSources.length;) {
             address source = targetedYieldSources[i];
-            uint256 yieldSourceTVL = IYieldSourceOracle(yieldSources[source].oracle).getTVL(source, address(this));
+            uint256 yieldSourceTVL =
+                IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
             if (yieldSourceTVL > globalConfig.vaultCap) revert VAULT_CAP_EXCEEDED();
             unchecked {
                 ++i;

@@ -1,16 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
+// external
 
+import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { console } from "forge-std/console.sol";
+// superform
+import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
+import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
 contract SuperVaultTest is MerkleReader {
+    address public accountEth;
+    AccountInstance public instanceOnEth;
+    ISuperExecutor public superExecutorOnEth;
+
     // Core contracts
     SuperVaultFactory public factory;
     SuperVault public vault;
@@ -38,6 +47,9 @@ contract SuperVaultTest is MerkleReader {
         super.setUp();
 
         vm.selectFork(FORKS[ETH]);
+        accountEth = accountInstances[ETH].account;
+        instanceOnEth = accountInstances[ETH];
+        superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
         // Deploy factory
         factory = new SuperVaultFactory();
@@ -51,9 +63,13 @@ contract SuperVaultTest is MerkleReader {
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
 
+        address morphoVaultAddr = 0x8eB67A509616cd6A7c1B3c8C21D48FF57df3d458;
+        address aaveVaultAddr = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
+        vm.label(morphoVaultAddr, "MorphoVault");
+        vm.label(aaveVaultAddr, "AaveVault");
         // Get real yield sources from fork
-        morphoVault = IERC4626(0x8eB67A509616cd6A7c1B3c8C21D48FF57df3d458);
-        aaveVault = IERC4626(0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6);
+        morphoVault = IERC4626(morphoVaultAddr);
+        aaveVault = IERC4626(aaveVaultAddr);
 
         // Deploy vault trio with initial config
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
@@ -67,6 +83,9 @@ contract SuperVaultTest is MerkleReader {
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             address(asset), "SuperVault USDC", "svUSDC", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, FEE_RECIPIENT
         );
+        vm.label(vaultAddr, "SuperVault");
+        vm.label(strategyAddr, "SuperVaultStrategy");
+        vm.label(escrowAddr, "SuperVaultEscrow");
 
         // Cast addresses to contract types
         vault = SuperVault(vaultAddr);
@@ -89,88 +108,129 @@ contract SuperVaultTest is MerkleReader {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        INTERNAL HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    function _requestDeposit(uint256 depositAmount) internal {
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
+        hooksData[1] = _createRequestDeposit7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        executeOp(userOpData);
+    }
+
+    function _fulfillDeposit(uint256 depositAmount) internal {
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountEth;
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = _getMerkleProof(depositHookAddress);
+        proofs[1] = proofs[0];
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(morphoVault), depositAmount / 2, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillDepositRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
+        vm.stopPrank();
+    }
+
+    function _claimDeposit(uint256 depositAmount) internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createDeposit7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
+    }
+
+    function _requestRedeem(uint256 redeemShares) internal {
+        address[] memory redeemHooksAddresses = new address[](1);
+        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, redeemShares, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory redeemEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
+        UserOpData memory redeemUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(redeemEntry));
+        executeOp(redeemUserOpData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         DEPOSIT FLOW TESTS
     //////////////////////////////////////////////////////////////*/
 
     function test_RequestDeposit() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
-
-        // Fund user1 with USDC
-        deal(address(asset), user1, depositAmount);
-
-        // Approve vault to spend USDC
-        vm.startPrank(user1);
-        asset.approve(address(vault), depositAmount);
-
-        // Request deposit
-        vault.requestDeposit(depositAmount, user1, user1);
-        vm.stopPrank();
+        _requestDeposit(depositAmount);
 
         // Verify state
-        assertEq(strategy.pendingDepositRequest(user1), depositAmount, "Wrong pending deposit amount");
+        assertEq(strategy.pendingDepositRequest(accountEth), depositAmount, "Wrong pending deposit amount");
         assertEq(asset.balanceOf(address(strategy)), depositAmount, "Wrong strategy balance");
-        assertEq(asset.balanceOf(user1), 0, "Wrong user balance");
     }
 
     function test_FulfillDeposit() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
-        // Setup deposit request
-        deal(address(asset), user1, depositAmount);
-        vm.startPrank(user1);
-        asset.approve(address(vault), depositAmount);
-        vault.requestDeposit(depositAmount, user1, user1);
-        vm.stopPrank();
+        // Setup deposit request first
+        _requestDeposit(depositAmount);
 
-        // TODO: Set up hook data for deposit to Morpho
-        address[] memory users = new address[](1);
-        users[0] = user1;
-        address[] memory hooks = new address[](1);
-        bytes32[][] memory proofs = new bytes32[][](1);
-        bytes[] memory hookData = new bytes[](1);
-
-        // Fulfill deposit as strategist
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillDepositRequests(users, hooks, proofs, hookData);
-        vm.stopPrank();
+        // Verify request state
+        assertEq(strategy.pendingDepositRequest(accountEth), depositAmount, "Wrong pending deposit amount");
+        console.log("Pending deposit request:", strategy.pendingDepositRequest(accountEth));
+        // Fulfill deposit
+        _fulfillDeposit(depositAmount);
 
         // Verify state
-        assertEq(strategy.pendingDepositRequest(user1), 0, "Pending request not cleared");
-        assertGt(strategy.maxMint(user1), 0, "No shares available to mint");
+        assertEq(strategy.pendingDepositRequest(accountEth), 0, "Pending request not cleared");
+        assertGt(strategy.maxMint(accountEth), 0, "No shares available to mint");
     }
 
     function test_ClaimDeposit() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
         // Setup and fulfill deposit
-        deal(address(asset), user1, depositAmount);
-        vm.startPrank(user1);
-        asset.approve(address(vault), depositAmount);
-        vault.requestDeposit(depositAmount, user1, user1);
-        vm.stopPrank();
-
-        // TODO: Set up hook data for deposit to Morpho
-        address[] memory users = new address[](1);
-        users[0] = user1;
-        address[] memory hooks = new address[](1);
-        bytes32[][] memory proofs = new bytes32[][](1);
-        bytes[] memory hookData = new bytes[](1);
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillDepositRequests(users, hooks, proofs, hookData);
-        vm.stopPrank();
+        _requestDeposit(depositAmount);
+        _fulfillDeposit(depositAmount);
 
         // Get claimable shares
-        uint256 claimableShares = strategy.maxMint(user1);
+        uint256 claimableShares = strategy.maxMint(accountEth);
 
         // Claim deposit
-        vm.startPrank(user1);
-        vault.deposit(depositAmount, user1, user1);
-        vm.stopPrank();
+        _claimDeposit(depositAmount);
 
         // Verify state
-        assertEq(vault.balanceOf(user1), claimableShares, "Wrong share balance");
-        assertEq(strategy.maxMint(user1), 0, "Shares not claimed");
+        assertEq(vault.balanceOf(accountEth), claimableShares, "Wrong share balance");
+        assertEq(strategy.maxMint(accountEth), 0, "Shares not claimed");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -178,36 +238,19 @@ contract SuperVaultTest is MerkleReader {
     //////////////////////////////////////////////////////////////*/
 
     function test_RequestRedeem() public {
-        // First setup a deposit and claim it
         uint256 depositAmount = 1000e6; // 1000 USDC
-        deal(address(asset), user2, depositAmount);
 
-        vm.startPrank(user2);
-        asset.approve(address(vault), depositAmount);
-        vault.requestDeposit(depositAmount, user2, user2);
-        vm.stopPrank();
-
-        // TODO: Set up hook data for deposit
-        address[] memory users = new address[](1);
-        users[0] = user2;
-        address[] memory hooks = new address[](1);
-        bytes32[][] memory proofs = new bytes32[][](1);
-        bytes[] memory hookData = new bytes[](1);
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillDepositRequests(users, hooks, proofs, hookData);
-        vm.stopPrank();
-
-        vm.startPrank(user2);
-        vault.deposit(depositAmount, user2, user2);
+        // First setup a deposit and claim it
+        _requestDeposit(depositAmount);
+        _fulfillDeposit(depositAmount);
+        _claimDeposit(depositAmount);
 
         // Now request redeem of half the shares
-        uint256 redeemShares = vault.balanceOf(user2) / 2;
-        vault.requestRedeem(redeemShares, user2, user2);
-        vm.stopPrank();
+        uint256 redeemShares = vault.balanceOf(accountEth) / 2;
+        _requestRedeem(redeemShares);
 
         // Verify state
-        assertEq(strategy.pendingRedeemRequest(user2), redeemShares, "Wrong pending redeem amount");
+        assertEq(strategy.pendingRedeemRequest(accountEth), redeemShares, "Wrong pending redeem amount");
         assertEq(vault.balanceOf(address(escrow)), redeemShares, "Wrong escrow balance");
     }
 
