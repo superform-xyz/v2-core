@@ -354,14 +354,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             accountETH,
             amountPerVault,
-            true
+            false,
+            false
         );
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);
         executeOp(depositOpData);
-
-        // vm.prank(accountETH);
-        // IERC7540(yieldSource7540AddressETH_USDC).deposit(amountPerVault, accountETH, accountETH);
 
         userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
     }
