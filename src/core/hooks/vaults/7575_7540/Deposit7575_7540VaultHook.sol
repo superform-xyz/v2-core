@@ -22,7 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 /// @notice         bool lockForSP = _decodeBool(data, 105);
-contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract Deposit7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
@@ -92,7 +92,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address shareToken = IERC7540(data.extractYieldSource()).shares();
+        address shareToken = IERC7540(data.extractYieldSource()).share();
         return IERC20(shareToken).balanceOf(account);
     }
 }
