@@ -3,13 +3,12 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import "../../../interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import "../../../interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
-
 
 /// @title Swap1InchHook
 /// @dev data has the following structure
@@ -39,7 +38,6 @@ contract Swap1InchHook is BaseHook, ISuperHook {
     error INVALID_SOURCE_RECEIVER();
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
-
 
 
     constructor(
@@ -89,9 +87,6 @@ contract Swap1InchHook is BaseHook, ISuperHook {
 
     }
 
-
-
-    
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -113,41 +108,40 @@ contract Swap1InchHook is BaseHook, ISuperHook {
 
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
             /// @dev support UNISWAP_V2, UNISWAP_V3, CURVE and all uniswap-based forks
-            _validateUnoswapTo(txData_[4:], dstToken, dstReceiver);
+            _validateUnoswap(txData_[4:], dstReceiver, dstToken);
         } else if (selector == I1InchAggregationRouterV6.swap.selector) {
             /// @dev support for generic router call
-            _validateGenericRouterSwap(txData_[4:], dstToken, dstReceiver, account);
+            _validateGenericSwap(txData_[4:], dstReceiver, dstToken, account);
         } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
-            _validateClipperSwapTo(txData_[4:], dstReceiver, dstToken);
+            _validateClipperSwap(txData_[4:], dstReceiver, dstToken);
         } else {
             revert INVALID_SELECTOR();
         }
     }
 
-    function _validateClipperSwapTo(bytes calldata txData_, address dstReceiver, address dstToken) private pure {
-        (, address recipient,, IERC20 toToken, uint256 inputAmount, uint256 outputAmount,,,) =
+    function _validateClipperSwap(bytes calldata txData_, address receiver, address toToken) private pure {
+        (, address dstReceiver,, IERC20 dstToken, uint256 amount, uint256 minReturnAmount,,,) =
             abi.decode(txData_, (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32));
 
 
-        if (recipient != dstReceiver) {
+        if (dstReceiver != receiver) {
             revert INVALID_RECEIVER();
         }
 
-        if (inputAmount == 0) {
+        if (amount == 0) {
             revert INVALID_INPUT_AMOUNT();
         }
 
-        if (outputAmount == 0) {
+        if (minReturnAmount == 0) {
             revert INVALID_OUTPUT_AMOUNT();
         }
 
-        if (address(toToken) != dstToken) {
+        if (address(dstToken) != toToken) {
             revert INVALID_DESTINATION_TOKEN();
         }
     }
 
-
-    function _validateGenericRouterSwap(bytes calldata txData_, address dstToken, address dstReceiver, address account) private pure {
+    function _validateGenericSwap(bytes calldata txData_, address receiver, address toToken, address account) private pure {
         //swap(IAggregationExecutor executor, SwapDescription calldata desc, bytes calldata permit, bytes calldata data) external payable
         (, I1InchAggregationRouterV6.SwapDescription memory swapDescription,,) =
             abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes, bytes));
@@ -156,11 +150,11 @@ contract Swap1InchHook is BaseHook, ISuperHook {
             revert PARTIAL_FILL_NOT_ALLOWED();
         }
 
-        if (address(swapDescription.dstToken) != dstToken) {
+        if (address(swapDescription.dstToken) != toToken) {
             revert INVALID_DESTINATION_TOKEN();
         }
 
-        if (swapDescription.dstReceiver != dstReceiver) {
+        if (swapDescription.dstReceiver != receiver) {
             revert INVALID_RECEIVER();
         }
 
@@ -177,27 +171,28 @@ contract Swap1InchHook is BaseHook, ISuperHook {
         }
     }
 
-    function _validateUnoswapTo(bytes calldata txData_, address dstToken, address dstReceiver) private view {
+    function _validateUnoswap(bytes calldata txData_, address receiver, address toToken) private view {
         ///function unoswapTo(Address to,Address token,uint256 amount,uint256 minReturn,Address dex)
-        (Address receiverUint256, Address fromTokenUint256, uint256 decodedFromAmount, uint256 minReturn, Address dex) =
+        (Address receiverUint256, Address fromTokenUint256, uint256 decodedFromAmount, uint256 minReturnAmount, Address dex) =
             abi.decode(txData_, (Address, Address, uint256, uint256, Address));
 
-        address toToken;
+        address dstToken;
 
         ProtocolLib.Protocol protocol = dex.protocol();
-        /// @dev if protocol is curve
         if (protocol == ProtocolLib.Protocol.Curve) {
-            uint256 toTokenIndex = (Address.unwrap(dex) >> _CURVE_TO_COINS_ARG_OFFSET) & _CURVE_TO_COINS_ARG_MASK;
-            toToken = ICurvePool(dex.get()).underlying_coins(int128(uint128(toTokenIndex)));
+            // CURVE
+            uint256 dstTokenIndex = (Address.unwrap(dex) >> _CURVE_TO_COINS_ARG_OFFSET) & _CURVE_TO_COINS_ARG_MASK;
+            dstToken = ICurvePool(dex.get()).underlying_coins(int128(uint128(dstTokenIndex)));
         } else {
+            // UNISWAPV2 and UNISWAPV3
             address token0 = IUniswapPair(dex.get()).token0();
             address token1 = IUniswapPair(dex.get()).token1();
 
             address fromToken = fromTokenUint256.get();
             if (token0 == fromToken) {
-                toToken = token1;
+                dstToken = token1;
             } else if (token1 == fromToken) {
-                toToken = token0;
+                dstToken = token0;
             } else {
                 revert INVALID_TOKEN_PAIR();
             }
@@ -205,14 +200,14 @@ contract Swap1InchHook is BaseHook, ISuperHook {
 
         /// @dev remap of WETH to Native if unwrapWeth flag is true
         if (dex.shouldUnwrapWeth()) {
-            toToken = NATIVE;
+            dstToken = NATIVE;
         }
 
         if (decodedFromAmount == 0) {
             revert INVALID_INPUT_AMOUNT();
         }
 
-        if (minReturn == 0) {
+        if (minReturnAmount == 0) {
             revert INVALID_OUTPUT_AMOUNT();
         }
 
@@ -220,8 +215,8 @@ contract Swap1InchHook is BaseHook, ISuperHook {
             revert INVALID_DESTINATION_TOKEN();
         }
 
-        address receiver = receiverUint256.get();
-        if (receiver != dstReceiver) {
+        address dstReceiver = receiverUint256.get();
+        if (dstReceiver != receiver) {
             revert INVALID_RECEIVER();
         }
     }
