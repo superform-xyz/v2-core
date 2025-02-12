@@ -161,7 +161,12 @@ contract SuperVaultTest is MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(morphoVault),
+            accountEth,
+            depositAmount,
+            false,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
