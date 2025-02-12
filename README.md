@@ -4,7 +4,9 @@ This repository contains the smart contracts for Superform v2
 
 ## Overview
 
-Superform is a protocol that enables cross-chain DeFi operations with a focus on security, efficiency, and composability. The protocol is built using Foundry and implements various components including core contracts, periphery contracts, and cross-chain messaging systems.
+Superform is a protocol that enables cross-chain DeFi operations with a focus on security, efficiency, and
+composability. The protocol is built using Foundry and implements various components including core contracts, periphery
+contracts, and cross-chain messaging systems.
 
 ## Repository Structure
 
@@ -28,6 +30,7 @@ src/
 ## Dependencies
 
 The project uses the following main dependencies:
+
 - OpenZeppelin Contracts: For standard contract implementations
 - Solady: For gas-optimized contract building blocks
 - Modulekit: For modular contract development
@@ -38,6 +41,7 @@ The project uses the following main dependencies:
 ## Development Setup
 
 ### Prerequisites
+
 - Foundry
 - Node.js
 - Git
@@ -45,17 +49,20 @@ The project uses the following main dependencies:
 ### Installation
 
 1. Clone the repository with submodules:
+
 ```bash
 git clone --recursive https://github.com/superform-xyz/v2-contracts
 cd v2-contracts
 ```
 
 2. Install dependencies:
+
 ```bash
 forge install
 ```
 
 3. Copy the environment file:
+
 ```bash
 cp .env.example .env
 ```
@@ -64,6 +71,19 @@ cp .env.example .env
 
 ```bash
 forge build
+```
+
+If `forge build` fails:
+
+```bash
+cd lib/modulekit
+pnpm install
+```
+
+> **Note:** This requires `pnpm` and will not work with `npm`. To install `pnpm`:
+
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -
 ```
 
 ### Testing
@@ -75,6 +95,7 @@ forge test
 ## Configuration
 
 The project uses Foundry as the development framework with the following configuration highlights:
+
 - Solidity version: 0.8.28
 - Optimizer enabled with 10,000 runs
 - Comprehensive test coverage
