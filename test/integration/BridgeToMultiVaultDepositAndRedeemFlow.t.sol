@@ -233,6 +233,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // CHECK ACCOUNTING
         uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
+        assertNotEq(pricePerShare, 1);
+
         uint256 expectedShares = amountPerVault;
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
@@ -402,6 +404,15 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedger.AccountingInflow(
+            accountETH, 
+            addressOracleETH,
+            yieldSource7540AddressETH_USDC, 
+            amountPerVault, 
+            yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH))
+        );
         executeOp(depositOpData);
 
         userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
