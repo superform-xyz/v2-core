@@ -81,5 +81,4 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOu
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
 }

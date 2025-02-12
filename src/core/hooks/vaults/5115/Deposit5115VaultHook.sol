@@ -27,7 +27,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
 /// @notice         bool lockForSP = _decodeBool(data, 157);
 contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
-
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
@@ -73,7 +72,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address,address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 137);
         spToken = data.extractYieldSource();
@@ -96,7 +95,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         return IERC4626(data.extractYieldSource()).balanceOf(account);
     }

@@ -37,7 +37,6 @@ contract MockAccountingVault is ERC4626 {
         return (supply == 0 || totalAssets() == 0) ? assets : (assets * supply) / totalAssets();
     }
 
-
     function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
         if (useCustomConversions) {
             return (shares * pps) / (10 ** decimals());
@@ -45,7 +44,6 @@ contract MockAccountingVault is ERC4626 {
         uint256 supply = totalSupply();
         return (supply == 0 || totalAssets() == 0) ? shares : (shares * totalAssets()) / supply;
     }
-
 
     function previewDeposit(uint256 assets) public view override returns (uint256 shares) {
         return convertToShares(assets);
@@ -65,7 +63,6 @@ contract MockAccountingVault is ERC4626 {
         useCustomConversions = true;
     }
 
-
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         require(assets > 0, "AMOUNT_NOT_VALID");
         shares = convertToShares(assets);
@@ -77,7 +74,7 @@ contract MockAccountingVault is ERC4626 {
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
         require(shares > 0, "AMOUNT_NOT_VALID");
         require(shares <= balanceOf(owner), "INSUFFICIENT_SHARES");
-        
+
         assets = convertToAssets(shares);
         _burn(owner, shares);
         assetInstance.transfer(receiver, assets);

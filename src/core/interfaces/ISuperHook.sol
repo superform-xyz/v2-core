@@ -16,7 +16,7 @@ interface ISuperHookResult {
     function lockForSP() external view returns (bool);
     /// @notice The lock token of the hook
     function spToken() external view returns (address);
-    
+
     /// @notice The asset token being withdrawn or deposited
     function asset() external view returns (address);
 }
@@ -26,7 +26,6 @@ interface ISuperHookInflowOutflow {
 }
 
 interface ISuperHookResultOutflow is ISuperHookResult {
-
     /// @notice The amount of shares processed by the hook
     function usedShares() external view returns (uint256);
 }
@@ -50,7 +49,14 @@ interface ISuperHook {
     /// @param account The account to build the execution array from
     /// @param data The data to build the execution array from
     /// @return executions The execution array
-    function build(address prevHook, address account, bytes memory data) external view returns (Execution[] memory executions);
+    function build(
+        address prevHook,
+        address account,
+        bytes memory data
+    )
+        external
+        view
+        returns (Execution[] memory executions);
 
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS

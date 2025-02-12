@@ -19,7 +19,7 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     using HookDataDecoder for bytes;
-    
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -119,8 +119,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 ISuperHookResult(address(hook)).outAmount(),
                 ISuperHookResultOutflow(address(hook)).usedShares()
             );
-
-
 
             // If there's a fee to collect (only for outflows)
             if (feeAmount > 0) {

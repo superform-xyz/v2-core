@@ -8,10 +8,9 @@ interface IYieldExit {
     function balanceOf(address account) external view returns (uint256);
 
     function stakingToken() external view returns (address);
-    
+
     /*//////////////////////////////////////////////////////////////
                                 EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function exit() external;
 }
-

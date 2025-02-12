@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 import "./Constants.sol";
+
 abstract contract Configuration is Constants {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -33,7 +34,6 @@ abstract contract Configuration is Constants {
     }
 
     EnvironmentData public configuration;
-
 
     mapping(uint64 chainId => string chainName) internal chainNames;
     bytes internal SALT_NAMESPACE;

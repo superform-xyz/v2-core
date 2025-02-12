@@ -13,7 +13,6 @@ import { IFluidLendingStakingRewards } from "../../../interfaces/vendors/fluid/I
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-
 /// @title FluidUnstakeHook
 /// @dev data has the following structure
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
@@ -25,6 +24,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
+
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -86,7 +86,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IFluidLendingStakingRewards(asset).balanceOf(account);
     }
