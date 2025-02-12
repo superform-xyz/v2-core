@@ -34,7 +34,7 @@ contract SuperVaultTest is MerkleReader {
 
     // Tokens and yield sources
     IERC20Metadata public asset;
-    IERC4626 public morphoVault;
+    IERC4626 public fluidVault;
     IERC4626 public aaveVault;
 
     // Constants
@@ -63,12 +63,12 @@ contract SuperVaultTest is MerkleReader {
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
 
-        address morphoVaultAddr = 0x8eB67A509616cd6A7c1B3c8C21D48FF57df3d458;
+        address fluidVaultAddr = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
         address aaveVaultAddr = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
-        vm.label(morphoVaultAddr, "MorphoVault");
+        vm.label(fluidVaultAddr, "FluidVault");
         vm.label(aaveVaultAddr, "AaveVault");
         // Get real yield sources from fork
-        morphoVault = IERC4626(morphoVaultAddr);
+        fluidVault = IERC4626(fluidVaultAddr);
         aaveVault = IERC4626(aaveVaultAddr);
 
         // Deploy vault trio with initial config
@@ -94,7 +94,7 @@ contract SuperVaultTest is MerkleReader {
 
         // Add yield sources as manager
         vm.startPrank(SV_MANAGER);
-        strategy.addYieldSource(address(morphoVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        strategy.addYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
         strategy.addYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
         vm.stopPrank();
 
@@ -144,7 +144,7 @@ contract SuperVaultTest is MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(morphoVault), depositAmount / 2, false, false
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
         );
         fulfillHooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
@@ -161,12 +161,7 @@ contract SuperVaultTest is MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(morphoVault),
-            accountEth,
-            depositAmount,
-            false,
-            false
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -188,6 +183,58 @@ contract SuperVaultTest is MerkleReader {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
         UserOpData memory redeemUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(redeemEntry));
         executeOp(redeemUserOpData);
+    }
+
+    function _fulfillRedeem(uint256 redeemShares) internal {
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountEth;
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = withdrawHookAddress;
+        fulfillHooksAddresses[1] = withdrawHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = _getMerkleProof(withdrawHookAddress);
+        proofs[1] = proofs[0];
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // Withdraw proportionally from both vaults
+        fulfillHooksData[0] = _createWithdraw4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            redeemShares / 2,
+            false,
+            false
+        );
+        fulfillHooksData[1] = _createWithdraw4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            redeemShares / 2,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRedeemRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
+        vm.stopPrank();
+    }
+
+    function _claimWithdraw(uint256 assets) internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createWithdraw7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, assets, false, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -257,6 +304,53 @@ contract SuperVaultTest is MerkleReader {
         // Verify state
         assertEq(strategy.pendingRedeemRequest(accountEth), redeemShares, "Wrong pending redeem amount");
         assertEq(vault.balanceOf(address(escrow)), redeemShares, "Wrong escrow balance");
+    }
+
+    function test_FulfillRedeem() public {
+        uint256 depositAmount = 1000e6; // 1000 USDC
+
+        // First setup a deposit and claim it
+        _requestDeposit(depositAmount);
+        _fulfillDeposit(depositAmount);
+        _claimDeposit(depositAmount);
+
+        // Now request redeem of half the shares
+        uint256 redeemShares = vault.balanceOf(accountEth) / 2;
+        _requestRedeem(redeemShares);
+        _fulfillRedeem(redeemShares);
+
+        // Verify state
+        assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
+        assertGt(strategy.maxWithdraw(accountEth), 0, "No assets available to withdraw");
+    }
+
+    function test_ClaimRedeem() public {
+        uint256 depositAmount = 1000e6; // 1000 USDC
+
+        // First setup a deposit and claim it
+        _requestDeposit(depositAmount);
+        _fulfillDeposit(depositAmount);
+        _claimDeposit(depositAmount);
+
+        // Get initial balances
+        uint256 initialAssetBalance = asset.balanceOf(accountEth);
+        uint256 initialShares = vault.balanceOf(accountEth);
+
+        // Request redeem of half the shares
+        uint256 redeemShares = initialShares / 2;
+        _requestRedeem(redeemShares);
+        _fulfillRedeem(redeemShares);
+
+        // Get claimable assets
+        uint256 claimableAssets = strategy.maxWithdraw(accountEth);
+
+        // Claim redeem
+        _claimWithdraw(claimableAssets);
+
+        // Verify state
+        assertEq(vault.balanceOf(accountEth), initialShares - redeemShares, "Wrong final share balance");
+        assertApproxEqRel(asset.balanceOf(accountEth), initialAssetBalance + claimableAssets, 0.05e18, "Wrong final asset balance");
+        assertEq(strategy.maxWithdraw(accountEth), 0, "Assets not claimed");
     }
 
     // TODO: Add remaining tests following test-plan.md

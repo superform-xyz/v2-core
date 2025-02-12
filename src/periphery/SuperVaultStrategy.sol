@@ -14,8 +14,6 @@ import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 
-import { console } from "forge-std/console.sol";
-
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -248,16 +246,32 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             // Calculate user's share of total shares
             vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare);
+
+            // Calculate new weighted average deposit price
+            uint256 newTotalAssets = vars.requestedAmount; // New assets being added
+            uint256 newTotalShares = vars.shares; // New shares being minted
+
+            if (state.maxMint > 0) {
+                // Add existing assets and shares to calculation
+                newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
+                newTotalShares += state.maxMint;
+            }
+
+            // Update average deposit price
+            if (newTotalShares > 0) {
+                state.averageDepositPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+            }
+
             // Add new share price point
             state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
 
             // Move request to claimable state
             state.pendingDepositRequest = 0;
 
+            state.maxMint += vars.shares;
+
             // Mint shares to escrow
             ISuperVault(_vault).mintShares(vars.shares);
-
-            state.maxMint += vars.shares;
 
             // Call vault callback instead of emitting event directly
             ISuperVault(_vault).onDepositClaimable(user, vars.requestedAmount, vars.shares);
@@ -650,6 +664,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @inheritdoc ISuperVaultStrategy
     function maxWithdraw(address owner) public view returns (uint256) {
         return superVaultState[owner].maxWithdraw;
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function getAverageDepositPrice(address owner) external view returns (uint256) {
+        return superVaultState[owner].averageDepositPrice;
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function getAverageWithdrawPrice(address owner) external view returns (uint256) {
+        return superVaultState[owner].averageWithdrawPrice;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1097,10 +1121,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         (Execution[] memory executions, uint256 shares) =
             _processCommonHookExecution(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW);
 
+        IERC20 _vault_ = IERC20(executions[0].target);
+
+        _vault_.safeIncreaseAllowance(executions[0].target, shares);
         // Execute the transaction
         (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
         if (!success) revert EXECUTION_FAILED();
-
+        _vault_.forceApprove(executions[0].target, 0);
         // Update spent amount (tracking shares)
         spentAmount += shares;
 
@@ -1129,12 +1156,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) internal returns (uint256) {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
-            uint256 fee = profit.mulDiv(feeConfig.feeBps, ONE_HUNDRED_PERCENT);
+            uint256 bps = feeConfig.feeBps;
+            uint256 fee = profit.mulDiv(bps, 10_000);
             currentAssets -= fee;
 
             // Transfer fee to recipient if non-zero
             if (fee > 0) {
-                _asset.safeTransfer(feeConfig.recipient, fee);
+                address recipient = feeConfig.recipient;
+                _asset.safeTransfer(recipient, fee);
+                emit FeePaid(recipient, fee, bps);
             }
         }
         return currentAssets;
@@ -1180,7 +1210,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
+        // TODO rounding
         uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
+
+        // Update average withdraw price
+        // TODO are we doing a mistake by calculating average after taking fee?
+        if (requestedShares > 0) {
+            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares, Math.Rounding.Floor);
+        }
     }
 }

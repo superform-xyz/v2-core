@@ -70,7 +70,7 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableProposed(bool newWithdrawable, uint256 effectiveTime);
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
-
+    event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -95,6 +95,8 @@ interface ISuperVaultStrategy {
         uint256 maxMint;
         uint256 maxWithdraw;
         uint256 sharePricePointCursor;
+        uint256 averageDepositPrice;
+        uint256 averageWithdrawPrice;
         SharePricePoint[] sharePricePoints;
     }
 
@@ -348,6 +350,16 @@ interface ISuperVaultStrategy {
     /// @param hook Address of the hook to check
     /// @param proof Merkle proof for the hook
     function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
+
+    /// @notice Get the average deposit price for a user
+    /// @param owner The owner address
+    /// @return The average deposit price for the user
+    function getAverageDepositPrice(address owner) external view returns (uint256);
+
+    /// @notice Get the average withdraw price for a user
+    /// @param owner The owner address
+    /// @return The average withdraw price for the user
+    function getAverageWithdrawPrice(address owner) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
