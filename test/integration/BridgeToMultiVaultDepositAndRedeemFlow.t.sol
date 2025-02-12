@@ -6,6 +6,7 @@ import { BaseTest } from "../BaseTest.t.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 // Vault Interfaces
@@ -55,8 +56,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IRoot public root;
     IPoolManager public poolManager;
 
-    IInvestmentManager public investmentManager;
+    ISuperLedger public superLedgerETH;
+    ISuperLedger public superLedgerOP;
+
+    IYieldSourceOracle public yieldSourceOracleETH;
+    IYieldSourceOracle public yieldSourceOracleOP;
+
     RestrictionManagerLike public restrictionManager;
+    IInvestmentManager public investmentManager;
 
     uint256 public balance_Base_USDC_Before;
 
@@ -66,6 +73,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "YieldSource_7540_ETH_USDC";
     string public constant YIELD_SOURCE_ORACLE_7540_KEY = "YieldSourceOracle_7540";
+
+    string public constant YIELD_SOURCE_4626_OP_USDCe_KEY = "YieldSource_4626_OP_USDCe";
+    string public constant YIELD_SOURCE_ORACLE_4626_KEY = "YieldSourceOracle_4626";
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -93,6 +103,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // Set up the 4626 yield source
         yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
+        vm.label(yieldSource4626AddressOP_USDCe, YIELD_SOURCE_4626_OP_USDCe_KEY);
 
         yieldSourceOracle4626 = _getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY);
 
@@ -109,6 +120,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
         superExecutorOnETH = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superExecutorOnOP = ISuperExecutor(_getContract(OP, SUPER_EXECUTOR_KEY));
+
+        superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        superLedgerOP = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
+
+        yieldSourceOracleETH = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        yieldSourceOracleOP = IYieldSourceOracle(_getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY));
 
         vm.selectFork(FORKS[BASE]);
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
@@ -193,8 +210,16 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
-        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingETH_USDC, amountPerVault / 2, amountPerVault / 2, ETH, true, amountPerVault / 2, ethUserOpData
+        srcHooksData[1] 
+        = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, 
+            underlyingETH_USDC, 
+            amountPerVault / 2, 
+            amountPerVault / 2, 
+            ETH, 
+            true, 
+            amountPerVault / 2, 
+            ethUserOpData
         );
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
