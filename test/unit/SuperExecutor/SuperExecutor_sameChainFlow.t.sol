@@ -150,7 +150,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         // hooks data with lockSP true for the deposit hook
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDepositHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, true
         );
 
