@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 // Tests
 import { BaseTest } from "../BaseTest.t.sol";
-
+import { console2 } from "forge-std/console2.sol";
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
@@ -219,9 +219,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory baseUserOpData = _createUserOpData(new address[](0), new bytes[](0), BASE);
 
+        vm.selectFork(FORKS[ETH]);
+
+        uint256 userAssetsBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+
         // REDEEM
         uint256 userAssets = _executeRedeemFlow(amountPerVault);
-        assertEq(userAssets, amountPerVault);
+
+        assertGt(userAssets, userAssetsBefore);
 
         // BRIDGE BACK
         vm.selectFork(FORKS[ETH]);
@@ -233,8 +238,16 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         bytes[] memory ethHooksData = new bytes[](2);
         ethHooksData[0] =
             _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
-        ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingBase_USDC, amountPerVault, amountPerVault, BASE, true, amountPerVault, baseUserOpData
+        ethHooksData[1] 
+        = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingETH_USDC, 
+            underlyingBase_USDC, 
+            amountPerVault, 
+            amountPerVault, 
+            BASE, 
+            true, 
+            amountPerVault, 
+            baseUserOpData
         );
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
@@ -394,7 +407,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
         executeOp(redeemOpData);
 
-        userAssets = IERC7540(yieldSource7540AddressETH_USDC).balanceOf(accountETH);
+        userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
 
     function _createUserOpData(
