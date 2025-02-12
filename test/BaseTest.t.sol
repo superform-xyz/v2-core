@@ -122,6 +122,7 @@ struct Addresses {
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
+    Deposit7575_7540VaultHook deposit7575_7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
     Swap1InchClipperRouterHook swap1InchClipperRouterHook;
