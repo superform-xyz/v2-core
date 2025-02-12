@@ -80,12 +80,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // Set up the 7540 yield source
         yieldSource7540AddressETH_USDC =
             realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
-        vm.label(yieldSource7540AddressETH_USDC, YieldSource_7540_ETH_USDC);
+        vm.label(yieldSource7540AddressETH_USDC, "YieldSource_7540_ETH_USDC");
 
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressETH_USDC);
 
         yieldSourceOracle7540 = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
-        vm.label(yieldSourceOracle7540, YieldSourceOracle_7540);
+        vm.label(yieldSourceOracle7540, "YieldSourceOracle_7540");
 
         // Set up the 4626 yield source
         yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
