@@ -43,7 +43,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         uint256 amountSharesOrAssets,
         uint256 usedShares
     )
-
         external
         onlyExecutor
         returns (uint256 feeAmount)
@@ -167,7 +166,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient);
     }
 
-     function _processOutflow(
+    function _processOutflow(
         address user,
         address yieldSource,
         bytes32 yieldSourceOracleId,
@@ -176,7 +175,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     )
         internal
         returns (uint256 feeAmount)
-
     {
         uint256 remainingShares = usedShares;
         uint256 costBasis;
@@ -184,7 +182,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
         uint256 len = entries.length;
         if (len == 0) return 0;
-
 
         uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
 
@@ -201,7 +198,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
                 }
                 continue;
             }
-            
+
             address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
             uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
 
@@ -217,7 +214,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
                     ++currentIndex;
                 }
             }
-
         }
 
         userLedger[user][yieldSource].unconsumedEntries = currentIndex;
@@ -227,7 +223,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         if (profit > 0) {
             YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
             if (config.feePercent == 0) revert FEE_NOT_SET();
-
 
             // Calculate fee in assets but don't transfer - let the executor handle it
             feeAmount = (profit * config.feePercent) / 10_000;

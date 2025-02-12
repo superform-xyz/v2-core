@@ -66,7 +66,9 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IStandardizedYield.redeem, (account, shares, tokenOut, minTokenOut, burnFromInternalBalance))
+            callData: abi.encodeCall(
+                IStandardizedYield.redeem, (account, shares, tokenOut, minTokenOut, burnFromInternalBalance)
+            )
         });
     }
 
@@ -74,7 +76,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account,bytes memory data) external  onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
         asset = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0); // tokenOut from data
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
@@ -99,7 +101,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(asset).balanceOf(account);
     }
@@ -108,5 +110,4 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         address yieldSource = data.extractYieldSource();
         return IStandardizedYield(yieldSource).balanceOf(account);
     }
-
 }

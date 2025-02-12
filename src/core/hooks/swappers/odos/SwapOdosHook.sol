@@ -31,7 +31,13 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 contract SwapOdosHook is BaseHook, ISuperHook {
     IOdosRouterV2 public immutable odosRouterV2;
 
-    constructor(address registry_, address author_, address _routerV2) BaseHook(registry_, author_, HookType.NONACCOUNTING) {
+    constructor(
+        address registry_,
+        address author_,
+        address _routerV2
+    )
+        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+    {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
         odosRouterV2 = IOdosRouterV2(odosRouterV2);
     }
@@ -59,13 +65,8 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         executions[0] = Execution({
             target: address(odosRouterV2),
             value: 0,
-            callData: abi.encodeCall(IOdosRouterV2.swap, 
-                (
-                    _getSwapInfo(account, prevHook, data), 
-                    pathDefinition, 
-                    executor, 
-                    referralCode
-                )
+            callData: abi.encodeCall(
+                IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), pathDefinition, executor, referralCode)
             )
         });
     }
@@ -90,7 +91,16 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
         return IERC20(outputToken).balanceOf(account);
     }
-    function _getSwapInfo(address account, address prevHook, bytes memory data) private view returns (IOdosRouterV2.swapTokenInfo memory) {
+
+    function _getSwapInfo(
+        address account,
+        address prevHook,
+        bytes memory data
+    )
+        private
+        view
+        returns (IOdosRouterV2.swapTokenInfo memory)
+    {
         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
         address inputReceiver = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
@@ -104,13 +114,7 @@ contract SwapOdosHook is BaseHook, ISuperHook {
             inputAmount = ISuperHookResult(prevHook).outAmount();
         }
         return IOdosRouterV2.swapTokenInfo(
-                        inputToken, 
-                        inputAmount, 
-                        inputReceiver, 
-                        outputToken, 
-                        outputQuote, 
-                        outputMin, 
-                        account
-                    );
+            inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
+        );
     }
 }

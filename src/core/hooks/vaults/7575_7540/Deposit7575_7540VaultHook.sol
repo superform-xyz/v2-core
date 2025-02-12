@@ -1,39 +1,37 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
 // external
 import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title Withdraw4626VaultHook
+/// @title Deposit7540VaultHook
 /// @dev data has the following structure
 /// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 /// @notice         bool lockForSP = _decodeBool(data, 105);
-contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract Deposit7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
@@ -46,22 +44,22 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        uint256 shares = _decodeAmount(data);
+        address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResultOutflow(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).outAmount();
         }
 
-        if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0) || controller == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC4626.redeem, (shares, account, owner))
+            callData: abi.encodeCall(IERC7540.deposit, (amount, account, controller))
         });
     }
 
@@ -70,18 +68,18 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external onlyExecutor {
+        // store current balance
         address yieldSource = data.extractYieldSource();
-        asset = IERC4626(yieldSource).asset();
-        outAmount = _getBalance(account, data);
-        usedShares = _getSharesBalance(account, data);
+        address shareToken = IERC7540(yieldSource).share();
+        outAmount = _getBalance(account, shareToken);
         lockForSP = _decodeBool(data, 105);
         spToken = yieldSource;
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(account, data) - outAmount;
-        usedShares = usedShares - _getSharesBalance(account, data);
+        address shareToken = IERC7540(data.extractYieldSource()).share();
+        outAmount = _getBalance(account, shareToken) - outAmount;
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -96,12 +94,7 @@ contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
-    function _getBalance(address account, bytes memory) private view returns (uint256) {
-        return IERC20(asset).balanceOf(account);
-    }
-
-    function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
-        address yieldSource = data.extractYieldSource();
-        return IERC4626(yieldSource).balanceOf(account);
+    function _getBalance(address account, address shareToken) private view returns (uint256) {
+        return IERC20(shareToken).balanceOf(account);
     }
 }

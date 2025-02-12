@@ -28,8 +28,8 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
+    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -49,7 +49,6 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
         uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, 104);
-
 
         if (usePrevHookAmount) {
             amount = ISuperHookResultOutflow(prevHook).outAmount();
@@ -96,7 +95,7 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(asset).balanceOf(account);
     }

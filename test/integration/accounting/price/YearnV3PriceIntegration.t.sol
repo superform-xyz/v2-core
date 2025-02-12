@@ -51,7 +51,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
     function test_ValidateDeposit_Yearn_PricePerShare(uint256 amount) public {
         amount = _bound(amount);
-     
+
         // create account
         address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
         vm.deal(nexusAccount, LARGE);
@@ -65,7 +65,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
-        hooksData[1] = _createDepositHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, false
         );
         ISuperExecutor.ExecutorEntry memory entry =
@@ -101,7 +101,6 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         assertEq(entries[1].amountSharesAvailableToConsume, sharesTwo);
         assertEq(unconsumedEntries, 0);
     }
-
 
     function test_ValidateFees_ForPartialWithdrawal_Yearn() public {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
@@ -178,7 +177,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
             abi.encodeWithSelector(IERC4626.convertToAssets.selector, 10 ** yearnVault.decimals()),
             abi.encode(pricePerShareTwo * 2)
         );
-       
+
         // add funds for accounting fees (as `convertToAssets` result is mocked above)
         _getTokens(underlying, nexusAccount, amount);
 
@@ -186,10 +185,10 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 availableShares = yearnVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares, nexusAccount);
 
-        
         // it should still have 2 entries in the ledger and unconsumed entries index should be 1
         // in a real case scenario, the `redeem` call would have returned amount * 4 (since pps is doubled now)
-        // however, in this case, it returns ~amount * 2 (as pps for real Yearn is 1.06$), so we're left with 1 unconsumed entry
+        // however, in this case, it returns ~amount * 2 (as pps for real Yearn is 1.06$), so we're left with 1
+        // unconsumed entry
         _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
     }
 
@@ -223,15 +222,14 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         // withdraw everything
         uint256 availableShares = yearnVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares, nexusAccount);
-        
+
         // execute and validate
         // it should still have 2 entries in the ledger and unconsumed entries index should be 1
         // in a real case scenario, the `redeem` call would have returned amount * 4 (since pps is doubled now)
-        // however, in this case, it returns ~amount * 2 (as pps for real Yearn is 1.06$), so we're left with 1 unconsumed entry
+        // however, in this case, it returns ~amount * 2 (as pps for real Yearn is 1.06$), so we're left with 1
+        // unconsumed entry
         _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
     }
-
-
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
@@ -242,34 +240,47 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         _getTokens(underlying, nexusAccount, amount);
     }
 
-    function _prepareDepositExecutorEntry(uint256 amount) private view returns (ISuperExecutor.ExecutorEntry memory entry) {
+    function _prepareDepositExecutorEntry(uint256 amount)
+        private
+        view
+        returns (ISuperExecutor.ExecutorEntry memory entry)
+    {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
-        hooksData[1] = _createDepositHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, false
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
 
-    function _prepareWithdrawExecutorEntry(uint256 amount, address account) private view returns (ISuperExecutor.ExecutorEntry memory entry) {
+    function _prepareWithdrawExecutorEntry(
+        uint256 amount,
+        address account
+    )
+        private
+        view
+        returns (ISuperExecutor.ExecutorEntry memory entry)
+    {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        hooksData[0] = _createWithdrawHookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(yearnVault),
-            account,
-            amount,
-            false,
-            false
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false, false
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
 
-    function _executeAndValidateDeposit(address nexusAccount, ISuperExecutor.ExecutorEntry memory entry, uint256 amount, uint256 expectedEntriesCount) private {
+    function _executeAndValidateDeposit(
+        address nexusAccount,
+        ISuperExecutor.ExecutorEntry memory entry,
+        uint256 amount,
+        uint256 expectedEntriesCount
+    )
+        private
+    {
         uint256 pricePerShare = oracle.getPricePerShare(address(yearnVault));
         uint256 shares = yearnVault.previewDeposit(amount);
 
@@ -284,14 +295,21 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         assertEq(unconsumedEntries, 0);
     }
 
-    function _executeAndValidateWithdraw(address nexusAccount, ISuperExecutor.ExecutorEntry memory entry, uint256 expectedEntriesCount, uint256 expectedUnconsumedEntries) private {
+    function _executeAndValidateWithdraw(
+        address nexusAccount,
+        ISuperExecutor.ExecutorEntry memory entry,
+        uint256 expectedEntriesCount,
+        uint256 expectedUnconsumedEntries
+    )
+        private
+    {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedger.getLedger(nexusAccount, address(yearnVault));
 
         assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
-        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch"); 
+        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
     }
 
     function _mockPricePerShareDouble() private {

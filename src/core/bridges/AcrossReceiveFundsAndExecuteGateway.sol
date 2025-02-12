@@ -47,13 +47,15 @@ import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
 /// @notice  userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, 72, 32), 0);
 /// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 104, 32), 0);
 /// @notice  userOp.initCode = BytesLib.slice(message, 104, codeLength);
-/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 136, 32), 0);
-/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 168, 32), 0);
-/// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 168, 32), 0);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 200, 32), 0);
-/// @notice  userOp.paymasterAndData = BytesLib.slice(message, 200, codeLength);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 232, 32), 0);
-/// @notice  userOp.signature = BytesLib.slice(message, 232, codeLength);
+/// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 163, 32), 0);
+/// @notice  userOp.callData = BytesLib.slice(message, 163 + codeLength, codeLength);
+/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 222, 32), 0);
+/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 254, 32), 0);
+/// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 286, 32), 0);
+/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 318, 32), 0);
+/// @notice  userOp.paymasterAndData = BytesLib.slice(message, 318, codeLength);
+/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 318, 32), 0);
+/// @notice  userOp.signature = BytesLib.slice(message, 318 + codeLength, codeLength);
 contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
@@ -91,37 +93,49 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         external
     {
         if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
-
         // decode instruction
         uint256 offset = 0;
         address account = BytesLib.toAddress(BytesLib.slice(message, offset, 20), 0);
         offset += 20;
+
         uint256 intentAmount = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
 
         PackedUserOperation memory userOp;
         userOp.sender = BytesLib.toAddress(BytesLib.slice(message, offset, 20), 0);
         offset += 20;
+
         userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+
         uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+
         userOp.initCode = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
+
+        codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
+        offset += 32;
+
+        userOp.callData = BytesLib.slice(message, offset, codeLength);
+        offset += codeLength;
+
         userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+
         userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+
         userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+
         codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
         offset += 32;
+
         userOp.paymasterAndData = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
-        codeLength = BytesLib.toUint256(BytesLib.slice(message, offset, 32), 0);
-        offset += 32;
-        userOp.signature = BytesLib.slice(message, offset, codeLength);
-        offset += codeLength;
+
+        userOp.signature = BytesLib.slice(message, offset, message.length - offset);
 
         IERC20 token = IERC20(tokenSent);
 

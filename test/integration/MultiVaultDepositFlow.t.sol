@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 // Tests
 import { BaseTest } from "../BaseTest.t.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
@@ -38,12 +39,12 @@ contract MultiVaultDepositFlow is BaseTest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        underlyingETH_USDC = existingUnderlyingTokens[ETH]["USDC"];
-        underlyingETH_sUSDe = existingUnderlyingTokens[ETH]["SUSDe"];
+        underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
+        underlyingETH_sUSDe = existingUnderlyingTokens[ETH][SUSDE_KEY];
 
         yieldSource5115AddressSUSDe = realVaultAddresses[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY];
 
-        yieldSource7540AddressUSDC = realVaultAddresses[ETH]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"];
+        yieldSource7540AddressUSDC = realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
 
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
@@ -73,38 +74,26 @@ contract MultiVaultDepositFlow is BaseTest {
         hooksAddresses[1] = _getHookAddress(ETH, "RequestDeposit7540VaultHook");
         hooksAddresses[2] = _getHookAddress(ETH, "ApproveERC20Hook");
         hooksAddresses[3] = _getHookAddress(ETH, "Deposit5115VaultHook");
-        
 
         bytes[] memory hooksData = new bytes[](4);
-        hooksData[0] = _createApproveHookData(
-            underlyingETH_USDC,
-            yieldSource7540AddressUSDC,
-            amountPerVault,
-            false
-        );
+        hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressUSDC, amountPerVault, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressUSDC,
-            bytes32("ERC7540YieldSourceOracle"),
             0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
             amountPerVault,
             true
         );
-        hooksData[2] = _createApproveHookData(
-            underlyingETH_sUSDe,
-            yieldSource5115AddressSUSDe,
-            amountPerVault,
-            false
-        );
+        hooksData[2] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, amountPerVault, false);
         hooksData[3] = _createDeposit5115VaultHookData(
-            bytes32("ERC5115YieldSourceOracle"),
+            bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource5115AddressSUSDe,
             underlyingETH_sUSDe,
             amountPerVault,
             0,
-            false,
+            true,
             false
         );
-        
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -112,11 +101,7 @@ contract MultiVaultDepositFlow is BaseTest {
 
         vm.expectEmit(true, true, true, false);
         emit IERC7540.DepositRequest(
-            0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86,
-            accountETH, 
-            0, 
-            accountETH,
-            amountPerVault
+            0x6F94EB271cEB5a33aeab5Bb8B8edEA8ECf35Ee86, accountETH, 0, accountETH, amountPerVault
         );
         vm.expectEmit(true, true, true, false);
         emit IStandardizedYield.Deposit(accountETH, accountETH, underlyingETH_sUSDe, amountPerVault, amountPerVault);

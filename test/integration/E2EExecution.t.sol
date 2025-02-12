@@ -148,7 +148,7 @@ contract E2EExecutionTest is BaseE2ETest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
-        hooksData[1] = _createDepositHookData(
+        hooksData[1] = _createDeposit4626HookData(
             bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, amount, false, false
         );
 

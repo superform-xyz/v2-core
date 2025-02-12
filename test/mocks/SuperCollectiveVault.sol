@@ -106,7 +106,14 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
     }
 
     /// @inheritdoc ISuperCollectiveVault
-    function batchUnlock(address account, address[] calldata tokens, uint256[] calldata amounts) external onlySuperCollectiveVaultManager {
+    function batchUnlock(
+        address account,
+        address[] calldata tokens,
+        uint256[] calldata amounts
+    )
+        external
+        onlySuperCollectiveVaultManager
+    {
         if (account == address(0)) revert INVALID_ACCOUNT();
 
         uint256 len = tokens.length;
@@ -133,7 +140,6 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
         external
         payable
     {
-
         uint256 totalValue;
         uint256 len = targets.length;
         for (uint256 i = 0; i < len;) {
@@ -164,7 +170,7 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
         bytes32[] calldata proof
     )
         external
-    {   
+    {
         if (account == address(0)) revert INVALID_ACCOUNT();
         if (amount == 0) revert INVALID_AMOUNT();
         if (rewardToken == address(0)) revert INVALID_TOKEN();
@@ -225,7 +231,7 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
         }
         _lockedAssets[account].pop();
     }
-    
+
     function _unlock(address account, address token, uint256 amount) private {
         if (token == address(0)) revert INVALID_TOKEN();
         if (amount == 0 || amount > _lockedAmounts[account][token]) revert INVALID_AMOUNT();
