@@ -377,8 +377,24 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(amountPerVault)
         );
 
-        vm.prank(accountETH);
-        userAssets = IERC7540(yieldSource7540AddressETH_USDC).redeem(amountPerVault, accountETH, accountETH);
+        address[] memory redeemHooksAddresses = new address[](1);
+
+        redeemHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7575_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createWithdraw7575_7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource7540AddressETH_USDC,
+            accountETH,
+            amountPerVault,
+            false,
+            false
+        );
+
+        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+        executeOp(redeemOpData);
+
+        userAssets = IERC7540(yieldSource7540AddressETH_USDC).balanceOf(accountETH);
     }
 
     function _createUserOpData(
