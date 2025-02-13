@@ -18,7 +18,7 @@ ftest :; forge test
 
 test-vvv :; forge test --match-test test_ClaimRedeem -vvvv
 
-test-integration :; forge test --match-test test_FulfillRedeem -vvvv
+test-integration :; forge test --match-test test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow -vvvv
 
 .PHONY: generate
 generate:
