@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
-interface ISuperRbac is IAccessControl {
+import { IAccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/IAccessControlEnumerable.sol"; 
+interface ISuperRbac is IAccessControlEnumerable {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/

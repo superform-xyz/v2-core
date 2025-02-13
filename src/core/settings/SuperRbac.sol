@@ -2,12 +2,12 @@
 pragma solidity >=0.8.28;
 
 // external
-import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol"; 
+import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol"; 
 
 // Superform
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 
-contract SuperRbac is AccessControl, ISuperRbac {
+contract SuperRbac is AccessControlEnumerable, ISuperRbac {
     /*//////////////////////////////////////////////////////////////
                                  ROLES
     //////////////////////////////////////////////////////////////*/
