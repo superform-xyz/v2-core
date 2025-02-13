@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import { IERC7540 } from "../../interfaces/vendors/vaults/7540/IERC7540.sol";
+import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";

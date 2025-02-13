@@ -2,8 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { FluidYieldSourceOracle } from "../../../../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
-import { IFluidLendingStakingRewards } from
-    "../../../../src/core/interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
+import { IFluidLendingStakingRewards } from "../../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
 
 import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
 

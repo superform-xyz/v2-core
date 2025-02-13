@@ -2,17 +2,15 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    IMinimalEntryPoint, PackedUserOperation
-} from "../interfaces/vendors/account-abstraction/IMinimalEntryPoint.sol";
-import { BytesLib } from "../libraries/BytesLib.sol";
+import { IMinimalEntryPoint, PackedUserOperation } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
+import { BytesLib } from "../../vendor/BytesLib.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { IAcrossV3Receiver } from "./interfaces/IAcrossV3Receiver.sol";
+import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 
 /// @title AcrossReceiveFundsAndExecuteGateway
 /// @notice This contract acts as a gateway for receiving funds from the Across Protocol

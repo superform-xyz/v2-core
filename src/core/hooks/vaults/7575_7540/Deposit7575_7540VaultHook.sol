@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
@@ -10,7 +10,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
-import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
+import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 

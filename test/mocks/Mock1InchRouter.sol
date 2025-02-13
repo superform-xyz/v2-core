@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import "../../src/core/interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
+import "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
 contract MockDex {
     address public _token0;
@@ -21,26 +21,16 @@ contract MockDex {
     }
 }
 
-contract Mock1InchRouter {  
+contract Mock1InchRouter {
     uint256 public swappedAmount;
 
-
-    function unoswapTo(
-        Address,
-        Address,
-        uint256,
-        uint256 minReturn,
-        Address
-    )
-        external
-        returns (uint256 returnAmount) {
-        
+    function unoswapTo(Address, Address, uint256, uint256 minReturn, Address) external returns (uint256 returnAmount) {
         swappedAmount = minReturn;
         return minReturn;
     }
 
     function clipperSwapTo(
-        IClipperExchange ,
+        IClipperExchange,
         address payable,
         Address,
         IERC20,
@@ -52,13 +42,21 @@ contract Mock1InchRouter {
     )
         external
         payable
-        returns (uint256 returnAmount) {
-        
+        returns (uint256 returnAmount)
+    {
         swappedAmount = outputAmount;
         return outputAmount;
     }
 
-    function swap(IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription calldata desc, bytes calldata, bytes calldata) external payable {
+    function swap(
+        IAggregationExecutor,
+        I1InchAggregationRouterV6.SwapDescription calldata desc,
+        bytes calldata,
+        bytes calldata
+    )
+        external
+        payable
+    {
         swappedAmount = desc.minReturnAmount;
     }
 }

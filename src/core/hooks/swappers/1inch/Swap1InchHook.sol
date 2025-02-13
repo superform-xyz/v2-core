@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import "../../../interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
+import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -39,22 +39,19 @@ contract Swap1InchHook is BaseHook, ISuperHook {
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
 
-
     constructor(
         address registry_,
         address author_,
         address aggregationRouter_
     )
         BaseHook(registry_, author_, HookType.NONACCOUNTING)
-    { 
+    {
         if (aggregationRouter_ == address(0)) {
             revert ZERO_ADDRESS();
         }
 
         aggregationRouter = I1InchAggregationRouterV6(aggregationRouter_);
     }
-
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -74,17 +71,12 @@ contract Swap1InchHook is BaseHook, ISuperHook {
         address dstToken = address(bytes20(data[:20]));
         address dstReceiver = address(bytes20(data[20:40]));
         uint256 value = uint256(bytes32(data[40:72]));
-        
+
         bytes calldata txData_ = data[72:];
         _validateTxData(account, dstToken, dstReceiver, txData_);
 
         executions = new Execution[](1);
-        executions[0] = Execution({
-            target: address(aggregationRouter),
-            value: value,
-            callData: txData_
-        });
-
+        executions[0] = Execution({ target: address(aggregationRouter), value: value, callData: txData_ });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -103,7 +95,15 @@ contract Swap1InchHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _validateTxData(address account, address dstToken, address dstReceiver, bytes calldata txData_) private view {
+    function _validateTxData(
+        address account,
+        address dstToken,
+        address dstReceiver,
+        bytes calldata txData_
+    )
+        private
+        view
+    {
         bytes4 selector = bytes4(txData_[:4]);
 
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
@@ -120,9 +120,9 @@ contract Swap1InchHook is BaseHook, ISuperHook {
     }
 
     function _validateClipperSwap(bytes calldata txData_, address receiver, address toToken) private pure {
-        (, address dstReceiver,, IERC20 dstToken, uint256 amount, uint256 minReturnAmount,,,) =
-            abi.decode(txData_, (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32));
-
+        (, address dstReceiver,, IERC20 dstToken, uint256 amount, uint256 minReturnAmount,,,) = abi.decode(
+            txData_, (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
+        );
 
         if (dstReceiver != receiver) {
             revert INVALID_RECEIVER();
@@ -141,8 +141,17 @@ contract Swap1InchHook is BaseHook, ISuperHook {
         }
     }
 
-    function _validateGenericSwap(bytes calldata txData_, address receiver, address toToken, address account) private pure {
-        //swap(IAggregationExecutor executor, SwapDescription calldata desc, bytes calldata permit, bytes calldata data) external payable
+    function _validateGenericSwap(
+        bytes calldata txData_,
+        address receiver,
+        address toToken,
+        address account
+    )
+        private
+        pure
+    {
+        //swap(IAggregationExecutor executor, SwapDescription calldata desc, bytes calldata permit, bytes calldata data)
+        // external payable
         (, I1InchAggregationRouterV6.SwapDescription memory swapDescription,,) =
             abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes, bytes));
 
@@ -173,8 +182,13 @@ contract Swap1InchHook is BaseHook, ISuperHook {
 
     function _validateUnoswap(bytes calldata txData_, address receiver, address toToken) private view {
         ///function unoswapTo(Address to,Address token,uint256 amount,uint256 minReturn,Address dex)
-        (Address receiverUint256, Address fromTokenUint256, uint256 decodedFromAmount, uint256 minReturnAmount, Address dex) =
-            abi.decode(txData_, (Address, Address, uint256, uint256, Address));
+        (
+            Address receiverUint256,
+            Address fromTokenUint256,
+            uint256 decodedFromAmount,
+            uint256 minReturnAmount,
+            Address dex
+        ) = abi.decode(txData_, (Address, Address, uint256, uint256, Address));
 
         address dstToken;
 

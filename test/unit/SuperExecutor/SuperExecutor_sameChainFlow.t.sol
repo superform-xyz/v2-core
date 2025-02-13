@@ -9,7 +9,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import "../../../src/core/interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
+import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
 import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
@@ -123,7 +123,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _create1InchGenericRouterSwapHookData(account, underlying, executor, desc, "", "");
 
-         // it should execute all hooks
+        // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
@@ -149,9 +149,17 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         vm.label(address(mockDex), "MockDex");
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _create1InchUnoswapToHookData(account, underlying, Address.wrap(uint256(uint160(account))), Address.wrap(uint256(uint160(underlying))), amount, amount, Address.wrap(uint256(uint160(address(mockDex)))));
+        hooksData[0] = _create1InchUnoswapToHookData(
+            account,
+            underlying,
+            Address.wrap(uint256(uint160(account))),
+            Address.wrap(uint256(uint160(underlying))),
+            amount,
+            amount,
+            Address.wrap(uint256(uint160(address(mockDex))))
+        );
 
-         // it should execute all hooks
+        // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
@@ -174,9 +182,11 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         hooksAddresses[0] = address(hook);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _create1InchClipperSwapToHookData(account, underlying, executor, Address.wrap(uint256(uint160(underlying))), amount);
+        hooksData[0] = _create1InchClipperSwapToHookData(
+            account, underlying, executor, Address.wrap(uint256(uint160(underlying))), amount
+        );
 
-         // it should execute all hooks
+        // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
@@ -212,5 +222,3 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         executeOp(userOpData);
     }
 }
-
-

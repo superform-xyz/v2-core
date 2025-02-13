@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { IStandardizedYield } from "../../interfaces/vendors/pendle/IStandardizedYield.sol";
+import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";

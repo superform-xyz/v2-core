@@ -8,7 +8,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { IDeBridgeGate } from "../../src/core/interfaces/vendors/bridges/debridge/IDeBridgeGate.sol";
+import { IDeBridgeGate } from "../../src/vendor/bridges/debridge/IDeBridgeGate.sol";
 
 import { BaseTest } from "../BaseTest.t.sol";
 

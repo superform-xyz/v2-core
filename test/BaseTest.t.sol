@@ -19,7 +19,7 @@ import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
-import { IAcrossV3Receiver } from "../src/core/bridges/interfaces/IAcrossV3Receiver.sol";
+import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 // hooks
@@ -96,7 +96,7 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
-import "../src/core/interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
+import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
 import "forge-std/console.sol";
 
@@ -827,7 +827,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
-
         }
     }
 
@@ -1246,8 +1245,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory)
     {
-        bytes memory _calldata =
-            abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data);
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data
+        );
 
         return abi.encodePacked(dstToken, account, uint256(0), _calldata);
     }
@@ -1265,9 +1265,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory)
     {
-
-        bytes memory _calldata =
-            abi.encodeWithSelector(I1InchAggregationRouterV6.unoswapTo.selector, receiverUint256, fromTokenUint256, decodedFromAmount, minReturn, dex);
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.unoswapTo.selector,
+            receiverUint256,
+            fromTokenUint256,
+            decodedFromAmount,
+            minReturn,
+            dex
+        );
 
         return abi.encodePacked(dstToken, account, uint256(0), _calldata);
     }
@@ -1278,10 +1283,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address exchange,
         Address srcToken,
         uint256 amount
-    ) internal pure returns (bytes memory) {
-
-        bytes memory _calldata =
-            abi.encodeWithSelector(I1InchAggregationRouterV6.clipperSwapTo.selector, exchange, payable(account), srcToken, dstToken, amount, amount, 0, bytes32(0), bytes32(0));
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.clipperSwapTo.selector,
+            exchange,
+            payable(account),
+            srcToken,
+            dstToken,
+            amount,
+            amount,
+            0,
+            bytes32(0),
+            bytes32(0)
+        );
 
         return abi.encodePacked(dstToken, account, uint256(0), _calldata);
     }
