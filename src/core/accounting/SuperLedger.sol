@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -49,6 +51,8 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     {
         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
 
+        console2.log("usedShares", usedShares);
+
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
         if (isInflow) {
@@ -66,6 +70,8 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
                 feeAmount = _processOutflow(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets, usedShares);
+
+                console2.log("feeAmount", feeAmount);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
@@ -178,6 +184,8 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     {
         uint256 remainingShares = usedShares;
         uint256 costBasis;
+        console2.log("remainingShares1", remainingShares);
+        console2.log("costBasis1", costBasis);
 
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
         uint256 len = entries.length;
@@ -190,6 +198,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             LedgerEntry storage entry = entries[currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
+            console2.log("availableShares2", availableShares);
 
             // if no shares available on current entry, move to the next
             if (availableShares == 0) {
@@ -204,10 +213,16 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             // remove from current entry
             uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+
+            console2.log("sharesConsumed2", sharesConsumed);
+
             entry.amountSharesAvailableToConsume -= sharesConsumed;
+            console2.log("entry.amountSharesAvailableToConsume", entry.amountSharesAvailableToConsume);
             remainingShares -= sharesConsumed;
+            console2.log("remainingShares2", remainingShares);
 
             costBasis += sharesConsumed * entry.price / (10 ** decimals);
+            console2.log("costBasis2", costBasis);
 
             if (sharesConsumed == availableShares) {
                 unchecked {
@@ -219,6 +234,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         userLedger[user][yieldSource].unconsumedEntries = currentIndex;
 
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+        console2.log("profit", profit);
 
         if (profit > 0) {
             YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
