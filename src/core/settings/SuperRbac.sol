@@ -17,6 +17,7 @@ contract SuperRbac is AccessControl, ISuperRbac {
      */
 
     constructor(address owner) {
+        if (owner == address(0)) revert INVALID_ACCOUNT();
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
      }
 
@@ -33,13 +34,5 @@ contract SuperRbac is AccessControl, ISuperRbac {
             _revokeRole(role_, account_);
         }
         emit RoleUpdated(account_, role_, allowed_);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperRbac
-    function hasRole(address account_, bytes32 role_) external view override returns (bool) {
-        return super.hasRole(role_, account_);
     }
 }

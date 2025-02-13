@@ -13,8 +13,12 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import {
-    IERC7540Vault, IERC7540Operator, IERC7540Deposit, IERC7540Redeem, IERC7741
-} from "./interfaces/IERC7540Vault.sol";
+    IERC7540Vault,
+    IERC7540Operator,
+    IERC7540Deposit,
+    IERC7540Redeem,
+    IERC7741
+} from "../vendor/ERC7540/IERC7540Vault.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
 /// @title SuperVault
@@ -337,7 +341,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function totalAssets() public view override returns (uint256) {
-        return strategy.totalAssets();
+        (uint256 totalAssets_,) = strategy.totalAssets();
+        return totalAssets_;
     }
 
     /// @inheritdoc IERC4626
@@ -395,10 +400,16 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     /// @inheritdoc IERC7540Deposit
     function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
         _validateController(controller);
-        shares = convertToShares(assets);
 
-        uint256 maxMintAmount = maxMint(controller);
-        if (shares > maxMintAmount) revert INVALID_DEPOSIT_CLAIM();
+        uint256 averageDepositPrice = strategy.getAverageDepositPrice(controller);
+        if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
+
+        // Convert maxMint to assets using average deposit price
+        uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, 1e18, Math.Rounding.Floor);
+        if (assets > maxAssets) revert INVALID_DEPOSIT_CLAIM();
+
+        // Calculate shares based on assets and average price
+        shares = assets.mulDiv(1e18, averageDepositPrice, Math.Rounding.Floor);
 
         // Forward to strategy
         strategy.handleDeposit(controller, shares);
@@ -419,8 +430,11 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         _validateController(controller);
 
         uint256 maxMintAmount = maxMint(controller);
+
         if (shares > maxMintAmount) revert INVALID_DEPOSIT_CLAIM();
-        assets = convertToAssets(shares);
+        uint256 averageDepositPrice = strategy.getAverageDepositPrice(controller);
+        if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
+        assets = shares.mulDiv(averageDepositPrice, 1e18, Math.Rounding.Floor);
 
         // Forward to strategy
         strategy.handleDeposit(controller, shares);
@@ -439,10 +453,15 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     /// @inheritdoc IERC4626
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256 shares) {
         _validateController(owner);
-        shares = convertToShares(assets);
+
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
+
+        // Calculate shares based on assets and average withdraw price
+        shares = assets.mulDiv(1e18, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Forward to strategy
         strategy.handleWithdraw(owner, assets);
@@ -458,10 +477,16 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     /// @inheritdoc IERC4626
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
         _validateController(owner);
-        assets = convertToAssets(shares);
+
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
+
+        // Calculate assets based on shares and average withdraw price
+        assets = shares.mulDiv(averageWithdrawPrice, 1e18, Math.Rounding.Floor);
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
-        if (shares > convertToShares(maxWithdrawAmount)) revert INVALID_AMOUNT();
+
+        if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Forward to strategy
         strategy.handleWithdraw(owner, assets);

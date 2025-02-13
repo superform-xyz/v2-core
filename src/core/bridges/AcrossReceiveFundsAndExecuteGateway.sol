@@ -160,6 +160,6 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
     //////////////////////////////////////////////////////////////*/
     /// @notice Get the super bundler
     function _getSuperBundler() internal view returns (address payable) {
-        return payable(superRegistry.getAddress(superRegistry.SUPER_BUNDLER_ID()));
+        return payable(superRegistry.getAddress(keccak256("SUPER_BUNDLER_ID")));
     }
 }

@@ -19,18 +19,34 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
         IERC4626 yieldSource = IERC4626(yieldSourceAddress);
         uint256 _decimals = yieldSource.decimals();
-        pricePerShare = yieldSource.convertToAssets(10 ** _decimals);
+        return yieldSource.convertToAssets(10 ** _decimals);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         IERC4626 yieldSource = IERC4626(yieldSourceAddress);
         uint256 shares = yieldSource.balanceOf(ownerOfShares);
         if (shares == 0) return 0;
         return yieldSource.convertToAssets(shares);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVL(address yieldSourceAddress) public view override returns (uint256) {
+        IERC4626 yieldSource = IERC4626(yieldSourceAddress);
+        uint256 totalShares = yieldSource.totalSupply();
+        if (totalShares == 0) return 0;
+        return yieldSource.convertToAssets(totalShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

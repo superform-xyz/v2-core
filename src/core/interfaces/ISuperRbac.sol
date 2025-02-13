@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-interface ISuperRbac {
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+interface ISuperRbac is IAccessControl {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -22,15 +23,4 @@ interface ISuperRbac {
     /// @param allowed_ Whether the role is allowed.
 
     function setRole(address account_, bytes32 role_, bool allowed_) external;
-
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /**
-     * @dev Check if an account has a role.
-     * @param account The address of the account.
-     * @param role The role to check.
-     * @return Whether the account has the role.
-     */
-    function hasRole(address account, bytes32 role) external view returns (bool);
 }

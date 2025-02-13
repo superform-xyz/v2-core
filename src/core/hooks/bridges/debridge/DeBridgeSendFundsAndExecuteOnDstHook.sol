@@ -144,6 +144,6 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getDeBridgeGatewayExecutor() private view returns (address) {
-        return superRegistry.getAddress(superRegistry.DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID());
+        return superRegistry.getAddress(keccak256("DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"));
     }
 }
