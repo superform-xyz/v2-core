@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // Superform
-import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
+import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 
 /// @title IYieldSourceOracle
 /// @author Superform Labs

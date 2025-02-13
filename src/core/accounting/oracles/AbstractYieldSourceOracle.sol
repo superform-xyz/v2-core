@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
-import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
+import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 import { SuperRegistryImplementer } from "../../utils/SuperRegistryImplementer.sol";
 
 /// @title AbstractYieldSourceOracle

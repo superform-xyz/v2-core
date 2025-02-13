@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";

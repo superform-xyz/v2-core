@@ -7,7 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { BytesLib } from "../../src/core/libraries/BytesLib.sol";
+import { BytesLib } from "../../src/vendor/BytesLib.sol";
 
 // Superform
 import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";

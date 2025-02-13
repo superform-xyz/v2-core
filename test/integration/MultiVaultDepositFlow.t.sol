@@ -10,8 +10,8 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 // Vault Interfaces
-import { IStandardizedYield } from "../../src/core/interfaces/vendors/pendle/IStandardizedYield.sol";
-import { IERC7540 } from "../../src/core/interfaces/vendors/vaults/7540/IERC7540.sol";
+import { IStandardizedYield } from "../../src/vendor/pendle/IStandardizedYield.sol";
+import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";

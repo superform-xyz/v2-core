@@ -2,17 +2,15 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    IMinimalEntryPoint, PackedUserOperation
-} from "../interfaces/vendors/account-abstraction/IMinimalEntryPoint.sol";
-import { BytesLib } from "../libraries/BytesLib.sol";
+import { IMinimalEntryPoint, PackedUserOperation } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
+import { BytesLib } from "../../vendor/BytesLib.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { IDeBridgeGate } from "../interfaces/vendors/bridges/debridge/IDeBridgeGate.sol";
+import { IDeBridgeGate } from "../../vendor/bridges/debridge/IDeBridgeGate.sol";
 
 /// @title DeBridgeReceiveFundsAndExecuteGateway
 /// @notice This contract acts as a gateway for receiving funds from the DeBridge Protocol

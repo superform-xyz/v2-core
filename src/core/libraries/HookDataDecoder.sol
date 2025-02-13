@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { BytesLib } from "./BytesLib.sol";
+import { BytesLib } from "../../vendor/BytesLib.sol";
 
 library HookDataDecoder {
     function extractYieldSourceOracleId(bytes memory data) internal pure returns (bytes32) {

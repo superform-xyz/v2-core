@@ -3,13 +3,13 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { IDeBridgeGate } from "../../../interfaces/vendors/bridges/debridge/IDeBridgeGate.sol";
+import { IDeBridgeGate } from "../../../../vendor/bridges/debridge/IDeBridgeGate.sol";
 
 /// @title DeBridgeSendFundsAndExecuteOnDstHook
 /// @dev data has the following structure
