@@ -184,11 +184,18 @@ interface IERC7741 {
 }
 
 /**
+ * @title  IERC7540
+ * @dev    Fully async ERC7540 implementation according to the standard
+ * @dev    Adapted from Centrifuge's IERC7540 implementation
+ */
+interface IERC7540 is IERC7540Deposit, IERC7540Redeem { }
+
+/**
  * @title  IERC7540Vault
  * @dev    This is the specific set of interfaces used by the SuperVaults
  * @dev    Adapted from Centrifuge's ERC7540 implementation
  */
-interface IERC7540Vault is IERC7540Deposit, IERC7540Redeem, IERC7741 {
+interface IERC7540Vault is IERC7540, IERC7741 {
     event DepositClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares);
     event RedeemClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares);
 }

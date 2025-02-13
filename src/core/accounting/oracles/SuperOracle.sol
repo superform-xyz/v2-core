@@ -2,11 +2,11 @@
 pragma solidity ^0.8.28;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
+import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
-import { AggregatorV3Interface } from "../../interfaces/vendors/chainlink/AggregatorV3Interface.sol";
+import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Interface.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { BoringERC20 } from "../../interfaces/vendors/BoringSolidity/BoringERC20.sol";
+import { BoringERC20 } from "../../../vendor/BoringSolidity/BoringERC20.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs

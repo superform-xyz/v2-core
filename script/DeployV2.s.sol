@@ -48,12 +48,13 @@ import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnsta
 import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
 import { FluidStakeWithPermitHook } from "../src/core/hooks/stake/fluid/FluidStakeWithPermitHook.sol";
 import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
-
 // ---- | bridges
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
+// ---- | swappers
+import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -244,24 +245,26 @@ contract DeployV2 is Script, Configuration {
         }
         // ---- | set deployed contracts roles
         superRbac.setRole(
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), superRbac.BRIDGE_GATEWAY(), true
+            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
         );
 
         // -- SuperRegistry
-        superRegistry.setAddress(superRegistry.SUPER_LEDGER_ID(), _getContract(chainId, SUPER_LEDGER_KEY));
+        superRegistry.setAddress(keccak256("SUPER_LEDGER_ID"), _getContract(chainId, "SuperLedger"));
         superRegistry.setAddress(
-            superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, SUPER_POSITION_SENTINEL_KEY)
+            keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainId, "SuperPositionSentinel")
         );
-        superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, SUPER_RBAC_KEY));
+        superRegistry.setAddress(keccak256("SUPER_RBAC_ID"), _getContract(chainId, "SuperRbac"));
+
         superRegistry.setAddress(
-            superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+            keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
         );
-        superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
-        superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
-        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, SUPER_ORACLE_KEY));
-        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, SUPER_ORACLE_KEY));
+        superRegistry.setAddress(keccak256("SUPER_EXECUTOR_ID"), _getContract(chainId, "SuperExecutor"));
+        superRegistry.setAddress(keccak256("PAYMASTER_ID"), configuration.paymaster);
+        superRegistry.setAddress(keccak256("SUPER_BUNDLER_ID"), configuration.bundler);
+        superRegistry.setAddress(keccak256("ORACLE_REGISTRY_ID"), _getContract(chainId, SUPER_ORACLE_KEY));
+        superRegistry.setAddress(keccak256("SUPER_REGISTRY_ID"), _getContract(chainId, SUPER_REGISTRY_KEY));
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -308,7 +311,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 20;
+        uint256 len = 21;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
 
@@ -395,6 +398,11 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[19] = HookDeployment(
+            SWAP_1INCH_HOOK_KEY,
+            abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId]))
+        );
+
+        hooks[20] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
             abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(registry, configuration.owner, configuration.odosRouters[chainId]))
         );
@@ -467,7 +475,7 @@ contract DeployV2 is Script, Configuration {
             yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
         });
 
         ISuperLedger(_getContract(chainId, SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);

@@ -11,7 +11,7 @@ import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../../../src/core/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { IStandardizedYield } from "../../../../src/core/interfaces/vendors/pendle/IStandardizedYield.sol";
+import { IStandardizedYield } from "../../../../src/vendor/pendle/IStandardizedYield.sol";
 
 import { ERC5115YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
 

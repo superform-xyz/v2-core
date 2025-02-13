@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-interface ISuperRbac {
+import { IAccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/IAccessControlEnumerable.sol"; 
+interface ISuperRbac is IAccessControlEnumerable {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -22,22 +23,4 @@ interface ISuperRbac {
     /// @param allowed_ Whether the role is allowed.
 
     function setRole(address account_, bytes32 role_, bool allowed_) external;
-
-    /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /**
-     * @dev Check if an account has a role.
-     * @param account The address of the account.
-     * @param role The role to check.
-     * @return Whether the account has the role.
-     */
-    function hasRole(address account, bytes32 role) external view returns (bool);
-
-    // roles
-    /// @dev Get the ID of the admin role.
-    function SUPER_ADMIN_ROLE() external view returns (bytes32);
-
-    /// @dev Get the ID of the bridge gateway role.
-    function BRIDGE_GATEWAY() external view returns (bytes32);
 }

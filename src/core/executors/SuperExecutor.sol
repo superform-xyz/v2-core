@@ -29,8 +29,8 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
-        if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
+        if (!rbac.hasRole(keccak256("BRIDGE_GATEWAY"), msg.sender)) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -106,7 +106,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
+            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(keccak256("SUPER_LEDGER_ID")));
             bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 

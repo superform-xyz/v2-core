@@ -7,7 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { BytesLib } from "../../src/core/libraries/BytesLib.sol";
+import { BytesLib } from "../../src/vendor/BytesLib.sol";
 
 // Superform
 import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
@@ -30,8 +30,8 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
-        if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
+        if (!rbac.hasRole(keccak256("BRIDGE_GATEWAY"), msg.sender)) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -110,7 +110,7 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
+            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(keccak256("SUPER_LEDGER_ID")));
             bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
             address yieldSource = BytesLib.toAddress(BytesLib.slice(hookData, 52, 20), 0);
 

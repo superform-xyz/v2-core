@@ -16,8 +16,6 @@ abstract contract Constants {
     uint256 public constant STRATEGIST_KEY = 0x5;
     uint256 public constant EMERGENCY_ADMIN_KEY = 0x6;
     uint256 public constant FEE_RECIPIENT_KEY = 0x7;
-    // registry
-    bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
 
     // RBAC ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
@@ -55,9 +53,7 @@ abstract contract Constants {
     string public constant WITHDRAW_7575_7540_VAULT_HOOK_KEY = "Withdraw7575_7540VaultHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
-    string public constant SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY = "Swap1InchClipperRouterHook";
-    string public constant SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY = "Swap1InchGenericRouterHook";
-    string public constant SWAP_1INCH_UNOSWAP_HOOK_KEY = "Swap1InchUnoswapHook";
+    string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string public constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";

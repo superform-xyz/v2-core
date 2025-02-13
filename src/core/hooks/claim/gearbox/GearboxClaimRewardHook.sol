@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -10,7 +10,7 @@ import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { IGearboxFarmingPool } from "../../../interfaces/vendors/gearbox/IGearboxFarmingPool.sol";
+import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 
 /// @title GearboxClaimRewardHook
 /// @dev data has the following structure
@@ -22,7 +22,16 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, address, bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(
+        address,
+        address,
+        bytes memory data
+    )
+        external
+        pure
+        override
+        returns (Execution[] memory executions)
+    {
         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 

@@ -11,7 +11,7 @@ import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldS
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 // Vault Interfaces
-import { IERC7540 } from "../../src/core/interfaces/vendors/vaults/7540/IERC7540.sol";
+import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
 import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
 import { IRestrictionManager } from "../mocks/centrifuge/IRestrictionManager.sol";
 import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
@@ -373,7 +373,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksDataOP[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
         srcHooksDataOP[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, amountPerVault, opUserOpData
+            underlyingBase_USDC,
+            underlyingOP_USDCe,
+            amountPerVault,
+            amountPerVault,
+            OP,
+            true,
+            amountPerVault,
+            opUserOpData
         );
 
         UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE);

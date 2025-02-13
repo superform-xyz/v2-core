@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import { IERC7540 } from "../../interfaces/vendors/vaults/7540/IERC7540.sol";
+import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
@@ -22,17 +22,33 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
         address share = IERC7540(yieldSourceAddress).share();
         uint256 _decimals = IERC20Metadata(share).decimals();
-        pricePerShare = IERC7540(yieldSourceAddress).convertToAssets(10 ** _decimals);
+        return IERC7540(yieldSourceAddress).convertToAssets(10 ** _decimals);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         uint256 shares = IERC7540(yieldSourceAddress).balanceOf(ownerOfShares);
         if (shares == 0) return 0;
         return IERC7540(yieldSourceAddress).convertToAssets(shares);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVL(address yieldSourceAddress) public view override returns (uint256) {
+        address share = IERC7540(yieldSourceAddress).share();
+        uint256 totalShares = IERC20Metadata(share).totalSupply();
+        if (totalShares == 0) return 0;
+        return IERC7540(yieldSourceAddress).convertToAssets(totalShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
