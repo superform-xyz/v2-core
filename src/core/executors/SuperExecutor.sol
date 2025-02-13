@@ -30,7 +30,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
-        if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
+        if (!rbac.hasRole(msg.sender, keccak256("BRIDGE_GATEWAY"))) revert NOT_AUTHORIZED();
         _;
     }
 

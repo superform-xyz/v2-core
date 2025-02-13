@@ -15,8 +15,6 @@ contract SuperRbac is AccessControl, ISuperRbac {
     /**
      *     BRIDGE_GATEWAY - can execute calls on SuperGatewayExecutor
      */
-    /// @inheritdoc ISuperRbac
-    bytes32 public constant BRIDGE_GATEWAY = keccak256("BRIDGE_GATEWAY");
 
     constructor(address owner) {
         _grantRole(DEFAULT_ADMIN_ROLE, owner);

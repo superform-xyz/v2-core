@@ -33,8 +33,4 @@ interface ISuperRbac {
      * @return Whether the account has the role.
      */
     function hasRole(address account, bytes32 role) external view returns (bool);
-
-    // roles
-    /// @dev Get the ID of the bridge gateway role.
-    function BRIDGE_GATEWAY() external view returns (bytes32);
 }

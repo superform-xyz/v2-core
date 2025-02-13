@@ -244,7 +244,7 @@ contract DeployV2 is Script, Configuration {
         }
         // ---- | set deployed contracts roles
         superRbac.setRole(
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), superRbac.BRIDGE_GATEWAY(), true
+            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
         );
 
         // -- SuperRegistry
