@@ -36,7 +36,7 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
 
     modifier onlySuperCollectiveVaultManager() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
-        if (!rbac.hasRole(msg.sender, keccak256("SUPER_COLLECTIVE_VAULT_MANAGER"))) revert NOT_AUTHORIZED();
+        if (!rbac.hasRole(keccak256("SUPER_COLLECTIVE_VAULT_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
         _;
     }
 

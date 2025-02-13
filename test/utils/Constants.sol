@@ -16,8 +16,6 @@ abstract contract Constants {
     uint256 public constant STRATEGIST_KEY = 0x5;
     uint256 public constant EMERGENCY_ADMIN_KEY = 0x6;
     uint256 public constant FEE_RECIPIENT_KEY = 0x7;
-    // registry
-    bytes32 public constant SUPER_ADMIN_ROLE = keccak256("SUPER_ADMIN_ROLE");
 
     // RBAC ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
