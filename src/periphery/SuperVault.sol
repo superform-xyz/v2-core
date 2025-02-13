@@ -263,6 +263,9 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     //////////////////////////////////////////////////////////////*/
 
     //--ERC7540--
+    function share() external view returns (address) {
+        return address(this);
+    }
 
     function pendingDepositRequest(
         uint256, /*requestId*/

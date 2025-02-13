@@ -45,7 +45,8 @@ contract FeesTest is BaseTest {
             yieldSourceOracleId: bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: address(this)
+            feeRecipient: address(this),
+            feeHelper: _getContract(ETH, DEFAULT_FEE_HELPER_KEY)
         });
         superLedger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         superLedger.setYieldSourceOracles(configs);

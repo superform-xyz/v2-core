@@ -10,6 +10,7 @@ import { ISentinel } from "../src/core/interfaces/sentinel/ISentinel.sol";
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ILedgerFees } from "../src/core/interfaces/accounting/ILedgerFees.sol";
 
 // Superform contracts
 import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
@@ -21,6 +22,7 @@ import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossR
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
+import { DefaultFeeHelper } from "../src/core/accounting/fees/DefaultFeeHelper.sol";
 
 // hooks
 
@@ -103,6 +105,7 @@ import "forge-std/console.sol";
 struct Addresses {
     ISuperRbac superRbac;
     ISuperLedger superLedger;
+    ILedgerFees defaultFeeHelper;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
@@ -311,6 +314,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superRegistry))));
             vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A.superLedger);
+
+            A.defaultFeeHelper = ILedgerFees(address(new DefaultFeeHelper()));
+            vm.label(address(A.defaultFeeHelper), DEFAULT_FEE_HELPER_KEY);
+            contractAddresses[chainIds[i]][DEFAULT_FEE_HELPER_KEY] = address(A.defaultFeeHelper);
 
             A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
             vm.label(address(A.superPositionSentinel), SUPER_POSITION_SENTINEL_KEY);
@@ -851,19 +858,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID")),
+                feeHelper: _getContract(chainIds[i], DEFAULT_FEE_HELPER_KEY)
             });
             configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID")),
+                feeHelper: _getContract(chainIds[i], DEFAULT_FEE_HELPER_KEY)
             });
             configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID")),
+                feeHelper: _getContract(chainIds[i], DEFAULT_FEE_HELPER_KEY)
             });
             ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();

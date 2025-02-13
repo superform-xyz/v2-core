@@ -20,6 +20,7 @@ abstract contract Constants {
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_RBAC_KEY = "SuperRbac";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
+    string internal constant DEFAULT_FEE_HELPER_KEY = "DefaultFeeHelper";
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
     string internal constant SUPER_POSITION_SENTINEL_KEY = "SuperPositionSentinel";
     string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";

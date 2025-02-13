@@ -22,6 +22,7 @@ interface ISuperLedger {
         uint256 feePercent;
         address feeRecipient;
         address manager;
+        address feeHelper;
     }
 
     struct YieldSourceOracleConfigArgs {
@@ -29,6 +30,7 @@ interface ISuperLedger {
         address yieldSourceOracle;
         uint256 feePercent;
         address feeRecipient;
+        address feeHelper;
     }
 
     /*//////////////////////////////////////////////////////////////

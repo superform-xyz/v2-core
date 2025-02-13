@@ -14,6 +14,7 @@ import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
+import { DefaultFeeHelper } from "../src/core/accounting/fees/DefaultFeeHelper.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
@@ -88,6 +89,7 @@ contract DeployV2 is Script, Configuration {
         address debridgeReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
         address oracleRegistry;
+        address defaultFeeHelper;
     }
 
     modifier broadcast(uint256 env) {
@@ -174,6 +176,15 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
             abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superRegistry))
+        );
+
+        // Deploy DefaultFeeHelper
+        deployedContracts.defaultFeeHelper = __deployContract(
+            deployer,
+            DEFAULT_FEE_HELPER_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, DEFAULT_FEE_HELPER_KEY),
+            abi.encodePacked(type(DefaultFeeHelper).creationCode)
         );
 
         // Deploy SuperPositionMock
@@ -475,7 +486,8 @@ contract DeployV2 is Script, Configuration {
             yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+            feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID")),
+            feeHelper: _getContract(chainId, DEFAULT_FEE_HELPER_KEY)
         });
 
         ISuperLedger(_getContract(chainId, SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);

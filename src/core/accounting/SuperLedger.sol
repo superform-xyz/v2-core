@@ -6,16 +6,27 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // Superform
-import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
+import { ILedgerFees } from "../interfaces/accounting/ILedgerFees.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
+import "forge-std/console.sol";
 contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    struct ProcessOutflowVars {
+        uint256 remainingShares;
+        uint256 costBasis;
+        uint256 lastEntrySharesToRemove;
+        uint256 lastEntryIndex;
+        uint256 currentIndex;
+        address yieldSourceOracle;
+        uint256 decimals;
+    }
 
     /// @notice Tracks user's ledger entries for each yield source address
     mapping(address user => mapping(address yieldSource => Ledger ledger)) private userLedger;
@@ -47,25 +58,34 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         onlyExecutor
         returns (uint256 feeAmount)
     {
+        console.log("---------A");
         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
+        console.log("---------B");
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
+        console.log("---------C");
 
         if (isInflow) {
+        console.log("---------D");
             // Get price from oracle
             uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+        console.log("---------E");
             if (pps == 0) revert INVALID_PRICE();
 
             // Always inscribe in the ledger, even if feePercent is set to 0
             userLedger[user][yieldSource].entries.push(
                 LedgerEntry({ amountSharesAvailableToConsume: amountSharesOrAssets, price: pps })
             );
+        console.log("---------F");
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
             return 0;
         } else {
             // Only process outflow if feePercent is not set to 0
+        console.log("---------G");
             if (config.feePercent != 0) {
+        console.log("---------H");
                 feeAmount = _processOutflow(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets, usedShares);
+        console.log("---------I");
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
@@ -84,7 +104,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         for (uint256 i; i < length;) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
             _setYieldSourceOracleConfig(
-                config.yieldSourceOracleId, config.yieldSourceOracle, config.feePercent, config.feeRecipient
+                config.yieldSourceOracleId, config.yieldSourceOracle, config.feePercent, config.feeRecipient, config.feeHelper
             );
             unchecked {
                 ++i;
@@ -136,16 +156,16 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            INTERNAL FUNCTIONS
+                            PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     function _setYieldSourceOracleConfig(
         bytes32 yieldSourceOracleId,
         address yieldSourceOracle,
         uint256 feePercent,
-        address feeRecipient
+        address feeRecipient,
+        address feeHelper
     )
-        internal
+        private
     {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
@@ -160,11 +180,13 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             yieldSourceOracle: yieldSourceOracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
-            manager: msg.sender
+            manager: msg.sender,
+            feeHelper: feeHelper
         });
 
         emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient);
     }
+
 
     function _processOutflow(
         address user,
@@ -172,64 +194,58 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         bytes32 yieldSourceOracleId,
         uint256 amountAssets,
         uint256 usedShares
-    )
-        internal
-        returns (uint256 feeAmount)
-    {
-        uint256 remainingShares = usedShares;
-        uint256 costBasis;
+    ) private returns (uint256 feeAmount) {
+        ProcessOutflowVars memory vars;
+        vars.remainingShares = usedShares;
+        vars.currentIndex = userLedger[user][yieldSource].unconsumedEntries;
+        vars.yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
+        vars.decimals = IYieldSourceOracle(vars.yieldSourceOracle).decimals(yieldSource);
 
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
         uint256 len = entries.length;
         if (len == 0) return 0;
 
-        uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
+        while (vars.remainingShares > 0) {
+            if (vars.currentIndex >= len) revert INSUFFICIENT_SHARES();
 
-        while (remainingShares > 0) {
-            if (currentIndex >= len) revert INSUFFICIENT_SHARES();
-
-            LedgerEntry storage entry = entries[currentIndex];
+            LedgerEntry storage entry = entries[vars.currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
 
-            // if no shares available on current entry, move to the next
+            // If no shares available, move to the next entry
             if (availableShares == 0) {
                 unchecked {
-                    ++currentIndex;
+                    ++vars.currentIndex;
                 }
                 continue;
             }
 
-            address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
-            uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
+            // Determine shares to consume
+            uint256 sharesConsumed = availableShares > vars.remainingShares ? vars.remainingShares : availableShares;
+            vars.remainingShares -= sharesConsumed;
 
-            // remove from current entry
-            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
-            entry.amountSharesAvailableToConsume -= sharesConsumed;
-            remainingShares -= sharesConsumed;
-
-            costBasis += sharesConsumed * entry.price / (10 ** decimals);
+            vars.costBasis += sharesConsumed * entry.price / (10 ** vars.decimals);
+            vars.lastEntrySharesToRemove = sharesConsumed;
+            vars.lastEntryIndex = vars.currentIndex;
 
             if (sharesConsumed == availableShares) {
                 unchecked {
-                    ++currentIndex;
+                    ++vars.currentIndex;
                 }
             }
         }
 
-        userLedger[user][yieldSource].unconsumedEntries = currentIndex;
+        // Update storage
+        userLedger[user][yieldSource].unconsumedEntries = vars.currentIndex;
+        entries[vars.lastEntryIndex].amountSharesAvailableToConsume -= vars.lastEntrySharesToRemove;
 
-        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-
-        if (profit > 0) {
-            YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
-            if (config.feePercent == 0) revert FEE_NOT_SET();
-
-            // Calculate fee in assets but don't transfer - let the executor handle it
-            feeAmount = (profit * config.feePercent) / 10_000;
-        }
+        // Compute fees
+        feeAmount = ILedgerFees(yieldSourceOracleConfig[yieldSourceOracleId].feeHelper).computeFees(
+            vars.costBasis, amountAssets, yieldSourceOracleConfig[yieldSourceOracleId].feePercent
+        );
     }
 
-    function _getAddress(bytes32 id_) internal view returns (address) {
+
+    function _getAddress(bytes32 id_) private view returns (address) {
         return superRegistry.getAddress(id_);
     }
 }
