@@ -241,7 +241,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // CHECK ACCOUNTING
         uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
-        assertNotEq(pricePerShare, 1);
+        assertNotEq(pricePerShare, 1); 
+        // pin block, check value, perform multiple deposits
 
         uint256 expectedShares = amountPerVault;
 
@@ -540,13 +541,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
 
         investmentManager.fulfillRedeemRequest(
-            poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(amountPerVault)
+            poolId, trancheId, accountETH, assetId, uint128(redeemAmount), uint128(redeemAmount)
         );
 
         uint256 feeBalanceBefore 
         = IERC20(underlyingETH_USDC).balanceOf(address(this));
-
-        console2.log("feeBalanceBefore", feeBalanceBefore);
 
         address[] memory redeemHooksAddresses = new address[](1);
 
@@ -582,14 +581,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         assertEq(feeBalanceAfter - feeBalanceBefore, expectedFee);
 
-        console2.log("feeBalanceAfter", feeBalanceAfter);
-
         (
             ISuperLedger.LedgerEntry[] memory entries, 
             uint256 unconsumedEntries
         ) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
         assertEq(entries.length, 1);
-        assertEq(unconsumedEntries, 1);
+        assertEq(entries[0].price, yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH)));
+        assertEq(entries[0].amountSharesAvailableToConsume, redeemAmount);
+        assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
