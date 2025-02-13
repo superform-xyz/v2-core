@@ -307,6 +307,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
             vm.label(address(A.superRbac), SUPER_RBAC_KEY);
             contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
+            assertTrue(A.superRbac.hasRole(address(this), SuperRbac(address(A.superRbac)).DEFAULT_ADMIN_ROLE()));
 
             A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superRegistry))));
             vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
