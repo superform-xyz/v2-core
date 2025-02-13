@@ -167,7 +167,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         _redeem_From_ETH_And_Bridge_Back_To_Base(true);
     }
 
-    function test_ETH_Partial_Redeem_Flow() public {
+    function test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow() public {
         test_Bridge_To_ETH_And_Deposit();
         _redeem_From_ETH_And_Bridge_Back_To_Base(false);
     }
