@@ -134,6 +134,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getAcrossGatewayExecutor() private view returns (address) {
-        return superRegistry.getAddress(superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID());
+        return superRegistry.getAddress(keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"));
     }
 }

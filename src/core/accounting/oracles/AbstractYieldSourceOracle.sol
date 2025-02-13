@@ -282,7 +282,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
     /// @notice Returns the oracle registry from SuperRegistry
     /// @return registry The oracle registry contract
     function _getOracleRegistry() internal view returns (IOracle) {
-        return IOracle(superRegistry.getAddress(superRegistry.ORACLE_REGISTRY_ID()));
+        return IOracle(superRegistry.getAddress(keccak256("ORACLE_REGISTRY_ID")));
     }
 
     /// @notice Internal function to encode provider ID with USD address

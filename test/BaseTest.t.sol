@@ -807,26 +807,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.selectFork(FORKS[chainIds[i]]);
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_LEDGER_ID(), _getContract(chainIds[i], SUPER_LEDGER_KEY)
+                keccak256("SUPER_LEDGER_ID"), _getContract(chainIds[i], "SuperLedger")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainIds[i], SUPER_POSITION_SENTINEL_KEY)
+                keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainIds[i], "SuperPositionSentinel")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_RBAC_ID(), _getContract(chainIds[i], SUPER_RBAC_KEY)
+                keccak256("SUPER_RBAC_ID"), _getContract(chainIds[i], "SuperRbac")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
-                _getContract(chainIds[i], ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+                keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
+                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
+                keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
             );
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_BUNDLER_ID(), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("PAYMASTER_ID"), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainIds[i], SUPER_ORACLE_KEY)
+                keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
+
         }
     }
 
@@ -850,19 +851,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
             });
             configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
             });
             configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
             });
             ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();

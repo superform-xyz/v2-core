@@ -249,20 +249,22 @@ contract DeployV2 is Script, Configuration {
         );
 
         // -- SuperRegistry
-        superRegistry.setAddress(superRegistry.SUPER_LEDGER_ID(), _getContract(chainId, SUPER_LEDGER_KEY));
+        superRegistry.setAddress(keccak256("SUPER_LEDGER_ID"), _getContract(chainId, "SuperLedger"));
         superRegistry.setAddress(
-            superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, SUPER_POSITION_SENTINEL_KEY)
+            keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainId, "SuperPositionSentinel")
         );
-        superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, SUPER_RBAC_KEY));
+        superRegistry.setAddress(keccak256("SUPER_RBAC_ID"), _getContract(chainId, "SuperRbac"));
+
         superRegistry.setAddress(
-            superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+            keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
+            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
         );
-        superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
-        superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
-        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, SUPER_ORACLE_KEY));
-        superRegistry.setAddress(superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainId, SUPER_ORACLE_KEY));
+        superRegistry.setAddress(keccak256("SUPER_EXECUTOR_ID"), _getContract(chainId, "SuperExecutor"));
+        superRegistry.setAddress(keccak256("PAYMASTER_ID"), configuration.paymaster);
+        superRegistry.setAddress(keccak256("SUPER_BUNDLER_ID"), configuration.bundler);
+        superRegistry.setAddress(keccak256("ORACLE_REGISTRY_ID"), _getContract(chainId, SUPER_ORACLE_KEY));
+        superRegistry.setAddress(keccak256("SUPER_REGISTRY_ID"), _getContract(chainId, SUPER_REGISTRY_KEY));
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -473,7 +475,7 @@ contract DeployV2 is Script, Configuration {
             yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
         });
 
         ISuperLedger(_getContract(chainId, SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
