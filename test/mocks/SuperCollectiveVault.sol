@@ -30,12 +30,12 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     modifier onlyExecutor() {
-        if (_getAddress(superRegistry.SUPER_EXECUTOR_ID()) != msg.sender) revert NOT_AUTHORIZED();
+        if (_getAddress(keccak256("SUPER_EXECUTOR_ID")) != msg.sender) revert NOT_AUTHORIZED();
         _;
     }
 
     modifier onlySuperCollectiveVaultManager() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
         if (!rbac.hasRole(msg.sender, keccak256("SUPER_COLLECTIVE_VAULT_MANAGER"))) revert NOT_AUTHORIZED();
         _;
     }

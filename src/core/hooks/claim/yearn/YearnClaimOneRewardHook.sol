@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -10,7 +10,7 @@ import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { IYearnStakingRewardsMulti } from "../../../interfaces/vendors/yearn/IYearnStakingRewardsMulti.sol";
+import { IYearnStakingRewardsMulti } from "../../../../vendor/yearn/IYearnStakingRewardsMulti.sol";
 
 /// @title YearnClaimOneRewardHook
 /// @dev data has the following structure
@@ -23,7 +23,16 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address, address, bytes memory data) external pure override returns (Execution[] memory executions) {
+    function build(
+        address,
+        address,
+        bytes memory data
+    )
+        external
+        pure
+        override
+        returns (Execution[] memory executions)
+    {
         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();

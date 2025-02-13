@@ -19,7 +19,7 @@ import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
-import { IAcrossV3Receiver } from "../src/core/bridges/interfaces/IAcrossV3Receiver.sol";
+import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 // hooks
@@ -47,6 +47,7 @@ import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Requ
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
 // -- erc7575_7540
 import { Deposit7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/Deposit7575_7540VaultHook.sol";
+import { Withdraw7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/Withdraw7575_7540VaultHook.sol";
 
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
@@ -56,10 +57,8 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 
 // Swap hooks
 // --- 1inch
-import { Base1InchHook } from "../src/core/hooks/swappers/1inch/Base1InchHook.sol";
-import { Swap1InchClipperRouterHook } from "../src/core/hooks/swappers/1inch/Swap1InchClipperRouterHook.sol";
-import { Swap1InchGenericRouterHook } from "../src/core/hooks/swappers/1inch/Swap1InchGenericRouterHook.sol";
-import { Swap1InchUnoswapHook } from "../src/core/hooks/swappers/1inch/Swap1InchUnoswapHook.sol";
+import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
+
 // --- Odos
 import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 
@@ -97,6 +96,7 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
+import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
 import "forge-std/console.sol";
 
@@ -123,11 +123,10 @@ struct Addresses {
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
     Deposit7575_7540VaultHook deposit7575_7540VaultHook;
+    Withdraw7575_7540VaultHook withdraw7575_7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
-    Swap1InchClipperRouterHook swap1InchClipperRouterHook;
-    Swap1InchGenericRouterHook swap1InchGenericRouterHook;
-    Swap1InchUnoswapHook swap1InchUnoswapHook;
+    Swap1InchHook swap1InchHook;
     SwapOdosHook swapOdosHook;
     GearboxStakeHook gearboxStakeHook;
     GearboxUnstakeHook gearboxUnstakeHook;
@@ -494,6 +493,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(Addr.deposit7575_7540VaultHook), DEPOSIT_7575_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_7575_7540_VAULT_HOOK_KEY] = address(Addr.deposit7575_7540VaultHook);
 
+            Addr.withdraw7575_7540VaultHook =
+                new Withdraw7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.withdraw7575_7540VaultHook), WITHDRAW_7575_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
+
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
@@ -591,50 +595,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
             );
 
-            Addr.swap1InchClipperRouterHook = new Swap1InchClipperRouterHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), 0x111111125421cA6dc452d289314280a0f8842A65
+            Addr.swap1InchHook =
+                new Swap1InchHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), ONE_INCH_ROUTER);
+            vm.label(address(Addr.swap1InchHook), SWAP_1INCH_HOOK_KEY);
+            hookAddresses[chainIds[i]][SWAP_1INCH_HOOK_KEY] = address(Addr.swap1InchHook);
+            hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY] = Hook(
+                SWAP_1INCH_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(Addr.swap1InchHook), ""
             );
-            vm.label(address(Addr.swap1InchClipperRouterHook), SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY);
-            hookAddresses[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY] = address(Addr.swap1InchClipperRouterHook);
-            hooks[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY] = Hook(
-                SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY,
-                HookCategory.Swaps,
-                HookCategory.TokenApprovals,
-                address(Addr.swap1InchClipperRouterHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(
-                hooks[chainIds[i]][SWAP_1INCH_CLIPPER_ROUTER_HOOK_KEY]
-            );
-
-            Addr.swap1InchGenericRouterHook = new Swap1InchGenericRouterHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), ONE_INCH_ROUTER
-            );
-            vm.label(address(Addr.swap1InchGenericRouterHook), SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY);
-            hookAddresses[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY] = address(Addr.swap1InchGenericRouterHook);
-            hooks[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY] = Hook(
-                SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY,
-                HookCategory.Swaps,
-                HookCategory.TokenApprovals,
-                address(Addr.swap1InchGenericRouterHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(
-                hooks[chainIds[i]][SWAP_1INCH_GENERIC_ROUTER_HOOK_KEY]
-            );
-
-            Addr.swap1InchUnoswapHook =
-                new Swap1InchUnoswapHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), ONE_INCH_ROUTER);
-            vm.label(address(Addr.swap1InchUnoswapHook), SWAP_1INCH_UNOSWAP_HOOK_KEY);
-            hookAddresses[chainIds[i]][SWAP_1INCH_UNOSWAP_HOOK_KEY] = address(Addr.swap1InchUnoswapHook);
-            hooks[chainIds[i]][SWAP_1INCH_UNOSWAP_HOOK_KEY] = Hook(
-                SWAP_1INCH_UNOSWAP_HOOK_KEY,
-                HookCategory.Swaps,
-                HookCategory.TokenApprovals,
-                address(Addr.swap1InchUnoswapHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_UNOSWAP_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY]);
 
             Addr.gearboxStakeHook = new GearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.gearboxStakeHook), GEARBOX_STAKE_HOOK_KEY);
@@ -839,25 +807,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.selectFork(FORKS[chainIds[i]]);
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_LEDGER_ID(), _getContract(chainIds[i], SUPER_LEDGER_KEY)
+                keccak256("SUPER_LEDGER_ID"), _getContract(chainIds[i], "SuperLedger")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainIds[i], SUPER_POSITION_SENTINEL_KEY)
+                keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainIds[i], "SuperPositionSentinel")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_RBAC_ID(), _getContract(chainIds[i], SUPER_RBAC_KEY)
+                keccak256("SUPER_RBAC_ID"), _getContract(chainIds[i], "SuperRbac")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
-                _getContract(chainIds[i], ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+                keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
+                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
+                keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
             );
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.PAYMASTER_ID(), address(0x11111));
-            SuperRegistry(address(superRegistry)).setAddress(superRegistry.SUPER_BUNDLER_ID(), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("PAYMASTER_ID"), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(
-                superRegistry.ORACLE_REGISTRY_ID(), _getContract(chainIds[i], SUPER_ORACLE_KEY)
+                keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
         }
     }
@@ -882,19 +850,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
             });
             configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
             });
             configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
             });
             ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
@@ -1159,36 +1127,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
-    function _createGenericRouterSwapHookData(
-        bool usePrevHookAmount,
-        uint256 msgValue,
-        address srcToken,
-        address dstToken,
-        uint256 inputAmount,
-        uint256 minDstAmount,
-        uint256 flags,
-        address aggregationExecutor,
-        bytes memory permitData,
-        bytes memory swapData
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            usePrevHookAmount,
-            msgValue,
-            srcToken,
-            dstToken,
-            inputAmount,
-            minDstAmount,
-            flags,
-            aggregationExecutor,
-            permitData,
-            swapData
-        );
-    }
-
     function _createRequestDeposit7540VaultHookData(
         bytes32 yieldSourceOracleId,
         address yieldSource,
@@ -1208,13 +1146,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address yieldSource,
         address controller,
         uint256 amount,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool lockForSP
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount, lockForSP);
     }
 
     function _createRequestWithdraw7540VaultHookData(
@@ -1261,6 +1200,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount, lockForSP);
     }
 
+    function _createWithdraw7575_7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
+    }
+
     function _createDeposit5115VaultHookData(
         bytes32 yieldSourceOracleId,
         address yieldSource,
@@ -1277,6 +1231,77 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return abi.encodePacked(
             yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
         );
+    }
+
+    function _create1InchGenericRouterSwapHookData(
+        address account,
+        address dstToken,
+        address executor,
+        I1InchAggregationRouterV6.SwapDescription memory desc,
+        bytes memory permit,
+        bytes memory data
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data
+        );
+
+        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+    }
+
+    function _create1InchUnoswapToHookData(
+        address account,
+        address dstToken,
+        Address receiverUint256,
+        Address fromTokenUint256,
+        uint256 decodedFromAmount,
+        uint256 minReturn,
+        Address dex
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.unoswapTo.selector,
+            receiverUint256,
+            fromTokenUint256,
+            decodedFromAmount,
+            minReturn,
+            dex
+        );
+
+        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+    }
+
+    function _create1InchClipperSwapToHookData(
+        address account,
+        address dstToken,
+        address exchange,
+        Address srcToken,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.clipperSwapTo.selector,
+            exchange,
+            payable(account),
+            srcToken,
+            dstToken,
+            amount,
+            amount,
+            0,
+            bytes32(0),
+            bytes32(0)
+        );
+
+        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
     }
 
     function _createOdosSwapHookData(

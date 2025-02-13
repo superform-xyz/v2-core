@@ -30,7 +30,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
     modifier onlyBridgeGateway() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(superRegistry.SUPER_RBAC_ID()));
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
         if (!rbac.hasRole(msg.sender, rbac.BRIDGE_GATEWAY())) revert NOT_AUTHORIZED();
         _;
     }
@@ -102,15 +102,12 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
         // update accounting
         _updateAccounting(account, address(hook), hookData);
-
-        // check SP minting and lock assets
-        _lockForSuperPositions(account, address(hook));
     }
 
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(superRegistry.SUPER_LEDGER_ID()));
+            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(keccak256("SUPER_LEDGER_ID")));
             bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
@@ -143,36 +140,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                 _execute(account, feeExecution);
                 uint256 balanceAfter = IERC20(assetToken).balanceOf(config.feeRecipient);
                 if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
-            }
-        }
-    }
-
-    function _lockForSuperPositions(address account, address hook) private {
-        bool lockForSP = ISuperHookResult(address(hook)).lockForSP();
-        if (lockForSP) {
-            address spToken = ISuperHookResult(hook).spToken();
-            uint256 amount = ISuperHookResult(hook).outAmount();
-
-            ISuperCollectiveVault vault;
-            try superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID")) returns (address vaultAddress) {
-                vault = ISuperCollectiveVault(vaultAddress);
-            } catch {
-                return; 
-            }
-
-            if (address(vault) != address(0)) {
-                // forge approval for vault
-                Execution[] memory execs = new Execution[](1);
-                execs[0] = Execution({
-                    target: spToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (address(vault), amount))
-                });
-                _execute(account, execs);
-
-                vault.lock(account, spToken, amount);
-
-                emit SuperPositionLocked(account, spToken, amount);
             }
         }
     }

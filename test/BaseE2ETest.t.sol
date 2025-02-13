@@ -12,10 +12,7 @@ import { BootstrapConfig, INexusBoostrap } from "./vendors/nexus/INexusBootstrap
 import { IERC7484 } from "./vendors/nexus/IERC7484.sol";
 
 // Superform
-import {
-    IMinimalEntryPoint,
-    PackedUserOperation
-} from "../src/core/interfaces/vendors/account-abstraction/IMinimalEntryPoint.sol";
+import { IMinimalEntryPoint, PackedUserOperation } from "../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";

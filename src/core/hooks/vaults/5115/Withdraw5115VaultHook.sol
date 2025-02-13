@@ -2,12 +2,12 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStandardizedYield } from "../../../interfaces/vendors/pendle/IStandardizedYield.sol";
+import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";

@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import { IFluidLendingStakingRewards } from "../../interfaces/vendors/fluid/IFluidLendingStakingRewards.sol";
+import { IFluidLendingStakingRewards } from "../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
@@ -22,14 +22,29 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
-        pricePerShare = IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
+        return IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {
-        tvl = IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares)
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
+        return IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares)
             * IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVL(address yieldSourceAddress) public view override returns (uint256) {
+        uint256 totalShares = IERC20Metadata(yieldSourceAddress).totalSupply();
+        if (totalShares == 0) return 0;
+        return totalShares * IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

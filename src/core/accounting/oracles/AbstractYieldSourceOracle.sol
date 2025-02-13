@@ -3,9 +3,8 @@ pragma solidity >=0.8.28;
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
-import { IOracle } from "../../interfaces/vendors/awesome-oracles/IOracle.sol";
+import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 import { SuperRegistryImplementer } from "../../utils/SuperRegistryImplementer.sol";
-import { SuperRegistry } from "../../settings/SuperRegistry.sol";
 
 /// @title AbstractYieldSourceOracle
 /// @author Superform Labs
@@ -19,10 +18,20 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
     function decimals(address yieldSourceAddress) external view virtual returns (uint8);
 
     /// @inheritdoc IYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view virtual returns (uint256 pricePerShare);
+    function getPricePerShare(address yieldSourceAddress) public view virtual returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVL(address yieldSourceAddress, address ownerOfShares) public view virtual returns (uint256 tvl);
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        virtual
+        returns (uint256);
+
+    /// @inheritdoc IYieldSourceOracle
+    function getTVL(address yieldSourceAddress) public view virtual returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
@@ -42,19 +51,18 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVLMultiple(
+    function getTVLByOwnerOfSharesMultiple(
         address[] memory yieldSourceAddresses,
         address[][] memory ownersOfShares
     )
         external
         view
-        returns (uint256[][] memory userTvls, uint256[] memory totalTvls)
+        returns (uint256[][] memory userTvls)
     {
         uint256 length = yieldSourceAddresses.length;
         if (length != ownersOfShares.length) revert ARRAY_LENGTH_MISMATCH();
 
         userTvls = new uint256[][](length);
-        totalTvls = new uint256[](length);
 
         for (uint256 i = 0; i < length;) {
             address yieldSource = yieldSourceAddresses[i];
@@ -62,18 +70,27 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
             uint256 ownersLength = owners.length;
 
             userTvls[i] = new uint256[](ownersLength);
-            uint256 totalTvl = 0;
 
             for (uint256 j = 0; j < ownersLength;) {
-                uint256 userTvl = getTVL(yieldSource, owners[j]);
+                uint256 userTvl = getTVLByOwnerOfShares(yieldSource, owners[j]);
                 userTvls[i][j] = userTvl;
-                totalTvl += userTvl;
                 unchecked {
                     ++j;
                 }
             }
+            unchecked {
+                ++i;
+            }
+        }
+    }
 
-            totalTvls[i] = totalTvl;
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLMultiple(address[] memory yieldSourceAddresses) external view returns (uint256[] memory tvls) {
+        uint256 length = yieldSourceAddresses.length;
+        tvls = new uint256[](length);
+
+        for (uint256 i = 0; i < length;) {
+            tvls[i] = getTVL(yieldSourceAddresses[i]);
             unchecked {
                 ++i;
             }
@@ -98,6 +115,47 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
 
         // Convert to USD using oracle registry with specified provider
         pricePerShareUSD = IOracle(_getOracleRegistry()).getQuote(baseAmount, base, _encodeProvider(provider));
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLByOwnerOfSharesUSD(
+        address yieldSourceAddress,
+        address ownerOfShares,
+        address base,
+        uint256 provider
+    )
+        external
+        view
+        returns (uint256 tvlUSD)
+    {
+        // Validate base asset
+        _validateBaseAsset(yieldSourceAddress, base);
+
+        // Get TVL in base asset terms
+        uint256 baseAmount = getTVLByOwnerOfShares(yieldSourceAddress, ownerOfShares);
+
+        // Convert to USD using oracle registry with specified provider
+        tvlUSD = IOracle(_getOracleRegistry()).getQuote(baseAmount, base, _encodeProvider(provider));
+    }
+
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLUSD(
+        address yieldSourceAddress,
+        address base,
+        uint256 provider
+    )
+        external
+        view
+        returns (uint256 tvlUSD)
+    {
+        // Validate base asset
+        _validateBaseAsset(yieldSourceAddress, base);
+
+        // Get TVL in base asset terms
+        uint256 baseAmount = getTVL(yieldSourceAddress);
+
+        // Convert to USD using oracle registry with specified provider
+        tvlUSD = IOracle(_getOracleRegistry()).getQuote(baseAmount, base, _encodeProvider(provider));
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -133,28 +191,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVLUSD(
-        address yieldSourceAddress,
-        address ownerOfShares,
-        address base,
-        uint256 provider
-    )
-        external
-        view
-        returns (uint256 tvlUSD)
-    {
-        // Validate base asset
-        _validateBaseAsset(yieldSourceAddress, base);
-
-        // Get TVL in base asset terms
-        uint256 baseAmount = getTVL(yieldSourceAddress, ownerOfShares);
-
-        // Convert to USD using oracle registry with specified provider
-        tvlUSD = IOracle(_getOracleRegistry()).getQuote(baseAmount, base, _encodeProvider(provider));
-    }
-
-    /// @inheritdoc IYieldSourceOracle
-    function getTVLMultipleUSD(
+    function getTVLByOwnerOfSharesMultipleUSD(
         address[] memory yieldSourceAddresses,
         address[][] memory ownersOfShares,
         address[] memory baseAddresses,
@@ -190,7 +227,7 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
 
             for (uint256 j = 0; j < vars.ownersLength;) {
                 // Get TVL in base asset terms
-                vars.baseAmount = getTVL(vars.yieldSource, vars.owners[j]);
+                vars.baseAmount = getTVLByOwnerOfShares(vars.yieldSource, vars.owners[j]);
 
                 // Convert to USD using oracle registry with specified provider
                 vars.userTvlUSD =
@@ -210,10 +247,42 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
         }
     }
 
+    /// @inheritdoc IYieldSourceOracle
+    function getTVLMultipleUSD(
+        address[] memory yieldSourceAddresses,
+        address[] memory baseAddresses,
+        uint256[] memory providers
+    )
+        external
+        view
+        returns (uint256[] memory tvlsUSD)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != baseAddresses.length || length != providers.length) revert ARRAY_LENGTH_MISMATCH();
+
+        tvlsUSD = new uint256[](length);
+        IOracle registry = IOracle(_getOracleRegistry());
+
+        for (uint256 i = 0; i < length;) {
+            // Validate base asset
+            _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
+
+            // Get TVL in base asset terms
+            uint256 baseAmount = getTVL(yieldSourceAddresses[i]);
+
+            // Convert to USD using oracle registry with specified provider
+            tvlsUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
+
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
     /// @notice Returns the oracle registry from SuperRegistry
     /// @return registry The oracle registry contract
     function _getOracleRegistry() internal view returns (IOracle) {
-        return IOracle(superRegistry.getAddress(superRegistry.ORACLE_REGISTRY_ID()));
+        return IOracle(superRegistry.getAddress(keccak256("ORACLE_REGISTRY_ID")));
     }
 
     /// @notice Internal function to encode provider ID with USD address
