@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-
 interface IERC7575 {
     /// @notice Get the balance of the account
     /// @param account The address of the account
-    function balanceOf(address account) external view returns (uint256);    
+    function balanceOf(address account) external view returns (uint256);
 
-    /// @notice Get the address of the underlying asset 
+    /// @notice Get the address of the underlying asset
     function asset() external view returns (address);
 
     /// @notice Get the address of the share token
@@ -46,12 +45,20 @@ interface IERC7575 {
     function previewMint(uint256 shares) external view returns (uint256 assets);
 
     /// @notice Preview the amount of shares that would be received for a given amount of assets
-    /// @param assets The amount of assets to withdraw  
+    /// @param assets The amount of assets to withdraw
     function previewWithdraw(uint256 assets) external view returns (uint256 shares);
-
 }
 // As defined by https://eips.ethereum.org/EIPS/eip-7540#request-flows
+
 interface IERC7540 is IERC7575 {
+    event DepositRequest(
+        address indexed controller, address indexed owner, uint256 indexed requestId, address sender, uint256 assets
+    );
+
+    event RedeemRequest(
+        address indexed controller, address indexed owner, uint256 indexed requestId, address sender, uint256 assets
+    );
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -59,7 +66,6 @@ interface IERC7540 is IERC7575 {
     /// @param interfaceId The selector of the interface to check
     function supportsInterface(bytes4 interfaceId) external view returns (bool);
 
-    
     /// @notice Preview the amount of assets that would be received for a given amount of shares
     /// @param shares The amount of shares to redeem
     function previewRedeem(uint256 shares) external view returns (uint256 assets);
@@ -83,7 +89,6 @@ interface IERC7540 is IERC7575 {
     /// @param requestId The id of the request to check
     /// @param controller The address of the controller
     function pendingCancelRedeemRequest(uint256 requestId, address controller) external view returns (bool);
-
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -135,11 +140,17 @@ interface IERC7540 is IERC7575 {
     /// @param requestId The id of the request to claim
     /// @param receiver The address of the receiver
     /// @param controller The address of the controller
-    function claimCancelDepositRequest(uint256 requestId, address receiver, address controller) external returns (uint256 assets);
+    function claimCancelDepositRequest(
+        uint256 requestId,
+        address receiver,
+        address controller
+    )
+        external
+        returns (uint256 assets);
 
     /// @notice Cancel a redeem request
     /// @param requestId The id of the request to cancel
-    /// @param controller The address of the controller 
+    /// @param controller The address of the controller
     function cancelRedeemRequest(uint256 requestId, address controller) external;
 
     /// @notice Claims the canceled redeem shares, and removes the pending cancelation Request
@@ -147,15 +158,23 @@ interface IERC7540 is IERC7575 {
     /// @param requestId The id of the request to claim
     /// @param receiver The address of the receiver
     /// @param controller The address of the controller
-    function claimCancelRedeemRequest(uint256 requestId, address receiver, address controller) external returns (uint256 shares);
- 
+    function claimCancelRedeemRequest(
+        uint256 requestId,
+        address receiver,
+        address controller
+    )
+        external
+        returns (uint256 shares);
+
+    /// @notice Get the pool id
+    function poolId() external view returns (uint64);
+
+    /// @notice Get the tranche id
+    function trancheId() external view returns (bytes16);
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
     function setOperator(address operator, bool approved) external returns (bool);
     function isOperator(address controller, address operator) external view returns (bool status);
-
-
-    
 }

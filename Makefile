@@ -10,16 +10,15 @@ ifeq ($(ENVIRONMENT), local)
 endif
 
 
-
 deploy-poc:
 	forge script script/PoC/Deploy.s.sol --broadcast --legacy --multi --verify
 
 build :; forge build && $(MAKE) generate
 ftest :; forge test
 
-test-vvv :; forge test --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -vvvv
+test-vvv :; forge test --match-test test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow -vvvv
 
-test-integration :; forge test --match-contract test_Deposit_Redeem_4626_Mainnet_Flow -vvvv
+test-integration :; forge test --match-test test_RebalanceCrossChain_4626_Mainnet_Flow -vvvv
 
 .PHONY: generate
 generate:

@@ -20,44 +20,43 @@ interface ISuperLedger {
     struct YieldSourceOracleConfig {
         address yieldSourceOracle;
         uint256 feePercent;
-        address vaultShareToken;
         address feeRecipient;
         address manager;
     }
 
-    struct HookRegistrationConfig {
-        address yieldSourceOracle;
+    struct YieldSourceOracleConfigArgs {
         bytes32 yieldSourceOracleId;
+        address yieldSourceOracle;
         uint256 feePercent;
-        address vaultShareToken;
         address feeRecipient;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event AccountingUpdated(
+    event AccountingInflow(
         address indexed user,
         address indexed yieldSourceOracle,
         address indexed yieldSource,
-        bool isInflow,
         uint256 amount,
-        uint256 price
+        uint256 pps
+    );
+    event AccountingOutflow(
+        address indexed user,
+        address indexed yieldSourceOracle,
+        address indexed yieldSource,
+        uint256 amount,
+        uint256 feeAmount
     );
 
     event AccountingOutflowSkipped(
-        address indexed user,
-        address indexed yieldSource,
-        bytes32 indexed yieldSourceOracleId,
-        uint256 amount,
-        uint256 price
+        address indexed user, address indexed yieldSource, bytes32 indexed yieldSourceOracleId, uint256 amount
     );
 
     event YieldSourceOracleConfigSet(
         bytes32 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,
         uint256 feePercent,
-        address vaultShareToken,
         address manager,
         address feeRecipient
     );
@@ -85,21 +84,24 @@ interface ISuperLedger {
     /// @param yieldSource The yield source address
     /// @param yieldSourceOracleId The yield source id
     /// @param isInflow Whether this is an inflow (true) or outflow (false)
-    /// @param amount The amount of shares
-    /// @return pps The price per share used for the accounting
+    /// @param amountSharesOrAssets The amount of shares or assets
+    /// @param usedShares The amount of shares used by the OUTFLOW hook (0 for INFLOWS)
+    /// @return feeAmount The amount of fee to be collected in the asset being withdrawn (only for outflows)
     function updateAccounting(
         address user,
         address yieldSource,
         bytes32 yieldSourceOracleId,
         bool isInflow,
-        uint256 amount
+        uint256 amountSharesOrAssets,
+        uint256 usedShares
     )
         external
-        returns (uint256 pps);
+        returns (uint256 feeAmount);
+
 
     /// @notice Registers hooks and sets their oracle configs in one transaction
     /// @param configs Array of oracle configurations
-    function setYieldSourceOracles(HookRegistrationConfig[] calldata configs) external;
+    function setYieldSourceOracles(YieldSourceOracleConfigArgs[] calldata configs) external;
 
     /// @notice Returns the ledger for a specific user and yield source
     /// @param user The user address

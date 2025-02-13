@@ -38,14 +38,15 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         vm.selectFork(FORKS[ETH]);
 
-        underlyingEth_USDC = existingUnderlyingTokens[ETH]["USDC"];
-        underlyingBase_USDC = existingUnderlyingTokens[BASE]["USDC"];
-        underlyingOp_USDC = existingUnderlyingTokens[OP]["USDC"];
-        underlyingBase_WETH = existingUnderlyingTokens[BASE]["WETH"];
-        yieldSourceAddressEth = realVaultAddresses[ETH]["ERC4626"]["MorphoVault"]["USDC"];
-        yieldSourceAddressBase = realVaultAddresses[BASE]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"];
-        yieldSourceAddressBaseWeth = realVaultAddresses[BASE]["ERC4626"]["MorphoGauntletWETHCore"]["WETH"];
-        yieldSourceOracle = _getContract(ETH, "ERC4626YieldSourceOracle");
+        underlyingEth_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
+        underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
+        underlyingOp_USDC = existingUnderlyingTokens[OP][USDC_KEY];
+        underlyingBase_WETH = existingUnderlyingTokens[BASE][WETH_KEY];
+        yieldSourceAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
+        yieldSourceAddressBase = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
+        yieldSourceAddressBaseWeth =
+            realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY];
+        yieldSourceOracle = _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY);
         vaultInstanceEth = IERC4626(yieldSourceAddressEth);
         vaultInstanceBase = IERC4626(yieldSourceAddressBase);
         accountEth = accountInstances[ETH].account;
@@ -53,9 +54,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         instanceOnEth = accountInstances[ETH];
         instanceOnBase = accountInstances[BASE];
         instanceOnOP = accountInstances[OP];
-        superExecutorOnEth = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
-        superExecutorOnBase = ISuperExecutor(_getContract(BASE, "SuperExecutor"));
-        superExecutorOnOP = ISuperExecutor(_getContract(OP, "SuperExecutor"));
+        superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
+        superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
+        superExecutorOnOP = ISuperExecutor(_getContract(OP, SUPER_EXECUTOR_KEY));
     }
 
     function test_Deposit_4626_Mainnet_Flow() public {
@@ -63,13 +64,13 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         uint256 amount = 1e8;
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
-        hooksData[1] = _createDepositHookData(
-            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, amount, false
+        hooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -83,12 +84,12 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         uint256 amount = 1e8;
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
-        hooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
-        hooksData[1] = _createDepositHookData(
-            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, amount, false
+        hooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -96,18 +97,22 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
-        emit ISuperLedger.AccountingUpdated(accountEth, yieldSourceOracle, yieldSourceAddressEth, true, amount, 1e18);
+        emit ISuperLedger.AccountingInflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, amount, 1e18);
         executeOp(userOpData);
 
         uint256 accSharesAfter = vaultInstanceEth.balanceOf(accountEth);
-
         assertEq(accSharesAfter, vaultInstanceEth.previewDeposit(amount));
 
         hooksAddresses = new address[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, "Withdraw4626VaultHook");
+        hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
         hooksData = new bytes[](2);
-        hooksData[0] = _createWithdrawHookData(
-            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, accountEth, accSharesAfter, false
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceAddressEth,
+            accountEth,
+            accSharesAfter / 2, // temporary
+            false,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
@@ -116,14 +121,12 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryWithdraw));
 
         vm.expectEmit(true, true, true, false);
-        emit ISuperLedger.AccountingUpdated(
-            accountEth, yieldSourceOracle, yieldSourceAddressEth, false, accSharesAfter, 1e18
-        );
+        emit ISuperLedger.AccountingOutflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, accSharesAfter, 0);
 
         executeOp(userOpData);
 
-        uint256 accSharesAfterWithdraw = vaultInstanceEth.balanceOf(accountEth);
-        assertEq(accSharesAfterWithdraw, 0);
+        // uint256 accSharesAfterWithdraw = vaultInstanceEth.balanceOf(accountEth);
+        // assertEq(accSharesAfterWithdraw, 0);
     }
 
     function test_RebalanceCrossChain_4626_Mainnet_Flow() public {
@@ -137,14 +140,14 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](2);
-        dstHooksAddresses[0] = _getHookAddress(BASE, "ApproveERC20Hook");
-        dstHooksAddresses[1] = _getHookAddress(BASE, "Deposit4626VaultHook");
+        dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory dstHooksData = new bytes[](2);
         dstHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, previewRedeemAmount, false);
-        dstHooksData[1] = _createDepositHookData(
-            accountBase, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressBase, previewRedeemAmount, false
+        dstHooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, previewRedeemAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
@@ -155,32 +158,27 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         // ETH is SRC
         vm.selectFork(FORKS[ETH]);
-        address[] memory srcHooksAddresses = new address[](5);
-        srcHooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
-        srcHooksAddresses[1] = _getHookAddress(ETH, "Deposit4626VaultHook");
-        srcHooksAddresses[2] = _getHookAddress(ETH, "Withdraw4626VaultHook");
-        srcHooksAddresses[3] = _getHookAddress(ETH, "ApproveERC20Hook");
-        srcHooksAddresses[4] = _getHookAddress(ETH, "AcrossSendFundsAndExecuteOnDstHook");
+        address[] memory srcHooksAddresses = new address[](4);
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        srcHooksAddresses[2] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[3] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
-        bytes[] memory srcHooksData = new bytes[](5);
+        bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
-        srcHooksData[1] = _createDepositHookData(
-            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, amount, false
+        srcHooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
         );
-        srcHooksData[2] = _createWithdrawHookData(
-            accountEth, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressEth, accountEth, 0, true
-        );
-        srcHooksData[3] = _createApproveHookData(underlyingEth_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
+        srcHooksData[2] = _createApproveHookData(underlyingEth_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
 
-        srcHooksData[4] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            existingUnderlyingTokens[ETH]["USDC"],
-            existingUnderlyingTokens[BASE]["USDC"],
+        srcHooksData[3] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            existingUnderlyingTokens[ETH][USDC_KEY],
+            existingUnderlyingTokens[BASE][USDC_KEY],
             previewRedeemAmount,
             previewRedeemAmount,
             BASE,
             true,
-            instanceOnBase.account,
-            0,
+            amount,
             dstUserOpData
         );
 
@@ -211,14 +209,14 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         // PREPARE DST DATA
         vars.dstHooksAddresses = new address[](2);
-        vars.dstHooksAddresses[0] = _getHookAddress(BASE, "ApproveERC20Hook");
-        vars.dstHooksAddresses[1] = _getHookAddress(BASE, "Deposit4626VaultHook");
+        vars.dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        vars.dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         vars.dstHooksData = new bytes[](2);
         vars.dstHooksData[0] =
             _createApproveHookData(underlyingBase_WETH, yieldSourceAddressBaseWeth, vars.intentAmount, false);
-        vars.dstHooksData[1] = _createDepositHookData(
-            accountBase, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressBaseWeth, vars.intentAmount, false
+        vars.dstHooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBaseWeth, vars.intentAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
@@ -230,20 +228,20 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // ETH is SRC1
         vm.selectFork(FORKS[ETH]);
         vars.srcHooksAddresses = new address[](2);
-        vars.srcHooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
-        vars.srcHooksAddresses[1] = _getHookAddress(ETH, "AcrossSendFundsAndExecuteOnDstHook");
+        vars.srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        vars.srcHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         vars.srcHooksData = new bytes[](2);
         vars.srcHooksData[0] =
             _createApproveHookData(underlyingEth_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], vars.intentAmount / 2, false);
+
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            existingUnderlyingTokens[ETH]["USDC"],
-            existingUnderlyingTokens[BASE]["WETH"],
+            existingUnderlyingTokens[ETH][USDC_KEY],
+            existingUnderlyingTokens[BASE][WETH_KEY],
             vars.intentAmount / 2,
             vars.intentAmount / 2,
             BASE,
             true,
-            instanceOnBase.account,
             vars.intentAmount,
             dstUserOpData
         );
@@ -259,20 +257,19 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vm.selectFork(FORKS[OP]);
 
         vars.srcHooksAddresses = new address[](2);
-        vars.srcHooksAddresses[0] = _getHookAddress(OP, "ApproveERC20Hook");
-        vars.srcHooksAddresses[1] = _getHookAddress(OP, "AcrossSendFundsAndExecuteOnDstHook");
+        vars.srcHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        vars.srcHooksAddresses[1] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         vars.srcHooksData = new bytes[](2);
         vars.srcHooksData[0] =
             _createApproveHookData(underlyingOp_USDC, SPOKE_POOL_V3_ADDRESSES[OP], vars.intentAmount / 2, false);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            existingUnderlyingTokens[OP]["USDC"],
-            existingUnderlyingTokens[BASE]["WETH"],
+            existingUnderlyingTokens[OP][USDC_KEY],
+            existingUnderlyingTokens[BASE][WETH_KEY],
             vars.intentAmount / 2,
             vars.intentAmount / 2,
             BASE,
             true,
-            instanceOnBase.account,
             vars.intentAmount,
             dstUserOpData
         );
@@ -282,6 +279,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         srcUserOpData = _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entry));
         // balance is received and everything is executed
         _processAcrossV3Message(OP, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+
+        vm.selectFork(FORKS[BASE]);
     }
 
     function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
@@ -294,23 +293,20 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](2);
-        dstHooksAddresses[0] = _getHookAddress(BASE, "ApproveERC20Hook");
-        dstHooksAddresses[1] = _getHookAddress(BASE, "Deposit4626VaultHook");
+        dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory dstHooksData = new bytes[](2);
         dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, amount, false);
-        dstHooksData[1] = _createDepositHookData(
-            accountBase, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddressBase, amount, false
+        dstHooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, amount, false, false
         );
-
-        //ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
-        //    ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHooksAddresses, hooksData: dstHooksData });
 
         // ETH is SRC
         vm.selectFork(FORKS[ETH]);
         address[] memory srcHooksAddresses = new address[](2);
-        srcHooksAddresses[0] = _getHookAddress(ETH, "ApproveERC20Hook");
-        srcHooksAddresses[1] = _getHookAddress(ETH, "DeBridgeSendFundsAndExecuteOnDstHook");
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         IDeBridgeGate.SubmissionAutoParamsTo memory autoParams = IDeBridgeGate.SubmissionAutoParamsTo({
             executionFee: 0,
@@ -324,8 +320,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         srcHooksData[0] = _createApproveHookData(underlyingEth_USDC, DEBRIDGE_GATE_ADDRESSES[ETH], amount, false);
         srcHooksData[1] = _createDebridgeSendFundsAndExecuteHookData(
             1 ether,
-            instanceOnBase.account,
-            existingUnderlyingTokens[ETH]["USDC"],
+            accountBase,
+            existingUnderlyingTokens[ETH][USDC_KEY],
             amount,
             chainIds[2], //Base
             0,

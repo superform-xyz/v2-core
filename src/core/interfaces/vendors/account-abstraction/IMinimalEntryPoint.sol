@@ -32,4 +32,15 @@ interface IMinimalEntryPoint {
      * @param beneficiary - The address to receive the fees.
      */
     function handleOps(PackedUserOperation[] calldata ops, address payable beneficiary) external;
+
+    /**
+     * Return the next nonce for this sender.
+     * Within a given key, the nonce values are sequenced (starting with zero, and incremented by one on each userop)
+     * But UserOp with different keys can come with arbitrary order.
+     *
+     * @param sender the account address
+     * @param key the high 192 bit of the nonce
+     * @return nonce a full nonce to pass for next UserOp with this sender.
+     */
+    function getNonce(address sender, uint192 key) external view returns (uint256 nonce);
 }

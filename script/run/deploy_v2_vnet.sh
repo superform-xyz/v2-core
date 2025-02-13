@@ -225,14 +225,58 @@ fi
 
 # Function to read branch-level latest file
 read_branch_latest() {
+    log "DEBUG" "Reading branch latest file from GitHub: https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME"
     response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
         "https://api.github.com/repos/$GITHUB_REPOSITORY/contents/$BRANCH_LATEST_FILE?ref=$GITHUB_REF_NAME")
     
-    if [ "$(echo "$response" | jq -r '.message')" == "Not Found" ]; then
+    # Debug the raw response
+    log "DEBUG" "Raw GitHub API response: $response"
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON response from GitHub API"
+        log "ERROR" "Response: $response"
         echo "{\"networks\":{},\"updated_at\":null}"
-    else
-        echo "$response" | jq -r '.content' | base64 --decode
+        return 0
     fi
+    
+    # Check for API error responses
+    if [ "$(echo "$response" | jq -r '.message // empty')" == "Not Found" ]; then
+        log "INFO" "No existing latest file found, creating new one"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    # Check for other API errors
+    if [ "$(echo "$response" | jq -r '.message // empty')" != "" ]; then
+        log "DEBUG" "GitHub API info: $(echo "$response" | jq -r '.message')"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    # Try to decode content
+    content=$(echo "$response" | jq -r '.content // empty')
+    if [ -z "$content" ]; then
+        log "ERROR" "No content field in GitHub response"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    decoded_content=$(echo "$content" | base64 --decode)
+    if [ $? -ne 0 ]; then
+        log "ERROR" "Failed to decode base64 content"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    # Validate decoded content is valid JSON
+    if ! echo "$decoded_content" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Decoded content is not valid JSON"
+        echo "{\"networks\":{},\"updated_at\":null}"
+        return 0
+    fi
+    
+    echo "$decoded_content"
 }
 
 # Function to update branch-level latest file with optimistic locking
@@ -410,13 +454,39 @@ EOF
         -H "Content-Type: application/json" \
         -H "X-Access-Key: ${access_key}" \
         -d "$json_data")
+        
+    # Debug the raw response
+    log "DEBUG" "Raw Tenderly API response: $response"
+    
+    # Check if response is valid JSON
+    if ! echo "$response" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON response from Tenderly API"
+        log "ERROR" "Response: $response"
+        return 1
+    fi
+    
+    # Check for API error responses
+    if [ "$(echo "$response" | jq -r '.error.message // empty')" != "" ]; then
+        log "ERROR" "Tenderly API error: $(echo "$response" | jq -r '.error.message')"
+        return 1
+    fi
+    
+    # Check if response has the expected structure
+    if ! echo "$response" | jq -e '.rpcs' >/dev/null 2>&1; then
+        log "ERROR" "Unexpected response format from Tenderly API (missing rpcs field)"
+        log "ERROR" "Full response: $response"
+        return 1
+    fi
 
-    # Extract RPC URLs and VNET ID using jq
+    # Extract RPC URLs and VNET ID using jq with error handling
     local admin_rpc=$(echo "$response" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
     local vnet_id=$(echo "$response" | jq -r '.id')
 
     if [ -z "$admin_rpc" ] || [ -z "$vnet_id" ]; then
-        log "ERROR" "Error creating TestNet: $response"
+        log "ERROR" "Failed to extract required fields from Tenderly API response"
+        log "ERROR" "Admin RPC: $admin_rpc"
+        log "ERROR" "VNET ID: $vnet_id"
+        log "ERROR" "Full response: $response"
         return 1
     fi
     
@@ -644,44 +714,15 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
 fi
 wait
 
-# Read deployed contracts from output file and validate
-read_and_validate_contracts() {
-    local file_path=$1
-    local network_name=$2
-    
-    log "INFO" "Reading contracts from: $file_path"
-    
-    if [ ! -f "$file_path" ]; then
-        log "ERROR" "Contract file not found for $network_name: $file_path"
-        return 1
-    fi
-    
-    local contracts
-    contracts=$(cat "$file_path")
-    log "INFO" "Contract file contents for $network_name: $contracts"
-    
-    # Validate JSON format
-    if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
-        log "ERROR" "Invalid JSON in contract file for $network_name"
-        return 1
-    fi
-    
-    # Validate that we have at least some contract addresses
-    if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
-        log "ERROR" "No contract addresses found in file for $network_name"
-        return 1
-    fi
-    
-    echo "$contracts"
-    return 0
-}
+
 
 # Update the branch latest file section to use validation
 update_latest_file() {
     local is_local=$1
     log "INFO" "All deployments successful. Updating latest file..."
     
-    local content="{\"networks\":{},\"updated_at\":null}"
+    # Initialize content with default structure
+    content="{\"networks\":{},\"updated_at\":null}"
     local latest_file
     local initial_sha=""
     
@@ -692,6 +733,11 @@ update_latest_file() {
             echo "$content" > "$latest_file"
         else
             content=$(cat "$latest_file")
+            # Validate the content from file
+            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+                log "WARN" "Invalid JSON in latest file, resetting to default"
+                content="{\"networks\":{},\"updated_at\":null}"
+            fi
         fi
     else
         # Original GitHub API logic for CI mode
@@ -702,8 +748,16 @@ update_latest_file() {
             content=$(echo "$response" | jq -r '.content' | base64 --decode)
             initial_sha=$(echo "$response" | jq -r '.sha')
             log "INFO" "Found existing file with SHA: $initial_sha"
+            # Validate the decoded content
+            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+                log "WARN" "Invalid JSON in GitHub response, resetting to default"
+                content="{\"networks\":{},\"updated_at\":null}"
+            fi
         fi
     fi
+    
+    log "DEBUG" "Initial content structure:"
+    echo "$content" | jq '.' >&2
     
     # Update content with new deployment info
     i=0
@@ -735,18 +789,27 @@ update_latest_file() {
             exit 1
         fi
         
-        contracts=$(cat "$contracts_file")
-        log "INFO" "Contract file contents for $network_slug: $contracts"
-        
-        # Validate JSON format
-        if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
-            log "ERROR" "Invalid JSON in contract file for $network_slug"
+        # Read contracts file and ensure it's valid JSON - handle potential DOS line endings
+        contracts=$(tr -d '\r' < "$contracts_file")
+        if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
+            log "ERROR" "Failed to parse JSON from contract file for $network_slug"
+            log "DEBUG" "Raw file contents:"
+            cat "$contracts_file" | xxd
             cleanup_vnets
             exit 1
         fi
         
-        # Check if contracts is empty
-        if [ "$(echo "$contracts" | jq 'length')" -eq 0 ]; then
+        log "INFO" "Successfully parsed contracts for $network_slug"
+        
+        # Validate JSON format
+        if [ -z "$contracts" ]; then
+            log "ERROR" "Empty or invalid JSON in contract file for $network_slug"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        # Check if contracts is empty object
+        if [ "$contracts" = "{}" ]; then
             log "WARN" "No contracts found in file for $network_slug"
         fi
         
@@ -763,6 +826,35 @@ update_latest_file() {
                 ;;
         esac
         
+        # Debug output for all parameters
+        log "DEBUG" "Parameters for network update:"
+        log "DEBUG" "network_slug: $network_slug"
+        log "DEBUG" "vnet_id: $vnet_id"
+        log "DEBUG" "new_counter: $new_counter"
+        log "DEBUG" "contracts (formatted):"
+        echo "$contracts" | jq '.' >&2
+        log "DEBUG" "current content:"
+        echo "$content" | jq '.' >&2
+        
+        # Validate all inputs before jq operation
+        if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
+            log "ERROR" "contracts is not valid JSON"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+            log "ERROR" "content is not valid JSON"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        if ! [[ "$new_counter" =~ ^[0-9]+$ ]]; then
+            log "ERROR" "new_counter is not a valid number: $new_counter"
+            cleanup_vnets
+            exit 1
+        fi
+        
         content=$(echo "$content" | jq \
             --arg slug "$network_slug" \
             --arg vnet "$vnet_id" \
@@ -773,6 +865,17 @@ update_latest_file() {
                 "vnet_id": $vnet,
                 "contracts": $contracts
             }')
+            
+        # Validate the result
+        if [ $? -ne 0 ]; then
+            log "ERROR" "jq command failed"
+            cleanup_vnets
+            exit 1
+        fi
+        
+        # Debug the output
+        log "DEBUG" "Updated content:"
+        echo "$content" | jq '.' >&2
             
         i=$((i + 1))
     done

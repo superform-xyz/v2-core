@@ -12,12 +12,15 @@ interface ISuperExecutor {
     //////////////////////////////////////////////////////////////*/
     error NOT_AUTHORIZED();
     error NOT_INITIALIZED();
+    error ADDRESS_NOT_VALID();
     error ALREADY_INITIALIZED();
-
+    error INSUFFICIENT_BALANCE_FOR_FEE();
+    error FEE_NOT_TRANSFERRED();
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Execute a batch of calls
     /// @param data The data to execute
+
     function execute(bytes memory data) external;
 }

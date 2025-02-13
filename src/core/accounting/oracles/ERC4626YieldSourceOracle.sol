@@ -1,70 +1,40 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
-import { ERC4626YieldSourceOracleLibrary } from "../../libraries/accounting/ERC4626YieldSourceOracleLibrary.sol";
+// external
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+
+// Superform
+import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 
 /// @title ERC4626YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for 4626 Vaults
-contract ERC4626YieldSourceOracle is IYieldSourceOracle {
-    /*//////////////////////////////////////////////////////////////
-                            CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
+contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
+    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
 
-    constructor() { }
-
-    /*//////////////////////////////////////////////////////////////
-                           VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /*
-    /// @inheritdoc IYieldSourceOracle
-    function getTVL(address yieldSourceAddress) public view returns (uint256 tvl) {
-        tvl = ERC4626YieldSourceOracleLibrary.getTVL(yieldSourceAddress);
-    }
-    */
-
-    /// @inheritdoc IYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view returns (uint256 price) {
-        price = ERC4626YieldSourceOracleLibrary.getPricePerShare(yieldSourceAddress);
+    /// @inheritdoc AbstractYieldSourceOracle
+    function decimals(address yieldSourceAddress) external view override returns (uint8) {
+        return IERC4626(yieldSourceAddress).decimals();
     }
 
-    /// @inheritdoc IYieldSourceOracle
-    function getPricePerShareMultiple(
-        address[] memory yieldSourceAddresses,
-        address underlyingAsset
-    )
-        external
-        view
-        returns (uint256[] memory prices)
-    {
-        prices = ERC4626YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses, underlyingAsset);
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
+        IERC4626 yieldSource = IERC4626(yieldSourceAddress);
+        uint256 _decimals = yieldSource.decimals();
+        pricePerShare = yieldSource.convertToAssets(10 ** _decimals);
     }
 
-    // ToDo: Implement this with the metadata library
-    /// @inheritdoc IYieldSourceOracle
-    function getYieldSourceMetadata(address) external pure returns (bytes memory metadata) {
-        return "0x0";
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {
+        IERC4626 yieldSource = IERC4626(yieldSourceAddress);
+        uint256 shares = yieldSource.balanceOf(ownerOfShares);
+        if (shares == 0) return 0;
+        return yieldSource.convertToAssets(shares);
     }
 
-    // ToDo: Implement this with the metadata library
-    /// @inheritdoc IYieldSourceOracle
-    function getYieldSourceMetadata(address[] memory yieldSourceAddresses, bytes32[] memory) 
-        external 
-        pure 
-        returns (bytes[] memory metadata) 
-    {
-        return new bytes[](yieldSourceAddresses.length);
-    }   
-
-    // ToDo: Implement this with the metadata library
-    /// @inheritdoc IYieldSourceOracle
-    function getYieldSourcesMetadata(address[] memory yieldSourceAddresses)
-        external
-        pure
-        returns (bytes[] memory metadata)
-    {
-        return new bytes[](yieldSourceAddresses.length);
+    /// @inheritdoc AbstractYieldSourceOracle
+    function _validateBaseAsset(address yieldSourceAddress, address base) internal view override {
+        if (base != IERC4626(yieldSourceAddress).asset()) revert INVALID_BASE_ASSET();
     }
-    
 }

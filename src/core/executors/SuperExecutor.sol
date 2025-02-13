@@ -2,10 +2,10 @@
 pragma solidity >=0.8.28;
 
 // external
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
-import { BytesLib } from "../libraries/BytesLib.sol";
 
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
@@ -13,9 +13,13 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { ISuperHook, ISuperHookResult } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
+
+import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+    using HookDataDecoder for bytes;
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -75,7 +79,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             address prevHook = (i != 0) ? entry.hooksAddresses[i - 1] : address(0);
             // execute current hook
             _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
-
             // go to next hook
             unchecked {
                 ++i;
@@ -85,30 +88,58 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) private {
         // run hook preExecute
-        hook.preExecute(prevHook, hookData);
+        hook.preExecute(prevHook, account, hookData);
 
-        Execution[] memory executions = hook.build(prevHook, hookData);
+        Execution[] memory executions = hook.build(prevHook, account, hookData);
         // run hook execute
         if (executions.length > 0) {
             _execute(account, executions);
         }
 
         // run hook postExecute
-        hook.postExecute(prevHook, hookData);
+        hook.postExecute(prevHook, account, hookData);
 
-        ISuperHook.HookType _type = ISuperHookResult(address(hook)).hookType();
+        // update accounting
+        _updateAccounting(account, address(hook), hookData);
+    }
+
+    function _updateAccounting(address account, address hook, bytes memory hookData) private {
+        ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(keccak256("SUPER_LEDGER_ID")));
-            bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
-            address yieldSource = BytesLib.toAddress(BytesLib.slice(hookData, 52, 20), 0);
+            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            address yieldSource = hookData.extractYieldSource();
 
-            ledger.updateAccounting(
+            // Update accounting and get fee amount if any
+            uint256 feeAmount = ledger.updateAccounting(
                 account,
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
-                ISuperHookResult(address(hook)).outAmount()
+                ISuperHookResult(address(hook)).outAmount(),
+                ISuperHookResultOutflow(address(hook)).usedShares()
             );
+
+            // If there's a fee to collect (only for outflows)
+            if (feeAmount > 0) {
+                ISuperLedger.YieldSourceOracleConfig memory config =
+                    ledger.getYieldSourceOracleConfig(yieldSourceOracleId);
+                // Get the asset token from the hook
+                address assetToken = ISuperHookResultOutflow(hook).asset();
+                if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
+                if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
+
+                uint256 balanceBefore = IERC20(assetToken).balanceOf(config.feeRecipient);
+                Execution[] memory feeExecution = new Execution[](1);
+                feeExecution[0] = Execution({
+                    target: assetToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.transfer, (config.feeRecipient, feeAmount))
+                });
+                _execute(account, feeExecution);
+                uint256 balanceAfter = IERC20(assetToken).balanceOf(config.feeRecipient);
+                if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+            }
         }
     }
 }

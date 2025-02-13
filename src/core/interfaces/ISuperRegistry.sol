@@ -27,4 +27,4 @@ interface ISuperRegistry {
     /// @param id_ The ID.
     /// @return The address.
     function getAddress(bytes32 id_) external view returns (address);
-   }
+}

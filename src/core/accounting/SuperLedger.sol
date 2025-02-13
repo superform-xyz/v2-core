@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+// external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+// Superform
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
@@ -37,51 +40,51 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         address yieldSource,
         bytes32 yieldSourceOracleId,
         bool isInflow,
-        uint256 amount
+        uint256 amountSharesOrAssets,
+        uint256 usedShares
     )
         external
         onlyExecutor
-        returns (uint256 pps)
+        returns (uint256 feeAmount)
     {
         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
-        // Get price from oracle
-        pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
-        if (pps == 0) revert INVALID_PRICE();
-
         if (isInflow) {
+            // Get price from oracle
+            uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+            if (pps == 0) revert INVALID_PRICE();
+
             // Always inscribe in the ledger, even if feePercent is set to 0
             userLedger[user][yieldSource].entries.push(
-                LedgerEntry({ amountSharesAvailableToConsume: amount, price: pps })
+                LedgerEntry({ amountSharesAvailableToConsume: amountSharesOrAssets, price: pps })
             );
+            emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
+            return 0;
         } else {
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
-                _processOutflow(user, yieldSource, yieldSourceOracleId, amount, pps);
+                feeAmount = _processOutflow(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets, usedShares);
+
+                emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
+                return feeAmount;
             } else {
-                emit AccountingOutflowSkipped(user, yieldSource, yieldSourceOracleId, amount, pps);
-                return pps;
+                emit AccountingOutflowSkipped(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets);
+                return 0;
             }
         }
-
-        emit AccountingUpdated(user, config.yieldSourceOracle, yieldSource, isInflow, amount, pps);
     }
 
     /// @inheritdoc ISuperLedger
-    function setYieldSourceOracles(HookRegistrationConfig[] calldata configs) external {
+    function setYieldSourceOracles(YieldSourceOracleConfigArgs[] calldata configs) external {
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
 
         for (uint256 i; i < length;) {
-            HookRegistrationConfig calldata config = configs[i];
+            YieldSourceOracleConfigArgs calldata config = configs[i];
             _setYieldSourceOracleConfig(
-                config.yieldSourceOracleId,
-                config.yieldSourceOracle,
-                config.feePercent,
-                config.vaultShareToken,
-                config.feeRecipient
+                config.yieldSourceOracleId, config.yieldSourceOracle, config.feePercent, config.feeRecipient
             );
             unchecked {
                 ++i;
@@ -140,7 +143,6 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         bytes32 yieldSourceOracleId,
         address yieldSourceOracle,
         uint256 feePercent,
-        address vaultShareToken,
         address feeRecipient
     )
         internal
@@ -157,32 +159,29 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
         yieldSourceOracleConfig[yieldSourceOracleId] = YieldSourceOracleConfig({
             yieldSourceOracle: yieldSourceOracle,
             feePercent: feePercent,
-            vaultShareToken: vaultShareToken,
             feeRecipient: feeRecipient,
             manager: msg.sender
         });
 
-        emit YieldSourceOracleConfigSet(
-            yieldSourceOracleId, yieldSourceOracle, feePercent, vaultShareToken, msg.sender, feeRecipient
-        );
+        emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient);
     }
 
     function _processOutflow(
         address user,
         address yieldSource,
         bytes32 yieldSourceOracleId,
-        uint256 amountShares,
-        uint256 pps
+        uint256 amountAssets,
+        uint256 usedShares
     )
         internal
+        returns (uint256 feeAmount)
     {
-        uint256 remainingShares = amountShares;
-        uint256 totalValue = amountShares * pps;
+        uint256 remainingShares = usedShares;
         uint256 costBasis;
 
         LedgerEntry[] storage entries = userLedger[user][yieldSource].entries;
         uint256 len = entries.length;
-        if (len == 0) return;
+        if (len == 0) return 0;
 
         uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
 
@@ -190,21 +189,27 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
             if (currentIndex >= len) revert INSUFFICIENT_SHARES();
 
             LedgerEntry storage entry = entries[currentIndex];
-            uint256 available = entry.amountSharesAvailableToConsume;
+            uint256 availableShares = entry.amountSharesAvailableToConsume;
 
-            if (available == 0) {
+            // if no shares available on current entry, move to the next
+            if (availableShares == 0) {
                 unchecked {
                     ++currentIndex;
                 }
                 continue;
             }
 
-            uint256 sharesConsumed = remainingShares > available ? available : remainingShares;
-            costBasis += sharesConsumed * entry.price;
-            remainingShares -= sharesConsumed;
-            entry.amountSharesAvailableToConsume -= sharesConsumed;
+            address yieldSourceOracle = yieldSourceOracleConfig[yieldSourceOracleId].yieldSourceOracle;
+            uint256 decimals = IYieldSourceOracle(yieldSourceOracle).decimals(yieldSource);
 
-            if (sharesConsumed == available) {
+            // remove from current entry
+            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+            entry.amountSharesAvailableToConsume -= sharesConsumed;
+            remainingShares -= sharesConsumed;
+
+            costBasis += sharesConsumed * entry.price / (10 ** decimals);
+
+            if (sharesConsumed == availableShares) {
                 unchecked {
                     ++currentIndex;
                 }
@@ -213,19 +218,15 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
         userLedger[user][yieldSource].unconsumedEntries = currentIndex;
 
-        uint256 profit = totalValue > costBasis ? totalValue - costBasis : 0;
+        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+
         if (profit > 0) {
             YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
             if (config.feePercent == 0) revert FEE_NOT_SET();
 
-            uint256 feeAmount = (profit * config.feePercent) / 10_000;
-            address vaultShareToken = config.vaultShareToken != address(0) ? config.vaultShareToken : yieldSource;
-            _transferToFeeRecipient(config.feeRecipient, feeAmount, vaultShareToken);
+            // Calculate fee in assets but don't transfer - let the executor handle it
+            feeAmount = (profit * config.feePercent) / 10_000;
         }
-    }
-
-    function _transferToFeeRecipient(address feeRecipient, uint256 feeAmount, address vaultShareToken) internal {
-        IERC20(vaultShareToken).safeTransfer(feeRecipient, feeAmount);
     }
 
     function _getAddress(bytes32 id_) internal view returns (address) {

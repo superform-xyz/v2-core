@@ -1,67 +1,51 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { ERC5115YieldSourceOracleLibrary } from "../../libraries/accounting/ERC5115YieldSourceOracleLibrary.sol";
+// external
+import { IStandardizedYield } from "../../interfaces/vendors/pendle/IStandardizedYield.sol";
+
+// Superform
+import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 
 /// @title ERC5115YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for 5115 Vaults
-contract ERC5115YieldSourceOracle {
-    /*//////////////////////////////////////////////////////////////
-                            CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
+contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
+    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
 
-    constructor() { }
-
-    /*//////////////////////////////////////////////////////////////
-                           VIEW METHODS
-    //////////////////////////////////////////////////////////////*/
-    /*
-    /// @param asset The address of the asset
-    /// @param yieldSourceAddress The address of the yield source
-    function getTVL(address asset, address yieldSourceAddress) public view returns (uint256 tvl) {
-        tvl = ERC5115YieldSourceOracleLibrary.getTVL(asset, yieldSourceAddress);
-    }
-    */
-
-    /// @notice Get the price per share for a deposit into a yield source
-    /// @param asset The address of the asset
-    /// @param yieldSourceAddress The address of the yield source
-    /// @return price The price per share
-    function getPricePerShare(address asset, address yieldSourceAddress) external view returns (uint256 price) {
-        price = ERC5115YieldSourceOracleLibrary.getPricePerShare(asset, yieldSourceAddress);
+    /// @inheritdoc AbstractYieldSourceOracle
+    function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
+        return 18;
     }
 
-    /// @notice Get the price per share for a deposit into multiple yield sources
-    /// @param assets The addresses of the assets
-    /// @param yieldSourceAddresses The addresses of the yield sources
-    /// @return prices The price per share per yield source
-    function getPricePerShareMultiple(
-        address[] memory assets,
-        address[] memory yieldSourceAddresses
-    )
-        external
-        view
-        returns (uint256[] memory prices)
-    {
-        prices = ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses, assets);
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256 pricePerShare) {
+        pricePerShare = IStandardizedYield(yieldSourceAddress).exchangeRate();
     }
 
-    // ToDo: Implement this with the metadata library
-    /// @notice Get the metadata for a yield source
-    /// @return metadata The metadata
-    function getYieldSourceMetadata(address) external pure returns (bytes memory metadata) {
-        return "0x0";
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVL(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256 tvl) {
+        IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
+        uint256 shares = yieldSource.balanceOf(ownerOfShares);
+        if (shares == 0) return 0;
+        return (shares * yieldSource.exchangeRate()) / 1e18;
     }
 
-    // ToDo: Implement this with the metadata library
-    /// @notice Get the metadata for multiple yield sources
-    /// @return metadata The metadata per yield source
-    function getYieldSourcesMetadata(address[] memory yieldSourceAddresses)
-        external
-        pure
-        returns (bytes[] memory metadata)
-    {
-        return new bytes[](yieldSourceAddresses.length);
+    /// @inheritdoc AbstractYieldSourceOracle
+    function _validateBaseAsset(address yieldSourceAddress, address base) internal view override {
+        address[] memory tokensIn = IStandardizedYield(yieldSourceAddress).getTokensOut();
+        bool isValid = false;
+
+        for (uint256 i = 0; i < tokensIn.length;) {
+            if (tokensIn[i] == base) {
+                isValid = true;
+                break;
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (!isValid) revert INVALID_BASE_ASSET();
     }
 }

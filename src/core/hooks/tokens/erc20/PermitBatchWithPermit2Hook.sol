@@ -15,7 +15,18 @@ import { IAllowanceTransfer } from "../../../interfaces/vendors/uniswap/permit2/
 
 /// @title PermitBatchWithPermit2Hook
 /// @dev data has the following structure
-/// TODO add structure
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
+/// @notice         uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
+/// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+/// @notice         uint256 sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
+/// @notice         uint256 detailsCount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
+/// @notice         uint256 offset = 117; // Start of PermitDetails array
+/// @notice         IAllowanceTransfer.PermitDetails[] details - Array of permit details, each containing:
+/// @notice             address token = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
+/// @notice             uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 20, 32), 0));
+/// @notice             uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 52, 32), 0));
+/// @notice             uint48 nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 84, 32), 0));
+/// @notice         uint256 offset increments by 116 bytes for each PermitDetails entry.
 contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     using SafeCast for uint256;
 
@@ -24,7 +35,13 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     address public permit2;
 
-    constructor(address registry_, address author_, address permit2_) BaseHook(registry_, author_, HookType.NONACCOUNTING) {
+    constructor(
+        address registry_,
+        address author_,
+        address permit2_
+    )
+        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+    {
         if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
         permit2 = permit2_;
     }
@@ -35,6 +52,7 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -42,26 +60,27 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        bool usePrevHookAmount = _decodeBool(data, 20);
-        uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 21, 32), 0);
+        bool usePrevHookAmount = _decodeBool(data, 0);
+        uint256 indexOfAmount = BytesLib.toUint256(BytesLib.slice(data, 1, 32), 0);
 
         IAllowanceTransfer.PermitBatch memory permitBatch;
-        permitBatch.spender = BytesLib.toAddress(BytesLib.slice(data, 53, 20), 0);
-        permitBatch.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 73, 32), 0);
+        permitBatch.spender = BytesLib.toAddress(BytesLib.slice(data, 33, 20), 0);
+        permitBatch.sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 53, 32), 0);
 
-        uint256 detailsCount = BytesLib.toUint256(BytesLib.slice(data, 105, 32), 0);
-        uint256 offset = 137; // Start of PermitDetails array
+        uint256 detailsCount = BytesLib.toUint256(BytesLib.slice(data, 85, 32), 0);
+        uint256 offset = 117; // Start of PermitDetails array
 
         permitBatch.details = new IAllowanceTransfer.PermitDetails[](detailsCount);
-        for (uint256 i = 0; i < detailsCount; ) {
+        for (uint256 i = 0; i < detailsCount;) {
             permitBatch.details[i].token = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
             permitBatch.details[i].amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 20, 32), 0));
             permitBatch.details[i].expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 52, 32), 0));
             permitBatch.details[i].nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 84, 32), 0));
             offset += 116; // Each PermitDetails struct takes 116 bytes
 
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         uint256 signatureOffset = offset;
@@ -85,7 +104,7 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, address, bytes memory data) external {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 
@@ -93,7 +112,7 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, address, bytes memory data) external {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 

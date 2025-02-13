@@ -10,7 +10,6 @@ import { BaseHook } from "../../BaseHook.sol";
 
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { IAcrossSpokePoolV3 } from "../../../interfaces/vendors/bridges/across/IAcrossSpokePoolV3.sol";
-import { IAcrossV3Interpreter } from "../../../interfaces/vendors/bridges/across/IAcrossV3Interpreter.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
@@ -66,6 +65,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -125,10 +125,10 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory) external view onlyExecutor { }
+    function preExecute(address, address, bytes memory) external view onlyExecutor { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory) external view onlyExecutor { }
+    function postExecute(address, address, bytes memory) external view onlyExecutor { }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

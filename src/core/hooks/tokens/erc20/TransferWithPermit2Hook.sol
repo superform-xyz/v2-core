@@ -29,7 +29,13 @@ contract TransferWithPermit2Hook is BaseHook, ISuperHook {
 
     address public permit2;
 
-    constructor(address registry_, address author_, address permit2_) BaseHook(registry_, author_, HookType.NONACCOUNTING) {
+    constructor(
+        address registry_,
+        address author_,
+        address permit2_
+    )
+        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+    {
         if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
         permit2 = permit2_;
     }
@@ -40,6 +46,7 @@ contract TransferWithPermit2Hook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address,
         bytes memory data
     )
         external
@@ -71,12 +78,12 @@ contract TransferWithPermit2Hook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external {
+    function preExecute(address, address, bytes memory data) external {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external {
+    function postExecute(address, address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
     }
 

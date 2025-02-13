@@ -12,7 +12,7 @@ import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPo
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
 /// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.sol
 contract SuperNativePaymaster is BasePaymaster {
-    using UserOperationLib for PackedUserOperation; 
+    using UserOperationLib for PackedUserOperation;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -24,17 +24,23 @@ contract SuperNativePaymaster is BasePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Calculate the refund amount based on the max gas limit, max fee per gas, actual gas cost, and node operator premium.
+    /// @notice Calculate the refund amount based on the max gas limit, max fee per gas, actual gas cost, and node
+    /// operator premium.
     /// @param maxGasLimit The maximum gas limit for the operation.
     /// @param maxFeePerGas The maximum fee per gas for the operation.
     /// @param actualGasCost The actual gas cost for the operation.
     /// @param nodeOperatorPremium The node operator premium for the operation.
+
     function calculateRefund(
         uint256 maxGasLimit,
         uint256 maxFeePerGas,
         uint256 actualGasCost,
         uint256 nodeOperatorPremium
-    ) public pure returns (uint256 refund) {
+    )
+        public
+        pure
+        returns (uint256 refund)
+    {
         uint256 costWithPremium = (actualGasCost * (100 + nodeOperatorPremium)) / 100;
 
         uint256 maxCost = maxGasLimit * maxFeePerGas;
@@ -52,16 +58,20 @@ contract SuperNativePaymaster is BasePaymaster {
         if (msg.value == 0) {
             revert EMPTY_MESSAGE_VALUE();
         }
-        entryPoint.depositTo{value: msg.value}(address(this));
+        entryPoint.depositTo{ value: msg.value }(address(this));
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
-    
+
     /// @notice Simulate the handling of a user operation.
     /// @param op The user operation to simulate.
     /// @param target The target address of the user operation.
     /// @param callData The call data for the user operation.
-    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes calldata callData)
+    function simulateHandleOp(
+        PackedUserOperation calldata op,
+        address target,
+        bytes calldata callData
+    )
         external
         payable
         returns (IEntryPointSimulations.ExecutionResult memory)
@@ -70,12 +80,12 @@ contract SuperNativePaymaster is BasePaymaster {
             revert EMPTY_MESSAGE_VALUE();
         }
         IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{value: msg.value}(address(this));
+        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
         return entryPointWithSimulations.simulateHandleOp(op, target, callData);
     }
 
     /// @notice Simulate the validation of a user operation.
-    /// @param op The user operation to simulate.   
+    /// @param op The user operation to simulate.
     function simulateValidation(PackedUserOperation calldata op)
         external
         payable
@@ -85,14 +95,21 @@ contract SuperNativePaymaster is BasePaymaster {
             revert EMPTY_MESSAGE_VALUE();
         }
         IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{value: msg.value}(address(this));
+        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
         return entryPointWithSimulations.simulateValidation(op);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 /** userOpHash */, uint256 maxCost)
+    function _validatePaymasterUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32,
+        /**
+         * userOpHash
+         */
+        uint256 maxCost
+    )
         internal
         virtual
         override
@@ -118,7 +135,15 @@ contract SuperNativePaymaster is BasePaymaster {
     ///                                    Now this is the 2nd call, after user's op was deliberately reverted.
     /// @param context The context value returned by validatePaymasterUserOp.
     /// @param actualGasCost The actual gas used so far (without this postOp call).
-    function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 /**actualUserOpFeePerGas */) 
+    function _postOp(
+        PostOpMode mode,
+        bytes calldata context,
+        uint256 actualGasCost,
+        uint256
+    )
+        /**
+         * actualUserOpFeePerGas
+         */
         internal
         virtual
         override

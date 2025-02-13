@@ -2,6 +2,16 @@
 pragma solidity >=0.8.28;
 
 contract MockStakingProtocol {
+    address public stakingToken;
+    address public asset;
+    address public TOKEN;
+
+    constructor(address _stakingToken) {
+        stakingToken = _stakingToken; //for Fluid
+        asset = _stakingToken; //for Yearn
+        TOKEN = _stakingToken;
+    }
+
     /// @notice Mock the rewardPerToken function
     /// @return rewardPerToken The reward per token
     /// @return latestTimestamp The latest timestamp

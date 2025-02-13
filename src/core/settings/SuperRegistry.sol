@@ -12,7 +12,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
-    
+
     constructor(address owner) Ownable(owner) { }
 
     /*//////////////////////////////////////////////////////////////

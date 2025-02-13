@@ -8,21 +8,23 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../interfaces/vendors/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Deposit7540VaultHook
 /// @dev data has the following structure
-/// @notice         address account = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
-contract Deposit7540VaultHook is BaseHook, ISuperHook {
+/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bool lockForSP = _decodeBool(data, 105);
+contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
+
+    uint256 private constant AMOUNT_POSITION = 72;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -32,6 +34,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
+        address account,
         bytes memory data
     )
         external
@@ -39,11 +42,10 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address account = data.extractAccount();
         address yieldSource = data.extractYieldSource();
-        address controller = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 124);
+        address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        uint256 amount = _decodeAmount(data);
+        bool usePrevHookAmount = _decodeBool(data, 104);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -64,22 +66,31 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external onlyExecutor {
         // store current balance
-        outAmount = _getBalance(data);
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 105);
+        spToken = data.extractYieldSource();
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external onlyExecutor {
-        outAmount = _getBalance(data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+        outAmount = _getBalance(account, data) - outAmount;
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return _decodeAmount(data);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        address account = data.extractAccount();
-        address yieldSource = data.extractYieldSource();
-        return IERC7540(yieldSource).balanceOf(account);
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+        return IERC7540(data.extractYieldSource()).balanceOf(account);
     }
 }

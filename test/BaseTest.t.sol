@@ -45,6 +45,9 @@ import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540V
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
+// -- erc7575_7540
+import { Deposit7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/Deposit7575_7540VaultHook.sol";
+import { Withdraw7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/Withdraw7575_7540VaultHook.sol";
 
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
@@ -54,35 +57,22 @@ import { DeBridgeSendFundsAndExecuteOnDstHook } from
 
 // Swap hooks
 // --- 1inch
-import { Base1InchHook } from "../src/core/hooks/swapers/1inch/Base1InchHook.sol";
-import { Swap1InchClipperRouterHook } from "../src/core/hooks/swapers/1inch/Swap1InchClipperRouterHook.sol";
-import { Swap1InchGenericRouterHook } from "../src/core/hooks/swapers/1inch/Swap1InchGenericRouterHook.sol";
-import { Swap1InchUnoswapHook } from "../src/core/hooks/swapers/1inch/Swap1InchUnoswapHook.sol";
+import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
+
+// --- Odos
+import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 
 // Stake hooks
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxWithdrawHook } from "../src/core/hooks/stake/gearbox/GearboxWithdrawHook.sol";
-// --- Somelier
-import { SomelierStakeHook } from "../src/core/hooks/stake/somelier/SomelierStakeHook.sol";
-import { SomelierUnbondAllHook } from "../src/core/hooks/stake/somelier/SomelierUnbondAllHook.sol";
-import { SomelierUnbondHook } from "../src/core/hooks/stake/somelier/SomelierUnbondHook.sol";
-import { SomelierUnstakeAllHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeAllHook.sol";
-import { SomelierUnstakeHook } from "../src/core/hooks/stake/somelier/SomelierUnstakeHook.sol";
-// --- Yearn
-// import { YearnStakeHook } from "../src/hooks/stake/yearn/YearnStakeHook.sol";
-import { YearnWithdrawHook } from "../src/core/hooks/stake/yearn/YearnWithdrawHook.sol";
-// --- Generic
-import { YieldExitHook } from "../src/core/hooks/stake/YieldExitHook.sol";
+import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
 
 // Claim Hooks
 // --- Fluid
 import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
 // --- Gearbox
 import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
-// --- Somelier
-import { SomelierClaimAllRewardsHook } from "../src/core/hooks/claim/somelier/SomelierClaimAllRewardsHook.sol";
-import { SomelierClaimOneRewardHook } from "../src/core/hooks/claim/somelier/SomelierClaimOneRewardHook.sol";
+
 // --- Yearn
 import { YearnClaimAllRewardsHook } from "../src/core/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
@@ -90,6 +80,9 @@ import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClai
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
+import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
 
 // external
 import {
@@ -102,6 +95,50 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
+import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
+import "../src/core/interfaces/vendors/1inch/I1InchAggregationRouterV6.sol";
+
+import "forge-std/console.sol";
+
+struct Addresses {
+    ISuperRbac superRbac;
+    ISuperLedger superLedger;
+    ISuperRegistry superRegistry;
+    ISuperExecutor superExecutor;
+    ISentinel superPositionSentinel;
+    AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
+    DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
+    ApproveERC20Hook approveErc20Hook;
+    ApproveWithPermit2Hook approveWithPermit2Hook;
+    PermitWithPermit2Hook permitWithPermit2Hook;
+    TransferBatchWithPermit2Hook transferBatchWithPermit2Hook;
+    TransferERC20Hook transferErc20Hook;
+    TransferWithPermit2Hook transferWithPermit2Hook;
+    Deposit4626VaultHook deposit4626VaultHook;
+    Withdraw4626VaultHook withdraw4626VaultHook;
+    Deposit5115VaultHook deposit5115VaultHook;
+    Withdraw5115VaultHook withdraw5115VaultHook;
+    Deposit7540VaultHook deposit7540VaultHook;
+    RequestDeposit7540VaultHook requestDeposit7540VaultHook;
+    RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
+    Withdraw7540VaultHook withdraw7540VaultHook;
+    Deposit7575_7540VaultHook deposit7575_7540VaultHook;
+    Withdraw7575_7540VaultHook withdraw7575_7540VaultHook;
+    AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
+    DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
+    Swap1InchHook swap1InchHook;
+    SwapOdosHook swapOdosHook;
+    GearboxStakeHook gearboxStakeHook;
+    GearboxUnstakeHook gearboxUnstakeHook;
+    YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
+    YearnClaimOneRewardHook yearnClaimOneRewardHook;
+    ERC4626YieldSourceOracle erc4626YieldSourceOracle;
+    ERC5115YieldSourceOracle erc5115YieldSourceOracle;
+    ERC7540YieldSourceOracle erc7540YieldSourceOracle;
+    FluidYieldSourceOracle fluidYieldSourceOracle;
+    SuperOracle oracleRegistry;
+    SuperMerkleValidator superMerkleValidator;
+}
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
@@ -111,52 +148,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                            STATE VARIABLES
     //////////////////////////////////////////////////////////////*/
     /// @dev arrays
-    uint64 public constant ETH = 1;
-    uint64 public constant OP = 10;
-    uint64 public constant BASE = 8453;
-
-    struct Addresses {
-        ISuperRbac superRbac;
-        ISuperLedger superLedger;
-        ISuperRegistry superRegistry;
-        ISuperExecutor superExecutor;
-        ISentinel superPositionSentinel;
-        AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
-        DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
-        ApproveERC20Hook approveErc20Hook;
-        ApproveWithPermit2Hook approveWithPermit2Hook;
-        PermitWithPermit2Hook permitWithPermit2Hook;
-        TransferBatchWithPermit2Hook transferBatchWithPermit2Hook;
-        TransferERC20Hook transferErc20Hook;
-        TransferWithPermit2Hook transferWithPermit2Hook;
-        Deposit4626VaultHook deposit4626VaultHook;
-        Withdraw4626VaultHook withdraw4626VaultHook;
-        Deposit5115VaultHook deposit5115VaultHook;
-        Withdraw5115VaultHook withdraw5115VaultHook;
-        Deposit7540VaultHook deposit7540VaultHook;
-        RequestDeposit7540VaultHook requestDeposit7540VaultHook;
-        RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
-        Withdraw7540VaultHook withdraw7540VaultHook;
-        AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
-        DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
-        Swap1InchClipperRouterHook swap1InchClipperRouterHook;
-        Swap1InchGenericRouterHook swap1InchGenericRouterHook;
-        Swap1InchUnoswapHook swap1InchUnoswapHook;
-        GearboxStakeHook gearboxStakeHook;
-        GearboxWithdrawHook gearboxWithdrawHook;
-        SomelierStakeHook somelierStakeHook;
-        SomelierUnbondAllHook somelierUnbondAllHook;
-        SomelierUnbondHook somelierUnbondHook;
-        SomelierUnstakeAllHook somelierUnstakeAllHook;
-        SomelierUnstakeHook somelierUnstakeHook;
-        // YearnStakeHook yearnStakeHook;
-        YearnWithdrawHook yearnWithdrawHook;
-        YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
-        YearnClaimOneRewardHook yearnClaimOneRewardHook;
-        ERC4626YieldSourceOracle erc4626YieldSourceOracle;
-        ERC5115YieldSourceOracle erc5115YieldSourceOracle;
-        SuperMerkleValidator superMerkleValidator;
-    }
 
     enum HookCategory {
         TokenApprovals,
@@ -177,28 +168,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bytes description;
     }
 
-    address public constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
-
     uint64[] public chainIds = [ETH, OP, BASE];
 
-    string[] public chainsNames = ["Ethereum", "Optimism", "Base"];
+    string[] public chainsNames = [ETHEREUM_KEY, OPTIMISM_KEY, BASE_KEY];
 
-    string[] public underlyingTokens = ["DAI", "USDC", "WETH"];
+    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY, SUSDE_KEY];
 
-    address[] public spokePoolV3Addresses = [
-        0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
-        0x6f26Bf09B1C792e3228e5467807a900A503c0281,
-        0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64
-    ];
-    address[] public deBridgeGateAddresses = [
-        0x43dE2d77BF8027e25dBD179B491e8d64f38398aA,
-        0x43dE2d77BF8027e25dBD179B491e8d64f38398aA,
-        0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF
-    ];
+    address[] public spokePoolV3Addresses =
+        [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
+    address[] public deBridgeGateAddresses =
+        [CHAIN_1_DEBRIDGE_GATE_ADDRESS, CHAIN_10_DEBRIDGE_GATE_ADDRESS, CHAIN_8453_DEBRIDGE_GATE_ADDRESS];
     address[] public deBridgeGateAdminAddresses = [
-        0x6bec1faF33183e1Bc316984202eCc09d46AC92D5,
-        0xA52842cD43fA8c4B6660E443194769531d45b265,
-        0xF0A9d50F912D64D1105b276526e21881bF48A29e
+        CHAIN_1_DEBRIDGE_GATE_ADMIN_ADDRESS,
+        CHAIN_10_DEBRIDGE_GATE_ADMIN_ADDRESS,
+        CHAIN_8453_DEBRIDGE_GATE_ADMIN_ADDRESS
     ];
     mapping(uint64 chainId => address) public SPOKE_POOL_V3_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_GATE_ADDRESSES;
@@ -223,14 +206,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     mapping(uint64 chainId => AccountInstance accountInstance) public accountInstances;
 
+    mapping(uint64 chainId => address odosRouter) public odosRouters;
+
     // chainID => FORK
     mapping(uint64 chainId => uint256 fork) public FORKS;
 
     mapping(uint64 chainId => string forkUrl) public RPC_URLS;
 
-    string public ETHEREUM_RPC_URL = vm.envString("ETHEREUM_RPC_URL"); // Native token: ETH
-    string public OPTIMISM_RPC_URL = vm.envString("OPTIMISM_RPC_URL"); // Native token: ETH
-    string public BASE_RPC_URL = vm.envString("BASE_RPC_URL"); // Native token: ETH
+    string public ETHEREUM_RPC_URL = vm.envString(ETHEREUM_RPC_URL_KEY); // Native token: ETH
+    string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
+    string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -240,11 +225,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
         ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
+
         // Setup forks
         _preDeploymentSetup();
 
         // Deploy contracts
         _deployContracts();
+
+        // Deploy hooks
+        _deployHooks();
 
         // Initialize accounts
         _initializeAccounts();
@@ -260,6 +249,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Fund underlying tokens
         _fundUSDCTokens(10_000);
+
+        _fundSUSDETokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -274,6 +265,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return hookAddresses[chainId][hookName];
     }
 
+    function _getHook(uint64 chainId, string memory hookName) internal view returns (Hook memory) {
+        return hooks[chainId][hookName];
+    }
+
+    function _getHookDependency(uint64 chainId, string memory hookName) internal view returns (HookCategory) {
+        return hooks[chainId][hookName].dependency;
+    }
+
+    function _getHooksByCategory(uint64 chainId, HookCategory category) internal view returns (Hook[] memory) {
+        return hooksByCategory[chainId][category];
+    }
+
     function _deployContracts() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
@@ -281,197 +284,372 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
-            contractAddresses[chainIds[i]]["AcrossV3Helper"] = acrossV3Helper;
+            contractAddresses[chainIds[i]][ACROSS_V3_HELPER_KEY] = acrossV3Helper;
 
             address debridgeHelper = address(new DebridgeHelper());
             vm.allowCheatcodes(debridgeHelper);
             vm.makePersistent(debridgeHelper);
-            contractAddresses[chainIds[i]]["DebridgeHelper"] = debridgeHelper;
+            contractAddresses[chainIds[i]][DEBRIDGE_HELPER_KEY] = debridgeHelper;
 
             Addresses memory A;
+
             /// @dev main contracts
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
-            vm.label(address(A.superRegistry), "superRegistry");
-            contractAddresses[chainIds[i]]["SuperRegistry"] = address(A.superRegistry);
+            vm.label(address(A.superRegistry), SUPER_REGISTRY_KEY);
+            contractAddresses[chainIds[i]][SUPER_REGISTRY_KEY] = address(A.superRegistry);
+
+            // Deploy SuperOracle
+            A.oracleRegistry = new SuperOracle(address(this), new address[](0), new uint256[](0), new address[](0));
+            vm.label(address(A.oracleRegistry), SUPER_ORACLE_KEY);
+            contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A.oracleRegistry);
 
             A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
-            vm.label(address(A.superRbac), "superRbac");
-            contractAddresses[chainIds[i]]["SuperRbac"] = address(A.superRbac);
+            vm.label(address(A.superRbac), SUPER_RBAC_KEY);
+            contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
 
             A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superRegistry))));
-            vm.label(address(A.superLedger), "superLedger");
-            contractAddresses[chainIds[i]]["SuperLedger"] = address(A.superLedger);
+            vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
+            contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A.superLedger);
 
             A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
-            vm.label(address(A.superPositionSentinel), "superPositionSentinel");
-            contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
+            vm.label(address(A.superPositionSentinel), SUPER_POSITION_SENTINEL_KEY);
+            contractAddresses[chainIds[i]][SUPER_POSITION_SENTINEL_KEY] = address(A.superPositionSentinel);
 
             A.superExecutor = ISuperExecutor(address(new SuperExecutor(address(A.superRegistry))));
-            vm.label(address(A.superExecutor), "superExecutor");
-            contractAddresses[chainIds[i]]["SuperExecutor"] = address(A.superExecutor);
-
-            A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
-            vm.label(address(A.superPositionSentinel), "superPositionSentinel");
-            contractAddresses[chainIds[i]]["SuperPositionSentinel"] = address(A.superPositionSentinel);
+            vm.label(address(A.superExecutor), SUPER_EXECUTOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A.superExecutor);
 
             A.acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
                 address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
             );
-            vm.label(address(A.acrossReceiveFundsAndExecuteGateway), "acrossReceiveFundsAndExecuteGateway");
-            contractAddresses[chainIds[i]]["AcrossReceiveFundsAndExecuteGateway"] =
+            vm.label(address(A.acrossReceiveFundsAndExecuteGateway), ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
+            contractAddresses[chainIds[i]][ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
                 address(A.acrossReceiveFundsAndExecuteGateway);
 
             A.deBridgeReceiveFundsAndExecuteGateway = new DeBridgeReceiveFundsAndExecuteGateway(
                 address(A.superRegistry), DEBRIDGE_GATE_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
             );
-            vm.label(address(A.deBridgeReceiveFundsAndExecuteGateway), "deBridgeReceiveFundsAndExecuteGateway");
-            contractAddresses[chainIds[i]]["DeBridgeReceiveFundsAndExecuteGateway"] =
+            vm.label(address(A.deBridgeReceiveFundsAndExecuteGateway), DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
+            contractAddresses[chainIds[i]][DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
                 address(A.deBridgeReceiveFundsAndExecuteGateway);
 
             A.superMerkleValidator = new SuperMerkleValidator(address(A.superRegistry));
-            vm.label(address(A.superMerkleValidator), "superMerkleValidator");
-            contractAddresses[chainIds[i]]["SuperMerkleValidator"] = address(A.superMerkleValidator);
+            vm.label(address(A.superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A.superMerkleValidator);
 
             /// @dev action oracles
-            A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
-            vm.label(address(A.erc4626YieldSourceOracle), "ERC4626YieldSourceOracle");
-            contractAddresses[chainIds[i]]["ERC4626YieldSourceOracle"] = address(A.erc4626YieldSourceOracle);
+            A.erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.erc4626YieldSourceOracle), ERC4626_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ERC4626_YIELD_SOURCE_ORACLE_KEY] = address(A.erc4626YieldSourceOracle);
 
-            A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
-            vm.label(address(A.erc5115YieldSourceOracle), "ERC5115YieldSourceOracle");
-            contractAddresses[chainIds[i]]["ERC5115YieldSourceOracle"] = address(A.erc5115YieldSourceOracle);
+            A.erc5115YieldSourceOracle = new ERC5115YieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A.erc5115YieldSourceOracle);
 
-            /// @dev hooks
-            A.approveErc20Hook = new ApproveERC20Hook(address(A.superRegistry), address(this));
-            vm.label(address(A.approveErc20Hook), "ApproveERC20Hook");
-            hookAddresses[chainIds[i]]["ApproveERC20Hook"] = address(A.approveErc20Hook);
-            hooks[chainIds[i]]["ApproveERC20Hook"] = Hook(
-                "ApproveERC20Hook", HookCategory.TokenApprovals, HookCategory.None, address(A.approveErc20Hook), ""
+            A.erc7540YieldSourceOracle = new ERC7540YieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.erc7540YieldSourceOracle), ERC7540_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ERC7540_YIELD_SOURCE_ORACLE_KEY] = address(A.erc7540YieldSourceOracle);
+
+            A.fluidYieldSourceOracle = new FluidYieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
+        }
+    }
+
+    function _deployHooks() internal {
+        for (uint256 i = 0; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+
+            Addresses memory Addr;
+
+            MockOdosRouterV2 odosRouter = new MockOdosRouterV2();
+            odosRouters[chainIds[i]] = address(odosRouter);
+            vm.label(address(odosRouter), "MockOdosRouterV2");
+            Addr.swapOdosHook =
+                new SwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter));
+            vm.label(address(Addr.swapOdosHook), SWAP_ODOS_HOOK_KEY);
+            hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(Addr.swapOdosHook);
+            hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
+                SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(Addr.swapOdosHook), ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["ApproveERC20Hook"]);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
 
-            A.transferErc20Hook = new TransferERC20Hook(address(A.superRegistry), address(this));
-            vm.label(address(A.transferErc20Hook), "TransferERC20Hook");
-            hookAddresses[chainIds[i]]["TransferERC20Hook"] = address(A.transferErc20Hook);
-            hooks[chainIds[i]]["TransferERC20Hook"] = Hook(
-                "TransferERC20Hook",
+            Addr.approveErc20Hook = new ApproveERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = address(Addr.approveErc20Hook);
+            hooks[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = Hook(
+                APPROVE_ERC20_HOOK_KEY,
                 HookCategory.TokenApprovals,
-                HookCategory.TokenApprovals,
-                address(A.transferErc20Hook),
+                HookCategory.None,
+                address(Addr.approveErc20Hook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]]["TransferERC20Hook"]);
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][APPROVE_ERC20_HOOK_KEY]);
 
-            A.deposit4626VaultHook = new Deposit4626VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.deposit4626VaultHook), "Deposit4626VaultHook");
-            hookAddresses[chainIds[i]]["Deposit4626VaultHook"] = address(A.deposit4626VaultHook);
-            hooks[chainIds[i]]["Deposit4626VaultHook"] = Hook(
-                "Deposit4626VaultHook",
+            Addr.transferErc20Hook = new TransferERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.transferErc20Hook), TRANSFER_ERC20_HOOK_KEY);
+            hookAddresses[chainIds[i]][TRANSFER_ERC20_HOOK_KEY] = address(Addr.transferErc20Hook);
+            hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY] = Hook(
+                TRANSFER_ERC20_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.TokenApprovals,
+                address(Addr.transferErc20Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY]);
+
+            Addr.deposit4626VaultHook =
+                new Deposit4626VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+            vm.label(address(Addr.deposit4626VaultHook), DEPOSIT_4626_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = address(Addr.deposit4626VaultHook);
+            hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = Hook(
+                DEPOSIT_4626_VAULT_HOOK_KEY,
                 HookCategory.VaultDeposits,
                 HookCategory.TokenApprovals,
-                address(A.deposit4626VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit4626VaultHook"]);
-            A.withdraw4626VaultHook = new Withdraw4626VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.withdraw4626VaultHook), "Withdraw4626VaultHook");
-            hookAddresses[chainIds[i]]["Withdraw4626VaultHook"] = address(A.withdraw4626VaultHook);
-            hooks[chainIds[i]]["Withdraw4626VaultHook"] = Hook(
-                "Withdraw4626VaultHook",
-                HookCategory.VaultWithdrawals,
-                HookCategory.VaultDeposits,
-                address(A.withdraw4626VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]]["Withdraw4626VaultHook"]
-            );
-
-            A.deposit5115VaultHook = new Deposit5115VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.deposit5115VaultHook), "Deposit5115VaultHook");
-            hookAddresses[chainIds[i]]["Deposit5115VaultHook"] = address(A.deposit5115VaultHook);
-            hooks[chainIds[i]]["Deposit5115VaultHook"] = Hook(
-                "Deposit5115VaultHook",
-                HookCategory.VaultDeposits,
-                HookCategory.TokenApprovals,
-                address(A.deposit5115VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]]["Deposit5115VaultHook"]);
-            A.withdraw5115VaultHook = new Withdraw5115VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.withdraw5115VaultHook), "Withdraw5115VaultHook");
-            hookAddresses[chainIds[i]]["Withdraw5115VaultHook"] = address(A.withdraw5115VaultHook);
-            hooks[chainIds[i]]["Withdraw5115VaultHook"] = Hook(
-                "Withdraw5115VaultHook",
-                HookCategory.VaultWithdrawals,
-                HookCategory.VaultDeposits,
-                address(A.withdraw5115VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]]["Withdraw5115VaultHook"]
-            );
-
-            A.requestDeposit7540VaultHook = new RequestDeposit7540VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.requestDeposit7540VaultHook), "RequestDeposit7540VaultHook");
-            hookAddresses[chainIds[i]]["RequestDeposit7540VaultHook"] = address(A.requestDeposit7540VaultHook);
-            hooks[chainIds[i]]["RequestDeposit7540VaultHook"] = Hook(
-                "RequestDeposit7540VaultHook",
-                HookCategory.VaultDeposits,
-                HookCategory.TokenApprovals,
-                address(A.requestDeposit7540VaultHook),
+                address(Addr.deposit4626VaultHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
-                hooks[chainIds[i]]["RequestDeposit7540VaultHook"]
+                hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY]
             );
-            A.requestWithdraw7540VaultHook = new RequestWithdraw7540VaultHook(address(A.superRegistry), address(this));
-            vm.label(address(A.requestWithdraw7540VaultHook), "RequestWithdraw7540VaultHook");
-            hookAddresses[chainIds[i]]["RequestWithdraw7540VaultHook"] = address(A.requestWithdraw7540VaultHook);
-            hooks[chainIds[i]]["RequestWithdraw7540VaultHook"] = Hook(
-                "RequestWithdraw7540VaultHook",
+            Addr.withdraw4626VaultHook =
+                new Withdraw4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.withdraw4626VaultHook), WITHDRAW_4626_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY] = address(Addr.withdraw4626VaultHook);
+            hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY] = Hook(
+                WITHDRAW_4626_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
                 HookCategory.VaultDeposits,
-                address(A.requestWithdraw7540VaultHook),
+                address(Addr.withdraw4626VaultHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]]["RequestWithdraw7540VaultHook"]
+                hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY]
             );
 
-            A.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
-                address(A.superRegistry), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
+            Addr.deposit5115VaultHook =
+                new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.deposit5115VaultHook), DEPOSIT_5115_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = address(Addr.deposit5115VaultHook);
+            hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = Hook(
+                DEPOSIT_5115_VAULT_HOOK_KEY,
+                HookCategory.VaultDeposits,
+                HookCategory.TokenApprovals,
+                address(Addr.deposit5115VaultHook),
+                ""
             );
-            vm.label(address(A.acrossSendFundsAndExecuteOnDstHook), "AcrossSendFundsAndExecuteOnDstHook");
-            hookAddresses[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] =
-                address(A.acrossSendFundsAndExecuteOnDstHook);
-            hooks[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"] = Hook(
-                "AcrossSendFundsAndExecuteOnDstHook",
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
+            );
+
+            Addr.withdraw5115VaultHook =
+                new Withdraw5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.withdraw5115VaultHook), WITHDRAW_5115_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY] = address(Addr.withdraw5115VaultHook);
+            hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY] = Hook(
+                WITHDRAW_5115_VAULT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(Addr.withdraw5115VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY]
+            );
+
+            Addr.requestDeposit7540VaultHook =
+                new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = address(Addr.requestDeposit7540VaultHook);
+            hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
+                REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultDeposits,
+                HookCategory.TokenApprovals,
+                address(Addr.requestDeposit7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
+            );
+
+            Addr.requestWithdraw7540VaultHook =
+                new RequestWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.requestWithdraw7540VaultHook), REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY] =
+                address(Addr.requestWithdraw7540VaultHook);
+            hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
+                REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(Addr.requestWithdraw7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY]
+            );
+
+            Addr.deposit7575_7540VaultHook =
+                new Deposit7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.deposit7575_7540VaultHook), DEPOSIT_7575_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEPOSIT_7575_7540_VAULT_HOOK_KEY] = address(Addr.deposit7575_7540VaultHook);
+
+            Addr.withdraw7575_7540VaultHook =
+                new Withdraw7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.withdraw7575_7540VaultHook), WITHDRAW_7575_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
+
+            Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
+            );
+            vm.label(address(Addr.acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+            hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
+                address(Addr.acrossSendFundsAndExecuteOnDstHook);
+            hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] = Hook(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 HookCategory.Bridges,
                 HookCategory.TokenApprovals,
-                address(A.acrossSendFundsAndExecuteOnDstHook),
+                address(Addr.acrossSendFundsAndExecuteOnDstHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
-                hooks[chainIds[i]]["AcrossSendFundsAndExecuteOnDstHook"]
+                hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
-            A.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
-                address(A.superRegistry), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
+
+            Addr.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
             );
-            vm.label(address(A.deBridgeSendFundsAndExecuteOnDstHook), "DeBridgeSendFundsAndExecuteOnDstHook");
-            vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], "DEBRIDGE_GATE_ADDRESS");
-            hookAddresses[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] =
-                address(A.deBridgeSendFundsAndExecuteOnDstHook);
-            hooks[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"] = Hook(
-                "DeBridgeSendFundsAndExecuteOnDstHook",
+            vm.label(
+                address(Addr.deBridgeSendFundsAndExecuteOnDstHook), DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
+            );
+            vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], DEBRIDGE_GATE_ADDRESS_KEY);
+            hookAddresses[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
+                address(Addr.deBridgeSendFundsAndExecuteOnDstHook);
+            hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] = Hook(
+                DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 HookCategory.Bridges,
                 HookCategory.TokenApprovals,
-                address(A.deBridgeSendFundsAndExecuteOnDstHook),
+                address(Addr.deBridgeSendFundsAndExecuteOnDstHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
-                hooks[chainIds[i]]["DeBridgeSendFundsAndExecuteOnDstHook"]
+                hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
+
+            Addr.approveWithPermit2Hook =
+                new ApproveWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
+            vm.label(address(Addr.approveWithPermit2Hook), APPROVE_WITH_PERMIT2_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = address(Addr.approveWithPermit2Hook);
+            hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = Hook(
+                APPROVE_WITH_PERMIT2_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(Addr.approveWithPermit2Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
+                hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY]
+            );
+
+            Addr.permitWithPermit2Hook =
+                new PermitWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
+            vm.label(address(Addr.permitWithPermit2Hook), PERMIT_WITH_PERMIT2_HOOK_KEY);
+            hookAddresses[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = address(Addr.permitWithPermit2Hook);
+            hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = Hook(
+                PERMIT_WITH_PERMIT2_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(Addr.permitWithPermit2Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
+                hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY]
+            );
+
+            Addr.deposit7540VaultHook =
+                new Deposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.deposit7540VaultHook), DEPOSIT_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY] = address(Addr.deposit7540VaultHook);
+            hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
+                DEPOSIT_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultDeposits,
+                HookCategory.TokenApprovals,
+                address(Addr.deposit7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY]
+            );
+
+            Addr.withdraw7540VaultHook =
+                new Withdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.withdraw7540VaultHook), WITHDRAW_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7540VaultHook);
+            hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
+                WITHDRAW_7540_VAULT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(Addr.withdraw7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
+            );
+
+            Addr.swap1InchHook =
+                new Swap1InchHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), ONE_INCH_ROUTER);
+            vm.label(address(Addr.swap1InchHook), SWAP_1INCH_HOOK_KEY);
+            hookAddresses[chainIds[i]][SWAP_1INCH_HOOK_KEY] = address(Addr.swap1InchHook);
+            hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY] = Hook(
+                SWAP_1INCH_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(Addr.swap1InchHook), ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY]);
+
+            Addr.gearboxStakeHook = new GearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.gearboxStakeHook), GEARBOX_STAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][GEARBOX_STAKE_HOOK_KEY] = address(Addr.gearboxStakeHook);
+            hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY] = Hook(
+                GEARBOX_STAKE_HOOK_KEY,
+                HookCategory.Stakes,
+                HookCategory.VaultDeposits,
+                address(Addr.gearboxStakeHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY]);
+
+            Addr.gearboxUnstakeHook =
+                new GearboxUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.gearboxUnstakeHook), GEARBOX_UNSTAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = address(Addr.gearboxUnstakeHook);
+            hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = Hook(
+                GEARBOX_UNSTAKE_HOOK_KEY, HookCategory.Claims, HookCategory.Stakes, address(Addr.gearboxUnstakeHook), ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY]);
+
+            Addr.yearnClaimOneRewardHook =
+                new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.yearnClaimOneRewardHook), YEARN_CLAIM_ONE_REWARD_HOOK_KEY);
+            hookAddresses[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = address(Addr.yearnClaimOneRewardHook);
+            hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = Hook(
+                YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
+                HookCategory.Claims,
+                HookCategory.Stakes,
+                address(Addr.yearnClaimOneRewardHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
+
+            Addr.yearnClaimAllRewardsHook =
+                new YearnClaimAllRewardsHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.yearnClaimAllRewardsHook), YEARN_CLAIM_ALL_REWARDS_HOOK_KEY);
+            hookAddresses[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY] = address(Addr.yearnClaimAllRewardsHook);
+            hooks[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY] = Hook(
+                YEARN_CLAIM_ALL_REWARDS_HOOK_KEY,
+                HookCategory.Claims,
+                HookCategory.Stakes,
+                address(Addr.yearnClaimAllRewardsHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY]);
         }
     }
 
@@ -528,19 +706,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
-        existingUnderlyingTokens[1]["DAI"] = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-        existingUnderlyingTokens[1]["USDC"] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-        existingUnderlyingTokens[1]["WETH"] = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        existingUnderlyingTokens[ETH][DAI_KEY] = CHAIN_1_DAI;
+        existingUnderlyingTokens[ETH][USDC_KEY] = CHAIN_1_USDC;
+        existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
+        existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Optimism tokens
-        existingUnderlyingTokens[10]["DAI"] = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
-        existingUnderlyingTokens[10]["USDC"] = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
-        existingUnderlyingTokens[10]["WETH"] = 0x4200000000000000000000000000000000000006;
+        existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
+        existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
+        existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
+        existingUnderlyingTokens[OP][USDCe_KEY] = CHAIN_10_USDCe;
+        vm.label(existingUnderlyingTokens[OP][USDCe_KEY], "USDCe");
 
         // Base tokens
-        existingUnderlyingTokens[8453]["DAI"] = 0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb;
-        existingUnderlyingTokens[8453]["USDC"] = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
-        existingUnderlyingTokens[8453]["WETH"] = 0x4200000000000000000000000000000000000006;
+        existingUnderlyingTokens[BASE][DAI_KEY] = CHAIN_8453_DAI;
+        existingUnderlyingTokens[BASE][USDC_KEY] = CHAIN_8453_USDC;
+        existingUnderlyingTokens[BASE][WETH_KEY] = CHAIN_8453_WETH;
 
         /// @dev Setup realVaultAddresses
         mapping(
@@ -551,65 +732,43 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         ) storage existingVaults = realVaultAddresses;
 
         /// @dev Ethereum 4626 vault addresses
-        existingVaults[1]["ERC4626"]["AaveVault"]["USDC"] = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
-        vm.label(existingVaults[1]["ERC4626"]["AaveVault"]["USDC"], "AaveVault");
-        existingVaults[1]["ERC4626"]["FluidVault"]["USDC"] = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
-        vm.label(existingVaults[1]["ERC4626"]["FluidVault"]["USDC"], "FluidVault");
-        existingVaults[1]["ERC4626"]["EulerVault"]["USDC"] = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
-        vm.label(existingVaults[1]["ERC4626"]["EulerVault"]["USDC"], "EulerVault");
-        existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"] = 0xdd0f28e19C1780eb6396170735D45153D261490d;
-        vm.label(existingVaults[1]["ERC4626"]["MorphoVault"]["USDC"], "MorphoVault");
+        existingVaults[1][ERC4626_VAULT_KEY][AAVE_VAULT_KEY][USDC_KEY] = CHAIN_1_AaveVault;
+        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][AAVE_VAULT_KEY][USDC_KEY], AAVE_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][FLUID_VAULT_KEY][USDC_KEY] = CHAIN_1_FluidVault;
+        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][FLUID_VAULT_KEY][USDC_KEY], FLUID_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY] = CHAIN_1_EulerVault;
+        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY], EULER_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY] = CHAIN_1_MorphoVault;
+        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
-        // existingVaults[10][1]["DAI"][0] = address(0);
-        existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"] = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
-        vm.label(existingVaults[10]["ERC4626"]["AloeUSDC"]["USDC"], "AloeUSDC");
+        existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY] = CHAIN_10_AloeUSDC;
+        vm.label(existingVaults[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY], ALOE_USDC_VAULT_KEY);
         // existingVaults[10][1]["WETH"][0] = address(0);
 
         /// @dev Base 4626 vault addresses
-        existingVaults[8453]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"] = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
-        vm.label(existingVaults[8453]["ERC4626"]["MorphoGauntletUSDCPrime"]["USDC"], "MorphoGauntletUSDCPrime");
-        existingVaults[8453]["ERC4626"]["MorphoGauntletWETHCore"]["WETH"] = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
-        vm.label(existingVaults[8453]["ERC4626"]["MorphoGauntletWETHCore"]["WETH"], "MorphoGauntletWETHCore");
+        existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
+            CHAIN_8453_MorphoGauntletUSDCPrime;
+        vm.label(
+            existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY],
+            MORPHO_GAUNTLET_USDC_PRIME_KEY
+        );
+        existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY] =
+            CHAIN_8453_MorphoGauntletWETHCore;
+        vm.label(
+            existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY],
+            MORPHO_GAUNTLET_WETH_CORE_KEY
+        );
 
         /// @dev 7540 real centrifuge vaults on mainnet
-        existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"] = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
-        vm.label(existingVaults[1]["ERC7540FullyAsync"]["CentrifugeUSDC"]["USDC"], "CentrifugeUSDC");
-        //mapping(uint64 chainId => mapping(uint256 market => address realVault)) storage erc5115Vaults =
-        // ERC5115_VAULTS;
-        //mapping(uint64 chainId => mapping(uint256 market => string name)) storage erc5115VaultsNames =
-        //    ERC5115_VAULTS_NAMES;
-        //mapping(uint64 chainId => uint256 nVaults) storage numberOf5115s = NUMBER_OF_5115S;
-        //mapping(uint64 chainId => mapping(address realVault => ChosenAssets chosenAssets)) storage erc5115ChosenAssets
-        // =
-        //    ERC5115S_CHOSEN_ASSETS;
+        existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
+        vm.label(
+            existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY], CENTRIFUGE_USDC_VAULT_KEY
+        );
 
-        /// @dev  pendle ethena - market: SUSDE-MAINNET-SEP2024
-        /// sUSDe sUSDe
-        // erc5115Vaults[1][0] = 0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65;
-        // erc5115VaultsNames[1][0] = "sUSDe";
-        // erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetIn =
-        //     0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
-        // erc5115ChosenAssets[1][0x4139cDC6345aFFbaC0692b43bed4D059Df3e6d65].assetOut =
-        //     0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
-
-        /// ezETH
-        /// @dev pendle renzo - market:  SY ezETH
-        // erc5115Vaults[1][1] = 0x22E12A50e3ca49FB183074235cB1db84Fe4C716D;
-        // erc5115VaultsNames[1][1] = "ezETH";
-        // erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetIn =
-        //     0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
-        // erc5115ChosenAssets[1][0x22E12A50e3ca49FB183074235cB1db84Fe4C716D].assetOut =
-        //     0xbf5495Efe5DB9ce00f80364C8B423567e58d2110;
-
-        /// ezETH
-        /// @dev pendle aave usdt - market:  SY aUSDT
-        // erc5115Vaults[1][2] = 0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74;
-        // erc5115VaultsNames[1][2] = "aUSDT";
-        // erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetIn =
-        //     0xdAC17F958D2ee523a2206206994597C13D831ec7;
-        // erc5115ChosenAssets[1][0x8c28D28bAd669afadC37b034A8070D6d7B9dFB74].assetOut =
-        //     0x23878914EFE38d27C4D67Ab83ed1b93A74D4086a;
+        /// @dev 5115 real pendle ethena vault on mainnet
+        existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY], "PendleEthena");
 
         /// wstETH
         /// @dev pendle wrapped st ETH from LDO - market:  SY wstETH
@@ -619,40 +778,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
         // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
-
-        /// ezETH
-        /// @dev pendle renzo - market: EZETH-BSC-SEP2024
-        // erc5115Vaults[56][0] = 0xe49269B5D31299BcE407c8CcCf241274e9A93C9A;
-        // erc5115VaultsNames[56][0] = "ezETH";
-        // erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetIn =
-        //     0x2416092f143378750bb29b79eD961ab195CcEea5;
-        // erc5115ChosenAssets[56][0xe49269B5D31299BcE407c8CcCf241274e9A93C9A].assetOut =
-        //     0x2416092f143378750bb29b79eD961ab195CcEea5;
-
-        /// USDC aARBUsdc
-        /// @dev pendle aave - market: SY aUSDC
-        // erc5115Vaults[42_161][0] = 0x50288c30c37FA1Ec6167a31E575EA8632645dE20;
-        // erc5115VaultsNames[42_161][0] = "USDC";
-        // erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetIn =
-        //     0xaf88d065e77c8cC2239327C5EDb3A432268e5831;
-        // erc5115ChosenAssets[42_161][0x50288c30c37FA1Ec6167a31E575EA8632645dE20].assetOut =
-        //     0x724dc807b04555b71ed48a6896b6F41593b8C637;
-
-        /// wstETH
-        /// @dev pendle wrapped st ETH from LDO - market: SY wstETH
-        // erc5115Vaults[42_161][1] = 0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df;
-        // erc5115VaultsNames[42_161][1] = "wstETH";
-        // erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetIn =
-        //     0x5979D7b546E38E414F7E9822514be443A4800529;
-        // erc5115ChosenAssets[42_161][0x80c12D5b6Cc494632Bf11b03F09436c8B61Cc5Df].assetOut =
-        //     0x5979D7b546E38E414F7E9822514be443A4800529;
     }
 
     function _fundUSDCTokens(uint256 amount) internal {
         for (uint256 j = 0; j < underlyingTokens.length - 1; ++j) {
             for (uint256 i = 0; i < chainIds.length; ++i) {
                 vm.selectFork(FORKS[chainIds[i]]);
-                if (keccak256(abi.encodePacked(underlyingTokens[j])) == keccak256(abi.encodePacked("USDC"))) {
+                if (keccak256(abi.encodePacked(underlyingTokens[j])) == keccak256(abi.encodePacked(USDC_KEY))) {
                     address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
                     deal(token, accountInstances[chainIds[i]].account, 1e18 * amount);
                 }
@@ -660,10 +792,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         }
     }
 
+    function _fundSUSDETokens(uint256 amount) internal {
+        vm.selectFork(FORKS[chainIds[0]]);
+        deal(existingUnderlyingTokens[chainIds[0]][SUSDE_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
+    }
+
+    function _fundUSDCeTokens(uint256 amount) internal {
+        vm.selectFork(FORKS[OP]);
+        deal(existingUnderlyingTokens[OP][USDCe_KEY], accountInstances[OP].account, 1e18 * amount);
+    }
+
     function _setSuperRegistryAddresses() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
+            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_LEDGER_ID"), _getContract(chainIds[i], "SuperLedger")
             );
@@ -682,6 +824,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             SuperRegistry(address(superRegistry)).setAddress(keccak256("PAYMASTER_ID"), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(
+                keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
+            );
+
         }
     }
 
@@ -698,16 +844,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             vm.startPrank(MANAGER);
 
-            SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], "SuperRegistry"));
-            ISuperLedger.HookRegistrationConfig[] memory configs = new ISuperLedger.HookRegistrationConfig[](1);
-            configs[0] = ISuperLedger.HookRegistrationConfig({
-                yieldSourceOracle: _getContract(chainIds[i], "ERC4626YieldSourceOracle"),
-                yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
+            SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedger.YieldSourceOracleConfigArgs[](3);
+            configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                vaultShareToken: address(0), // this is auto set because its standardized yield
                 feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
             });
-            ISuperLedger(_getContract(chainIds[i], "SuperLedger")).setYieldSourceOracles(configs);
+            configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+            });
+            configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+            });
+            ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
         }
     }
@@ -779,7 +937,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.expectEmit(true, true, true, true);
             emit IAcrossV3Receiver.AcrossFundsReceivedAndExecuted(account);
         }
-        AcrossV3Helper(_getContract(srcChainId, "AcrossV3Helper")).help(
+        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
             SPOKE_POOL_V3_ADDRESSES[dstChainId],
             ACROSS_RELAYER,
@@ -797,7 +955,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     )
         internal
     {
-        DebridgeHelper(_getContract(srcChainId, "DebridgeHelper")).help(
+        DebridgeHelper(_getContract(srcChainId, DEBRIDGE_HELPER_KEY)).help(
             DEBRIDGE_ADMIN_ADDRESSES[dstChainId],
             DEBRIDGE_GATE_ADDRESSES[srcChainId],
             DEBRIDGE_GATE_ADDRESSES[dstChainId],
@@ -824,33 +982,68 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
     }
 
-    function _createDepositHookData(
-        address receiver,
+    function _createDeposit4626HookData(
         bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool lockSP
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, amount, usePrevHookAmount);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
     }
 
-    function _createWithdrawHookData(
-        address receiver,
+    function _create5115DepositHookData(
+        bytes32 yieldSourceOracleId,
+        address vault,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool usePrevHookAmount,
+        bool lockSP
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData =
+            abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
+    }
+
+    function _createWithdraw4626HookData(
         bytes32 yieldSourceOracleId,
         address vault,
         address owner,
         uint256 shares,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool lockSP
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(receiver, yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
+    }
+
+    function _create5115WithdrawHookData(
+        bytes32 yieldSourceOracleId,
+        address vault,
+        address tokenOut,
+        uint256 shares,
+        uint256 minTokenOut,
+        bool usePrevHookAmount,
+        bool lockSP
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount, lockSP
+        );
     }
 
     function _createDebridgeSendFundsAndExecuteHookData(
@@ -892,7 +1085,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 outputAmount,
         uint64 destinationChainId,
         bool usePrevHookAmount,
-        address account,
         uint256 intentAmount,
         UserOpData memory userOpData
     )
@@ -900,24 +1092,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         view
         returns (bytes memory hookData)
     {
-        bytes memory dstUserOpData = abi.encodePacked(
-            account,
-            intentAmount,
-            userOpData.userOp.sender,
-            userOpData.userOp.nonce,
-            userOpData.userOp.initCode.length,
-            userOpData.userOp.initCode,
-            userOpData.userOp.accountGasLimits,
-            userOpData.userOp.preVerificationGas,
-            userOpData.userOp.gasFees,
-            userOpData.userOp.paymasterAndData.length,
-            userOpData.userOp.paymasterAndData,
-            userOpData.userOp.signature.length,
-            userOpData.userOp.signature
-        );
+        bytes memory dstUserOpData = _encodeUserOp(userOpData, intentAmount);
         hookData = abi.encodePacked(
             uint256(0),
-            _getContract(destinationChainId, "AcrossReceiveFundsAndExecuteGateway"),
+            _getContract(destinationChainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
             inputToken,
             outputToken,
             inputAmount,
@@ -928,6 +1106,213 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             uint32(0),
             usePrevHookAmount,
             dstUserOpData
+        );
+    }
+
+    function _encodeUserOp(UserOpData memory userOpData, uint256 intentAmount) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            userOpData.userOp.sender, // account
+            intentAmount,
+            userOpData.userOp.sender, // sender
+            userOpData.userOp.nonce,
+            userOpData.userOp.initCode.length,
+            userOpData.userOp.initCode,
+            userOpData.userOp.callData.length,
+            userOpData.userOp.callData,
+            userOpData.userOp.accountGasLimits,
+            userOpData.userOp.preVerificationGas,
+            userOpData.userOp.gasFees,
+            userOpData.userOp.paymasterAndData.length,
+            userOpData.userOp.paymasterAndData,
+            userOpData.userOp.signature
+        );
+    }
+
+    function _createRequestDeposit7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
+    }
+
+    function _createDeposit7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
+    }
+
+    function _createRequestWithdraw7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount);
+    }
+
+    function _createWithdraw7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createDeposit7575_7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address controller,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createWithdraw7575_7540VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createDeposit5115VaultHookData(
+        bytes32 yieldSourceOracleId,
+        address yieldSource,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
+        );
+    }
+
+    function _create1InchGenericRouterSwapHookData(
+        address account,
+        address dstToken,
+        address executor,
+        I1InchAggregationRouterV6.SwapDescription memory desc,
+        bytes memory permit,
+        bytes memory data
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory _calldata =
+            abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data);
+
+        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+    }
+
+    function _create1InchUnoswapToHookData(
+        address account,
+        address dstToken,
+        Address receiverUint256,
+        Address fromTokenUint256,
+        uint256 decodedFromAmount,
+        uint256 minReturn,
+        Address dex
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+
+        bytes memory _calldata =
+            abi.encodeWithSelector(I1InchAggregationRouterV6.unoswapTo.selector, receiverUint256, fromTokenUint256, decodedFromAmount, minReturn, dex);
+
+        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+    }
+
+    function _create1InchClipperSwapToHookData(
+        address account,
+        address dstToken,
+        address exchange,
+        Address srcToken,
+        uint256 amount
+    ) internal pure returns (bytes memory) {
+
+        bytes memory _calldata =
+            abi.encodeWithSelector(I1InchAggregationRouterV6.clipperSwapTo.selector, exchange, payable(account), srcToken, dstToken, amount, amount, 0, bytes32(0), bytes32(0));
+
+        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+    }
+
+    function _createOdosSwapHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            inputToken,
+            inputAmount,
+            inputReceiver,
+            outputToken,
+            outputQuote,
+            outputMin,
+            pathDefinition.length,
+            pathDefinition,
+            executor,
+            referralCode,
+            usePrevHookAmount
         );
     }
 }
