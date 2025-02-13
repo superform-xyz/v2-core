@@ -238,19 +238,19 @@ contract DeployV2 is Script, Configuration {
         superRbac.setRole(configuration.owner, superRbac.SENTINEL_CONFIGURATOR(), true);
 
         // -- SuperRegistry
-        superRegistry.setAddress(superRegistry.SUPER_LEDGER_ID(), _getContract(chainId, "SuperLedger"));
+        superRegistry.setAddress(keccak256("SUPER_LEDGER_ID"), _getContract(chainId, "SuperLedger"));
         superRegistry.setAddress(
-            superRegistry.SUPER_POSITION_SENTINEL_ID(), _getContract(chainId, "SuperPositionSentinel")
+            keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainId, "SuperPositionSentinel")
         );
-        superRegistry.setAddress(superRegistry.SUPER_RBAC_ID(), _getContract(chainId, "SuperRbac"));
+        superRegistry.setAddress(keccak256("SUPER_RBAC_ID"), _getContract(chainId, "SuperRbac"));
 
         superRegistry.setAddress(
-            superRegistry.ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID(),
+            keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
             _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
         );
-        superRegistry.setAddress(superRegistry.SUPER_EXECUTOR_ID(), _getContract(chainId, "SuperExecutor"));
-        superRegistry.setAddress(superRegistry.PAYMASTER_ID(), configuration.paymaster);
-        superRegistry.setAddress(superRegistry.SUPER_BUNDLER_ID(), configuration.bundler);
+        superRegistry.setAddress(keccak256("SUPER_EXECUTOR_ID"), _getContract(chainId, "SuperExecutor"));
+        superRegistry.setAddress(keccak256("PAYMASTER_ID"), configuration.paymaster);
+        superRegistry.setAddress(keccak256("SUPER_BUNDLER_ID"), configuration.bundler);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -461,7 +461,7 @@ contract DeployV2 is Script, Configuration {
             yieldSourceOracleId: bytes32("ERC4626YieldSourceOracle"),
             feePercent: 100,
             vaultShareToken: address(0), // this is auto set because its standardized yield
-            feeRecipient: superRegistry.getAddress(superRegistry.PAYMASTER_ID())
+            feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
         });
 
         ISuperLedger(_getContract(chainId, "SuperLedger")).setYieldSourceOracles(configs);

@@ -12,46 +12,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
-
-    // ids
-    // -- executors
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID");
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_GATEWAY_EXECUTOR_ID = keccak256("SUPER_GATEWAY_EXECUTOR_ID");
-
-    // -- RBAC
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_RBAC_ID = keccak256("SUPER_RBAC_ID");
-    // -- SuperPositions
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_POSITIONS_ID = keccak256("SUPER_POSITIONS_ID");
-
-    // -- registries
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_LEDGER_ID = keccak256("SUPER_LEDGER_ID");
-
-    // -- sentinels
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_POSITION_SENTINEL_ID = keccak256("SUPER_POSITION_SENTINEL_ID");
-
-    // -- bridges
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
-        keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID");
-
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
-        keccak256("DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID");
-
-    // -- paymaster
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant PAYMASTER_ID = keccak256("PAYMASTER_ID");
-
-    // -- SuperBundler
-    /// @inheritdoc ISuperRegistry
-    bytes32 public constant SUPER_BUNDLER_ID = keccak256("SUPER_BUNDLER_ID");
-
+    
     constructor(address owner) Ownable(owner) { }
 
     /*//////////////////////////////////////////////////////////////
