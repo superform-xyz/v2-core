@@ -23,6 +23,8 @@ interface ISuperVault {
     error NOT_IMPLEMENTED();
     error INVALID_DEPOSIT_CLAIM();
     error INVALID_CONTROLLER();
+    error INVALID_DEPOSIT_PRICE();
+    error INVALID_WITHDRAW_PRICE();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/

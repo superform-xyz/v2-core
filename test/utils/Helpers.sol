@@ -11,6 +11,7 @@ import { Constants } from "./Constants.sol";
 abstract contract Helpers is Test, Constants {
     address public user1;
     address public user2;
+    address public user3;
     address public MANAGER;
     address public ACROSS_RELAYER;
     /*//////////////////////////////////////////////////////////////

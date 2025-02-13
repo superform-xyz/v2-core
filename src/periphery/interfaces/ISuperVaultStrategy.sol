@@ -70,7 +70,7 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableProposed(bool newWithdrawable, uint256 effectiveTime);
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
-
+    event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -95,6 +95,8 @@ interface ISuperVaultStrategy {
         uint256 maxMint;
         uint256 maxWithdraw;
         uint256 sharePricePointCursor;
+        uint256 averageDepositPrice;
+        uint256 averageWithdrawPrice;
         SharePricePoint[] sharePricePoints;
     }
 
@@ -145,6 +147,11 @@ interface ISuperVaultStrategy {
     struct YieldSource {
         address oracle; // Associated yield source oracle address
         bool isActive; // Whether the source is active
+    }
+
+    struct YieldSourceTVL {
+        address source;
+        uint256 tvl;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -297,9 +304,11 @@ interface ISuperVaultStrategy {
     /// @notice Get the current price per share of the SuperVault
     /// @return pricePerShare The current price per share in underlying decimals
     function getSuperVaultPPS() external view returns (uint256 pricePerShare);
+
     /// @notice Get total assets managed by the strategy
-    /// @return Total assets across all yield sources and idle assets
-    function totalAssets() external view returns (uint256);
+    /// @return totalAssets_ Total assets across all yield sources and idle assets
+    /// @return sourceTVLs Array of TVL information for each yield source
+    function totalAssets() external view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs);
 
     /// @notice Get the total supply of shares in the SuperVault
     /// @return The total number of shares currently in circulation
@@ -341,6 +350,16 @@ interface ISuperVaultStrategy {
     /// @param hook Address of the hook to check
     /// @param proof Merkle proof for the hook
     function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
+
+    /// @notice Get the average deposit price for a user
+    /// @param owner The owner address
+    /// @return The average deposit price for the user
+    function getAverageDepositPrice(address owner) external view returns (uint256);
+
+    /// @notice Get the average withdraw price for a user
+    /// @param owner The owner address
+    /// @return The average withdraw price for the user
+    function getAverageWithdrawPrice(address owner) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
