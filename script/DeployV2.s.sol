@@ -48,12 +48,13 @@ import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnsta
 import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
 import { FluidStakeWithPermitHook } from "../src/core/hooks/stake/fluid/FluidStakeWithPermitHook.sol";
 import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
-
 // ---- | bridges
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
+// ---- | swappers
+import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -308,7 +309,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 20;
+        uint256 len = 21;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
 
@@ -395,6 +396,11 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
         hooks[19] = HookDeployment(
+            SWAP_1INCH_HOOK_KEY,
+            abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId]))
+        );
+
+        hooks[20] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
             abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(registry, configuration.owner, configuration.odosRouters[chainId]))
         );
