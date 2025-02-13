@@ -476,13 +476,15 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
 
+        uint256 expectedFee = amountPerVault * 100 / 10_000;
+
         vm.expectEmit(true, true, true, true);
         emit ISuperLedger.AccountingOutflow(
             accountETH, 
             addressOracleETH,
             yieldSource7540AddressETH_USDC, 
             amountPerVault, 
-            yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH))
+            expectedFee
         );
         executeOp(redeemOpData);
         
@@ -490,7 +492,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 feeBalanceAfter 
         = IERC20(underlyingETH_USDC).balanceOf(address(this));
 
-        assertEq(feeBalanceAfter - feeBalanceBefore, amountPerVault * 100 / 10_000);
+        assertEq(feeBalanceAfter - feeBalanceBefore, expectedFee);
 
         console2.log("feeBalanceAfter", feeBalanceAfter);
 
