@@ -102,6 +102,6 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
 
     function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
         address yieldSource = data.extractYieldSource();
-        return IERC7540(yieldSource).balanceOf(account);
+        return IERC7540(yieldSource).claimableRedeemRequest(0, account);
     }
 }
