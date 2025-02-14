@@ -633,11 +633,15 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.warp(block.timestamp + 10 days);
 
         // FULFILL REDEEM
-        vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+
+        // poolManager.updateTranchePrice(poolId, trancheId, assetId, uint128(0.1e18), uint64(block.timestamp));
 
         investmentManager.fulfillRedeemRequest(
-            poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets), uint128(userShares)
+            poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets + 20000), uint128(userShares)
         );
+
+        vm.stopPrank();
 
         userExpectedAssets = vaultInstance7540ETH.convertToAssets(vaultInstance7540ETH.maxRedeem(accountETH));
 
@@ -663,13 +667,15 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             profit = amountAssets > costBasis ? amountAssets - costBasis : 0
             feeAmount = (profit * config.feePercent) / 10_000
 
-            sharesConsumed = 47427940
-            costBasis = 47427940 * 1054230 / (10 ** 6) = 49999957
+            sharesConsumed = 47408977
+            costBasis = 47408977 * 1054230 / (10 ** 6) = 49979965
             amountAssets = 49999998
-            profit = 49999998 - 49999957 = 41
-            feeAmount = 41 * 100 / 10_000 = 0
+            profit = 49999998 - 49979965 = 20023
+            feeAmount = 20023 * 100 / 10_000 = 200
         */
-        //uint256 expectedFee = 0;
+        //uint256 expectedFee = 200;
+
+        uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(address(this));
 
         // vm.expectEmit(true, true, true, true);
         // emit ISuperLedger.AccountingOutflow(
@@ -677,11 +683,15 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // );
         executeOp(redeemOpData);
 
+        uint256 feeBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(address(this));
+
+        assertEq(feeBalanceAfter - feeBalanceBefore, 200);
+
         // CHECK ACCOUNTING
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
         assertEq(entries.length, 1);
-        assertEq(unconsumedEntries, 1);
+        assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
