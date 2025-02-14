@@ -59,11 +59,10 @@ abstract contract Configuration is Constants {
         // common configuration
         configuration.deployer = SUPER_DEPLOYER;
 
-        configuration.externalRoles = new RolesData[](1);
-        configuration.externalRoles[0] = RolesData({
+        configuration.externalRoles.push(RolesData({
             role: keccak256("HOOKS_MANAGER"),
             addr: PROD_MULTISIG
-        });
+        }));
 
         if (env == 0) {
             configuration.owner = PROD_MULTISIG;
