@@ -70,7 +70,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     bytes16 public trancheId;
     uint128 public assetId;
 
-    string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "YieldSource_7540_ETH_USDC";
+    string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "Cent_7540_ETH_USDC";
     string public constant YIELD_SOURCE_ORACLE_7540_KEY = "YieldSourceOracle_7540";
 
     string public constant YIELD_SOURCE_4626_OP_USDCe_KEY = "YieldSource_4626_OP_USDCe";
@@ -447,7 +447,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
 
         uint256 maxDeposit = vaultInstance7540ETH.maxDeposit(accountETH);
-        
+
         vm.stopPrank();
 
         address[] memory hooksAddresses = new address[](1);
