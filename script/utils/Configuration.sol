@@ -55,8 +55,15 @@ abstract contract Configuration is Constants {
         chainNames[BASE_SEPOLIA_CHAIN_ID] = BASE_SEPOLIA_KEY;
         chainNames[OP_SEPOLIA_CHAIN_ID] = OP_SEPOLIA_KEY;
 
+
         // common configuration
         configuration.deployer = SUPER_DEPLOYER;
+
+        configuration.externalRoles = new RolesData[](1);
+        configuration.externalRoles[0] = RolesData({
+            role: keccak256("HOOKS_MANAGER"),
+            addr: PROD_MULTISIG
+        });
 
         if (env == 0) {
             configuration.owner = PROD_MULTISIG;

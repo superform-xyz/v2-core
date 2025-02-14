@@ -233,7 +233,7 @@ contract DeployV2 is Script, Configuration {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
 
         // -- Roles
-        // ---- | set external roles (ex: SUPER_ACTIONS_CONFIGURATOR for another address)
+        // ---- | set external roles
         uint256 len = configuration.externalRoles.length;
         for (uint256 i; i < len;) {
             RolesData memory _roleInfo = configuration.externalRoles[i];
