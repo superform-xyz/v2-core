@@ -216,15 +216,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
-        srcHooksData[1] 
-        = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, 
-            underlyingETH_USDC, 
-            amountPerVault / 2, 
-            amountPerVault / 2, 
-            ETH, 
-            true, 
-            amountPerVault, 
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            amountPerVault / 2,
+            amountPerVault / 2,
+            ETH,
+            true,
+            amountPerVault,
             ethUserOpData
         );
 
@@ -252,9 +251,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(unconsumedEntries, 0);
     }
 
-    function _redeem_From_ETH_And_Bridge_Back_To_Base(
-        bool isFullRedeem
-    ) internal {
+    function _redeem_From_ETH_And_Bridge_Back_To_Base(bool isFullRedeem) internal {
         uint256 amountPerVault = 1e8 / 2;
 
         // BASE IS DST
@@ -290,30 +287,28 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         if (isFullRedeem) {
             ethHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
-            ethHooksData[1] 
-            = _createAcrossV3ReceiveFundsAndExecuteHookData(
-                underlyingETH_USDC, 
-                underlyingBase_USDC, 
-                amountPerVault, 
-                amountPerVault, 
-                BASE, 
-                true, 
-                amountPerVault, 
+                _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
+            ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+                underlyingETH_USDC,
+                underlyingBase_USDC,
+                amountPerVault,
+                amountPerVault,
+                BASE,
+                true,
+                amountPerVault,
                 baseUserOpData
             );
         } else {
             ethHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault / 2, false);
-            ethHooksData[1] 
-            = _createAcrossV3ReceiveFundsAndExecuteHookData(
-                underlyingETH_USDC, 
-                underlyingBase_USDC, 
-                amountPerVault / 2, 
-                amountPerVault / 2, 
-                BASE, 
-                true, 
-                amountPerVault / 2, 
+                _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault / 2, false);
+            ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+                underlyingETH_USDC,
+                underlyingBase_USDC,
+                amountPerVault / 2,
+                amountPerVault / 2,
+                BASE,
+                true,
+                amountPerVault / 2,
                 baseUserOpData
             );
         }
@@ -439,7 +434,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
 
         uint256 userExpectedShares = vaultInstance7540ETH.convertToShares(amountPerVault);
-        
+
         investmentManager.fulfillDepositRequest(
             poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(userExpectedShares)
         );
@@ -466,10 +461,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedger.AccountingInflow(
-            accountETH, 
+            accountETH,
             addressOracleETH,
-            yieldSource7540AddressETH_USDC, 
-            userExpectedShares, 
+            yieldSource7540AddressETH_USDC,
+            userExpectedShares,
             yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH))
         );
         executeOp(depositOpData);
@@ -531,19 +526,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedger.AccountingOutflow(
-            accountETH, 
-            addressOracleETH,
-            yieldSource7540AddressETH_USDC, 
-            userExpectedAssets, 
-            expectedFee
+            accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
         );
         executeOp(redeemOpData);
-        
+
         // CHECK ACCOUNTING
-        (
-            ISuperLedger.LedgerEntry[] memory entries, 
-            uint256 unconsumedEntries
-        ) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
         assertEq(entries.length, 1);
         assertEq(unconsumedEntries, 1);
 
@@ -604,19 +593,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedger.AccountingOutflow(
-            accountETH, 
-            addressOracleETH,
-            yieldSource7540AddressETH_USDC, 
-            userExpectedAssets, 
-            expectedFee
+            accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
         );
         executeOp(redeemOpData);
-        
+
         // CHECK ACCOUNTING
-        (
-            ISuperLedger.LedgerEntry[] memory entries, 
-            uint256 unconsumedEntries
-        ) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
         assertEq(entries.length, 1);
         assertEq(entries[0].price, yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH)));
         assertEq(entries[0].amountSharesAvailableToConsume, redeemAmount);
