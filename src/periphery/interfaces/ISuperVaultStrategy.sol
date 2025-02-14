@@ -46,6 +46,8 @@ interface ISuperVaultStrategy {
     error INCOMPLETE_DEPOSIT_MATCH();
     error INCOMPLETE_REDEEM_MATCH();
     error ZERO_AMOUNT();
+    error INVALID_ASSET_BALANCE();
+    error INVALID_BALANCE_CHANGE();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -71,6 +73,7 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
+    event RewardsAutocompounded(uint256 amount);
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -152,6 +155,31 @@ interface ISuperVaultStrategy {
     struct YieldSourceTVL {
         address source;
         uint256 tvl;
+    }
+
+    struct ClaimLocalVars {
+        // Initial state tracking
+        uint256 initialAssetBalance;
+        // Claim phase variables
+        uint256[] balanceChanges;
+        // Swap phase variables
+        uint256 assetGained;
+        // Allocation phase variables
+        FulfillmentVars fulfillmentVars;
+        address[] targetedYieldSources;
+    }
+
+    struct ProcessHooksLocalVars {
+        // Hook execution variables
+        uint256 hooksLength;
+        uint256 targetedSourcesCount;
+        address target;
+        // Hook execution results
+        uint256 amount;
+        address hookTarget;
+        // Arrays for tracking
+        address[] targetedYieldSources;
+        address[] resizedArray;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -249,14 +277,22 @@ interface ISuperVaultStrategy {
     )
         external;
 
-    /// @notice Claim rewards from yield sources
-    /// @param hooks Array of hooks to use for claiming rewards
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    function claimRewards(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+    /// @notice Claim rewards and autocompound them back into the vault
+    /// @param hooks Array of arrays of hooks to use for claiming, swapping, and allocating rewards [claimHooks,
+    /// swapHooks, allocateHooks]
+    /// @param claimHookProofs Array of merkle proofs for claim hooks
+    /// @param swapHookProofs Array of merkle proofs for swap hooks
+    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
+    /// @param hookCalldata Array of arrays of calldata for hooks [claimHookCalldata, swapHookCalldata,
+    /// allocateHookCalldata]
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    function claimAndAutocompound(
+        address[][] calldata hooks,
+        bytes32[][] calldata claimHookProofs,
+        bytes32[][] calldata swapHookProofs,
+        bytes32[][] calldata allocateHookProofs,
+        bytes[][] calldata hookCalldata,
+        address[] calldata expectedTokensOut
     )
         external;
 

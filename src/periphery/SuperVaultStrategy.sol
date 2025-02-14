@@ -216,9 +216,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         _requireStrategist();
         uint256 usersLength = users.length;
+        if (usersLength == 0) revert ZERO_LENGTH();
         uint256 hooksLength = hooks.length;
 
-        _validateFulfillArrays(usersLength, hooksLength, hookProofs.length, hookCalldata.length);
+        _validateHooksArrays(hooksLength, hookProofs.length, hookCalldata.length);
 
         FulfillmentVars memory vars;
 
@@ -292,9 +293,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         _requireStrategist();
         uint256 usersLength = users.length;
+        if (usersLength == 0) revert ZERO_LENGTH();
         uint256 hooksLength = hooks.length;
 
-        _validateFulfillArrays(usersLength, hooksLength, hookProofs.length, hookCalldata.length);
+        _validateHooksArrays(hooksLength, hookProofs.length, hookCalldata.length);
 
         FulfillmentVars memory vars;
 
@@ -450,10 +452,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         _requireStrategist();
         uint256 hooksLength = hooks.length;
-        if (hooksLength == 0) revert ZERO_LENGTH();
-        if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
-            revert ARRAY_LENGTH_MISMATCH();
-        }
+        _validateHooksArrays(hooksLength, hookProofs.length, hookCalldata.length);
 
         AllocationVars memory vars;
         address[] memory inflowTargets = new address[](hooksLength);
@@ -542,53 +541,45 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function claimRewards(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+    function claimAndAutocompound(
+        address[][] calldata hooks,
+        bytes32[][] calldata claimHookProofs,
+        bytes32[][] calldata swapHookProofs,
+        bytes32[][] calldata allocateHookProofs,
+        bytes[][] calldata hookCalldata,
+        address[] calldata expectedTokensOut
     )
         external
     {
         _requireStrategist();
-        uint256 hooksLength = hooks.length;
-        if (hooksLength == 0) revert ZERO_LENGTH();
-        if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
-            revert ARRAY_LENGTH_MISMATCH();
-        }
 
-        address prevHook;
-        // Process each hook in sequence
-        for (uint256 i; i < hooksLength;) {
-            // Validate hook via merkle proof
-            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+        ClaimLocalVars memory vars;
 
-            // Build executions for this hook
-            ISuperHook hookContract = ISuperHook(hooks[i]);
-            Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata[i]);
-            // prevent any hooks with more than one execution
-            if (executions.length > 1) revert INVALID_HOOK();
+        // Get initial asset balance
+        vars.initialAssetBalance = _asset.balanceOf(address(this));
 
-            // Validate hook type is neither INFLOW nor OUTFLOW
-            ISuperHook.HookType hookType = ISuperHookResult(hooks[i]).hookType();
-            if (hookType == ISuperHook.HookType.INFLOW || hookType == ISuperHook.HookType.OUTFLOW) {
-                revert INVALID_HOOK();
-            }
+        // Step 1: Execute claim hooks and get balance changes
+        vars.balanceChanges = _processClaimHookExecution(hooks[0], claimHookProofs, hookCalldata[0], expectedTokensOut);
 
-            // Validate target is an active yield source
-            YieldSource storage source = yieldSources[executions[0].target];
-            if (!source.isActive) revert INVALID_YIELD_SOURCE();
+        // Step 2: Execute swap hooks and get asset gained
+        vars.assetGained = _processSwapHookExecution(
+            hooks[1], swapHookProofs, hookCalldata[1], expectedTokensOut, vars.balanceChanges, vars.initialAssetBalance
+        );
 
-            // Execute the transaction
-            (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
-            if (!success) revert EXECUTION_FAILED();
+        // Step 3: Execute inflow hooks to allocate gained assets
+        // assume requested amount is the asset gain
+        vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
 
-            // Update prevHook for next iteration
-            prevHook = hooks[i];
+        (vars.fulfillmentVars, vars.targetedYieldSources) =
+            _processHooks(hooks[2], allocateHookProofs, hookCalldata[2], vars.fulfillmentVars, true);
 
-            unchecked {
-                ++i;
-            }
-        }
+        // Check vault caps after all hooks are processed
+        _checkVaultCaps(vars.targetedYieldSources);
+
+        // Verify all assets were allocated
+        if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_ASSET_BALANCE();
+
+        emit RewardsAutocompounded(vars.assetGained);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -917,12 +908,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     //--Fulfilment and allocation helpers--
 
     /// @notice Validate array lengths for fulfill functions
-    /// @param usersLength Length of users array
     /// @param hooksLength Length of hooks array
     /// @param hookProofsLength Length of hook proofs array
     /// @param hookCalldataLength Length of hook calldata array
-    function _validateFulfillArrays(
-        uint256 usersLength,
+    function _validateHooksArrays(
         uint256 hooksLength,
         uint256 hookProofsLength,
         uint256 hookCalldataLength
@@ -930,7 +919,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         internal
         pure
     {
-        if (usersLength == 0 || hooksLength == 0) revert ZERO_LENGTH();
+        if (hooksLength == 0) revert ZERO_LENGTH();
 
         // Validate array lengths match
         if (hooksLength != hookProofsLength || hooksLength != hookCalldataLength) {
@@ -965,24 +954,35 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
     }
 
-    /// @notice Common hook execution logic shared between deposit and redeem flows
-    /// @param hook The hook to process
+    /// @notice Common hook execution logic
+    /// @param hook The hook to execute
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param expectedHookType The expected type of hook (INFLOW/OUTFLOW)
-    function _processCommonHookExecution(
+    /// @param hookProof The merkle proof for the hook
+    /// @param expectedHookType The expected type of hook
+    /// @param validateYieldSource Whether to validate the yield source
+    /// @param approvalToken Token to approve (address(0) if no approval needed)
+    /// @param approvalAmount Amount to approve
+    /// @return target The target address from the execution
+    function _executeHook(
         address hook,
         address prevHook,
         bytes calldata hookCalldata,
-        ISuperHook.HookType expectedHookType
+        bytes32[] calldata hookProof,
+        ISuperHook.HookType expectedHookType,
+        bool validateYieldSource,
+        address approvalToken,
+        uint256 approvalAmount
     )
         internal
-        view
-        returns (Execution[] memory executions, uint256 amount)
+        returns (address target)
     {
+        // Validate hook via merkle proof
+        if (!isHookAllowed(hook, hookProof)) revert INVALID_HOOK();
+
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
-        executions = hookContract.build(prevHook, address(this), hookCalldata);
+        Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata);
         // prevent any hooks with more than one execution
         if (executions.length > 1) revert INVALID_HOOK();
 
@@ -990,12 +990,60 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
         if (hookType != expectedHookType) revert INVALID_HOOK();
 
-        // Get amount from hook
-        amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
+        target = executions[0].target;
 
-        // Validate target is an active yield source
-        YieldSource storage source = yieldSources[executions[0].target];
-        if (!source.isActive) revert INVALID_YIELD_SOURCE();
+        // Validate target is an active yield source if needed
+        if (validateYieldSource) {
+            YieldSource storage source = yieldSources[target];
+            if (!source.isActive) revert INVALID_YIELD_SOURCE();
+        }
+        approvalToken = hookType == ISuperHook.HookType.OUTFLOW ? target : approvalToken;
+        // Handle token approvals if needed
+        if (approvalToken != address(0)) {
+            IERC20(approvalToken).safeIncreaseAllowance(target, approvalAmount);
+        }
+
+        // Execute the transaction
+        (bool success,) = target.call{ value: executions[0].value }(executions[0].callData);
+        if (!success) revert EXECUTION_FAILED();
+
+        // Reset approval if needed
+        if (approvalToken != address(0)) {
+            IERC20(approvalToken).forceApprove(target, 0);
+        }
+    }
+
+    /// @notice Common balance tracking logic
+    /// @param tokens Array of tokens to track
+    /// @param initialBalances Initial balances of tokens
+    /// @param requireZeroBalance Whether to require zero final balance
+    /// @return changes Array of balance changes
+    function _trackBalanceChanges(
+        address[] calldata tokens,
+        uint256[] memory initialBalances,
+        bool requireZeroBalance
+    )
+        internal
+        view
+        returns (uint256[] memory changes)
+    {
+        uint256 length = tokens.length;
+        changes = new uint256[](length);
+
+        for (uint256 i; i < length;) {
+            uint256 finalBalance = IERC20(tokens[i]).balanceOf(address(this));
+
+            if (requireZeroBalance) {
+                if (finalBalance != 0) revert INVALID_BALANCE_CHANGE();
+            } else {
+                if (finalBalance < initialBalances[i]) revert INVALID_BALANCE_CHANGE();
+                changes[i] = finalBalance - initialBalances[i];
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
     }
 
     /// @notice Process hooks for both deposit and redeem fulfillment
@@ -1016,23 +1064,30 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         internal
         returns (FulfillmentVars memory, address[] memory)
     {
-        uint256 hooksLength = hooks.length;
+        ProcessHooksLocalVars memory locals;
+        locals.hooksLength = hooks.length;
         // Track targeted yield sources for inflow operations
-        address[] memory targetedYieldSources = new address[](hooksLength);
-        uint256 targetedSourcesCount;
-        address target;
-        for (uint256 i; i < hooksLength;) {
-            // Validate hook via merkle proof
-            if (!isHookAllowed(hooks[i], hookProofs[i])) revert INVALID_HOOK();
+        locals.targetedYieldSources = new address[](locals.hooksLength);
 
+        // Process each hook in sequence
+        for (uint256 i; i < locals.hooksLength;) {
             // Process hook executions
-            (vars.prevHook, vars.spentAmount, target) = isDeposit
-                ? _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAmount)
-                : _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.spentAmount);
+            if (isDeposit) {
+                (locals.amount, locals.hookTarget) =
+                    _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], hookProofs[i]);
+                vars.prevHook = hooks[i];
+                vars.spentAmount += locals.amount;
+                locals.target = locals.hookTarget;
+            } else {
+                (locals.amount, locals.hookTarget) =
+                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], hookProofs[i]);
+                vars.prevHook = hooks[i];
+                vars.spentAmount += locals.amount;
+            }
 
             // Track targeted yield source for inflow operations
             if (isDeposit) {
-                targetedYieldSources[targetedSourcesCount++] = target;
+                locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
             }
 
             unchecked {
@@ -1044,36 +1099,49 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
         // Resize array to actual count if needed
-        if (targetedSourcesCount < hooksLength) {
-            assembly {
-                mstore(targetedYieldSources, targetedSourcesCount)
+        if (locals.targetedSourcesCount < locals.hooksLength) {
+            // Create new array with actual count and copy elements
+            locals.resizedArray = new address[](locals.targetedSourcesCount);
+            for (uint256 i = 0; i < locals.targetedSourcesCount; i++) {
+                locals.resizedArray[i] = locals.targetedYieldSources[i];
             }
+            locals.targetedYieldSources = locals.resizedArray;
         }
 
-        return (vars, targetedYieldSources);
+        return (vars, locals.targetedYieldSources);
     }
 
+    /// @notice Process inflow hook execution
+    /// @param hook The hook to process
+    /// @param prevHook The previous hook in the sequence
+    /// @param hookCalldata The calldata for the hook
+    /// @param hookProof The merkle proof for the hook
+    /// @return amount The amount from the hook
+    /// @return target The target address from the execution
     function _processInflowHookExecution(
         address hook,
         address prevHook,
         bytes calldata hookCalldata,
-        uint256 spentAmount
+        bytes32[] calldata hookProof
     )
         internal
-        returns (address, uint256, address)
+        returns (uint256 amount, address target)
     {
-        // Process common hook execution logic
-        (Execution[] memory executions, uint256 amount) =
-            _processCommonHookExecution(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW);
+        // Get amount before execution
+        amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
         // Get all TVLs in one call
         (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
+        // Execute hook with asset approval
+        target = _executeHook(
+            hook, prevHook, hookCalldata, hookProof, ISuperHook.HookType.INFLOW, true, address(_asset), amount
+        );
 
         // Find TVL for target yield source
         uint256 currentYieldSourceAssets;
         bool found;
         for (uint256 i; i < sourceTVLs.length;) {
-            if (sourceTVLs[i].source == executions[0].target) {
+            if (sourceTVLs[i].source == target) {
                 currentYieldSourceAssets = sourceTVLs[i].tvl;
                 found = true;
                 break;
@@ -1091,47 +1159,134 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         ) {
             revert MAX_ALLOCATION_RATE_EXCEEDED();
         }
-
-        // Approve assets to target
-        _asset.safeIncreaseAllowance(executions[0].target, amount);
-
-        // Execute the transaction
-        (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
-        if (!success) revert EXECUTION_FAILED();
-
-        // Reset approval
-        _asset.forceApprove(executions[0].target, 0);
-
-        // Update spent assets
-        spentAmount += amount;
-
-        return (hook, spentAmount, executions[0].target);
     }
 
+    /// @notice Process outflow hook execution
+    /// @param hook The hook to process
+    /// @param prevHook The previous hook in the sequence
+    /// @param hookCalldata The calldata for the hook
+    /// @param hookProof The merkle proof for the hook
+    /// @return amount The amount from the hook
+    /// @return target The target address from the execution
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
         bytes calldata hookCalldata,
-        uint256 spentAmount
+        bytes32[] calldata hookProof
     )
         internal
-        returns (address, uint256, address)
+        returns (uint256 amount, address target)
     {
-        // Process common hook execution logic
-        (Execution[] memory executions, uint256 shares) =
-            _processCommonHookExecution(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW);
+        // Get amount before execution
+        amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
-        IERC20 _vault_ = IERC20(executions[0].target);
+        // Execute hook with vault token approval
+        target = _executeHook(
+            hook,
+            prevHook,
+            hookCalldata,
+            hookProof,
+            ISuperHook.HookType.OUTFLOW,
+            true,
+            address(0), // target is the vault token
+            amount
+        );
+    }
 
-        _vault_.safeIncreaseAllowance(executions[0].target, shares);
-        // Execute the transaction
-        (bool success,) = executions[0].target.call{ value: executions[0].value }(executions[0].callData);
-        if (!success) revert EXECUTION_FAILED();
-        _vault_.forceApprove(executions[0].target, 0);
-        // Update spent amount (tracking shares)
-        spentAmount += shares;
+    /// @notice Process claim hook execution
+    /// @param hooks Array of hooks to process
+    /// @param hookProofs Array of merkle proofs for hooks
+    /// @param hookCalldata Array of calldata for hooks
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    /// @return balanceChanges Array of balance changes for each token
+    function _processClaimHookExecution(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata,
+        address[] calldata expectedTokensOut
+    )
+        internal
+        returns (uint256[] memory balanceChanges)
+    {
+        // Get initial balances
+        uint256[] memory initialBalances = new uint256[](expectedTokensOut.length);
+        for (uint256 i = 0; i < expectedTokensOut.length;) {
+            initialBalances[i] = IERC20(expectedTokensOut[i]).balanceOf(address(this));
+            unchecked {
+                ++i;
+            }
+        }
 
-        return (hook, spentAmount, executions[0].target);
+        // Process hooks
+        address prevHook;
+        for (uint256 i = 0; i < hooks.length;) {
+            // Execute hook with no approval needed
+            _executeHook(
+                hooks[i],
+                prevHook,
+                hookCalldata[i],
+                hookProofs[i],
+                ISuperHook.HookType.NONACCOUNTING,
+                false,
+                address(0), // no approval needed
+                0
+            );
+            prevHook = hooks[i];
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Track balance changes
+        balanceChanges = _trackBalanceChanges(expectedTokensOut, initialBalances, false);
+    }
+
+    /// @notice Process swap hook execution
+    /// @param hooks Array of hooks to process
+    /// @param hookProofs Array of merkle proofs for hooks
+    /// @param hookCalldata Array of calldata for hooks
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    /// @param initialBalances Array of initial balances for each token
+    /// @param initialAssetBalance Initial balance of the asset
+    /// @return assetGained Amount of asset gained from swaps
+    function _processSwapHookExecution(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata,
+        address[] calldata expectedTokensOut,
+        uint256[] memory initialBalances,
+        uint256 initialAssetBalance
+    )
+        internal
+        returns (uint256 assetGained)
+    {
+        // Process hooks
+        address prevHook;
+        for (uint256 i = 0; i < hooks.length;) {
+            // Execute hook with expected token approval
+            _executeHook(
+                hooks[i],
+                prevHook,
+                hookCalldata[i],
+                hookProofs[i],
+                ISuperHook.HookType.NONACCOUNTING,
+                false,
+                expectedTokensOut[i],
+                initialBalances[i]
+            );
+            prevHook = hooks[i];
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Verify all initial token balances are now zero
+        _trackBalanceChanges(expectedTokensOut, initialBalances, true);
+
+        // Calculate asset gained by comparing final balance with initial
+        uint256 finalAssetBalance = _asset.balanceOf(address(this));
+        if (finalAssetBalance <= initialAssetBalance) revert INVALID_BALANCE_CHANGE();
+        assetGained = finalAssetBalance - initialAssetBalance;
     }
 
     /// @notice Check vault caps for targeted yield sources

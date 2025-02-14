@@ -81,6 +81,18 @@ The EIP7540 must be followed to the letter.
     1. A keeper is able to call claim with a list of yield sources to claim from and approved selectors which are matched against the merkle root
     2. Calldata is prebuilt and passed into each hook build function. Each hook build function returns an Execution struct. This struct contains the target (which is a yield source present in this system) and the calldata to be executed on the target. For this purpose v2-core hooks are used.
     3. The claimed rewards are available in the vault's balance. Strategists can pass in these amounts to allocate them to yield sources to reinvest (by passing a swap hook)
+    - claimAndAutocompound 
+        - Has three sets of hooks, hook proofs and call data: one set for claim (non inflow or outflow), another set for swapping the claimed tokens to asset (non inflow or outflow) and another set for allocation into the vault (INFLOW only). In addition, there is an array which contains the expected tokens out from each claim hook call
+        - During first set execution, hooks are called normally as the current claimRewards() implementation. This is going to be internalized as it is going to be re-used in claimAndDistribute
+        -  At the end of loop of the execution we check the balance of the expected tokens out increased (and save the increase)
+        - Then the second set of hooks is executed. Now we swap all expected tokens out different than asset for asset. We must check the balance increase was negated for expected tokens and note the balance increase for asset between all operations
+        - Third, we supply asset as desired to the yield sources. Normal constraint checks apply, similar to allocate in inflow hooks. It should internalize the inflow approach in allocate and re-use it here
+        - At the end we verify that the balance of asset reset exactly to the original value, pre swaps, otherwise revert the entire function
+    - claimAndDistribute
+        - Has two sets of hooks, hook proofs and call data: one set for claim (non inflow or outflow)  just like current claim and another set to distribute tokens to users (also non inflow or outflow). It also includes an array of expectedTokensOut
+        - Follows exactly he process like 1st claim step of claimAndAutocompound including the balance check at the end of the first set (all of this can be internalized between the two functions)
+        - The second set of hooks is executed. There are no checks or constraints in this call, but they must target a specific rewards address (set by the manager in a separate function). This avoid a strategist being able to designate arbitrary targets during claimAndDistribute
+        - These hooks are expected to distribute the claimed tokens, thus we check the balance for the expectedTokensOut decreases
 11. Implement ERC7540 cancelation flow of requests  - COMPLETE
     1. Users are able to call cancelRedeemRequest and cancelDepositRequest to cancel their requests
     2. This is made according to IERC7540CancelDeposit and IERC7540CancelRedeem
