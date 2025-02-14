@@ -206,7 +206,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
 
-        _getTokens(address(inputToken), odosRouters[ETH], amount);
+        _getTokens(address(inputToken), account, amount);
         _getTokens(address(outputToken), odosRouters[ETH], amount);
 
         bytes[] memory hooksData = new bytes[](2);
