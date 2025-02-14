@@ -172,9 +172,19 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         _redeem_From_ETH_And_Bridge_Back_To_Base(false);
     }
 
+    function test_ETH_Bridge_Deposit_Redeem_Flow_With_Warping() public {
+        test_Bridge_To_ETH_And_Deposit();
+        _warped_Redeem_From_ETH_And_Bridge_Back_To_Base();
+    }
+
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
         test_bridge_To_OP_And_Deposit();
         _redeem_From_OP();
+    }
+
+    function test_OP_Bridge_Deposit_Redeem_Flow_With_Warping() public {
+        test_bridge_To_OP_And_Deposit();
+        _warped_Redeem_From_OP();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -606,6 +616,139 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+    }
+
+    function _warped_Redeem_From_ETH_And_Bridge_Back_To_Base() internal returns (uint256 userAssets) {
+        vm.selectFork(FORKS[ETH]);
+
+        vm.warp(block.timestamp + 100 days);
+
+        uint256 userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
+
+        uint256 userExpectedAssets = vaultInstance7540ETH.convertToAssets(userShares);
+
+        vm.prank(accountETH);
+        IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(userShares, accountETH, accountETH);
+
+        vm.warp(block.timestamp + 10 days);
+
+        // FULFILL REDEEM
+        vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+
+        investmentManager.fulfillRedeemRequest(
+            poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets), uint128(userShares)
+        );
+
+        userExpectedAssets = vaultInstance7540ETH.convertToAssets(vaultInstance7540ETH.maxRedeem(accountETH));
+
+        address[] memory redeemHooksAddresses = new address[](1);
+
+        redeemHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7575_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createWithdraw7575_7540VaultHookData(
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource7540AddressETH_USDC,
+            accountETH,
+            userExpectedAssets,
+            false,
+            false
+        );
+
+        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+
+        /*
+            sharesConsumed = maxRedeemAmount
+            costBasis = sharesConsumed * entry.price / (10 ** decimals)
+            profit = amountAssets > costBasis ? amountAssets - costBasis : 0
+            feeAmount = (profit * config.feePercent) / 10_000
+
+            sharesConsumed = 47427940
+            costBasis = 47427940 * 1054230 / (10 ** 6) = 49999957
+            amountAssets = 49999998
+            profit = 49999998 - 49999957 = 41
+            feeAmount = 41 * 100 / 10_000 = 0
+        */
+        //uint256 expectedFee = 0;
+
+        // vm.expectEmit(true, true, true, true);
+        // emit ISuperLedger.AccountingOutflow(
+        //     accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
+        // );
+        executeOp(redeemOpData);
+
+        // CHECK ACCOUNTING
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+        assertEq(entries.length, 1);
+        assertEq(unconsumedEntries, 1);
+
+        userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+    }
+
+    function _warped_Redeem_From_OP() internal {
+        vm.selectFork(FORKS[OP]);
+
+        uint256 userBalanceSharesBefore = IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountOP);
+
+        vm.warp(block.timestamp + 150 days);
+
+        uint256 expectedAssetOutAmount = vaultInstance4626OP.previewRedeem(userBalanceSharesBefore);
+
+        uint256 userBalanceUnderlyingBefore = IERC20(underlyingOP_USDCe).balanceOf(accountOP);
+
+        address[] memory opHooksAddresses = new address[](1);
+        opHooksAddresses[0] = _getHookAddress(OP, WITHDRAW_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory opHooksData = new bytes[](1);
+        opHooksData[0] = _createWithdraw4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource4626AddressOP_USDCe,
+            accountOP,
+            userBalanceSharesBefore,
+            false,
+            false
+        );
+
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
+
+        // CHECK ACCOUNTING
+        uint256 feeBalanceBefore = IERC20(underlyingOP_USDCe).balanceOf(address(this));
+
+        /**
+            sharesConsumed = userBalanceSharesBefore
+            costBasis = sharesConsumed * entry.price / (10 ** decimals)
+            profit = amountAssets > costBasis ? amountAssets - costBasis : 0
+            feeAmount = (profit * config.feePercent) / 10_000
+
+            sharesConsumed = 48621278
+            costBasis = 48621278 * 1028357 / (10 ** 6) = 50000031
+            amountAssets = 50035301
+            profit = 50035301 - 50000031 = 35334
+            feeAmount = 35334 * 100 / 10_000 = 353
+        */
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedger.AccountingOutflow(
+            accountOP, addressOracleOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, 353
+        );
+        executeOp(opUserOpData);
+
+        uint256 feeBalanceAfter = IERC20(underlyingOP_USDCe).balanceOf(address(this));
+
+        assertEq(feeBalanceAfter - feeBalanceBefore, 353);
+
+        assertEq(vaultInstance4626OP.balanceOf(accountOP), 0);
+        assertEq(
+            IERC20(underlyingOP_USDCe).balanceOf(accountOP),
+            userBalanceUnderlyingBefore + expectedAssetOutAmount - 353
+        );
+
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerOP.getLedger(accountOP, address(vaultInstance4626OP));
+        assertEq(entries.length, 1);
+        assertEq(entries[0].amountSharesAvailableToConsume, 0);
+        assertEq(unconsumedEntries, 1);
     }
 
     // Creates userOpData for the given chainId
