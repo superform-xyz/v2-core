@@ -18,7 +18,7 @@ import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 
-import { SuperPositionsMock } from "../src/core/accounting/SuperPositionsMock.sol";
+import { SuperPositionsMock } from "../test/mocks/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";

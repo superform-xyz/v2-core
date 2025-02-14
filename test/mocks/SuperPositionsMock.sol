@@ -4,9 +4,8 @@ pragma solidity >=0.8.28;
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // superform
-import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
-import { ISuperPositions } from "../interfaces/accounting/ISuperPositions.sol";
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
+import { ISuperPositions } from "../../src/core/interfaces/accounting/ISuperPositions.sol";
+import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
 
 contract SuperPositionsMock is ISuperPositions, ERC20, SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
