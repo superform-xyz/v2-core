@@ -834,7 +834,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _setRoles() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            //ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
+            ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
+            superRbac.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
         }
     }
 
