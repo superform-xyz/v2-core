@@ -70,7 +70,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     bytes16 public trancheId;
     uint128 public assetId;
 
-    string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "Cent_7540_ETH_USDC";
+    string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "Centrifuge_7540_ETH_USDC";
     string public constant YIELD_SOURCE_ORACLE_7540_KEY = "YieldSourceOracle_7540";
 
     string public constant YIELD_SOURCE_4626_OP_USDCe_KEY = "YieldSource_4626_OP_USDCe";
@@ -237,22 +237,18 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // DEPOSIT
         uint256 userShares = _execute7540DepositFlow(amountPerVault);
-        //assertEq(userShares, vaultInstance7540ETH.convertToShares(amountPerVault));
-        console2.log("userShares", userShares);
 
         // CHECK ACCOUNTING
         uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
         assertNotEq(pricePerShare, 1);
         // pin block, check value, perform multiple deposits
 
-        uint256 expectedShares = amountPerVault;
-
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
 
         assertEq(entries.length, 1);
         assertEq(entries[entries.length - 1].price, pricePerShare);
-        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, expectedShares);
+        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, userShares);
         assertEq(unconsumedEntries, 0);
     }
 
@@ -465,6 +461,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);
         executeOp(depositOpData);
+
+        assertEq(IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH), userExpectedShares);
 
         userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
     }
