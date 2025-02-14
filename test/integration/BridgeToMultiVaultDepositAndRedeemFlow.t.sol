@@ -635,8 +635,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // FULFILL REDEEM
         vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
 
-        // poolManager.updateTranchePrice(poolId, trancheId, assetId, uint128(0.1e18), uint64(block.timestamp));
-
         investmentManager.fulfillRedeemRequest(
             poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets + 20000), uint128(userShares)
         );
