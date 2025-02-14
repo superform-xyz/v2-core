@@ -40,7 +40,7 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         BaseHook(registry_, author_, HookType.NONACCOUNTING)
     {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
-        odosRouterV2 = IOdosRouterV2(odosRouterV2);
+        odosRouterV2 = IOdosRouterV2(_routerV2);
     }
 
     modifier onlyHooksManager() {

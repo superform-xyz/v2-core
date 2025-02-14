@@ -13,6 +13,7 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { ISuperCollectiveVault } from "../interfaces/ISuperCollectiveVault.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
@@ -73,16 +74,14 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     //////////////////////////////////////////////////////////////*/
     function _execute(address account, ExecutorEntry memory entry) private {
         // execute each strategy
+        address prevHook;
         uint256 hooksLen = entry.hooksAddresses.length;
         for (uint256 i; i < hooksLen;) {
-            // fill prevHook
-            address prevHook = (i != 0) ? entry.hooksAddresses[i - 1] : address(0);
-            // execute current hook
+            address currentHook = entry.hooksAddresses[i];
             _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
+            prevHook= currentHook;
             // go to next hook
-            unchecked {
-                ++i;
-            }
+            unchecked { ++i; }
         }
     }
 

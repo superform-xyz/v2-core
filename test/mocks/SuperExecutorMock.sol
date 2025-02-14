@@ -16,10 +16,9 @@ import { ISuperRbac } from "../../src/core/interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
-import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
+import { ISuperCollectiveVault } from "../../src/core/interfaces/ISuperCollectiveVault.sol";
 
 contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
-    event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount);
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -131,23 +130,27 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
             address spToken = ISuperHookResult(hook).spToken();
             uint256 amount = ISuperHookResult(hook).outAmount();
 
-            if (spToken == address(0)) revert ADDRESS_NOT_VALID();
+            ISuperCollectiveVault vault;
+            try superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID")) returns (address vaultAddress) {
+                vault = ISuperCollectiveVault(vaultAddress);
+            } catch {
+                return; 
+            }
 
-            ISuperCollectiveVault vault =
-                ISuperCollectiveVault(superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID")));
+            if (address(vault) != address(0)) {
+                // forge approval for vault
+                Execution[] memory execs = new Execution[](1);
+                execs[0] = Execution({
+                    target: spToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (address(vault), amount))
+                });
+                _execute(account, execs);
 
-            // forge approval for vault
-            Execution[] memory execs = new Execution[](1);
-            execs[0] = Execution({
-                target: spToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (address(vault), amount))
-            });
-            _execute(account, execs);
+                vault.lock(account, spToken, amount);
 
-            vault.lock(account, spToken, amount);
-
-            emit SuperPositionLocked(account, spToken, amount);
+                emit SuperPositionLocked(account, spToken, amount);
+            }
         }
     }
 }
