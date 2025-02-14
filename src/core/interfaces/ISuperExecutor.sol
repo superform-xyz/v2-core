@@ -16,6 +16,12 @@ interface ISuperExecutor {
     error ALREADY_INITIALIZED();
     error INSUFFICIENT_BALANCE_FOR_FEE();
     error FEE_NOT_TRANSFERRED();
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount);
+    
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

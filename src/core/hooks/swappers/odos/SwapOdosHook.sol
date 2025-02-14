@@ -10,6 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
+import { ISuperRbac } from "../../../interfaces/ISuperRbac.sol";
 import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -29,7 +30,7 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 /// 0);
 /// @notice         bool usePreviousHookAmount = _decodeBool(data, 168 + pathDefinitionLength + 20 + 4);
 contract SwapOdosHook is BaseHook, ISuperHook {
-    IOdosRouterV2 public immutable odosRouterV2;
+    IOdosRouterV2 public odosRouterV2;
 
     constructor(
         address registry_,
@@ -39,8 +40,23 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         BaseHook(registry_, author_, HookType.NONACCOUNTING)
     {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
-        odosRouterV2 = IOdosRouterV2(odosRouterV2);
+        odosRouterV2 = IOdosRouterV2(_routerV2);
     }
+
+    modifier onlyHooksManager() {
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
+        if (!rbac.hasRole(keccak256("HOOKS_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 OWNER METHODS
+    //////////////////////////////////////////////////////////////*/
+    function setRouter(address _odosRouter) external onlyHooksManager {
+        if (_odosRouter == address(0)) revert ADDRESS_NOT_VALID();
+        odosRouterV2 = IOdosRouterV2(_odosRouter);
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

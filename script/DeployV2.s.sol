@@ -18,7 +18,7 @@ import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 
-import { SuperPositionsMock } from "../src/core/accounting/SuperPositionsMock.sol";
+import { SuperPositionsMock } from "../test/mocks/SuperPositionsMock.sol";
 import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
@@ -233,7 +233,7 @@ contract DeployV2 is Script, Configuration {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
 
         // -- Roles
-        // ---- | set external roles (ex: SUPER_ACTIONS_CONFIGURATOR for another address)
+        // ---- | set external roles
         uint256 len = configuration.externalRoles.length;
         for (uint256 i; i < len;) {
             RolesData memory _roleInfo = configuration.externalRoles[i];
@@ -404,7 +404,10 @@ contract DeployV2 is Script, Configuration {
 
         hooks[20] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(registry, configuration.owner, configuration.odosRouters[chainId]))
+            abi.encodePacked(
+                type(SwapOdosHook).creationCode,
+                abi.encode(registry, configuration.owner, configuration.odosRouters[chainId])
+            )
         );
 
         for (uint256 i = 0; i < len;) {

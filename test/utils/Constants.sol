@@ -126,6 +126,8 @@ abstract contract Constants {
     string public constant ERC7540FullyAsync_KEY = "ERC7540FullyAsync";
     string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
 
+    string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_ID";
+
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;
     address public constant CHAIN_1_EulerVault = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;

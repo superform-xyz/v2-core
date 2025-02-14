@@ -8,6 +8,8 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperRbac } from "../../../src/core/interfaces/ISuperRbac.sol";
+import { ISuperCollectiveVault } from "../../../src/core/interfaces/ISuperCollectiveVault.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
@@ -15,9 +17,14 @@ import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MockLockVault } from "../../mocks/MockLockVault.sol";
+import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
+import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 
 import "forge-std/console.sol";
+import {Vm} from "forge-std/Test.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest {
     using AddressLib for Address;
@@ -29,6 +36,9 @@ contract SuperExecutor_sameChainFlow is BaseTest {
     address public account;
     AccountInstance public instance;
     ISuperExecutor public superExecutor;
+    ISuperRbac public superRbac;
+    SuperRegistry public superRegistry;
+    MockSuperPositionFactory public mockSuperPositionFactory;
 
     function setUp() public override {
         super.setUp();
@@ -41,6 +51,10 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         account = accountInstances[ETH].account;
         instance = accountInstances[ETH];
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
+        superRbac = ISuperRbac(_getContract(ETH, SUPER_RBAC_KEY));
+        superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
+        mockSuperPositionFactory = new MockSuperPositionFactory(address(this));
+        vm.label(address(mockSuperPositionFactory), "MockSuperPositionFactory");
     }
 
     function test_ShouldExecuteAll(uint256 amount) external {
@@ -194,6 +208,11 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         executeOp(userOpData);
 
         assertEq(Mock1InchRouter(executor).swappedAmount(), amount);
+
+        // test manager role
+        superRbac.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
+        hook.setRouter(address(this));
+        assertEq(address(hook.aggregationRouter()), address(this));
     }
 
     function test_SwapThroughMockOdosRouter(uint256 amount) external {
@@ -206,7 +225,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
 
-        _getTokens(address(inputToken), odosRouters[ETH], amount);
+        _getTokens(address(inputToken), account, amount);
         _getTokens(address(outputToken), odosRouters[ETH], amount);
 
         bytes[] memory hooksData = new bytes[](2);
@@ -220,5 +239,72 @@ contract SuperExecutor_sameChainFlow is BaseTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         executeOp(userOpData);
+
+        // test manager role
+        superRbac.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
+
+        SwapOdosHook hook = SwapOdosHook(hooksAddresses[1]);
+        hook.setRouter(address(this));
+        assertEq(address(hook.odosRouterV2()), address(this));
+
+    }
+
+    function test_MockedSuperPositionFlow(uint256 amount) external {
+        amount = _bound(amount);
+
+        _getTokens(underlying, account, amount);
+
+        // create MockVault and set it as SuperCollectiveVault
+        MockLockVault lockVault = new MockLockVault();
+        vm.label(address(lockVault), "MockLockVault");
+        superRegistry.setAddress(keccak256(bytes(SUPER_COLLECTIVE_VAULT_KEY)), address(lockVault));
+
+        // hooks list
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        // hooks data with lockSP true for the deposit hook
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, true
+        );
+
+        // execute
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        ExecutionReturnData memory executionReturnData = executeOp(_getExecOps(instance, superExecutor, abi.encode(entry)));
+
+        // assert shares location
+        {
+            //uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
+            //uint256 accSharesAfter = vaultInstance.balanceOf(address(lockVault));
+            //assertEq(accSharesAfter, sharesPreviewed);
+        }
+
+        // retrieve logs and mint SP
+        {
+            for (uint256 i; i < executionReturnData.logs.length;) {
+                if (executionReturnData.logs[i].emitter == address(superExecutor)) {
+                    if (address(uint160(uint256((executionReturnData.logs[i].topics[1])))) == account) {
+                        console.log("\n SuperExecutor logs");
+
+                        // mint SuperPositionMock to account
+                        // should also create SP
+                        uint256 precomputedId = mockSuperPositionFactory.getSPId(yieldSourceAddress, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), uint64(ETH));
+
+                        uint256 spCountBefore = mockSuperPositionFactory.spCount();
+                        mockSuperPositionFactory.mintSuperPosition(uint64(ETH), yieldSourceAddress, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vaultInstance), account, amount);
+                        uint256 spCountAfter = mockSuperPositionFactory.spCount();
+                        assertEq(spCountAfter, spCountBefore + 1);
+
+                        assertNotEq(mockSuperPositionFactory.createdSPs(precomputedId), address(0));
+                    }
+
+                }
+                unchecked { ++i; }
+            }
+        }
     }
 }

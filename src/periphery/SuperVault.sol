@@ -18,7 +18,8 @@ import {
     IERC7540Deposit,
     IERC7540Redeem,
     IERC7741
-} from "../vendor/ERC7540/IERC7540Vault.sol";
+} from "../vendor/standards/ERC7540/IERC7540Vault.sol";
+import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
 /// @title SuperVault
@@ -45,6 +46,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     // Token metadata
     string private vaultName;
     string private vaultSymbol;
+
+    address public share;
 
     // Domain separator
     bytes32 private _DOMAIN_SEPARATOR;
@@ -108,6 +111,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
         _underlyingDecimals = success ? assetDecimals : 18;
         _asset = IERC20(asset_);
+        share = address(this);
         strategy = ISuperVaultStrategy(strategy_);
         escrow = escrow_;
 
@@ -530,7 +534,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return interfaceId == type(IERC7540Vault).interfaceId || interfaceId == type(IERC165).interfaceId
-            || interfaceId == type(IERC7741).interfaceId || interfaceId == type(IERC4626).interfaceId;
+            || interfaceId == type(IERC7741).interfaceId || interfaceId == type(IERC4626).interfaceId
+            || interfaceId == type(IERC7575).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
