@@ -11,13 +11,14 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/ext
 // Interfaces
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from "../core/interfaces/ISuperHook.sol";
+import { SuperRegistryImplementer } from "../core/utils/SuperRegistryImplementer.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
-contract SuperVaultStrategy is ISuperVaultStrategy {
+contract SuperVaultStrategy is ISuperVaultStrategy, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -45,8 +46,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Global configuration
     GlobalConfig private globalConfig;
 
-    // Fee configuration
-    FeeConfig private feeConfig;
+    // Fee configuration split into two parts
+    struct VaultFeeConfig {
+        uint256 performanceFeeBps;
+        address recipient;
+    }
+    
+    VaultFeeConfig private vaultFeeConfig;
+    VaultFeeConfig private proposedVaultFeeConfig;
+    uint256 private vaultFeeConfigEffectiveTime;
 
     // Hook root configuration
     bytes32 private hookRoot;
@@ -64,6 +72,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     // Request tracking
     mapping(address controller => SuperVaultState state) private superVaultState;
+
+    // Add superform treasury address
+    address private constant SUPERFORM_TREASURY = address(0); // TODO: Replace with actual treasury address
 
     // Convert modifiers to internal functions
     function _requireManager() internal view {
@@ -778,16 +789,33 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit HookRootUpdated(hookRoot);
     }
 
-    /// @notice Update fee configuration
-    /// @param feeBps New fee in basis points
+    /// @notice Propose changes to vault-specific fee configuration
+    /// @param performanceFeeBps New performance fee in basis points
     /// @param recipient New fee recipient
-    function updateFeeConfig(uint256 feeBps, address recipient) external {
+    function proposeVaultFeeConfig(uint256 performanceFeeBps, address recipient) external {
         _requireManager();
-        if (feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
+        if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
-        feeConfig = FeeConfig({ feeBps: feeBps, recipient: recipient });
-        emit FeeConfigUpdated(feeBps, recipient);
+        proposedVaultFeeConfig = VaultFeeConfig({
+            performanceFeeBps: performanceFeeBps,
+            recipient: recipient
+        });
+        vaultFeeConfigEffectiveTime = block.timestamp + ONE_WEEK;
+        
+        emit VaultFeeConfigProposed(performanceFeeBps, recipient, vaultFeeConfigEffectiveTime);
+    }
+
+    /// @notice Execute the proposed vault fee configuration update after timelock
+    function executeVaultFeeConfigUpdate() external {
+        if (block.timestamp < vaultFeeConfigEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (proposedVaultFeeConfig.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
+
+        vaultFeeConfig = proposedVaultFeeConfig;
+        delete proposedVaultFeeConfig;
+        vaultFeeConfigEffectiveTime = 0;
+
+        emit VaultFeeConfigUpdated(vaultFeeConfig.performanceFeeBps, vaultFeeConfig.recipient);
     }
 
     /// @notice Set an address for a given role
@@ -1156,15 +1184,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) internal returns (uint256) {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
-            uint256 bps = feeConfig.feeBps;
-            uint256 fee = profit.mulDiv(bps, 10_000);
-            currentAssets -= fee;
+            uint256 performanceFeeBps = vaultFeeConfig.performanceFeeBps;
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, 10_000);
+            
+            if (totalFee > 0) {
+                // Get Superform's percentage from registry
+                uint256 superformPercentage = _superRegistry.getSuperformFeeSplit();
+                
+                // Calculate Superform's portion of the fee
+                uint256 superformFee = totalFee.mulDiv(superformPercentage, 10_000);
+                uint256 recipientFee = totalFee - superformFee;
 
-            // Transfer fee to recipient if non-zero
-            if (fee > 0) {
-                address recipient = feeConfig.recipient;
-                _asset.safeTransfer(recipient, fee);
-                emit FeePaid(recipient, fee, bps);
+                // Transfer fees
+                if (superformFee > 0) {
+                    _asset.safeTransfer(_superRegistry.getTreasury(), superformFee);
+                    emit FeePaid(_superRegistry.getTreasury(), superformFee, performanceFeeBps);
+                }
+                
+                if (recipientFee > 0) {
+                    _asset.safeTransfer(vaultFeeConfig.recipient, recipientFee);
+                    emit FeePaid(vaultFeeConfig.recipient, recipientFee, performanceFeeBps);
+                }
+
+                currentAssets -= totalFee;
             }
         }
         return currentAssets;

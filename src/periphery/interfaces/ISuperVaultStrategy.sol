@@ -71,6 +71,9 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
+    event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
+    event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -137,11 +140,6 @@ interface ISuperVaultStrategy {
         // Hook type and execution
         ISuperHook.HookType hookType;
         Execution[] executions;
-    }
-
-    struct FeeConfig {
-        uint256 feeBps; // Fee in basis points
-        address recipient; // Fee recipient address
     }
 
     struct YieldSource {
