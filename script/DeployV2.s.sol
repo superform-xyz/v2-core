@@ -264,7 +264,7 @@ contract DeployV2 is Script, Configuration {
         superRegistry.setAddress(keccak256("SUPER_BUNDLER_ID"), configuration.bundler);
         superRegistry.setAddress(keccak256("ORACLE_REGISTRY_ID"), _getContract(chainId, SUPER_ORACLE_KEY));
         superRegistry.setAddress(keccak256("SUPER_REGISTRY_ID"), _getContract(chainId, SUPER_REGISTRY_KEY));
-
+        superRegistry.setAddress(keccak256("TREASURY_ID"), configuration.treasury);
     }
 
     /*//////////////////////////////////////////////////////////////

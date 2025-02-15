@@ -71,6 +71,9 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
+    event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
+    event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -80,6 +83,11 @@ interface ISuperVaultStrategy {
         uint256 superVaultCap; // Maximum total assets across all yield sources
         uint256 maxAllocationRate; // Maximum allocation percentage per yield source (in basis points)
         uint256 vaultThreshold; // Minimum TVL of a yield source that can be interacted with
+    }
+
+    struct FeeConfig {
+        uint256 performanceFeeBps; // Fee in basis points
+        address recipient; // Fee recipient address
     }
 
     struct SharePricePoint {
@@ -137,11 +145,6 @@ interface ISuperVaultStrategy {
         // Hook type and execution
         ISuperHook.HookType hookType;
         Execution[] executions;
-    }
-
-    struct FeeConfig {
-        uint256 feeBps; // Fee in basis points
-        address recipient; // Fee recipient address
     }
 
     struct YieldSource {
