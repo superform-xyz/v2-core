@@ -86,8 +86,8 @@ interface ISuperVaultStrategy {
     }
 
     struct FeeConfig {
-        uint256 performanceFeeBps;
-        address recipient;
+        uint256 performanceFeeBps; // Fee in basis points
+        address recipient; // Fee recipient address
     }
 
     struct SharePricePoint {

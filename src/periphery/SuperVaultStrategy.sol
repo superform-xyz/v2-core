@@ -46,7 +46,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, SuperRegistryImplementer {
     // Global configuration
     GlobalConfig private globalConfig;
 
-    // Fee configuration split into two parts
+    // Fee configuration
     FeeConfig private feeConfig;
     FeeConfig private proposedFeeConfig;
     uint256 private feeConfigEffectiveTime;
