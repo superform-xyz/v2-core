@@ -47,14 +47,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, SuperRegistryImplementer {
     GlobalConfig private globalConfig;
 
     // Fee configuration split into two parts
-    struct VaultFeeConfig {
-        uint256 performanceFeeBps;
-        address recipient;
-    }
-    
-    VaultFeeConfig private vaultFeeConfig;
-    VaultFeeConfig private proposedVaultFeeConfig;
-    uint256 private vaultFeeConfigEffectiveTime;
+    FeeConfig private feeConfig;
+    FeeConfig private proposedFeeConfig;
+    uint256 private feeConfigEffectiveTime;
 
     // Hook root configuration
     bytes32 private hookRoot;
@@ -72,9 +67,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, SuperRegistryImplementer {
 
     // Request tracking
     mapping(address controller => SuperVaultState state) private superVaultState;
-
-    // Add superform treasury address
-    address private constant SUPERFORM_TREASURY = address(0); // TODO: Replace with actual treasury address
 
     // Convert modifiers to internal functions
     function _requireManager() internal view {
@@ -797,25 +789,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy, SuperRegistryImplementer {
         if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
-        proposedVaultFeeConfig = VaultFeeConfig({
+        proposedFeeConfig = FeeConfig({
             performanceFeeBps: performanceFeeBps,
             recipient: recipient
         });
-        vaultFeeConfigEffectiveTime = block.timestamp + ONE_WEEK;
+        feeConfigEffectiveTime = block.timestamp + ONE_WEEK;
         
-        emit VaultFeeConfigProposed(performanceFeeBps, recipient, vaultFeeConfigEffectiveTime);
+        emit VaultFeeConfigProposed(performanceFeeBps, recipient, feeConfigEffectiveTime);
     }
 
     /// @notice Execute the proposed vault fee configuration update after timelock
     function executeVaultFeeConfigUpdate() external {
-        if (block.timestamp < vaultFeeConfigEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
-        if (proposedVaultFeeConfig.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
+        if (block.timestamp < feeConfigEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (proposedFeeConfig.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
-        vaultFeeConfig = proposedVaultFeeConfig;
-        delete proposedVaultFeeConfig;
-        vaultFeeConfigEffectiveTime = 0;
+        feeConfig = proposedFeeConfig;
+        delete proposedFeeConfig;
+        feeConfigEffectiveTime = 0;
 
-        emit VaultFeeConfigUpdated(vaultFeeConfig.performanceFeeBps, vaultFeeConfig.recipient);
+        emit VaultFeeConfigUpdated(feeConfig.performanceFeeBps, feeConfig.recipient);
     }
 
     /// @notice Set an address for a given role
@@ -1184,7 +1176,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, SuperRegistryImplementer {
     function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) internal returns (uint256) {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
-            uint256 performanceFeeBps = vaultFeeConfig.performanceFeeBps;
+            uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, 10_000);
             
             if (totalFee > 0) {
@@ -1202,8 +1194,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, SuperRegistryImplementer {
                 }
                 
                 if (recipientFee > 0) {
-                    _asset.safeTransfer(vaultFeeConfig.recipient, recipientFee);
-                    emit FeePaid(vaultFeeConfig.recipient, recipientFee, performanceFeeBps);
+                    _asset.safeTransfer(feeConfig.recipient, recipientFee);
+                    emit FeePaid(feeConfig.recipient, recipientFee, performanceFeeBps);
                 }
 
                 currentAssets -= totalFee;

@@ -85,6 +85,11 @@ interface ISuperVaultStrategy {
         uint256 vaultThreshold; // Minimum TVL of a yield source that can be interacted with
     }
 
+    struct FeeConfig {
+        uint256 performanceFeeBps;
+        address recipient;
+    }
+
     struct SharePricePoint {
         /// @notice Number of shares at this price point
         uint256 shares;
