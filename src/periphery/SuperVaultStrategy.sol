@@ -65,6 +65,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Request tracking
     mapping(address controller => SuperVaultState state) private superVaultState;
 
+    // Rewards distributor
+    address public rewardsDistributor;
+
+    // Claimed tokens tracking
+    mapping(address token => uint256 amount) public claimedTokens;
+
     // Convert modifiers to internal functions
     function _requireManager() internal view {
         if (msg.sender != addresses[MANAGER_ROLE]) revert UNAUTHORIZED();
@@ -541,7 +547,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function claimAndAutocompound(
+    function claimAndCompound(
         address[][] calldata hooks,
         bytes32[][] calldata claimHookProofs,
         bytes32[][] calldata swapHookProofs,
@@ -579,7 +585,157 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Verify all assets were allocated
         if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_ASSET_BALANCE();
 
-        emit RewardsAutocompounded(vars.assetGained);
+        emit RewardsClaimedAndCompounded(vars.assetGained);
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function claimAndDistribute(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata,
+        address[] calldata expectedTokensOut
+    )
+        external
+    {
+        _requireStrategist();
+
+        if (rewardsDistributor == address(0)) revert REWARDS_DISTRIBUTOR_NOT_SET();
+
+        // Execute claim hooks and get balance changes
+        uint256[] memory balanceChanges = _processClaimHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
+
+        // Transfer claimed tokens to distributor
+        for (uint256 i; i < expectedTokensOut.length;) {
+            // Transfer claimed tokens to distributor if any were claimed
+            if (balanceChanges[i] > 0) {
+                IERC20(expectedTokensOut[i]).safeTransfer(rewardsDistributor, balanceChanges[i]);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        emit RewardsDistributed(expectedTokensOut, balanceChanges);
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function claim(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata,
+        address[] calldata expectedTokensOut
+    )
+        external
+    {
+        _requireStrategist();
+
+        // Execute claim hooks and get balance changes
+        uint256[] memory balanceChanges = _processClaimHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
+
+        uint256 expectedTokensLength = expectedTokensOut.length;
+        if (expectedTokensLength == 0) revert ZERO_LENGTH();
+
+        // Store claimed tokens in state
+        for (uint256 i; i < expectedTokensLength;) {
+            if (balanceChanges[i] > 0) {
+                claimedTokens[expectedTokensOut[i]] += balanceChanges[i];
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        emit RewardsClaimed(expectedTokensOut, balanceChanges);
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function compoundClaimedTokens(
+        address[][] calldata hooks,
+        bytes32[][] calldata swapHookProofs,
+        bytes32[][] calldata allocateHookProofs,
+        bytes[][] calldata hookCalldata,
+        address[] calldata claimedTokensToCompound
+    )
+        external
+    {
+        _requireStrategist();
+
+        ClaimLocalVars memory vars;
+
+        // Get initial asset balance
+        vars.initialAssetBalance = _asset.balanceOf(address(this));
+
+        uint256 claimedTokensLength = claimedTokensToCompound.length;
+        if (claimedTokensLength == 0) revert ZERO_LENGTH();
+
+        // Get balance changes for claimed tokens
+        vars.balanceChanges = new uint256[](claimedTokensLength);
+        for (uint256 i; i < claimedTokensLength;) {
+            vars.balanceChanges[i] = claimedTokens[claimedTokensToCompound[i]];
+            // Reset claimed tokens amount
+            if (vars.balanceChanges[i] > 0) {
+                claimedTokens[claimedTokensToCompound[i]] = 0;
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        // Step 1: Execute swap hooks and get asset gained
+        vars.assetGained = _processSwapHookExecution(
+            hooks[0],
+            swapHookProofs,
+            hookCalldata[0],
+            claimedTokensToCompound,
+            vars.balanceChanges,
+            vars.initialAssetBalance
+        );
+
+        // Step 2: Execute inflow hooks to allocate gained assets
+        vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
+
+        (vars.fulfillmentVars, vars.targetedYieldSources) =
+            _processHooks(hooks[1], allocateHookProofs, hookCalldata[1], vars.fulfillmentVars, true);
+
+        // Check vault caps after all hooks are processed
+        _checkVaultCaps(vars.targetedYieldSources);
+
+        // Verify all assets were allocated
+        if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_ASSET_BALANCE();
+
+        emit RewardsClaimedAndCompounded(vars.assetGained);
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function distributeClaimedTokens(address[] calldata claimedTokensToDistribute) external {
+        _requireStrategist();
+
+        if (rewardsDistributor == address(0)) revert REWARDS_DISTRIBUTOR_NOT_SET();
+
+        uint256 claimedTokensLength = claimedTokensToDistribute.length;
+        if (claimedTokensLength == 0) revert ZERO_LENGTH();
+        uint256[] memory amounts = new uint256[](claimedTokensLength);
+
+        // Transfer claimed tokens to distributor
+        for (uint256 i; i < claimedTokensLength;) {
+            amounts[i] = claimedTokens[claimedTokensToDistribute[i]];
+
+            if (amounts[i] > 0) {
+                // Reset claimed tokens amount
+                claimedTokens[claimedTokensToDistribute[i]] = 0;
+
+                // Transfer to distributor
+                IERC20(claimedTokensToDistribute[i]).safeTransfer(rewardsDistributor, amounts[i]);
+            }
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        emit RewardsDistributed(claimedTokensToDistribute, amounts);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -749,8 +905,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit GlobalConfigUpdated(config.vaultCap, config.superVaultCap, config.maxAllocationRate, config.vaultThreshold);
     }
 
-    /// @notice Propose a new hook root
-    /// @param newRoot New hook root to propose
+    /// @inheritdoc ISuperVaultStrategy
     function proposeHookRoot(bytes32 newRoot) external {
         _requireManager();
         proposedHookRoot = newRoot;
@@ -769,9 +924,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit HookRootUpdated(hookRoot);
     }
 
-    /// @notice Update fee configuration
-    /// @param feeBps New fee in basis points
-    /// @param recipient New fee recipient
+    /// @inheritdoc ISuperVaultStrategy
     function updateFeeConfig(uint256 feeBps, address recipient) external {
         _requireManager();
         if (feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
@@ -781,10 +934,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit FeeConfigUpdated(feeBps, recipient);
     }
 
-    /// @notice Set an address for a given role
-    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
-    /// @param role The role identifier
-    /// @param account The address to set for the role
+    /// @inheritdoc ISuperVaultStrategy
     function setAddress(bytes32 role, address account) external {
         _requireManager();
         // Prevent setting zero address
@@ -796,8 +946,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[role] = account;
     }
 
-    /// @notice Propose a change to emergency withdrawable status
-    /// @param newWithdrawable The new emergency withdrawable status to propose
+    /// @inheritdoc ISuperVaultStrategy
     function proposeEmergencyWithdrawable(bool newWithdrawable) external {
         _requireManager();
         proposedEmergencyWithdrawable = newWithdrawable;
@@ -805,7 +954,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit EmergencyWithdrawableProposed(newWithdrawable, emergencyWithdrawableEffectiveTime);
     }
 
-    /// @notice Execute the proposed emergency withdrawable update after timelock
+    /// @inheritdoc ISuperVaultStrategy
     function executeEmergencyWithdrawableUpdate() external {
         if (block.timestamp < emergencyWithdrawableEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
 
@@ -815,10 +964,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit EmergencyWithdrawableUpdated(emergencyWithdrawable);
     }
 
-    /// @notice Emergency withdraw free assets from the vault
-    /// @dev Only works when emergency withdrawals are enabled
-    /// @param recipient Address to receive the withdrawn assets
-    /// @param amount Amount of free assets to withdraw
+    /// @inheritdoc ISuperVaultStrategy
     function emergencyWithdraw(address recipient, uint256 amount) external {
         _requireEmergencyAdmin();
         if (!emergencyWithdrawable) revert EMERGENCY_WITHDRAWALS_DISABLED();
@@ -832,6 +978,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         _asset.safeTransfer(recipient, amount);
         emit EmergencyWithdrawal(recipient, amount);
     }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function setRewardsDistributor(address rewardsDistributor_) external {
+        _requireManager();
+
+        rewardsDistributor = rewardsDistributor_;
+        emit RewardsDistributorSet(rewardsDistributor_);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         MANAGEMENT VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/

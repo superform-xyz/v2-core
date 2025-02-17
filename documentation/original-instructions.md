@@ -77,11 +77,8 @@ The EIP7540 must be followed to the letter.
     2. The redeem function will check if the user has any assets to claim
     3. If the user has assets to claim, the assets are transferred to the user
     4. The ledger is looked upon to get entries for the user's assets. Given we inscribed shares in deposit(), we must convert shares to assets at each PPS when it was inscribed, to properly determine the PNL in assets.
-10. Ability to claim rewards accrued by the vault
-    1. A keeper is able to call claim with a list of yield sources to claim from and approved selectors which are matched against the merkle root
-    2. Calldata is prebuilt and passed into each hook build function. Each hook build function returns an Execution struct. This struct contains the target (which is a yield source present in this system) and the calldata to be executed on the target. For this purpose v2-core hooks are used.
-    3. The claimed rewards are available in the vault's balance. Strategists can pass in these amounts to allocate them to yield sources to reinvest (by passing a swap hook)
-    - claimAndAutocompound 
+10. Ability to claim rewards accrued by the vault - COMPLETE
+    - claimAndCompound
         - Has three sets of hooks, hook proofs and call data: one set for claim (non inflow or outflow), another set for swapping the claimed tokens to asset (non inflow or outflow) and another set for allocation into the vault (INFLOW only). In addition, there is an array which contains the expected tokens out from each claim hook call
         - During first set execution, hooks are called normally as the current claimRewards() implementation. This is going to be internalized as it is going to be re-used in claimAndDistribute
         -  At the end of loop of the execution we check the balance of the expected tokens out increased (and save the increase)
@@ -89,10 +86,24 @@ The EIP7540 must be followed to the letter.
         - Third, we supply asset as desired to the yield sources. Normal constraint checks apply, similar to allocate in inflow hooks. It should internalize the inflow approach in allocate and re-use it here
         - At the end we verify that the balance of asset reset exactly to the original value, pre swaps, otherwise revert the entire function
     - claimAndDistribute
-        - Has two sets of hooks, hook proofs and call data: one set for claim (non inflow or outflow)  just like current claim and another set to distribute tokens to users (also non inflow or outflow). It also includes an array of expectedTokensOut
+        - this function cannot be used if rewardsDistributor is set as address(0)
+        - Has one set of hooks, hook proofs and call data: just for claiming. It also includes an array of expectedTokensOut
         - Follows exactly he process like 1st claim step of claimAndAutocompound including the balance check at the end of the first set (all of this can be internalized between the two functions)
-        - The second set of hooks is executed. There are no checks or constraints in this call, but they must target a specific rewards address (set by the manager in a separate function). This avoid a strategist being able to designate arbitrary targets during claimAndDistribute
         - These hooks are expected to distribute the claimed tokens, thus we check the balance for the expectedTokensOut decreases
+        - Send the tokens to a rewardsDistributor address 
+        - Option for the strategist to define in the SuperVault params if rewardsDistributor is an option (if it is set as address(0), then it is not used)
+    - claim
+        - Has one set of hooks, hook proofs and call data: just for claiming. It also includes an array of expectedTokensOut
+        - Follows exactly the process like 1st claim step of claimAndCompound() function including the balance check at the end of the first set (all of this can be internalized between the two functions)
+        - tokens claimed this way (via balance check) are inscribed in a new state variable in the vault (a mapping)
+    - compoundClaimedTokens
+        - Has two sets of hooks, hook proofs and call data: one set for swapping (non inflow or outflow) and another set for allocation into the vault (INFLOW only).
+        - Taking the mapping of claimed tokens, we execute the first set of hooks for swapping them.We must check the balance increase was negated for expected tokens and note the balance increase for asset between all operations
+        - Then, we supply asset as desired to the yield sources. Normal constraint checks apply, similar to allocate in inflow hooks. It should internalize the inflow approach in allocate and re-use it here
+        - At the end we verify that the balance of asset reset exactly to the original value, pre swaps, otherwise revert the entire function
+    - distributeClaimedTokens
+        - this function cannot be used if rewardsDistributor is set as address(0)
+        - Taking the mapping of claimed tokens, send the tokens to a rewardsDistributor address
 11. Implement ERC7540 cancelation flow of requests  - COMPLETE
     1. Users are able to call cancelRedeemRequest and cancelDepositRequest to cancel their requests
     2. This is made according to IERC7540CancelDeposit and IERC7540CancelRedeem
