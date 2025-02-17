@@ -49,6 +49,8 @@ interface ISuperVaultStrategy {
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
     error REWARDS_DISTRIBUTOR_NOT_SET();
+    error INVALID_SUPER_REGISTRY();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -74,6 +76,8 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
+    event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
+    event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
     event RewardsClaimedAndCompounded(uint256 amount);
     event RewardsDistributorSet(address indexed rewardsDistributor);
     event RewardsDistributed(address[] tokens, uint256[] amounts);
@@ -87,6 +91,11 @@ interface ISuperVaultStrategy {
         uint256 superVaultCap; // Maximum total assets across all yield sources
         uint256 maxAllocationRate; // Maximum allocation percentage per yield source (in basis points)
         uint256 vaultThreshold; // Minimum TVL of a yield source that can be interacted with
+    }
+
+    struct FeeConfig {
+        uint256 performanceFeeBps; // Fee in basis points
+        address recipient; // Fee recipient address
     }
 
     struct SharePricePoint {
@@ -146,11 +155,6 @@ interface ISuperVaultStrategy {
         Execution[] executions;
     }
 
-    struct FeeConfig {
-        uint256 feeBps; // Fee in basis points
-        address recipient; // Fee recipient address
-    }
-
     struct YieldSource {
         address oracle; // Associated yield source oracle address
         bool isActive; // Whether the source is active
@@ -185,24 +189,6 @@ interface ISuperVaultStrategy {
         address[] targetedYieldSources;
         address[] resizedArray;
     }
-
-    /*//////////////////////////////////////////////////////////////
-                            INITIALIZATION
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Initialize the strategy contract
-    /// @param vault_ Address of the SuperVault
-    /// @param manager_ Address of the manager
-    /// @param strategist_ Address of the strategist
-    /// @param emergencyAdmin_ Address of the emergency admin
-    /// @param config_ Initial global configuration
-    function initialize(
-        address vault_,
-        address manager_,
-        address strategist_,
-        address emergencyAdmin_,
-        GlobalConfig memory config_
-    )
-        external;
 
     /*//////////////////////////////////////////////////////////////
                         REQUEST MANAGEMENT
@@ -377,10 +363,13 @@ interface ISuperVaultStrategy {
     /// @notice Execute the proposed hook root update after timelock
     function executeHookRootUpdate() external;
 
-    /// @notice Update fee configuration
-    /// @param feeBps New fee in basis points
+    /// @notice Propose changes to vault-specific fee configuration
+    /// @param performanceFeeBps New performance fee in basis points
     /// @param recipient New fee recipient
-    function updateFeeConfig(uint256 feeBps, address recipient) external;
+    function proposeVaultFeeConfig(uint256 performanceFeeBps, address recipient) external;
+
+    /// @notice Execute the proposed vault fee configuration update after timelock
+    function executeVaultFeeConfigUpdate() external;
 
     /// @notice Set an address for a given role
     /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves

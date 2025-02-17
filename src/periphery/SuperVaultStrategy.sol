@@ -8,11 +8,16 @@ import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-// Interfaces
-import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
+
+// Core Interfaces
 import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from "../core/interfaces/ISuperHook.sol";
+import { SuperRegistryImplementer } from "../core/utils/SuperRegistryImplementer.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
+
+// Periphery Interfaces
+import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
+import { ISuperRegistry } from "../core/interfaces/ISuperRegistry.sol";
 
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -47,6 +52,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     // Fee configuration
     FeeConfig private feeConfig;
+    FeeConfig private proposedFeeConfig;
+    uint256 private feeConfigEffectiveTime;
 
     // Hook root configuration
     bytes32 private hookRoot;
@@ -71,6 +78,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Claimed tokens tracking
     mapping(address token => uint256 amount) public claimedTokens;
 
+    ISuperRegistry private superRegistry;
+
     // Convert modifiers to internal functions
     function _requireManager() internal view {
         if (msg.sender != addresses[MANAGER_ROLE]) revert UNAUTHORIZED();
@@ -91,11 +100,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
+
     function initialize(
         address vault_,
         address manager_,
         address strategist_,
         address emergencyAdmin_,
+        address superRegistry_,
         GlobalConfig memory config_
     )
         external
@@ -105,6 +116,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
+        if (superRegistry_ == address(0)) revert INVALID_SUPER_REGISTRY();
         if (config_.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (config_.maxAllocationRate == 0 || config_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -121,7 +133,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[MANAGER_ROLE] = manager_;
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
-
+        superRegistry = ISuperRegistry(superRegistry_);
         globalConfig = config_;
     }
 
@@ -925,13 +937,27 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function updateFeeConfig(uint256 feeBps, address recipient) external {
+    function proposeVaultFeeConfig(uint256 performanceFeeBps, address recipient) external {
         _requireManager();
-        if (feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
+        if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
-        feeConfig = FeeConfig({ feeBps: feeBps, recipient: recipient });
-        emit FeeConfigUpdated(feeBps, recipient);
+        proposedFeeConfig = FeeConfig({ performanceFeeBps: performanceFeeBps, recipient: recipient });
+        feeConfigEffectiveTime = block.timestamp + ONE_WEEK;
+
+        emit VaultFeeConfigProposed(performanceFeeBps, recipient, feeConfigEffectiveTime);
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function executeVaultFeeConfigUpdate() external {
+        if (block.timestamp < feeConfigEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (proposedFeeConfig.recipient == address(0)) revert INVALID_FEE_RECIPIENT();
+
+        feeConfig = proposedFeeConfig;
+        delete proposedFeeConfig;
+        feeConfigEffectiveTime = 0;
+
+        emit VaultFeeConfigUpdated(feeConfig.performanceFeeBps, feeConfig.recipient);
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -1466,15 +1492,26 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) internal returns (uint256) {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
-            uint256 bps = feeConfig.feeBps;
-            uint256 fee = profit.mulDiv(bps, 10_000);
-            currentAssets -= fee;
+            uint256 performanceFeeBps = feeConfig.performanceFeeBps;
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT);
 
-            // Transfer fee to recipient if non-zero
-            if (fee > 0) {
-                address recipient = feeConfig.recipient;
-                _asset.safeTransfer(recipient, fee);
-                emit FeePaid(recipient, fee, bps);
+            if (totalFee > 0) {
+                // Calculate Superform's portion of the fee
+                uint256 superformFee = totalFee.mulDiv(superRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
+                uint256 recipientFee = totalFee - superformFee;
+
+                // Transfer fees
+                if (superformFee > 0) {
+                    _asset.safeTransfer(superRegistry.getTreasury(), superformFee);
+                    emit FeePaid(superRegistry.getTreasury(), superformFee, performanceFeeBps);
+                }
+
+                if (recipientFee > 0) {
+                    _asset.safeTransfer(feeConfig.recipient, recipientFee);
+                    emit FeePaid(feeConfig.recipient, recipientFee, performanceFeeBps);
+                }
+
+                currentAssets -= totalFee;
             }
         }
         return currentAssets;
