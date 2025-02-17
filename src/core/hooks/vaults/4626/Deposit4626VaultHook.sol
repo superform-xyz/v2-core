@@ -14,17 +14,19 @@ import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
+import "forge-std/console.sol";
+
 /// @title Deposit4626VaultHook
 /// @dev data has the following structure
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-/// @notice         bool lockForSP = _decodeBool(data, 85);
+/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+/// @notice         bool lockForSP = _decodeBool(data, 57);
 contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 52;
+    uint256 private constant AMOUNT_POSITION = 24;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
 
@@ -42,9 +44,13 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         override
         returns (Execution[] memory executions)
     {
+        console.log("-------------------------- length", data.length);
         address yieldSource = data.extractYieldSource();
+        console.log("-------------------------- yieldSource", yieldSource);
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 84);
+        console.log("-------------------------- amount", amount);
+        bool usePrevHookAmount = _decodeBool(data, 56);
+        console.log("-------------------------- usePrevHookAmount", usePrevHookAmount);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -65,7 +71,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     function preExecute(address, address account, bytes memory data) external onlyExecutor {
         // store current balance
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 85);
+        lockForSP = _decodeBool(data, 57);
         spToken = data.extractYieldSource();
     }
 

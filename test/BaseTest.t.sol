@@ -10,10 +10,13 @@ import { ISentinel } from "../src/core/interfaces/sentinel/ISentinel.sol";
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 // Superform contracts
 import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
+import { PendleLedger } from "../src/core/accounting/PendleLedger.sol";
+import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
@@ -103,6 +106,8 @@ import "forge-std/console.sol";
 struct Addresses {
     ISuperRbac superRbac;
     ISuperLedger superLedger;
+    ISuperLedger pendleLedger;
+    ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISentinel superPositionSentinel;
@@ -308,9 +313,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
             assertTrue(A.superRbac.hasRole(SuperRbac(address(A.superRbac)).DEFAULT_ADMIN_ROLE(), address(this)));
 
-            A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superRegistry))));
+            A.superLedgerConfiguration = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A.superRegistry))));
+            vm.label(address(A.superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
+            contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A.superLedgerConfiguration);   
+
+            A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superLedgerConfiguration))));
             vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A.superLedger);
+
+            A.pendleLedger = ISuperLedger(address(new PendleLedger(address(A.superLedgerConfiguration))));
+            vm.label(address(A.pendleLedger), PENDLE_LEDGER_KEY);
+            contractAddresses[chainIds[i]][PENDLE_LEDGER_KEY] = address(A.pendleLedger);
 
             A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
             vm.label(address(A.superPositionSentinel), SUPER_POSITION_SENTINEL_KEY);
@@ -811,6 +824,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 keccak256("SUPER_LEDGER_ID"), _getContract(chainIds[i], "SuperLedger")
             );
             SuperRegistry(address(superRegistry)).setAddress(
+                keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], "SuperLedgerConfiguration")
+            );
+            SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainIds[i], "SuperPositionSentinel")
             );
             SuperRegistry(address(superRegistry)).setAddress(
@@ -846,27 +862,30 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.startPrank(MANAGER);
 
             SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
-            ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](3);
-            configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+            configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                ledger: _getContract(chainIds[i], PENDLE_LEDGER_KEY)
             });
-            ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
+            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
         }
     }
@@ -984,7 +1003,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDeposit4626HookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address vault,
         uint256 amount,
         bool usePrevHookAmount,
@@ -998,7 +1017,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _create5115DepositHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address vault,
         address tokenIn,
         uint256 amount,
@@ -1015,7 +1034,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createWithdraw4626HookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address vault,
         address owner,
         uint256 shares,
@@ -1030,7 +1049,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _create5115WithdrawHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address vault,
         address tokenOut,
         uint256 shares,
@@ -1130,7 +1149,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createRequestDeposit7540VaultHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address yieldSource,
         address controller,
         uint256 amount,
@@ -1144,7 +1163,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDeposit7540VaultHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address yieldSource,
         address controller,
         uint256 amount,
@@ -1159,7 +1178,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createRequestWithdraw7540VaultHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address yieldSource,
         address owner,
         uint256 amount,
@@ -1173,7 +1192,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createWithdraw7540VaultHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address yieldSource,
         address owner,
         uint256 amount,
@@ -1188,7 +1207,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDeposit7575_7540VaultHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address yieldSource,
         address controller,
         uint256 amount,
@@ -1203,7 +1222,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createWithdraw7575_7540VaultHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address yieldSource,
         address owner,
         uint256 amount,
@@ -1218,7 +1237,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createDeposit5115VaultHookData(
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         address yieldSource,
         address tokenIn,
         uint256 amount,

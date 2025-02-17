@@ -15,10 +15,15 @@ import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImpl
 import { ISuperRbac } from "../../src/core/interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
 import { ISuperCollectiveVault } from "../../src/core/interfaces/ISuperCollectiveVault.sol";
 
+import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
+
 contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+    using HookDataDecoder for bytes;
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -109,11 +114,13 @@ contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(keccak256("SUPER_LEDGER_ID")));
-            bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(hookData, 20, 32), 0);
-            address yieldSource = BytesLib.toAddress(BytesLib.slice(hookData, 52, 20), 0);
+            ISuperLedgerConfiguration ledgerConfiguration = ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
+            bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            address yieldSource = hookData.extractYieldSource();
 
-            ledger.updateAccounting(
+            ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+                ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+            ISuperLedger(config.ledger).updateAccounting(
                 account,
                 yieldSource,
                 yieldSourceOracleId,

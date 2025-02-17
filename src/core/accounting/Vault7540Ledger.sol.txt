@@ -2,12 +2,74 @@
 pragma solidity >=0.8.28;
 
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
+import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 
 import "./BaseLedger.sol";
 
+
 /// @notice Default ISuperLedger implementation
-contract SuperLedger is BaseLedger, ISuperLedger {
+contract Vault7540Ledger is BaseLedger, ISuperLedger {
+    /*//////////////////////////////////////////////////////////////
+                            STORAGE
+    //////////////////////////////////////////////////////////////*/
+    struct Ledger7540Entry {
+        uint256 amountSharesAvailableToConsume;
+        uint256 price;
+        uint256 requestId;
+    }
+
+    struct Ledger7540 {
+        Ledger7540Entry[] entries;
+        uint256 unconsumedEntries;
+    }
+
+    /// @notice Tracks user's ledger entries for each yield source address
+    mapping(address user => mapping(address yieldSource => Ledger7540 ledger)) internal userLedger7540;
+
     constructor(address registry_) BaseLedger(registry_) { }
+
+    modifier onlyLedgerManager() {
+        ISuperRegistry superRegistry = superLedgerConfiguration.superRegistry();
+        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
+        if (!rbac.hasRole(keccak256("LEDGER_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
+        _;
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
+                            OWNER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Updates an user entry at a specific index
+    /// @param user the account address
+    /// @param yieldSource the yieldSource address
+    /// @param index the ledger entry item array index
+    /// @param price the new pps
+    // TODO: should we fetch `price` from the oracle at this point?
+    //      a malicious `onlyLedgerManager` could use a fake price
+    function updateUserEntryByIndex(address user, address yieldSource, uint256 index, uint256 price) external onlyLedgerManager {
+        Ledger7540 storage ledger = userLedger7540[user][yieldSource];
+        ledger.entries[index].price = price;
+    }
+
+    /// @notice Updates an user entry for a request id
+    /// @param user the account address
+    /// @param yieldSource the yieldSource address
+    /// @param requestId the requestId to update the price for
+    /// @param price the new pps
+    // TODO: should we fetch `price` from the oracle at this point?
+    //      a malicious `onlyLedgerManager` could use a fake price
+    function udpateUserEntryByRequestId(address user, address yieldSource, uint256 requestId, uint256 price) external onlyLedgerManager {
+        Ledger7540 storage ledger = userLedger7540[user][yieldSource];
+
+        uint256 len = ledger.entries.length;
+        for (uint256 i; i < len;) {
+            if (requestId == ledger.entries[i].requestId) {
+                ledger.entries[i].price = price;
+            }
+            unchecked { ++i; }
+        }
+    }
 
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
@@ -21,7 +83,22 @@ contract SuperLedger is BaseLedger, ISuperLedger {
         view
         returns (LedgerEntry[] memory entries, uint256 unconsumedEntries)
     {
-        return _getLedger(user, yieldSource);
+        Ledger7540 memory ledger = userLedger7540[user][yieldSource];
+        uint256 len = ledger.entries.length;
+        for (uint256 i; i
+        return LedgerEntry(ledger.entries, ledger.unconsumedEntries);
+    }
+
+    function get7540Ledger(
+        address user,
+        address yieldSource
+    )
+        external
+        view
+        returns (Ledger7540Entry[] memory entries, uint256 unconsumedEntries)
+    {
+        Ledger7540 memory ledger = userLedger7540[user][yieldSource];
+        return (ledger.entries, ledger.unconsumedEntries);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -42,7 +119,6 @@ contract SuperLedger is BaseLedger, ISuperLedger {
     {
         return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
     }
-
 
     /*//////////////////////////////////////////////////////////////
                             PRIVATE FUNCTIONS
@@ -69,8 +145,8 @@ contract SuperLedger is BaseLedger, ISuperLedger {
             if (pps == 0) revert INVALID_PRICE();
 
             // Always inscribe in the ledger, even if feePercent is set to 0
-            userLedger[user][yieldSource].entries.push(
-                LedgerEntry({ amountSharesAvailableToConsume: amountSharesOrAssets, price: pps })
+            userLedger7540[user][yieldSource].entries.push(
+                Ledger7540Entry({ amountSharesAvailableToConsume: amountSharesOrAssets, price: pps, requestId: 0 })
             );
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
             return 0;
@@ -102,16 +178,16 @@ contract SuperLedger is BaseLedger, ISuperLedger {
         uint256 remainingShares = usedShares;
         uint256 costBasis;
 
-        Ledger storage ledger = userLedger[user][yieldSource];
+        Ledger7540 storage ledger = userLedger7540[user][yieldSource];
         uint256 len = ledger.entries.length;
         if (len == 0) return 0;
 
-        uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
+        uint256 currentIndex = userLedger7540[user][yieldSource].unconsumedEntries;
 
         while (remainingShares > 0) {
             if (currentIndex >= len) revert INSUFFICIENT_SHARES();
 
-            LedgerEntry storage entry = ledger.entries[currentIndex];
+            Ledger7540Entry storage entry = ledger.entries[currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
 
             // if no shares available on current entry, move to the next
@@ -138,7 +214,7 @@ contract SuperLedger is BaseLedger, ISuperLedger {
             }
         }
 
-        userLedger[user][yieldSource].unconsumedEntries = currentIndex;
+        userLedger7540[user][yieldSource].unconsumedEntries = currentIndex;
 
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
 

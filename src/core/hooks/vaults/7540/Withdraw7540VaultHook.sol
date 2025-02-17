@@ -18,16 +18,16 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Withdraw7540VaultHook
 /// @dev data has the following structure
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         bool lockForSP = _decodeBool(data, 105);
+/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
+/// @notice         bool lockForSP = _decodeBool(data, 77);
 contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant AMOUNT_POSITION = 44;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -46,9 +46,9 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address owner = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 104);
+        bool usePrevHookAmount = _decodeBool(data, 76);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResultOutflow(prevHook).outAmount();
@@ -74,7 +74,7 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
         asset = IERC7540(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 105);
+        lockForSP = _decodeBool(data, 77);
         spToken = yieldSource;
     }
 

@@ -5,8 +5,10 @@ import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 
 import "./BaseLedger.sol";
 
-/// @notice Default ISuperLedger implementation
-contract SuperLedger is BaseLedger, ISuperLedger {
+import "forge-std/console.sol";
+
+/// @notice Pendle vaults (5115) ISuperLedger implementation
+contract PendleLedger is BaseLedger, ISuperLedger {
     constructor(address registry_) BaseLedger(registry_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -43,7 +45,6 @@ contract SuperLedger is BaseLedger, ISuperLedger {
         return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
     }
 
-
     /*//////////////////////////////////////////////////////////////
                             PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -77,7 +78,7 @@ contract SuperLedger is BaseLedger, ISuperLedger {
         } else {
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
-                feeAmount = _processOutflow(user, yieldSource, amountSharesOrAssets, usedShares, config);
+                feeAmount = _processOutflow(user, yieldSource, usedShares, config);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
@@ -88,10 +89,16 @@ contract SuperLedger is BaseLedger, ISuperLedger {
         }
     }
 
+    struct OutflowContext {
+        uint256 remainingShares;
+        uint256 profit;
+        uint256 currentIndex;
+        uint256 decimals;
+    }
+
     function _processOutflow(
         address user,
         address yieldSource,
-        uint256 amountAssets,
         uint256 usedShares,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     )
@@ -99,54 +106,62 @@ contract SuperLedger is BaseLedger, ISuperLedger {
         virtual
         returns (uint256 feeAmount)
     {
-        uint256 remainingShares = usedShares;
-        uint256 costBasis;
-
         Ledger storage ledger = userLedger[user][yieldSource];
         uint256 len = ledger.entries.length;
         if (len == 0) return 0;
 
-        uint256 currentIndex = userLedger[user][yieldSource].unconsumedEntries;
+        OutflowContext memory ctx;
+        ctx.remainingShares = usedShares;
+        ctx.currentIndex = userLedger[user][yieldSource].unconsumedEntries;
+        ctx.decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource);
 
-        while (remainingShares > 0) {
-            if (currentIndex >= len) revert INSUFFICIENT_SHARES();
+        while (ctx.remainingShares > 0) {
+            if (ctx.currentIndex >= len) revert INSUFFICIENT_SHARES();
 
-            LedgerEntry storage entry = ledger.entries[currentIndex];
+            LedgerEntry storage entry = ledger.entries[ctx.currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
 
-            // if no shares available on current entry, move to the next
+            // If no shares available in current entry, move to the next
             if (availableShares == 0) {
                 unchecked {
-                    ++currentIndex;
+                    ++ctx.currentIndex;
                 }
                 continue;
             }
 
-            uint256 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource);
-
-            // remove from current entry
-            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+            // Remove from current entry
+            uint256 sharesConsumed = availableShares > ctx.remainingShares ? ctx.remainingShares : availableShares;
             entry.amountSharesAvailableToConsume -= sharesConsumed;
-            remainingShares -= sharesConsumed;
+            ctx.remainingShares -= sharesConsumed;
 
-            costBasis += sharesConsumed * entry.price / (10 ** decimals);
+            uint256 entryBasis = sharesConsumed * entry.price / (10 ** ctx.decimals);
+            uint256 ppsNow = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+            uint256 currentBasis = sharesConsumed * ppsNow / (10 ** ctx.decimals);
 
+            console.log("------ entryBasis", entryBasis);
+            console.log("------ currentBasis", currentBasis);
+
+            if (currentBasis > entryBasis) {
+                ctx.profit += (currentBasis - entryBasis);
+            }
+
+            console.log("-------sharesConsumed", sharesConsumed);
+            console.log("-------availableShares", availableShares);
             if (sharesConsumed == availableShares) {
+                console.log("-------increasing index current", ctx.currentIndex);
                 unchecked {
-                    ++currentIndex;
+                    ++ctx.currentIndex;
                 }
             }
         }
-
-        userLedger[user][yieldSource].unconsumedEntries = currentIndex;
-
-        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-
-        if (profit > 0) {
+        userLedger[user][yieldSource].unconsumedEntries = ctx.currentIndex;
+        console.log("--------- final profit", ctx.profit);
+        if (ctx.profit > 0) {
             if (config.feePercent == 0) revert FEE_NOT_SET();
 
             // Calculate fee in assets but don't transfer - let the executor handle it
-            feeAmount = (profit * config.feePercent) / 10_000;
+            feeAmount = (ctx.profit * config.feePercent) / 10_000;
+            console.log("------------fee amount", feeAmount);
         }
     }
 }
