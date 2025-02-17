@@ -966,6 +966,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
+    function _deriveExpectedFee(uint256 assetDelta, uint256 sharesConsumed, uint256 pps, uint256 decimals, uint256 feePercent) internal pure returns (uint256 feeAmount) {
+        uint256 costBasis = sharesConsumed * pps / (10 ** decimals);
+        uint256 profit = assetDelta > costBasis ? assetDelta - costBasis : 0;
+        feeAmount = (profit * feePercent) / 10_000;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  HOOK DATA CREATORS
     //////////////////////////////////////////////////////////////*/
