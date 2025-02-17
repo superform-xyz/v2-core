@@ -204,6 +204,7 @@ contract SuperLedger is ISuperLedger, SuperRegistryImplementer {
 
             // remove from current entry
             uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+
             entry.amountSharesAvailableToConsume -= sharesConsumed;
             remainingShares -= sharesConsumed;
 

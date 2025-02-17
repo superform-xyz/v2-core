@@ -25,6 +25,7 @@ abstract contract Configuration is Constants {
         address owner;
         address paymaster;
         address bundler;
+        address treasury;
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
         mapping(uint64 chainId => address debridgeGate) debridgeGates;
         mapping(uint64 chainId => address routers) aggregationRouters;
@@ -55,23 +56,21 @@ abstract contract Configuration is Constants {
         chainNames[BASE_SEPOLIA_CHAIN_ID] = BASE_SEPOLIA_KEY;
         chainNames[OP_SEPOLIA_CHAIN_ID] = OP_SEPOLIA_KEY;
 
-
         // common configuration
         configuration.deployer = SUPER_DEPLOYER;
 
-        configuration.externalRoles.push(RolesData({
-            role: keccak256("HOOKS_MANAGER"),
-            addr: PROD_MULTISIG
-        }));
+        configuration.externalRoles.push(RolesData({ role: keccak256("HOOKS_MANAGER"), addr: PROD_MULTISIG }));
 
         if (env == 0) {
             configuration.owner = PROD_MULTISIG;
             configuration.paymaster = PROD_MULTISIG;
             configuration.bundler = PROD_MULTISIG;
+            configuration.treasury = PROD_MULTISIG;
         } else {
             configuration.owner = TEST_DEPLOYER;
             configuration.paymaster = TEST_DEPLOYER;
             configuration.bundler = TEST_DEPLOYER;
+            configuration.treasury = TEST_DEPLOYER;
         }
 
         // chain specific configuration
@@ -95,7 +94,7 @@ abstract contract Configuration is Constants {
         configuration.aggregationRouters[ARB_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_ARB_SEPOLIA;
         configuration.aggregationRouters[BASE_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_BASE_SEPOLIA;
         configuration.aggregationRouters[OP_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_OP_SEPOLIA;
-        
+
         configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
         configuration.odosRouters[BASE_CHAIN_ID] = ODOS_ROUTER_BASE;
         configuration.odosRouters[OPTIMISM_CHAIN_ID] = ODOS_ROUTER_OPTIMISM;

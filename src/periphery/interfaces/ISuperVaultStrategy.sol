@@ -46,10 +46,15 @@ interface ISuperVaultStrategy {
     error INCOMPLETE_DEPOSIT_MATCH();
     error INCOMPLETE_REDEEM_MATCH();
     error ZERO_AMOUNT();
+    error INVALID_ASSET_BALANCE();
+    error INVALID_BALANCE_CHANGE();
+    error REWARDS_DISTRIBUTOR_NOT_SET();
+    error INVALID_SUPER_REGISTRY();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
+
     event Initialized(
         address indexed vault,
         address indexed manager,
@@ -73,7 +78,10 @@ interface ISuperVaultStrategy {
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
-
+    event RewardsClaimedAndCompounded(uint256 amount);
+    event RewardsDistributorSet(address indexed rewardsDistributor);
+    event RewardsDistributed(address[] tokens, uint256[] amounts);
+    event RewardsClaimed(address[] tokens, uint256[] amounts);
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -157,23 +165,30 @@ interface ISuperVaultStrategy {
         uint256 tvl;
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            INITIALIZATION
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Initialize the strategy contract
-    /// @param vault_ Address of the SuperVault
-    /// @param manager_ Address of the manager
-    /// @param strategist_ Address of the strategist
-    /// @param emergencyAdmin_ Address of the emergency admin
-    /// @param config_ Initial global configuration
-    function initialize(
-        address vault_,
-        address manager_,
-        address strategist_,
-        address emergencyAdmin_,
-        GlobalConfig memory config_
-    )
-        external;
+    struct ClaimLocalVars {
+        // Initial state tracking
+        uint256 initialAssetBalance;
+        // Claim phase variables
+        uint256[] balanceChanges;
+        // Swap phase variables
+        uint256 assetGained;
+        // Allocation phase variables
+        FulfillmentVars fulfillmentVars;
+        address[] targetedYieldSources;
+    }
+
+    struct ProcessHooksLocalVars {
+        // Hook execution variables
+        uint256 hooksLength;
+        uint256 targetedSourcesCount;
+        address target;
+        // Hook execution results
+        uint256 amount;
+        address hookTarget;
+        // Arrays for tracking
+        address[] targetedYieldSources;
+        address[] resizedArray;
+    }
 
     /*//////////////////////////////////////////////////////////////
                         REQUEST MANAGEMENT
@@ -252,16 +267,69 @@ interface ISuperVaultStrategy {
     )
         external;
 
-    /// @notice Claim rewards from yield sources
+    /// @notice Claim rewards and compound them back into the vault
+    /// @param hooks Array of arrays of hooks to use for claiming, swapping, and allocating rewards [claimHooks,
+    /// swapHooks, allocateHooks]
+    /// @param claimHookProofs Array of merkle proofs for claim hooks
+    /// @param swapHookProofs Array of merkle proofs for swap hooks
+    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
+    /// @param hookCalldata Array of arrays of calldata for hooks [claimHookCalldata, swapHookCalldata,
+    /// allocateHookCalldata]
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    function claimAndCompound(
+        address[][] calldata hooks,
+        bytes32[][] calldata claimHookProofs,
+        bytes32[][] calldata swapHookProofs,
+        bytes32[][] calldata allocateHookProofs,
+        bytes[][] calldata hookCalldata,
+        address[] calldata expectedTokensOut
+    )
+        external;
+
+    /// @notice Claims rewards from yield sources and distributes them to the rewards distributor
     /// @param hooks Array of hooks to use for claiming rewards
     /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
-    function claimRewards(
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    function claimAndDistribute(
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+        bytes[] calldata hookCalldata,
+        address[] calldata expectedTokensOut
     )
         external;
+
+    /// @notice Claims rewards from yield sources and stores them for later use
+    /// @param hooks Array of hooks to use for claiming rewards
+    /// @param hookProofs Array of merkle proofs for hooks
+    /// @param hookCalldata Array of calldata for hooks
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    function claim(
+        address[] calldata hooks,
+        bytes32[][] calldata hookProofs,
+        bytes[] calldata hookCalldata,
+        address[] calldata expectedTokensOut
+    )
+        external;
+
+    /// @notice Compounds previously claimed tokens by swapping them to the asset and allocating to yield sources
+    /// @param hooks Array of arrays of hooks to use for swapping and allocating [swapHooks, allocateHooks]
+    /// @param swapHookProofs Array of merkle proofs for swap hooks
+    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
+    /// @param hookCalldata Array of arrays of calldata for hooks [swapHookCalldata, allocateHookCalldata]
+    /// @param claimedTokensToCompound Array of claimed token addresses to compound
+    function compoundClaimedTokens(
+        address[][] calldata hooks,
+        bytes32[][] calldata swapHookProofs,
+        bytes32[][] calldata allocateHookProofs,
+        bytes[][] calldata hookCalldata,
+        address[] calldata claimedTokensToCompound
+    )
+        external;
+
+    /// @notice Distributes previously claimed tokens to the rewards distributor
+    /// @param claimedTokensToDistribute Array of claimed token addresses to distribute
+    function distributeClaimedTokens(address[] calldata claimedTokensToDistribute) external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
@@ -283,6 +351,44 @@ interface ISuperVaultStrategy {
     /// @notice Reactivate a previously removed yield source
     /// @param source Address of the yield source to reactivate
     function reactivateYieldSource(address source) external;
+
+    /// @notice Set the rewards distributor address
+    /// @param rewardsDistributor_ The new rewards distributor address
+    function setRewardsDistributor(address rewardsDistributor_) external;
+
+    /// @notice Propose a new hook root
+    /// @param newRoot New hook root to propose
+    function proposeHookRoot(bytes32 newRoot) external;
+
+    /// @notice Execute the proposed hook root update after timelock
+    function executeHookRootUpdate() external;
+
+    /// @notice Propose changes to vault-specific fee configuration
+    /// @param performanceFeeBps New performance fee in basis points
+    /// @param recipient New fee recipient
+    function proposeVaultFeeConfig(uint256 performanceFeeBps, address recipient) external;
+
+    /// @notice Execute the proposed vault fee configuration update after timelock
+    function executeVaultFeeConfigUpdate() external;
+
+    /// @notice Set an address for a given role
+    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
+    /// @param role The role identifier
+    /// @param account The address to set for the role
+    function setAddress(bytes32 role, address account) external;
+
+    /// @notice Propose a change to emergency withdrawable status
+    /// @param newWithdrawable The new emergency withdrawable status to propose
+    function proposeEmergencyWithdrawable(bool newWithdrawable) external;
+
+    /// @notice Execute the proposed emergency withdrawable update after timelock
+    function executeEmergencyWithdrawableUpdate() external;
+
+    /// @notice Emergency withdraw free assets from the vault
+    /// @dev Only works when emergency withdrawals are enabled
+    /// @param recipient Address to receive the withdrawn assets
+    /// @param amount Amount of free assets to withdraw
+    function emergencyWithdraw(address recipient, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
@@ -363,6 +469,11 @@ interface ISuperVaultStrategy {
     /// @param owner The owner address
     /// @return The average withdraw price for the user
     function getAverageWithdrawPrice(address owner) external view returns (uint256);
+
+    /// @notice Get the claimed token amounts in the vault
+    /// @param token The token address
+    /// @return The amount of tokens claimed
+    function claimedTokens(address token) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS

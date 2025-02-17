@@ -39,21 +39,21 @@ contract SuperRegistry is Ownable, ISuperRegistry {
     /// @inheritdoc ISuperRegistry
     function proposeFeeSplit(uint256 feeSplit_) external onlyOwner {
         if (feeSplit_ > MAX_FEE_SPLIT) revert INVALID_FEE_SPLIT();
-        
+
         proposedFeeSplit = feeSplit_;
         feeSplitEffectiveTime = block.timestamp + ONE_WEEK;
-        
+
         emit FeeSplitProposed(feeSplit_, feeSplitEffectiveTime);
     }
 
     /// @inheritdoc ISuperRegistry
     function executeFeeSplitUpdate() external {
         if (block.timestamp < feeSplitEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
-        
+
         feeSplit = proposedFeeSplit;
         proposedFeeSplit = 0;
         feeSplitEffectiveTime = 0;
-        
+
         emit FeeSplitUpdated(feeSplit);
     }
 
@@ -61,7 +61,7 @@ contract SuperRegistry is Ownable, ISuperRegistry {
                                  VIEW
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperRegistry
-    function getAddress(bytes32 id_) external view override returns (address address_) {
+    function getAddress(bytes32 id_) public view override returns (address address_) {
         address_ = addresses[id_];
         if (address_ == address(0)) revert INVALID_ADDRESS();
     }

@@ -36,14 +36,16 @@ contract SuperVaultFactory {
     address public immutable vaultImplementation;
     address public immutable strategyImplementation;
     address public immutable escrowImplementation;
-
+    address public immutable superRegistry;
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor() {
+
+    constructor(address superRegistry_) {
         vaultImplementation = address(new SuperVault());
         strategyImplementation = address(new SuperVaultStrategy());
         escrowImplementation = address(new SuperVaultEscrow());
+        superRegistry = superRegistry_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -95,7 +97,7 @@ contract SuperVaultFactory {
         SuperVaultEscrow(escrow).initialize(vault, strategy);
 
         // Initialize strategy
-        SuperVaultStrategy(strategy).initialize(vault, manager, strategist, emergencyAdmin, config);
+        SuperVaultStrategy(strategy).initialize(vault, manager, strategist, emergencyAdmin, superRegistry, config);
 
         emit VaultDeployed(vault, strategy, escrow, asset, name, symbol);
         return (vault, strategy, escrow);
