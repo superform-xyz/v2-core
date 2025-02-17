@@ -1008,6 +1008,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             availableShares -= sharesConsumed;
             remainingShares -= sharesConsumed;
 
+            console2.log("entry.price", entry.price);
+
             costBasis += sharesConsumed * entry.price / (10 ** 6);
             console2.log("costBasis", costBasis);
 
@@ -1064,10 +1066,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             // remove from current entry
             uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
 
-            entry.amountSharesAvailableToConsume -= sharesConsumed;
+            availableShares -= sharesConsumed;
             remainingShares -= sharesConsumed;
 
             costBasis += sharesConsumed * entry.price / (10 ** 6);
+            console2.log("entry.price", entry.price);
             console2.log("costBasis", costBasis);
 
             if (sharesConsumed == availableShares) {
@@ -1076,8 +1079,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 }
             }
         }
-
-        unconsumedEntries = currentIndex;
 
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
         console2.log("profit", profit);
