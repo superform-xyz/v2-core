@@ -1234,6 +1234,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
+    function _createPermitHookData(
+        address token,
+        address spender,
+        uint256 amount,
+        uint256 expiration,
+        uint256 sigDeadline,
+        uint256 nonce
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(token, uint160(amount), uint48(expiration), uint48(nonce), spender, sigDeadline);
+    }
+
+    function _create1InchSwapHookData(
+        address account,
+        address dstToken,
+        address executor,
+        I1InchAggregationRouterV6.SwapDescription memory desc,
+        bytes memory permit,
+        bytes memory data
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data
+        );
+
+        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+    }
+
     function _create1InchGenericRouterSwapHookData(
         address account,
         address dstToken,
