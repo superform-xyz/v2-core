@@ -353,6 +353,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // OP IS DST
         vm.selectFork(FORKS[OP]);
 
+        // Fix start time
+        vm.warp(1739809853);
+
         uint256 previewDepositAmountOP = vaultInstance4626OP.previewDeposit(amountPerVault);
 
         // PREPARE OP DATA
@@ -735,13 +738,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             profit = amountAssets > costBasis ? amountAssets - costBasis : 0
             feeAmount = (profit * config.feePercent) / 10_000
 
-            sharesConsumed = 48621278
-            costBasis = 48621278 * 1028357 / (10 ** 6) = 50000031
-            amountAssets = 50039195
-            profit = 50039195 - 50000031 = 39164
-            feeAmount = 39164 * 100 / 10_000 = 392
+            sharesConsumed = 48604029
+            costBasis = 48604029 * 1028357 / (10 ** 6) =49999957
+            amountAssets = 50039651
+            profit = 50039651 - 49999957 = 39694
+            feeAmount = 39694 * 100 / 10_000 = 396
         */
-        uint256 expectedFee = 392;
+        uint256 expectedFee = 396;
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedger.AccountingOutflow(
