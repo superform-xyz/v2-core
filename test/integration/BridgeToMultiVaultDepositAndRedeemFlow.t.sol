@@ -44,6 +44,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     address public accountETH;
     address public accountOP;
 
+    address public rootManager;
+
     AccountInstance public instanceOnBase;
     AccountInstance public instanceOnETH;
     AccountInstance public instanceOnOP;
@@ -153,6 +155,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(trancheId, bytes16(0x97aa65f23e7be09fcd62d0554d2e9273));
 
         poolManager = IPoolManager(0x91808B5E2F6d7483D41A681034D7c9DbB64B9E29);
+
+        rootManager = 0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC;
 
         assetId = poolManager.assetToId(underlyingETH_USDC);
         assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
@@ -342,6 +346,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         }
     }
 
+    // OP TESTS
     function test_bridge_To_OP_And_Deposit() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -441,7 +446,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
 
-        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        vm.startPrank(rootManager);
 
         uint256 userExpectedShares = vaultInstance7540ETH.convertToShares(amountPerVault);
 
@@ -496,7 +501,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(userShares, accountETH, accountETH);
 
         // FULFILL REDEEM
-        vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        vm.prank(rootManager);
 
         investmentManager.fulfillRedeemRequest(
             poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets), uint128(userShares)
@@ -561,7 +566,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 userExpectedAssets = vaultInstance7540ETH.convertToAssets(redeemAmount);
 
         // FULFILL REDEEM
-        vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        vm.prank(rootManager);
 
         investmentManager.fulfillRedeemRequest(
             poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets), uint128(redeemAmount)
@@ -633,7 +638,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.warp(block.timestamp + 10 days);
 
         // FULFILL REDEEM
-        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        vm.startPrank(rootManager);
 
         investmentManager.fulfillRedeemRequest(
             poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets + 20000), uint128(userShares)
@@ -694,6 +699,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
 
+    // OP WARPED REDEEM
     function _warped_Redeem_From_OP() internal {
         vm.selectFork(FORKS[OP]);
 
@@ -731,25 +737,26 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
             sharesConsumed = 48621278
             costBasis = 48621278 * 1028357 / (10 ** 6) = 50000031
-            amountAssets = 50035301
-            profit = 50035301 - 50000031 = 35334
-            feeAmount = 35334 * 100 / 10_000 = 353
+            amountAssets = 50039195
+            profit = 50039195 - 50000031 = 39164
+            feeAmount = 39164 * 100 / 10_000 = 392
         */
+        uint256 expectedFee = 392;
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedger.AccountingOutflow(
-            accountOP, addressOracleOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, 353
+            accountOP, addressOracleOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, expectedFee
         );
         executeOp(opUserOpData);
 
         uint256 feeBalanceAfter = IERC20(underlyingOP_USDCe).balanceOf(address(this));
 
-        assertEq(feeBalanceAfter - feeBalanceBefore, 353);
+        assertEq(feeBalanceAfter - feeBalanceBefore, expectedFee);
 
         assertEq(vaultInstance4626OP.balanceOf(accountOP), 0);
         assertEq(
             IERC20(underlyingOP_USDCe).balanceOf(accountOP),
-            userBalanceUnderlyingBefore + expectedAssetOutAmount - 353
+            userBalanceUnderlyingBefore + expectedAssetOutAmount - expectedFee
         );
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
