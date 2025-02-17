@@ -7,7 +7,7 @@ bytecode_hash = "none"
 fuzz = { runs = 1_000 }
 gas_reports = ["*"]
 optimizer = true
-optimizer_runs = 10_000
+optimizer_runs = 200
 out = "out"
 script = "script"
 solc = "0.8.28"
@@ -33,7 +33,7 @@ bytecode_hash = "none"
 fuzz = { runs = 1_000 }
 gas_reports = ["*"]
 optimizer = true
-optimizer_runs = 10_000
+optimizer_runs = 200
 out = "out"
 script = "src"
 solc = "0.8.28"

@@ -286,19 +286,6 @@ interface ISuperVaultStrategy {
     )
         external;
 
-    /// @notice Claims rewards from yield sources and distributes them to the rewards distributor
-    /// @param hooks Array of hooks to use for claiming rewards
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    function claimAndDistribute(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external;
-
     /// @notice Claims rewards from yield sources and stores them for later use
     /// @param hooks Array of hooks to use for claiming rewards
     /// @param hookProofs Array of merkle proofs for hooks
@@ -326,10 +313,6 @@ interface ISuperVaultStrategy {
         address[] calldata claimedTokensToCompound
     )
         external;
-
-    /// @notice Distributes previously claimed tokens to the rewards distributor
-    /// @param claimedTokensToDistribute Array of claimed token addresses to distribute
-    function distributeClaimedTokens(address[] calldata claimedTokensToDistribute) external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT

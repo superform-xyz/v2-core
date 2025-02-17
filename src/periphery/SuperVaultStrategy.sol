@@ -601,37 +601,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function claimAndDistribute(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external
-    {
-        _requireStrategist();
-
-        if (rewardsDistributor == address(0)) revert REWARDS_DISTRIBUTOR_NOT_SET();
-
-        // Execute claim hooks and get balance changes
-        uint256[] memory balanceChanges = _processClaimHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
-
-        // Transfer claimed tokens to distributor
-        for (uint256 i; i < expectedTokensOut.length;) {
-            // Transfer claimed tokens to distributor if any were claimed
-            if (balanceChanges[i] > 0) {
-                IERC20(expectedTokensOut[i]).safeTransfer(rewardsDistributor, balanceChanges[i]);
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        emit RewardsDistributed(expectedTokensOut, balanceChanges);
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
     function claim(
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
@@ -718,36 +687,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_ASSET_BALANCE();
 
         emit RewardsClaimedAndCompounded(vars.assetGained);
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
-    function distributeClaimedTokens(address[] calldata claimedTokensToDistribute) external {
-        _requireStrategist();
-
-        if (rewardsDistributor == address(0)) revert REWARDS_DISTRIBUTOR_NOT_SET();
-
-        uint256 claimedTokensLength = claimedTokensToDistribute.length;
-        if (claimedTokensLength == 0) revert ZERO_LENGTH();
-        uint256[] memory amounts = new uint256[](claimedTokensLength);
-
-        // Transfer claimed tokens to distributor
-        for (uint256 i; i < claimedTokensLength;) {
-            amounts[i] = claimedTokens[claimedTokensToDistribute[i]];
-
-            if (amounts[i] > 0) {
-                // Reset claimed tokens amount
-                claimedTokens[claimedTokensToDistribute[i]] = 0;
-
-                // Transfer to distributor
-                IERC20(claimedTokensToDistribute[i]).safeTransfer(rewardsDistributor, amounts[i]);
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        emit RewardsDistributed(claimedTokensToDistribute, amounts);
     }
 
     /*//////////////////////////////////////////////////////////////
