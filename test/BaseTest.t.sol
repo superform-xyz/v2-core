@@ -989,6 +989,72 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
+    struct FeeParams {
+        ISuperLedger.LedgerEntry[] entries;
+        uint256 unconsumedEntries;
+        uint256 amountAssets;
+        uint256 usedShares;
+        uint256 feePercent;
+        uint256 decimals;
+    }
+
+    function _deriveExpectedFee(FeeParams memory params) internal pure returns (uint256 feeAmount) {
+        uint256 remainingShares = params.usedShares;
+        uint256 costBasis;
+
+        uint256 len = params.entries.length;
+
+        if (len == 0) return 0;
+
+        uint256 currentIndex = params.unconsumedEntries;
+
+        while (remainingShares > 0) {
+            if (currentIndex >= len) revert("No more entries to consume");
+
+            ISuperLedger.LedgerEntry memory entry = params.entries[currentIndex];
+            uint256 availableShares = entry.amountSharesAvailableToConsume;
+
+            // if no shares available on current entry, move to the next
+            if (availableShares == 0) {
+                unchecked {
+                    ++currentIndex;
+                }
+                continue;
+            }
+
+            // remove from current entry
+            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+
+            availableShares -= sharesConsumed;
+            remainingShares -= sharesConsumed;
+
+            costBasis += sharesConsumed * entry.price / (10 ** params.decimals);
+
+            if (sharesConsumed == availableShares) {
+                unchecked {
+                    ++currentIndex;
+                }
+            }
+        }
+
+        uint256 profit = params.amountAssets > costBasis ? params.amountAssets - costBasis : 0;
+        if (profit > 0) {
+            // Calculate fee in assets but don't transfer - let the executor handle it
+            feeAmount = (profit * params.feePercent) / 10_000;
+        }
+    }
+
+    function _assertFeeDerivation(
+        uint256 expectedFee,
+        uint256 feeBalanceBefore,
+        uint256 feeBalanceAfter
+    )
+        internal
+        pure
+    {
+        assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  HOOK DATA CREATORS
     //////////////////////////////////////////////////////////////*/
