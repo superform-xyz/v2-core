@@ -4,9 +4,12 @@ pragma solidity >=0.8.28;
 // Tests
 import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
+
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 // Vault Interfaces
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
@@ -31,18 +34,18 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     address public underlyingBase_USDC;
 
-    address public yieldSourceOracleOP;
-    address public yieldSourceOracleBase;
+    address public addressOracleOP;
+    address public addressOracleETH;
+    address public addressOracleBase;
 
-    address public yieldSourceOracle7540;
     address public yieldSource7540AddressETH_USDC;
-
-    address public yieldSourceOracle4626;
     address public yieldSource4626AddressOP_USDCe;
 
     address public accountBase;
     address public accountETH;
     address public accountOP;
+
+    address public rootManager;
 
     AccountInstance public instanceOnBase;
     AccountInstance public instanceOnETH;
@@ -55,8 +58,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IRoot public root;
     IPoolManager public poolManager;
 
-    IInvestmentManager public investmentManager;
+    ISuperLedger public superLedgerETH;
+    ISuperLedger public superLedgerOP;
+
+    IYieldSourceOracle public yieldSourceOracleETH;
+    IYieldSourceOracle public yieldSourceOracleOP;
+
     RestrictionManagerLike public restrictionManager;
+    IInvestmentManager public investmentManager;
 
     uint256 public balance_Base_USDC_Before;
 
@@ -64,8 +73,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     bytes16 public trancheId;
     uint128 public assetId;
 
-    string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "YieldSource_7540_ETH_USDC";
+    string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "Centrifuge_7540_ETH_USDC";
     string public constant YIELD_SOURCE_ORACLE_7540_KEY = "YieldSourceOracle_7540";
+
+    string public constant YIELD_SOURCE_4626_OP_USDCe_KEY = "YieldSource_4626_OP_USDCe";
+    string public constant YIELD_SOURCE_ORACLE_4626_KEY = "YieldSourceOracle_4626";
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -74,8 +86,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        // Set up the underlying tokens
+        _overrideSuperLedger();
 
+        // Set up the underlying tokens
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCe_KEY];
@@ -87,14 +100,19 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressETH_USDC);
 
-        yieldSourceOracle7540 = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
-        vm.label(yieldSourceOracle7540, YIELD_SOURCE_ORACLE_7540_KEY);
+        addressOracleETH = _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY);
+        vm.label(addressOracleETH, YIELD_SOURCE_ORACLE_7540_KEY);
+        yieldSourceOracleETH = IYieldSourceOracle(addressOracleETH);
 
         // Set up the 4626 yield source
         yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
-        vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
 
-        yieldSourceOracle4626 = _getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY);
+        vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
+        vm.label(yieldSource4626AddressOP_USDCe, YIELD_SOURCE_4626_OP_USDCe_KEY);
+
+        addressOracleOP = _getContract(OP, ERC4626_YIELD_SOURCE_ORACLE_KEY);
+        vm.label(addressOracleOP, YIELD_SOURCE_ORACLE_4626_KEY);
+        yieldSourceOracleOP = IYieldSourceOracle(addressOracleOP);
 
         // Set up the accounts
         accountBase = accountInstances[BASE].account;
@@ -109,6 +127,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
         superExecutorOnETH = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superExecutorOnOP = ISuperExecutor(_getContract(OP, SUPER_EXECUTOR_KEY));
+
+        superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        superLedgerOP = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
 
         vm.selectFork(FORKS[BASE]);
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
@@ -136,6 +157,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         poolManager = IPoolManager(0x91808B5E2F6d7483D41A681034D7c9DbB64B9E29);
 
+        rootManager = 0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC;
+
         assetId = poolManager.assetToId(underlyingETH_USDC);
         assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
     }
@@ -146,12 +169,27 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
         test_Bridge_To_ETH_And_Deposit();
-        _redeem_From_ETH_And_Bridge_Back_To_Base();
+        _redeem_From_ETH_And_Bridge_Back_To_Base(true);
+    }
+
+    function test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow() public {
+        test_Bridge_To_ETH_And_Deposit();
+        _redeem_From_ETH_And_Bridge_Back_To_Base(false);
+    }
+
+    function test_ETH_Bridge_Deposit_Redeem_Flow_With_Warping() public {
+        test_Bridge_To_ETH_And_Deposit();
+        _warped_Redeem_From_ETH_And_Bridge_Back_To_Base();
     }
 
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
         test_bridge_To_OP_And_Deposit();
         _redeem_From_OP();
+    }
+
+    function test_OP_Bridge_Deposit_Redeem_Flow_With_Warping() public {
+        test_bridge_To_OP_And_Deposit();
+        _warped_Redeem_From_OP();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -200,7 +238,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             amountPerVault / 2,
             ETH,
             true,
-            amountPerVault / 2,
+            amountPerVault,
             ethUserOpData
         );
 
@@ -212,11 +250,23 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
 
         // DEPOSIT
-        uint256 userShares = _executeDepositFlow(amountPerVault);
-        assertEq(userShares, amountPerVault);
+        uint256 userShares = _execute7540DepositFlow(amountPerVault);
+
+        // CHECK ACCOUNTING
+        uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
+        assertNotEq(pricePerShare, 1);
+        // pin block, check value, perform multiple deposits
+
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+
+        assertEq(entries.length, 1);
+        assertEq(entries[0].price, pricePerShare);
+        assertEq(entries[0].amountSharesAvailableToConsume, userShares);
+        assertEq(unconsumedEntries, 0);
     }
 
-    function _redeem_From_ETH_And_Bridge_Back_To_Base() internal {
+    function _redeem_From_ETH_And_Bridge_Back_To_Base(bool isFullRedeem) internal {
         uint256 amountPerVault = 1e8 / 2;
 
         // BASE IS DST
@@ -230,10 +280,16 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 userAssetsBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
 
-        // REDEEM
-        uint256 userAssets = _executeRedeemFlow(amountPerVault);
+        uint256 userAssetsAfter;
 
-        assertGt(userAssets, userAssetsBefore);
+        // REDEEM
+        if (isFullRedeem) {
+            userAssetsAfter = _execute7540RedeemFlow();
+        } else {
+            userAssetsAfter = _execute7540PartialRedeemFlow();
+        }
+
+        assertGt(userAssetsAfter, userAssetsBefore);
 
         // BRIDGE BACK
         vm.selectFork(FORKS[ETH]);
@@ -243,18 +299,38 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ethHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory ethHooksData = new bytes[](2);
-        ethHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
-        ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC,
-            underlyingBase_USDC,
-            amountPerVault,
-            amountPerVault,
-            BASE,
-            true,
-            amountPerVault,
-            baseUserOpData
-        );
+
+        if (isFullRedeem) {
+            ethHooksData[0] =
+                _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault, false);
+            ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+                underlyingETH_USDC,
+                underlyingBase_USDC,
+                amountPerVault,
+                amountPerVault,
+                BASE,
+                true,
+                amountPerVault,
+                baseUserOpData
+            );
+        } else {
+            ethHooksData[0] =
+                _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amountPerVault / 2, false);
+            ethHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+                underlyingETH_USDC,
+                underlyingBase_USDC,
+                amountPerVault / 2,
+                amountPerVault / 2,
+                BASE,
+                true,
+                amountPerVault / 2,
+                baseUserOpData
+            );
+        }
+
+        // CHECK ACCOUNTING
+        uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
+        assertNotEq(pricePerShare, 1);
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
 
@@ -262,9 +338,16 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.selectFork(FORKS[BASE]);
 
-        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault);
+        if (isFullRedeem) {
+            assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault);
+        } else {
+            assertEq(
+                IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault / 2
+            );
+        }
     }
 
+    // OP TESTS
     function test_bridge_To_OP_And_Deposit() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -358,16 +441,22 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _executeDepositFlow(uint256 amountPerVault) internal returns (uint256 userShares) {
+    // Deposits the given amount of ETH into the 7540 vault
+    function _execute7540DepositFlow(uint256 amountPerVault) internal returns (uint256 userShares) {
         vm.selectFork(FORKS[ETH]);
 
         investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
 
-        vm.startPrank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        vm.startPrank(rootManager);
+
+        uint256 userExpectedShares = vaultInstance7540ETH.convertToShares(amountPerVault);
 
         investmentManager.fulfillDepositRequest(
-            poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(amountPerVault)
+            poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(userExpectedShares)
         );
+
+        uint256 maxDeposit = vaultInstance7540ETH.maxDeposit(accountETH);
+        userExpectedShares = vaultInstance7540ETH.convertToShares(maxDeposit);
 
         vm.stopPrank();
 
@@ -379,29 +468,47 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             accountETH,
-            amountPerVault,
+            maxDeposit,
             false,
             false
         );
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerData.AccountingInflow(
+            accountETH,
+            addressOracleETH,
+            yieldSource7540AddressETH_USDC,
+            userExpectedShares,
+            yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH))
+        );
         executeOp(depositOpData);
+
+        assertEq(IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH), userExpectedShares);
 
         userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
     }
 
-    function _executeRedeemFlow(uint256 amountPerVault) internal returns (uint256 userAssets) {
+    // Redeems all of the user 7540 vault shares on ETH
+    function _execute7540RedeemFlow() internal returns (uint256 userAssets) {
         vm.selectFork(FORKS[ETH]);
 
+        uint256 userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
+
+        uint256 userExpectedAssets = vaultInstance7540ETH.convertToAssets(userShares);
+
         vm.prank(accountETH);
-        IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(amountPerVault, accountETH, accountETH);
+        IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(userShares, accountETH, accountETH);
 
         // FULFILL REDEEM
-        vm.prank(0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC);
+        vm.prank(rootManager);
 
         investmentManager.fulfillRedeemRequest(
-            poolId, trancheId, accountETH, assetId, uint128(amountPerVault), uint128(amountPerVault)
+            poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets), uint128(userShares)
         );
+
+        userExpectedAssets = vaultInstance7540ETH.convertToAssets(vaultInstance7540ETH.maxRedeem(accountETH));
 
         address[] memory redeemHooksAddresses = new address[](1);
 
@@ -412,17 +519,255 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             accountETH,
-            amountPerVault,
+            userExpectedAssets,
             false,
             false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+
+        /*
+            sharesConsumed = maxRedeemAmount
+            costBasis = sharesConsumed * entry.price / (10 ** decimals)
+            profit = amountAssets > costBasis ? amountAssets - costBasis : 0
+            feeAmount = (profit * config.feePercent) / 10_000
+
+            sharesConsumed = 47427940
+            costBasis = 47427940 * 1054230 / (10 ** 6) = 49999957
+            amountAssets = 49999998
+            profit = 49999998 - 49999957 = 41
+            feeAmount = 41 * 100 / 10_000 = 0
+        */
+        uint256 expectedFee = 0;
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerData.AccountingOutflow(
+            accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
+        );
         executeOp(redeemOpData);
+
+        // CHECK ACCOUNTING
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+        assertEq(entries.length, 1);
+        assertEq(unconsumedEntries, 1);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
 
+    // Redeems half of the user 7540 vault shares on ETH
+    function _execute7540PartialRedeemFlow() internal returns (uint256 userAssets) {
+        vm.selectFork(FORKS[ETH]);
+
+        uint256 redeemAmount = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH) / 2;
+
+        vm.prank(accountETH);
+        IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(redeemAmount, accountETH, accountETH);
+
+        uint256 userExpectedAssets = vaultInstance7540ETH.convertToAssets(redeemAmount);
+
+        // FULFILL REDEEM
+        vm.prank(rootManager);
+
+        investmentManager.fulfillRedeemRequest(
+            poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets), uint128(redeemAmount)
+        );
+
+        uint256 maxRedeemAmount = vaultInstance7540ETH.maxRedeem(accountETH);
+
+        userExpectedAssets = vaultInstance7540ETH.convertToAssets(maxRedeemAmount);
+
+        address[] memory redeemHooksAddresses = new address[](1);
+
+        redeemHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7575_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createWithdraw7575_7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource7540AddressETH_USDC,
+            accountETH,
+            userExpectedAssets,
+            false,
+            false
+        );
+
+        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+
+        /*
+            sharesConsumed = maxRedeemAmount
+            costBasis = sharesConsumed * entry.price / (10 ** decimals)
+            profit = amountAssets > costBasis ? amountAssets - costBasis : 0
+            feeAmount = (profit * config.feePercent) / 10_000
+
+            sharesConsumed = 23713970
+            costBasis = 23713970 * 1054230 / (10 ** 6) = 24999978
+            amountAssets = 24999999
+            profit = 21
+            feeAmount = 21 * 100 / 10_000 = 0
+        */
+        uint256 expectedFee = 0;
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerData.AccountingOutflow(
+            accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
+        );
+        executeOp(redeemOpData);
+
+        // CHECK ACCOUNTING
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+        assertEq(entries.length, 1);
+        assertEq(entries[0].price, yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH)));
+        assertEq(entries[0].amountSharesAvailableToConsume, redeemAmount);
+        assertEq(unconsumedEntries, 0);
+
+        userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+    }
+
+    function _warped_Redeem_From_ETH_And_Bridge_Back_To_Base() internal returns (uint256 userAssets) {
+        vm.selectFork(FORKS[ETH]);
+
+        vm.warp(block.timestamp + 100 days);
+
+        uint256 userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
+
+        uint256 userExpectedAssets = vaultInstance7540ETH.convertToAssets(userShares);
+
+        vm.prank(accountETH);
+        IERC7540(yieldSource7540AddressETH_USDC).requestRedeem(userShares, accountETH, accountETH);
+
+        vm.warp(block.timestamp + 10 days);
+
+        // FULFILL REDEEM
+        vm.startPrank(rootManager);
+
+        investmentManager.fulfillRedeemRequest(
+            poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets + 20000), uint128(userShares)
+        );
+
+        vm.stopPrank();
+
+        userExpectedAssets = vaultInstance7540ETH.convertToAssets(vaultInstance7540ETH.maxRedeem(accountETH));
+
+        address[] memory redeemHooksAddresses = new address[](1);
+
+        redeemHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7575_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createWithdraw7575_7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource7540AddressETH_USDC,
+            accountETH,
+            userExpectedAssets,
+            false,
+            false
+        );
+
+        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+
+        /*
+            sharesConsumed = maxRedeemAmount
+            costBasis = sharesConsumed * entry.price / (10 ** decimals)
+            profit = amountAssets > costBasis ? amountAssets - costBasis : 0
+            feeAmount = (profit * config.feePercent) / 10_000
+
+            sharesConsumed = 47408977
+            costBasis = 47408977 * 1054230 / (10 ** 6) = 49979965
+            amountAssets = 49999998
+            profit = 49999998 - 49979965 = 20023
+            feeAmount = 20023 * 100 / 10_000 = 200
+        */
+        //uint256 expectedFee = 200;
+
+        uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(address(this));
+
+        // vm.expectEmit(true, true, true, true);
+        // emit ISuperLedgerData.AccountingOutflow(
+        //     accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
+        // );
+        executeOp(redeemOpData);
+
+        uint256 feeBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(address(this));
+
+        assertEq(feeBalanceAfter - feeBalanceBefore, 200);
+
+        // CHECK ACCOUNTING
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+        assertEq(entries.length, 1);
+        assertEq(unconsumedEntries, 0);
+
+        userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+    }
+
+    // OP WARPED REDEEM
+    function _warped_Redeem_From_OP() internal {
+        vm.selectFork(FORKS[OP]);
+
+        uint256 userBalanceSharesBefore = IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountOP);
+
+        vm.warp(block.timestamp + 150 days);
+
+        uint256 expectedAssetOutAmount = vaultInstance4626OP.previewRedeem(userBalanceSharesBefore);
+
+        uint256 userBalanceUnderlyingBefore = IERC20(underlyingOP_USDCe).balanceOf(accountOP);
+
+        address[] memory opHooksAddresses = new address[](1);
+        opHooksAddresses[0] = _getHookAddress(OP, WITHDRAW_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory opHooksData = new bytes[](1);
+        opHooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource4626AddressOP_USDCe,
+            accountOP,
+            userBalanceSharesBefore,
+            false,
+            false
+        );
+
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
+
+        // CHECK ACCOUNTING
+        uint256 feeBalanceBefore = IERC20(underlyingOP_USDCe).balanceOf(address(this));
+
+        /**
+            sharesConsumed = userBalanceSharesBefore
+            costBasis = sharesConsumed * entry.price / (10 ** decimals)
+            profit = amountAssets > costBasis ? amountAssets - costBasis : 0
+            feeAmount = (profit * config.feePercent) / 10_000
+
+            sharesConsumed = 48621278
+            costBasis = 48621278 * 1028357 / (10 ** 6) = 50000031
+            amountAssets = 50039195
+            profit = 50039195 - 50000031 = 39164
+            feeAmount = 39164 * 100 / 10_000 = 392
+        */
+        uint256 expectedFee = 392;
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerData.AccountingOutflow(
+            accountOP, addressOracleOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, expectedFee
+        );
+        executeOp(opUserOpData);
+
+        uint256 feeBalanceAfter = IERC20(underlyingOP_USDCe).balanceOf(address(this));
+
+        assertEq(feeBalanceAfter - feeBalanceBefore, expectedFee);
+
+        assertEq(vaultInstance4626OP.balanceOf(accountOP), 0);
+        assertEq(
+            IERC20(underlyingOP_USDCe).balanceOf(accountOP),
+            userBalanceUnderlyingBefore + expectedAssetOutAmount - expectedFee
+        );
+
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerOP.getLedger(accountOP, address(vaultInstance4626OP));
+        assertEq(entries.length, 1);
+        assertEq(entries[0].amountSharesAvailableToConsume, 0);
+        assertEq(unconsumedEntries, 1);
+    }
+
+    // Creates userOpData for the given chainId
     function _createUserOpData(
         address[] memory hooksAddresses,
         bytes[] memory hooksData,
@@ -443,6 +788,40 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
             return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
+        }
+    }
+
+    function _overrideSuperLedger() internal {
+        for (uint256 i; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+
+            vm.startPrank(MANAGER);
+
+            ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+            configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: address(this),
+                ledger: address(ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)))
+            });
+            configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: address(this),
+                ledger: address(ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)))
+            });
+            configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: address(this),
+                ledger: address(ISuperLedger(_getContract(chainIds[i], PENDLE_LEDGER_KEY)))
+            });
+            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+            vm.stopPrank();
         }
     }
 }

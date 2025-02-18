@@ -85,6 +85,11 @@ interface IERC7540 is IERC7575 {
     /// @param controller The address of the controller
     function claimableDepositRequest(uint256 requestId, address controller) external view returns (uint256);
 
+    /// @notice Get the amount of shares that can be claimed from a redeem request
+    /// @param requestId The id of the request to check
+    /// @param controller The address of the controller
+    function claimableRedeemRequest(uint256 requestId, address controller) external view returns (uint256);
+
     /// @notice Check if a redeem request is pending cancellation
     /// @param requestId The id of the request to check
     /// @param controller The address of the controller

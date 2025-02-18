@@ -126,6 +126,7 @@ contract SuperLedger is BaseLedger, ISuperLedger {
 
             // remove from current entry
             uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+
             entry.amountSharesAvailableToConsume -= sharesConsumed;
             remainingShares -= sharesConsumed;
 
