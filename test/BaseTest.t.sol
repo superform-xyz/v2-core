@@ -27,11 +27,7 @@ import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentin
 // token hooks
 // --- erc20
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { ApproveWithPermit2Hook } from "../src/core/hooks/tokens/erc20/ApproveWithPermit2Hook.sol";
-import { PermitWithPermit2Hook } from "../src/core/hooks/tokens/erc20/PermitWithPermit2Hook.sol";
-import { TransferBatchWithPermit2Hook } from "../src/core/hooks/tokens/erc20/TransferBatchWithPermit2Hook.sol";
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
-import { TransferWithPermit2Hook } from "../src/core/hooks/tokens/erc20/TransferWithPermit2Hook.sol";
 
 // vault hooks
 // --- erc5115
@@ -109,11 +105,7 @@ struct Addresses {
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
-    ApproveWithPermit2Hook approveWithPermit2Hook;
-    PermitWithPermit2Hook permitWithPermit2Hook;
-    TransferBatchWithPermit2Hook transferBatchWithPermit2Hook;
     TransferERC20Hook transferErc20Hook;
-    TransferWithPermit2Hook transferWithPermit2Hook;
     Deposit4626VaultHook deposit4626VaultHook;
     Withdraw4626VaultHook withdraw4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
@@ -536,36 +528,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
 
-            Addr.approveWithPermit2Hook =
-                new ApproveWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
-            vm.label(address(Addr.approveWithPermit2Hook), APPROVE_WITH_PERMIT2_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = address(Addr.approveWithPermit2Hook);
-            hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = Hook(
-                APPROVE_WITH_PERMIT2_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.None,
-                address(Addr.approveWithPermit2Hook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
-                hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY]
-            );
-
-            Addr.permitWithPermit2Hook =
-                new PermitWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
-            vm.label(address(Addr.permitWithPermit2Hook), PERMIT_WITH_PERMIT2_HOOK_KEY);
-            hookAddresses[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = address(Addr.permitWithPermit2Hook);
-            hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = Hook(
-                PERMIT_WITH_PERMIT2_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.None,
-                address(Addr.permitWithPermit2Hook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
-                hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY]
-            );
-
             Addr.deposit7540VaultHook =
                 new Deposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.deposit7540VaultHook), DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -963,6 +925,72 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             dstChainId,
             executionData.logs
         );
+    }
+
+    struct FeeParams {
+        ISuperLedger.LedgerEntry[] entries;
+        uint256 unconsumedEntries;
+        uint256 amountAssets;
+        uint256 usedShares;
+        uint256 feePercent;
+        uint256 decimals;
+    }
+
+    function _deriveExpectedFee(FeeParams memory params) internal pure returns (uint256 feeAmount) {
+        uint256 remainingShares = params.usedShares;
+        uint256 costBasis;
+
+        uint256 len = params.entries.length;
+
+        if (len == 0) return 0;
+
+        uint256 currentIndex = params.unconsumedEntries;
+
+        while (remainingShares > 0) {
+            if (currentIndex >= len) revert("No more entries to consume");
+
+            ISuperLedger.LedgerEntry memory entry = params.entries[currentIndex];
+            uint256 availableShares = entry.amountSharesAvailableToConsume;
+
+            // if no shares available on current entry, move to the next
+            if (availableShares == 0) {
+                unchecked {
+                    ++currentIndex;
+                }
+                continue;
+            }
+
+            // remove from current entry
+            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
+
+            availableShares -= sharesConsumed;
+            remainingShares -= sharesConsumed;
+
+            costBasis += sharesConsumed * entry.price / (10 ** params.decimals);
+
+            if (sharesConsumed == availableShares) {
+                unchecked {
+                    ++currentIndex;
+                }
+            }
+        }
+
+        uint256 profit = params.amountAssets > costBasis ? params.amountAssets - costBasis : 0;
+        if (profit > 0) {
+            // Calculate fee in assets but don't transfer - let the executor handle it
+            feeAmount = (profit * params.feePercent) / 10_000;
+        }
+    }
+
+    function _assertFeeDerivation(
+        uint256 expectedFee,
+        uint256 feeBalanceBefore,
+        uint256 feeBalanceAfter
+    )
+        internal
+        pure
+    {
+        assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee);
     }
 
     /*//////////////////////////////////////////////////////////////
