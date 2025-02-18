@@ -647,18 +647,20 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.warp(block.timestamp + 10 days);
 
+        uint256 assetsOut = userExpectedAssets + 20_000;
+
         // FULFILL REDEEM
         vm.startPrank(rootManager);
 
         investmentManager.fulfillRedeemRequest(
-            poolId, trancheId, accountETH, assetId, uint128(userExpectedAssets + 20000), uint128(userShares)
+            poolId, trancheId, accountETH, assetId, uint128(assetsOut), uint128(userShares)
         );
 
         vm.stopPrank();
 
-        uint256 expectedSharesConsumed = vaultInstance7540ETH.maxRedeem(accountETH);
+        uint256 expectedSharesAvailableToConsume = vaultInstance7540ETH.maxRedeem(accountETH);
 
-        userExpectedAssets = vaultInstance7540ETH.convertToAssets(expectedSharesConsumed);
+        userExpectedAssets = vaultInstance7540ETH.convertToAssets(expectedSharesAvailableToConsume);
 
         address[] memory redeemHooksAddresses = new address[](1);
 
@@ -681,8 +683,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 expectedFee = _derive7540_ETH_USDC_ExpectedFee(
             entries,
             unconsumedEntries,
-            userExpectedAssets,
-            expectedSharesConsumed,
+            assetsOut,
+            expectedSharesAvailableToConsume,
             100
         );
         console2.log("expectedFee", expectedFee);
