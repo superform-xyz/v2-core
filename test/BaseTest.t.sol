@@ -969,19 +969,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     struct FeeParams {
         ISuperLedger.LedgerEntry[] entries;
         uint256 unconsumedEntries;
-        uint256 amountAssets; 
+        uint256 amountAssets;
         uint256 usedShares;
         uint256 feePercent;
         uint256 decimals;
     }
 
-    function _deriveExpectedFee(
-        FeeParams memory params
-    )
-        internal
-        pure
-        returns (uint256 feeAmount)
-    {
+    function _deriveExpectedFee(FeeParams memory params) internal pure returns (uint256 feeAmount) {
         uint256 remainingShares = params.usedShares;
         uint256 costBasis;
 
@@ -1032,7 +1026,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 feeBalanceBefore,
         uint256 feeBalanceAfter
     )
-        internal pure
+        internal
+        pure
     {
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee);
     }
