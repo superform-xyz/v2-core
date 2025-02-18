@@ -25,12 +25,6 @@ interface ISuperVault {
     error INVALID_CONTROLLER();
     error INVALID_DEPOSIT_PRICE();
     error INVALID_WITHDRAW_PRICE();
-    /*//////////////////////////////////////////////////////////////
-                                EVENTS
-    //////////////////////////////////////////////////////////////*/
-
-    event DepositRequestCancelled(address indexed controller, address sender);
-    event RedeemRequestCancelled(address indexed controller, address sender);
 
     /*//////////////////////////////////////////////////////////////
                             SHARE MANAGEMENT

@@ -141,6 +141,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Update state for a deposit request cancellation
     /// @param controller The controller address
     /// @param assets Amount of assets to return
+    /// @dev Called by vault during ERC-7887 cancelation to clear pending request and return assets
     function handleCancelDeposit(address controller, uint256 assets) external {
         _requireVault();
         if (assets == 0) revert ZERO_AMOUNT();
@@ -165,6 +166,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Update state for a redeem request cancellation
     /// @param controller The controller address
+    /// @dev Called by vault during ERC-7887 cancelation to clear pending request
     function handleCancelRedeem(address controller) external {
         _requireVault();
         SuperVaultState storage state = superVaultState[controller];

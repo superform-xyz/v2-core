@@ -20,12 +20,13 @@ import {
     IERC7741
 } from "../vendor/standards/ERC7540/IERC7540Vault.sol";
 import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
+import { IERC7887 } from "../vendor/standards/ERC7887/IERC7887.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
 /// @title SuperVault
-/// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
+/// @notice SuperVault vault contract implementing ERC7540, ERC4626, and ERC7887 standards
 /// @author SuperForm Labs
-contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
+contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, IERC7887 {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -68,6 +69,14 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     // Authorization tracking
     mapping(address controller => mapping(bytes32 nonce => bool used)) private _authorizations;
+
+    /*//////////////////////////////////////////////////////////////
+                            ERC7887 STATE
+    //////////////////////////////////////////////////////////////*/
+    mapping(address controller => bool) public pendingCancelDeposits;
+    mapping(address controller => uint256) public claimableCancelDeposits;
+    mapping(address controller => bool) public pendingCancelRedeems;
+    mapping(address controller => uint256) public claimableCancelRedeems;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -163,8 +172,11 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @notice Cancel a pending deposit request and return assets to the user
     /// @param controller The controller address
+    /// @dev This is an internal function called by strategist/system to process cancelation
+    /// @dev It moves assets from Pending to Claimable state after ERC7887 cancelDepositRequest
     function cancelDeposit(address controller) external {
         _validateController(controller);
+        if (!pendingCancelDeposits[controller]) revert REQUEST_NOT_FOUND();
 
         // Get assets from strategy
         uint256 assets = strategy.pendingDepositRequest(controller);
@@ -173,10 +185,12 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Forward to strategy
         strategy.handleCancelDeposit(controller, assets);
 
-        // Return assets to user
-        _asset.safeTransfer(msg.sender, assets);
+        // Update state
+        pendingCancelDeposits[controller] = false;
+        claimableCancelDeposits[controller] = assets;
 
-        emit DepositRequestCancelled(controller, msg.sender);
+        // Emit claimable event
+        emit CancelDepositClaim(controller, controller, REQUEST_ID, msg.sender, assets);
     }
 
     /// @inheritdoc IERC7540Redeem
@@ -203,8 +217,11 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @notice Cancel a pending redeem request and return shares to the user
     /// @param controller The controller address
+    /// @dev This is an internal function called by strategist/system to process cancelation
+    /// @dev It moves shares from Pending to Claimable state after ERC7887 cancelRedeemRequest
     function cancelRedeem(address controller) external {
         _validateController(controller);
+        if (!pendingCancelRedeems[controller]) revert REQUEST_NOT_FOUND();
 
         uint256 shares = strategy.pendingRedeemRequest(controller);
         if (shares == 0) revert REQUEST_NOT_FOUND();
@@ -212,10 +229,12 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Forward to strategy
         strategy.handleCancelRedeem(controller);
 
-        // Return shares to user
-        ISuperVaultEscrow(escrow).returnShares(msg.sender, shares);
+        // Update state
+        pendingCancelRedeems[controller] = false;
+        claimableCancelRedeems[controller] = shares;
 
-        emit RedeemRequestCancelled(controller, msg.sender);
+        // Emit claimable event
+        emit CancelRedeemClaim(controller, controller, REQUEST_ID, msg.sender, shares);
     }
 
     //--Operator Management--
@@ -535,7 +554,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
         return interfaceId == type(IERC7540Vault).interfaceId || interfaceId == type(IERC165).interfaceId
             || interfaceId == type(IERC7741).interfaceId || interfaceId == type(IERC4626).interfaceId
-            || interfaceId == type(IERC7575).interfaceId;
+            || interfaceId == type(IERC7575).interfaceId || interfaceId == type(IERC7887).interfaceId;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -593,5 +612,73 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
             }
         }
         return (false, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ERC7887 IMPLEMENTATION
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IERC7887
+    function cancelDepositRequest(uint256 requestId, address controller) external {
+        if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
+        if (strategy.pendingDepositRequest(controller) == 0) revert REQUEST_NOT_FOUND();
+        if (pendingCancelDeposits[controller]) revert REQUEST_NOT_FOUND();
+
+        pendingCancelDeposits[controller] = true;
+        emit CancelDepositRequest(controller, requestId, msg.sender);
+    }
+
+    /// @inheritdoc IERC7887
+    function pendingCancelDepositRequest(uint256, address controller) external view returns (bool isPending) {
+        return pendingCancelDeposits[controller];
+    }
+
+    /// @inheritdoc IERC7887
+    function claimableCancelDepositRequest(uint256, address controller) external view returns (uint256 assets) {
+        return claimableCancelDeposits[controller];
+    }
+
+    /// @inheritdoc IERC7887
+    function claimCancelDepositRequest(uint256 requestId, address receiver, address controller) external {
+        if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
+        if (claimableCancelDeposits[controller] == 0) revert REQUEST_NOT_FOUND();
+
+        uint256 assets = claimableCancelDeposits[controller];
+        claimableCancelDeposits[controller] = 0;
+
+        _asset.safeTransfer(receiver, assets);
+        emit CancelDepositClaim(controller, receiver, requestId, msg.sender, assets);
+    }
+
+    /// @inheritdoc IERC7887
+    function cancelRedeemRequest(uint256 requestId, address controller) external {
+        if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
+        if (strategy.pendingRedeemRequest(controller) == 0) revert REQUEST_NOT_FOUND();
+        if (pendingCancelRedeems[controller]) revert REQUEST_NOT_FOUND();
+
+        pendingCancelRedeems[controller] = true;
+        emit CancelRedeemRequest(controller, requestId, msg.sender);
+    }
+
+    /// @inheritdoc IERC7887
+    function pendingCancelRedeemRequest(uint256, address controller) external view returns (bool isPending) {
+        return pendingCancelRedeems[controller];
+    }
+
+    /// @inheritdoc IERC7887
+    function claimableCancelRedeemRequest(uint256, address controller) external view returns (uint256 shares) {
+        return claimableCancelRedeems[controller];
+    }
+
+    /// @inheritdoc IERC7887
+    function claimCancelRedeemRequest(uint256 requestId, address receiver, address controller) external {
+        if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
+        if (claimableCancelRedeems[controller] == 0) revert REQUEST_NOT_FOUND();
+
+        uint256 shares = claimableCancelRedeems[controller];
+        claimableCancelRedeems[controller] = 0;
+
+        ISuperVaultEscrow(escrow).transferShares(receiver, shares);
+        emit CancelRedeemClaim(controller, receiver, requestId, msg.sender, shares);
     }
 }
