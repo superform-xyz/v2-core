@@ -94,16 +94,16 @@ contract SuperVaultTest is MerkleReader {
 
         // Add yield sources as manager
         vm.startPrank(SV_MANAGER);
-        strategy.addYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
-        strategy.addYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        strategy.setYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), true);
+        strategy.setYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), true);
         vm.stopPrank();
 
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
         vm.startPrank(SV_MANAGER);
-        strategy.proposeHookRoot(hookRoot);
+        strategy.proposeOrExecuteHookRoot(hookRoot);
         vm.warp(block.timestamp + 7 days);
-        strategy.executeHookRootUpdate();
+        strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
 
@@ -119,7 +119,7 @@ contract SuperVaultTest is MerkleReader {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -144,10 +144,10 @@ contract SuperVaultTest is MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
         );
         fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
         );
 
         vm.startPrank(STRATEGIST);
@@ -161,7 +161,7 @@ contract SuperVaultTest is MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -176,7 +176,7 @@ contract SuperVaultTest is MerkleReader {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, redeemShares, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, redeemShares, false
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
@@ -201,7 +201,7 @@ contract SuperVaultTest is MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
         fulfillHooksData[0] = _createWithdraw4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
             redeemShares / 2,
@@ -209,7 +209,7 @@ contract SuperVaultTest is MerkleReader {
             false
         );
         fulfillHooksData[1] = _createWithdraw4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(strategy),
             redeemShares / 2,
@@ -228,7 +228,7 @@ contract SuperVaultTest is MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, assets, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, assets, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =

@@ -64,10 +64,11 @@ contract SuperVaultFactoryTest is BaseTest {
         assertEq(vaultContract.decimals(), 18, "Wrong decimals");
 
         // Check strategy state
-        assertTrue(strategyContract.isInitialized(), "Strategy not initialized");
-        assertEq(strategyContract.getVault(), vault, "Wrong vault in strategy");
-        assertEq(strategyContract.getAsset(), address(asset), "Wrong asset in strategy");
-        assertEq(strategyContract.getVaultDecimals(), 18, "Wrong decimals in strategy");
+        (bool _initialized, address _vault, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
+        assertEq(_initialized, true, "Strategy not initialized");
+        assertEq(_vault, vault, "Wrong vault in strategy");
+        assertEq(_asset, address(asset), "Wrong asset in strategy");
+        assertEq(_decimals, 18, "Wrong decimals in strategy");
 
         // Check escrow state
         assertTrue(escrowContract.initialized(), "Escrow not initialized");
@@ -97,7 +98,10 @@ contract SuperVaultFactoryTest is BaseTest {
             assertEq(vaultContract.name(), names[i], "Wrong vault name");
             assertEq(vaultContract.symbol(), symbols[i], "Wrong vault symbol");
             assertEq(vaultContract.decimals(), 18, "Wrong decimals");
-            assertTrue(ISuperVaultStrategy(strategy).isInitialized(), "Strategy not initialized");
+
+            (bool _initialized,,,) = ISuperVaultStrategy(strategy).getVaultInfo();
+            assertEq(_initialized, true, "Strategy not initialized");
+
             assertTrue(SuperVaultEscrow(escrow).initialized(), "Escrow not initialized");
         }
     }

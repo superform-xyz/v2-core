@@ -122,84 +122,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         REQUEST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Update state for a new deposit request
-    /// @param controller The controller address
-    /// @param assets Amount of assets being deposited
-    function handleRequestDeposit(address controller, uint256 assets) external {
-        _requireVault();
-        if (assets == 0) revert ZERO_AMOUNT();
-
-        // Transfer assets from vault
-        _asset.safeTransferFrom(msg.sender, address(this), assets);
-
-        // Update state
-        SuperVaultState storage state = superVaultState[controller];
-        state.pendingDepositRequest = state.pendingDepositRequest + assets;
-    }
-
-    /// @notice Update state for a deposit request cancellation
-    /// @param controller The controller address
-    /// @param assets Amount of assets to return
-    function handleCancelDeposit(address controller, uint256 assets) external {
-        _requireVault();
-        if (assets == 0) revert ZERO_AMOUNT();
-
-        SuperVaultState storage state = superVaultState[controller];
-        state.pendingDepositRequest = 0;
-
-        // Return assets to vault
-        _asset.safeTransfer(_vault, assets);
-    }
-
-    /// @notice Update state for a new redeem request
-    /// @param controller The controller address
-    /// @param shares Amount of shares being redeemed
-    function handleRequestRedeem(address controller, uint256 shares) external {
-        _requireVault();
-        if (shares == 0) revert ZERO_AMOUNT();
-
-        SuperVaultState storage state = superVaultState[controller];
-        state.pendingRedeemRequest = state.pendingRedeemRequest + shares;
-    }
-
-    /// @notice Update state for a redeem request cancellation
-    /// @param controller The controller address
-    function handleCancelRedeem(address controller) external {
-        _requireVault();
-        SuperVaultState storage state = superVaultState[controller];
-        state.pendingRedeemRequest = 0;
-    }
-
-    /// @notice Handle deposit claim by updating maxMint state
-    /// @param controller The controller address
-    /// @param shares Amount of shares being claimed
-    function handleDeposit(address controller, uint256 shares) external {
-        _requireVault();
-        if (shares == 0) revert ZERO_AMOUNT();
-
-        SuperVaultState storage state = superVaultState[controller];
-        if (state.maxMint < shares) revert INVALID_AMOUNT();
-
-        // Update state
-        state.maxMint -= shares;
-    }
-
-    /// @notice Handle withdraw claim by updating maxWithdraw state
-    /// @param controller The controller address
-    /// @param assets Amount of assets being claimed
-    function handleWithdraw(address controller, uint256 assets) external {
-        _requireVault();
-        if (assets == 0) revert ZERO_AMOUNT();
-
-        SuperVaultState storage state = superVaultState[controller];
-        if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
-
-        // Update state
-        state.maxWithdraw -= assets;
-
-        // Transfer assets to vault
-        _asset.safeTransfer(_vault, assets);
+    /// @inheritdoc ISuperVaultStrategy
+    function handleOperation(
+        address controller,
+        uint256 amount,
+        Operation operation,
+        bool isDeposit
+    ) external {
+        if (operation == Operation.Request) {
+            isDeposit ? _handleRequestDeposit(controller, amount) : _handleRequestRedeem(controller, amount);
+        } else if (operation == Operation.Cancel) {
+            isDeposit ? _handleCancelDeposit(controller, amount) : _handleCancelRedeem(controller);
+        } else if (operation == Operation.Claim) {
+            isDeposit ? _handleClaimDeposit(controller, amount) : _handleClaimWithdraw(controller, amount);
+        } else {
+            revert UNAUTHORIZED();
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -679,69 +617,57 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Add a new yield source to the system
-    /// @param source Address of the yield source
-    /// @param oracle Address of the yield source oracle
-    function addYieldSource(address source, address oracle) external {
+    /// @inheritdoc ISuperVaultStrategy
+    function setYieldSource(address source, address oracle, bool isNew) external {
         _requireManager();
         if (source == address(0)) revert INVALID_YIELD_SOURCE();
         if (oracle == address(0)) revert INVALID_ORACLE();
-        if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-        // Check vault threshold
-        if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
-
-        // Add yield source
-        yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
-        yieldSourcesList.push(source);
-
-        emit YieldSourceAdded(source, oracle);
-    }
-
-    /// @notice Update oracle for an existing yield source
-    /// @param source Address of the yield source
-    /// @param newOracle Address of the new oracle
-    function updateYieldSourceOracle(address source, address newOracle) external {
-        _requireManager();
-        if (newOracle == address(0)) revert INVALID_ORACLE();
         YieldSource storage yieldSource = yieldSources[source];
-        if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+        if (isNew) {
+            if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-        address oldOracle = yieldSource.oracle;
-        yieldSource.oracle = newOracle;
+            if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
-        emit YieldSourceOracleUpdated(source, oldOracle, newOracle);
+            yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
+            yieldSourcesList.push(source);
+
+            emit YieldSourceAdded(source, oracle);
+        } else {
+            if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+
+            address oldOracle = yieldSource.oracle;
+            yieldSource.oracle = oracle;
+
+            emit YieldSourceOracleUpdated(source, oldOracle, oracle);
+        }
     }
 
-    /// @notice Deactivate a yield source
-    /// @param source Address of the yield source to deactivate
-    function deactivateYieldSource(address source) external {
+    /// @inheritdoc ISuperVaultStrategy
+    function toggleYieldSource(address source, bool activate) external {
         _requireManager();
         YieldSource storage yieldSource = yieldSources[source];
-        if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_FOUND();
+        if (activate) {
+            if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+            if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-        // Check no assets are allocated to this source
-        uint256 sourceShares = IERC4626(source).balanceOf(address(this));
-        if (sourceShares > 0) revert INVALID_YIELD_SOURCE();
+            // Check vault threshold
+            if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
 
-        yieldSource.isActive = false;
-        emit YieldSourceDeactivated(source);
+            yieldSource.isActive = true;
+            emit YieldSourceReactivated(source);
+        } else {
+            if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_FOUND();
+
+            // Check no assets are allocated to this source
+            uint256 sourceShares = IERC4626(source).balanceOf(address(this));
+            if (sourceShares > 0) revert INVALID_YIELD_SOURCE();
+
+            yieldSource.isActive = false;
+            emit YieldSourceDeactivated(source);
+        }
     }
 
-    /// @notice Reactivate a previously removed yield source
-    /// @param source Address of the yield source to reactivate
-    function reactivateYieldSource(address source) external {
-        _requireManager();
-        YieldSource storage yieldSource = yieldSources[source];
-        if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
-        if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_EXISTS();
-
-        // Check vault threshold
-        if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
-
-        yieldSource.isActive = true;
-        emit YieldSourceReactivated(source);
-    }
 
     /// @notice Update global configuration
     /// @param config New global configuration
@@ -758,26 +684,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit GlobalConfigUpdated(config.vaultCap, config.superVaultCap, config.maxAllocationRate, config.vaultThreshold);
     }
 
-    /// @notice Propose a new hook root
-    /// @param newRoot New hook root to propose
-    function proposeHookRoot(bytes32 newRoot) external {
-        _requireManager();
-        proposedHookRoot = newRoot;
-        hookRootEffectiveTime = block.timestamp + ONE_WEEK;
-        emit HookRootProposed(newRoot, hookRootEffectiveTime);
-    }
-
-    /// @notice Execute the proposed hook root update after timelock
-    function executeHookRootUpdate() external {
-        if (block.timestamp < hookRootEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
-        if (proposedHookRoot == bytes32(0)) revert INVALID_HOOK_ROOT();
-
-        hookRoot = proposedHookRoot;
-        proposedHookRoot = bytes32(0);
-        hookRootEffectiveTime = 0;
-        emit HookRootUpdated(hookRoot);
-    }
-
     /// @notice Update fee configuration
     /// @param feeBps New fee in basis points
     /// @param recipient New fee recipient
@@ -789,7 +695,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         feeConfig = FeeConfig({ feeBps: feeBps, recipient: recipient });
         emit FeeConfigUpdated(feeBps, recipient);
     }
+    
+    /// @notice Propose or execute a hook root update
+    /// @dev if newRoot is 0, executes the proposed hook root update
+    /// @param newRoot New hook root to propose or execute
+    function proposeOrExecuteHookRoot(bytes32 newRoot) external {
+        if (newRoot == bytes32(0)) {
+            // execute hook root update
+            if (block.timestamp < hookRootEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+            if (proposedHookRoot == bytes32(0)) revert INVALID_HOOK_ROOT();
 
+            hookRoot = proposedHookRoot;
+            proposedHookRoot = bytes32(0);
+            hookRootEffectiveTime = 0;
+            emit HookRootUpdated(hookRoot);
+        } else {
+            // propose new hook
+            _requireManager();
+            proposedHookRoot = newRoot;
+            hookRootEffectiveTime = block.timestamp + ONE_WEEK;
+            emit HookRootProposed(newRoot, hookRootEffectiveTime);
+        }
+    }
+  
     /// @notice Set an address for a given role
     /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
     /// @param role The role identifier
@@ -803,7 +731,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (role == MANAGER_ROLE && account != msg.sender) revert UNAUTHORIZED();
 
         addresses[role] = account;
-    }
+    }  
 
     /// @notice Propose a change to emergency withdrawable status
     /// @param newWithdrawable The new emergency withdrawable status to propose
@@ -844,56 +772,43 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         MANAGEMENT VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get whether the contract is initialized
-
-    function isInitialized() external view returns (bool) {
-        return _initialized;
+    /// @inheritdoc ISuperVaultStrategy
+    function getVaultInfo() external view returns (
+        bool initialized_, 
+        address vault_, 
+        address asset_, 
+        uint8 vaultDecimals_
+    ) {
+        initialized_ = _initialized;
+        vault_ = _vault;
+        asset_ = address(_asset);
+        vaultDecimals_ = _vaultDecimals;
+    }
+    
+    /// @inheritdoc ISuperVaultStrategy
+    function getHookInfo() external view returns (
+        bytes32 hookRoot_, 
+        bytes32 proposedHookRoot_, 
+        uint256 hookRootEffectiveTime_
+    ) {
+        hookRoot_ = hookRoot;
+        proposedHookRoot_ = proposedHookRoot;
+        hookRootEffectiveTime_ = hookRootEffectiveTime;
     }
 
-    /// @notice Get the vault address
-    function getVault() external view returns (address) {
-        return _vault;
-    }
-
-    /// @notice Get the asset address
-    function getAsset() external view returns (address) {
-        return address(_asset);
-    }
-
-    /// @notice Get the vault decimals
-    function getVaultDecimals() external view returns (uint8) {
-        return _vaultDecimals;
+    /// @inheritdoc ISuperVaultStrategy
+    function getConfigInfo() external view returns (
+        GlobalConfig memory globalConfig_, 
+        FeeConfig memory feeConfig_ 
+    ) {
+        globalConfig_ = globalConfig;
+        feeConfig_ = feeConfig;
     }
 
     /// @notice Get a yield source's configuration
     /// @param source Address of the yield source
     function getYieldSource(address source) external view returns (YieldSource memory) {
         return yieldSources[source];
-    }
-
-    /// @notice Get the global configuration
-    function getGlobalConfig() external view returns (GlobalConfig memory) {
-        return globalConfig;
-    }
-
-    /// @notice Get the fee configuration
-    function getFeeConfig() external view returns (FeeConfig memory) {
-        return feeConfig;
-    }
-
-    /// @notice Get the current hook root
-    function getHookRoot() external view returns (bytes32) {
-        return hookRoot;
-    }
-
-    /// @notice Get the proposed hook root
-    function getProposedHookRoot() external view returns (bytes32) {
-        return proposedHookRoot;
-    }
-
-    /// @notice Get the hook root effective time
-    function getHookRootEffectiveTime() external view returns (uint256) {
-        return hookRootEffectiveTime;
     }
 
     /// @notice Get the list of all yield sources
@@ -913,6 +828,70 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    //--Core helpers--
+    function _handleRequestDeposit(address controller, uint256 assets) internal {
+        _requireVault();
+        if (assets == 0) revert ZERO_AMOUNT();
+
+        // Transfer assets from vault
+        _asset.safeTransferFrom(msg.sender, address(this), assets);
+
+        // Update state
+        SuperVaultState storage state = superVaultState[controller];
+        state.pendingDepositRequest = state.pendingDepositRequest + assets;
+    }
+
+    function _handleCancelDeposit(address controller, uint256 assets) internal {
+        _requireVault();
+        if (assets == 0) revert ZERO_AMOUNT();
+
+        SuperVaultState storage state = superVaultState[controller];
+        state.pendingDepositRequest = 0;
+
+        // Return assets to vault
+        _asset.safeTransfer(_vault, assets);
+    }
+    
+    function _handleClaimDeposit(address controller, uint256 shares) internal {
+        _requireVault();
+        if (shares == 0) revert ZERO_AMOUNT();
+
+        SuperVaultState storage state = superVaultState[controller];
+        if (state.maxMint < shares) revert INVALID_AMOUNT();
+
+        // Update state
+        state.maxMint -= shares;
+    }
+
+    function _handleRequestRedeem(address controller, uint256 shares) internal {
+        _requireVault();
+        if (shares == 0) revert ZERO_AMOUNT();
+
+        SuperVaultState storage state = superVaultState[controller];
+        state.pendingRedeemRequest = state.pendingRedeemRequest + shares;
+    }
+
+    function _handleCancelRedeem(address controller) internal {
+        _requireVault();
+        SuperVaultState storage state = superVaultState[controller];
+        state.pendingRedeemRequest = 0;
+    }
+
+    
+    function _handleClaimWithdraw(address controller, uint256 assets) internal {
+        _requireVault();
+        if (assets == 0) revert ZERO_AMOUNT();
+
+        SuperVaultState storage state = superVaultState[controller];
+        if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
+
+        // Update state
+        state.maxWithdraw -= assets;
+
+        // Transfer assets to vault
+        _asset.safeTransfer(_vault, assets);
+    }
+
 
     //--Fulfilment and allocation helpers--
 
