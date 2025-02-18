@@ -27,11 +27,7 @@ import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentin
 // token hooks
 // --- erc20
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { ApproveWithPermit2Hook } from "../src/core/hooks/tokens/erc20/ApproveWithPermit2Hook.sol";
-import { PermitWithPermit2Hook } from "../src/core/hooks/tokens/erc20/PermitWithPermit2Hook.sol";
-import { TransferBatchWithPermit2Hook } from "../src/core/hooks/tokens/erc20/TransferBatchWithPermit2Hook.sol";
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
-import { TransferWithPermit2Hook } from "../src/core/hooks/tokens/erc20/TransferWithPermit2Hook.sol";
 
 // vault hooks
 // --- erc5115
@@ -109,11 +105,7 @@ struct Addresses {
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
-    ApproveWithPermit2Hook approveWithPermit2Hook;
-    PermitWithPermit2Hook permitWithPermit2Hook;
-    TransferBatchWithPermit2Hook transferBatchWithPermit2Hook;
     TransferERC20Hook transferErc20Hook;
-    TransferWithPermit2Hook transferWithPermit2Hook;
     Deposit4626VaultHook deposit4626VaultHook;
     Withdraw4626VaultHook withdraw4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
@@ -534,36 +526,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
                 hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
-            );
-
-            Addr.approveWithPermit2Hook =
-                new ApproveWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
-            vm.label(address(Addr.approveWithPermit2Hook), APPROVE_WITH_PERMIT2_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = address(Addr.approveWithPermit2Hook);
-            hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY] = Hook(
-                APPROVE_WITH_PERMIT2_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.None,
-                address(Addr.approveWithPermit2Hook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
-                hooks[chainIds[i]][APPROVE_WITH_PERMIT2_HOOK_KEY]
-            );
-
-            Addr.permitWithPermit2Hook =
-                new PermitWithPermit2Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), PERMIT2);
-            vm.label(address(Addr.permitWithPermit2Hook), PERMIT_WITH_PERMIT2_HOOK_KEY);
-            hookAddresses[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = address(Addr.permitWithPermit2Hook);
-            hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY] = Hook(
-                PERMIT_WITH_PERMIT2_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.None,
-                address(Addr.permitWithPermit2Hook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
-                hooks[chainIds[i]][PERMIT_WITH_PERMIT2_HOOK_KEY]
             );
 
             Addr.deposit7540VaultHook =
