@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 import { Helpers } from "./utils/Helpers.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 
@@ -968,30 +966,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
-    function _derive4626_OP_ExpectedFee(
-        ISuperLedger.LedgerEntry[] memory entries,
-        uint256 unconsumedEntries,
-        uint256 amountAssets, 
-        uint256 usedShares,
-        uint256 feePercent
+    struct FeeParams {
+        ISuperLedger.LedgerEntry[] entries;
+        uint256 unconsumedEntries;
+        uint256 amountAssets; 
+        uint256 usedShares;
+        uint256 feePercent;
+        uint256 decimals;
+    }
+
+    function _deriveExpectedFee(
+        FeeParams memory params
     )
         internal
         pure
         returns (uint256 feeAmount)
     {
-        uint256 remainingShares = usedShares;
+        uint256 remainingShares = params.usedShares;
         uint256 costBasis;
 
-        uint256 len = entries.length;
+        uint256 len = params.entries.length;
 
         if (len == 0) return 0;
 
-        uint256 currentIndex = unconsumedEntries;
+        uint256 currentIndex = params.unconsumedEntries;
 
         while (remainingShares > 0) {
             if (currentIndex >= len) revert("No more entries to consume");
 
-            ISuperLedger.LedgerEntry memory entry = entries[currentIndex];
+            ISuperLedger.LedgerEntry memory entry = params.entries[currentIndex];
             uint256 availableShares = entry.amountSharesAvailableToConsume;
 
             // if no shares available on current entry, move to the next
@@ -1008,10 +1011,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             availableShares -= sharesConsumed;
             remainingShares -= sharesConsumed;
 
-            console2.log("entry.price", entry.price);
-
-            costBasis += sharesConsumed * entry.price / (10 ** 6);
-            console2.log("costBasis", costBasis);
+            costBasis += sharesConsumed * entry.price / (10 ** params.decimals);
 
             if (sharesConsumed == availableShares) {
                 unchecked {
@@ -1020,73 +1020,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             }
         }
 
-        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-        console2.log("profit", profit);
+        uint256 profit = params.amountAssets > costBasis ? params.amountAssets - costBasis : 0;
         if (profit > 0) {
             // Calculate fee in assets but don't transfer - let the executor handle it
-            feeAmount = (profit * feePercent) / 10_000;
+            feeAmount = (profit * params.feePercent) / 10_000;
         }
     }
-    
 
-    function _derive7540_ETH_USDC_ExpectedFee(
-        ISuperLedger.LedgerEntry[] memory entries,
-        uint256 unconsumedEntries,
-        uint256 amountAssets, 
-        uint256 usedShares,
-        uint256 feePercent
+    function _assertFeeDerivation(
+        uint256 expectedFee,
+        uint256 feeBalanceBefore,
+        uint256 feeBalanceAfter
     )
-        internal
-        pure
-        returns (uint256 feeAmount)
+        internal pure
     {
-        uint256 remainingShares = usedShares;
-        uint256 costBasis;
-
-        uint256 len = entries.length;
-
-        if (len == 0) return 0;
-
-        uint256 currentIndex = unconsumedEntries;
-
-        while (remainingShares > 0) {
-            if (currentIndex >= len) revert("No more entries to consume");
-
-            ISuperLedger.LedgerEntry memory entry = entries[currentIndex];
-            uint256 availableShares = entry.amountSharesAvailableToConsume;
-
-            // if no shares available on current entry, move to the next
-            if (availableShares == 0) {
-                unchecked {
-                    ++currentIndex;
-                }
-                continue;
-            }
-
-            // remove from current entry
-            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
-
-            availableShares -= sharesConsumed;
-            remainingShares -= sharesConsumed;
-
-            costBasis += sharesConsumed * entry.price / (10 ** 6);
-            console2.log("entry.price", entry.price);
-            console2.log("costBasis", costBasis);
-
-            if (sharesConsumed == availableShares) {
-                unchecked {
-                    ++currentIndex;
-                }
-            }
-        }
-
-        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-        console2.log("profit", profit);
-        if (profit > 0) {
-
-            // Calculate fee in assets but don't transfer - let the executor handle it
-            feeAmount = (profit * feePercent) / 10_000;
-        }
+        assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee);
     }
 
     /*//////////////////////////////////////////////////////////////
