@@ -16,7 +16,7 @@ import { ISuperRbac } from "../../src/core/interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
-import { ISuperCollectiveVault } from "../../src/core/interfaces/ISuperCollectiveVault.sol";
+import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 contract SuperExecutorMock is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////

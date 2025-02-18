@@ -9,7 +9,6 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperRbac } from "../../../src/core/interfaces/ISuperRbac.sol";
-import { ISuperCollectiveVault } from "../../../src/core/interfaces/ISuperCollectiveVault.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 

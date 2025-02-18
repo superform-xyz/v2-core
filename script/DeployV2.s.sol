@@ -19,7 +19,6 @@ import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossR
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 
 import { SuperPositionsMock } from "../test/mocks/SuperPositionsMock.sol";
-import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
 
@@ -179,15 +178,6 @@ contract DeployV2 is Script, Configuration {
         // Deploy SuperPositionMock
         _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions, chainId);
 
-        // Deploy SuperPositionSentinel
-        deployedContracts.superPositionSentinel = __deployContract(
-            deployer,
-            SUPER_POSITION_SENTINEL_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_POSITION_SENTINEL_KEY),
-            abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
-        );
-
         // Deploy AcrossReceiveFundsAndExecuteGateway
         deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
             deployer,
@@ -250,9 +240,6 @@ contract DeployV2 is Script, Configuration {
 
         // -- SuperRegistry
         superRegistry.setAddress(keccak256("SUPER_LEDGER_ID"), _getContract(chainId, "SuperLedger"));
-        superRegistry.setAddress(
-            keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainId, "SuperPositionSentinel")
-        );
         superRegistry.setAddress(keccak256("SUPER_RBAC_ID"), _getContract(chainId, "SuperRbac"));
 
         superRegistry.setAddress(

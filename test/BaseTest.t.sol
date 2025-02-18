@@ -6,7 +6,6 @@ import { VmSafe } from "forge-std/Vm.sol";
 
 // Superform interfaces
 import { ISuperRbac } from "../src/core/interfaces/ISuperRbac.sol";
-import { ISentinel } from "../src/core/interfaces/sentinel/ISentinel.sol";
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
@@ -20,7 +19,6 @@ import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidato
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
-import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 // hooks
 
@@ -101,7 +99,6 @@ struct Addresses {
     ISuperLedger superLedger;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
-    ISentinel superPositionSentinel;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
@@ -304,10 +301,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A.superLedger);
 
-            A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
-            vm.label(address(A.superPositionSentinel), SUPER_POSITION_SENTINEL_KEY);
-            contractAddresses[chainIds[i]][SUPER_POSITION_SENTINEL_KEY] = address(A.superPositionSentinel);
-
             A.superExecutor = ISuperExecutor(address(new SuperExecutor(address(A.superRegistry))));
             vm.label(address(A.superExecutor), SUPER_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A.superExecutor);
@@ -405,6 +398,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY]
             );
+            console.log("------------ Addr.deposit4626VaultHook", address(Addr.deposit4626VaultHook));
+
             Addr.withdraw4626VaultHook =
                 new Withdraw4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw4626VaultHook), WITHDRAW_4626_VAULT_HOOK_KEY);
@@ -419,6 +414,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY]
             );
+            console.log("------------ Addr.withdraw4626VaultHook", address(Addr.withdraw4626VaultHook));
 
             Addr.deposit5115VaultHook =
                 new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -434,6 +430,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
             );
+            console.log("------------ Addr.deposit5115VaultHook", address(Addr.deposit5115VaultHook));
 
             Addr.withdraw5115VaultHook =
                 new Withdraw5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -449,6 +446,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY]
             );
+            console.log("------------ Addr.withdraw5115VaultHook", address(Addr.withdraw5115VaultHook));
 
             Addr.requestDeposit7540VaultHook =
                 new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -464,6 +462,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
             );
+            console.log("------------ Addr.requestDeposit7540VaultHook", address(Addr.requestDeposit7540VaultHook));
 
             Addr.requestWithdraw7540VaultHook =
                 new RequestWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -480,16 +479,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY]
             );
+            console.log("------------ Addr.requestWithdraw7540VaultHook", address(Addr.requestWithdraw7540VaultHook));
 
             Addr.deposit7575_7540VaultHook =
                 new Deposit7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.deposit7575_7540VaultHook), DEPOSIT_7575_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_7575_7540_VAULT_HOOK_KEY] = address(Addr.deposit7575_7540VaultHook);
+            console.log("------------ Addr.deposit7575_7540VaultHook", address(Addr.deposit7575_7540VaultHook));
 
             Addr.withdraw7575_7540VaultHook =
                 new Withdraw7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw7575_7540VaultHook), WITHDRAW_7575_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
+            console.log("------------ Addr.withdraw7575_7540VaultHook", address(Addr.withdraw7575_7540VaultHook));
 
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
@@ -771,9 +773,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_LEDGER_ID"), _getContract(chainIds[i], "SuperLedger")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainIds[i], "SuperPositionSentinel")
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_RBAC_ID"), _getContract(chainIds[i], "SuperRbac")

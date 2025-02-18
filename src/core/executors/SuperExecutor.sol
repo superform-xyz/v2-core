@@ -13,7 +13,6 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { ISuperCollectiveVault } from "../interfaces/ISuperCollectiveVault.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";

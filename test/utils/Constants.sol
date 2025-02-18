@@ -72,7 +72,6 @@ abstract contract Constants {
     string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
     string public constant SUPER_RBAC_KEY = "SuperRbac";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
-    string public constant SUPER_POSITION_SENTINEL_KEY = "SuperPositionSentinel";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
