@@ -16,7 +16,9 @@ deploy-poc:
 build :; forge build && $(MAKE) generate
 ftest :; forge test
 
-test-vvv :; forge test --match-test test_OP_Bridge_Deposit_Redeem_Flow_With_Warping -vvvv
+coverage :; forge coverage --report lcov
+
+test-vvv :; forge test --match-test test_ClaimRedeem -vvvv
 
 test-integration :; forge test --match-test test_ETH_Bridge_Deposit_Redeem_Flow_With_Warping -vvvv
 

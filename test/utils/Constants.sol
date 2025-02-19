@@ -73,6 +73,8 @@ abstract contract Constants {
     string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
     string public constant SUPER_RBAC_KEY = "SuperRbac";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
+    string public constant PENDLE_LEDGER_KEY = "PendleLedger";
+    string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_POSITION_SENTINEL_KEY = "SuperPositionSentinel";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
@@ -128,6 +130,7 @@ abstract contract Constants {
     string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_ID";
+    string public constant PAYMASTER_ID = "PAYMASTER_ID";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;

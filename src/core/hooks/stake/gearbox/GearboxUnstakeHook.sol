@@ -15,15 +15,15 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title GearboxUnstakeHook
 /// @dev data has the following structure
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-/// @notice         bool lockForSP = _decodeBool(data, 85);
+/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+/// @notice         bool lockForSP = _decodeBool(data, 57);
 contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 52;
+    uint256 private constant AMOUNT_POSITION = 24;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -40,7 +40,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     {
         address yieldSource = data.extractYieldSource();
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 84);
+        bool usePrevHookAmount = _decodeBool(data, 56);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -65,7 +65,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         /// @dev in Gearbox, the staking token is the asset
         asset = IGearboxFarmingPool(yieldSource).stakingToken();
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 85);
+        lockForSP = _decodeBool(data, 57);
         spToken = yieldSource;
     }
 

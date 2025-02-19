@@ -8,9 +8,12 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
 import { MockRegistry } from "../../../mocks/MockRegistry.sol";
 import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
+import { PendleLedger } from "../../../../src/core/accounting/PendleLedger.sol";
 import { SuperExecutor } from "../../../../src/core/executors/SuperExecutor.sol";
+import { SuperLedgerConfiguration } from "../../../../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { IStandardizedYield } from "../../../../src/vendor/pendle/IStandardizedYield.sol";
 
 import { ERC5115YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
@@ -25,7 +28,8 @@ contract PendlePriceIntegration is BaseE2ETest {
 
     ERC5115YieldSourceOracle oracle;
     SuperExecutor superExecutor;
-    SuperLedger superLedger;
+    PendleLedger pendleLedger;
+    SuperLedgerConfiguration superLedgerConfiguration;
     bytes mockSignature;
 
     IStandardizedYield pendleVault;
@@ -46,7 +50,8 @@ contract PendlePriceIntegration is BaseE2ETest {
         oracle = new ERC5115YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
 
         superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        superLedger = SuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        superLedgerConfiguration = SuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
+        pendleLedger = PendleLedger(_getContract(ETH, PENDLE_LEDGER_KEY));
 
         pendleVault = IStandardizedYield(0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185);
         underlying = CHAIN_1_SUSDE;
@@ -69,7 +74,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
-            bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -83,7 +88,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         // assert price per share
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedger.getLedger(nexusAccount, address(pendleVault));
+            pendleLedger.getLedger(nexusAccount, address(pendleVault));
         assertEq(entries.length, 1);
         assertEq(entries[0].price, pricePerShareOne);
         assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
@@ -97,7 +102,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 sharesTwo = pendleVault.previewDeposit(underlying, amount);
 
         // assert price per share
-        (entries, unconsumedEntries) = superLedger.getLedger(nexusAccount, address(pendleVault));
+        (entries, unconsumedEntries) = pendleLedger.getLedger(nexusAccount, address(pendleVault));
         assertEq(entries.length, 2);
         assertEq(entries[0].price, pricePerShareOne);
         assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
@@ -110,8 +115,8 @@ contract PendlePriceIntegration is BaseE2ETest {
     function test_ValidateFees_ForPartialWithdrawal_NoExtraFees_Pendle() public {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
-        ISuperLedger.YieldSourceOracleConfig memory config =
-            superLedger.getYieldSourceOracleConfig(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -143,100 +148,76 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         assertEq(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
-    /**
-     * function test_ValidateFees_ForFullWithdrawal_AccumulatedFees_Pendle() public {
-     *     uint256 amount = 1e18; // fixed amount to test the fee and consumed entries easily
-     *
-     *
-     *     ISuperLedger.YieldSourceOracleConfig memory config =
-     *         superLedger.getYieldSourceOracleConfig(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
-     *     assertEq(config.feePercent, 100); //1%
-     *
-     *     // create and fund
-     *     address nexusAccount = _setupNexusAccount(amount);
-     *
-     *     // prepare execution entry
-     *     ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
-     *
-     *     // execute and validate first deposit
-     *     _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
-     *
-     *     // execute and validate second deposit
-     *     _getTokens(underlying, nexusAccount, amount);
-     *     _executeAndValidateDeposit(nexusAccount, entry, amount, 2);
-     *
-     *     // Check before withdrawal fees
-     *     uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
-     *     assertEq(feeBalanceBefore, 0);
-     *
-     *     // previewRedeem
-     *     //uint256 previewRedeemBefore = pendleVault.previewRedeem(underlying, pendleVault.balanceOf(nexusAccount));
-     *     // create multiple deposits to increase PPS
-     *     uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
-     *     _performMultipleDeposits(underlying, IERC4626(underlying).asset(), 50, SMALL);
-     *     uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
-     *     assertEq(ppsAfter, ppsBefore); // in Pendle shares are 1:1 with amount
-     *
-     *
-     *     //uint256 previewRedeemAfter = pendleVault.previewRedeem(underlying, pendleVault.balanceOf(nexusAccount));
-     *     //assertGt(previewRedeemAfter, previewRedeemBefore);
-     *
-     *
-     *     uint256 availableShares = pendleVault.balanceOf(nexusAccount);
-     *     entry = _prepareWithdrawExecutorEntry(availableShares);
-     *     // it should still have 2 entries in the ledger and unconsumed entries index should be 0
-     *     _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
-     *
-     *     assertEq(IERC20(underlying).balanceOf(config.feeRecipient), 0);
-     * }
-     *
-     * function test_ValidateFees_ForFullWithdrawal_NonYieldToken_AccumulatedFees_Pendle() public {
-     *     uint256 amount = 1e18; // fixed amount to test the fee and consumed entries easily
-     *     underlying = CHAIN_1_USDE;
-     *
-     *     ISuperLedger.YieldSourceOracleConfig memory config =
-     *         superLedger.getYieldSourceOracleConfig(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
-     *     assertEq(config.feePercent, 100); //1%
-     *
-     *     // create and fund
-     *     address nexusAccount = _setupNexusAccount(amount);
-     *
-     *     // prepare execution entry
-     *     ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
-     *
-     *     // execute and validate first deposit
-     *     _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
-     *
-     *     // Check before withdrawal fees
-     *     uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
-     *     assertEq(feeBalanceBefore, 0);
-     *
-     *     // previewRedeem
-     *     uint256 previewRedeemBefore = pendleVault.previewRedeem(underlying, pendleVault.balanceOf(nexusAccount));
-     *     // create multiple deposits to increase PPS
-     *     uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
-     *     _performMultipleDeposits(underlying, IERC4626(underlying).asset(), 50, SMALL);
-     *     uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
-     *
-     *     console2.log("ppsBefore", ppsBefore);
-     *     console2.log("ppsAfter", ppsAfter);
-     *     return;
-     *     assertEq(ppsAfter, ppsBefore); // in Pendle shares are 1:1 with amount
-     *
-     *
-     *
-     *     uint256 previewRedeemAfter = pendleVault.previewRedeem(underlying, pendleVault.balanceOf(nexusAccount));
-     *     //assertGt(previewRedeemAfter, previewRedeemBefore);
-     *
-     *
-     *     uint256 availableShares = pendleVault.balanceOf(nexusAccount);
-     *     entry = _prepareWithdrawExecutorEntry(availableShares);
-     *     // it should still have 2 entries in the ledger and unconsumed entries index should be 0
-     *     _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
-     *
-     *     assertEq(IERC20(underlying).balanceOf(config.feeRecipient), 0);
-     * }
-     */
+
+    function test_ValidateFees_ForFullWithdrawal_AccumulatedFees_Pendle() public {
+        uint256 amount = 1e18; 
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+        assertEq(config.feePercent, 100); 
+
+        address nexusAccount = _setupNexusAccount(amount);
+
+        ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
+
+        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+
+        _getTokens(underlying, nexusAccount, amount);
+        _executeAndValidateDeposit(nexusAccount, entry, amount, 2);
+
+        uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
+        assertEq(feeBalanceBefore, 0);
+
+        uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
+        _performMultipleDeposits(underlying, IERC4626(underlying).asset(), 50, SMALL);
+        uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
+        assertGt(ppsAfter, ppsBefore, "pps after should be higher"); 
+
+        uint256 availableShares = pendleVault.balanceOf(nexusAccount);
+        entry = _prepareWithdrawExecutorEntry(availableShares);
+        _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
+
+        assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
+    }
+     
+    function test_ValidateFees_ForFullWithdrawal_NonYieldToken_AccumulatedFees_Pendle() public {
+        uint256 amount = 1e18; 
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+        assertEq(config.feePercent, 100); 
+
+        address nexusAccount = _setupNexusAccount(amount);
+
+        ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
+
+        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+
+        uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
+        assertEq(feeBalanceBefore, 0);
+
+        uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
+        for (uint256 i; i < 50;) {
+            _getTokens(CHAIN_1_USDE, address(this), SMALL);
+            IERC20(CHAIN_1_USDE).approve(address(pendleVault), SMALL);
+            IStandardizedYield(address(pendleVault)).deposit(address(this), CHAIN_1_USDE, SMALL, 0);
+            unchecked {
+                ++i;
+            }
+        }
+        vm.warp(block.timestamp + (86_400 * 365));
+
+        uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
+
+        assertGt(ppsAfter, ppsBefore); 
+
+        uint256 availableShares = pendleVault.balanceOf(nexusAccount);
+        entry = _prepareWithdrawExecutorEntry(availableShares);
+        _executeAndValidateWithdraw(nexusAccount, entry, 1, 1);
+
+        assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
@@ -280,7 +261,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
-            bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
@@ -294,7 +275,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_5115_VAULT_HOOK_KEY);
         hooksData[0] = _create5115WithdrawHookData(
-            bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
         );
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -314,7 +295,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedger.getLedger(nexusAccount, address(pendleVault));
+            pendleLedger.getLedger(nexusAccount, address(pendleVault));
 
         assertEq(entries.length, expectedEntriesCount);
         assertEq(entries[entries.length - 1].price, pricePerShare);
@@ -333,7 +314,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedger.getLedger(nexusAccount, address(pendleVault));
+            pendleLedger.getLedger(nexusAccount, address(pendleVault));
 
         assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
         assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");

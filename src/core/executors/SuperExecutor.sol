@@ -13,7 +13,7 @@ import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol"
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { ISuperCollectiveVault } from "../interfaces/ISuperCollectiveVault.sol";
+import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
@@ -105,12 +105,16 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedger ledger = ISuperLedger(superRegistry.getAddress(keccak256("SUPER_LEDGER_ID")));
-            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            ISuperLedgerConfiguration ledgerConfiguration = ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
+         
+            bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
+            ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+                ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+
             // Update accounting and get fee amount if any
-            uint256 feeAmount = ledger.updateAccounting(
+            uint256 feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
                 yieldSource,
                 yieldSourceOracleId,
@@ -121,8 +125,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
             // If there's a fee to collect (only for outflows)
             if (feeAmount > 0) {
-                ISuperLedger.YieldSourceOracleConfig memory config =
-                    ledger.getYieldSourceOracleConfig(yieldSourceOracleId);
                 // Get the asset token from the hook
                 address assetToken = ISuperHookResultOutflow(hook).asset();
                 if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
