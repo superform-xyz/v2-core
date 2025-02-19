@@ -228,7 +228,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Deploy hooks
         _deployHooks();
-        
+
         // Initialize accounts
         _initializeAccounts();
 
@@ -302,9 +302,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
             assertTrue(A.superRbac.hasRole(SuperRbac(address(A.superRbac)).DEFAULT_ADMIN_ROLE(), address(this)));
 
-            A.superLedgerConfiguration = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A.superRegistry))));
+            A.superLedgerConfiguration =
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A.superRegistry))));
             vm.label(address(A.superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
-            contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A.superLedgerConfiguration);   
+            contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A.superLedgerConfiguration);
 
             A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superLedgerConfiguration))));
             vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
@@ -841,7 +842,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
                 ledger: _getContract(chainIds[i], PENDLE_LEDGER_KEY)
             });
-            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
+                configs
+            );
             vm.stopPrank();
         }
     }
