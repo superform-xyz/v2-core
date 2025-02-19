@@ -203,9 +203,9 @@ contract CrossChainDepositWithSlippage is BaseTest {
             true
         );
         dstHooksData[2] 
-        = _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount, false);
+        = _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount / 2, true);
         dstHooksData[3] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_WETH, intentAmount / 2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_WETH, intentAmount / 2, true, false
         );
 
         UserOpData memory dstUserOpData = _createUserOpData(dstHooksAddresses, dstHooksData, BASE);
