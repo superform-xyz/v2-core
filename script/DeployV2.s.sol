@@ -23,7 +23,6 @@ import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossR
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 
 import { SuperPositionsMock } from "../test/mocks/SuperPositionsMock.sol";
-import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
 
@@ -218,15 +217,6 @@ contract DeployV2 is Script, Configuration {
         // Deploy SuperPositionMock
         _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions, chainId);
 
-        // Deploy SuperPositionSentinel
-        deployedContracts.superPositionSentinel = __deployContract(
-            deployer,
-            SUPER_POSITION_SENTINEL_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_POSITION_SENTINEL_KEY),
-            abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
-        );
-
         // Deploy AcrossReceiveFundsAndExecuteGateway
         deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
             deployer,
@@ -289,14 +279,10 @@ contract DeployV2 is Script, Configuration {
 
         // -- SuperRegistry
         superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
+        superRegistry.setAddress(keccak256(bytes(SUPER_RBAC_ID)), _getContract(chainId, SUPER_RBAC_KEY));
         superRegistry.setAddress(
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
-        superRegistry.setAddress(
-            keccak256(bytes(SUPER_POSITION_SENTINEL_ID)), _getContract(chainId, SUPER_POSITION_SENTINEL_KEY)
-        );
-        superRegistry.setAddress(keccak256(bytes(SUPER_RBAC_ID)), _getContract(chainId, SUPER_RBAC_KEY));
-
         superRegistry.setAddress(
             keccak256(bytes(ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID)),
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)

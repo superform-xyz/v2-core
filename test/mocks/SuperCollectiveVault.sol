@@ -8,7 +8,7 @@ import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // Superform
 import { ISuperRbac } from "../../src/core/interfaces/ISuperRbac.sol";
-import { ISuperCollectiveVault } from "../../src/core/interfaces/ISuperCollectiveVault.sol";
+import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
 

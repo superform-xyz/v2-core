@@ -23,7 +23,6 @@ abstract contract Constants {
     string internal constant PENDLE_LEDGER_KEY = "PendleLedger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
-    string internal constant SUPER_POSITION_SENTINEL_KEY = "SuperPositionSentinel";
     string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant MOCK_VALIDATOR_MODULE_KEY = "MockValidatorModule";

@@ -6,7 +6,6 @@ import { VmSafe } from "forge-std/Vm.sol";
 
 // Superform interfaces
 import { ISuperRbac } from "../src/core/interfaces/ISuperRbac.sol";
-import { ISentinel } from "../src/core/interfaces/sentinel/ISentinel.sol";
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
@@ -23,7 +22,6 @@ import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidato
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
-import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 // hooks
 
@@ -106,7 +104,6 @@ struct Addresses {
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
-    ISentinel superPositionSentinel;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
@@ -231,7 +228,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Deploy hooks
         _deployHooks();
-
+        
         // Initialize accounts
         _initializeAccounts();
 
@@ -316,10 +313,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.pendleLedger = ISuperLedger(address(new PendleLedger(address(A.superLedgerConfiguration))));
             vm.label(address(A.pendleLedger), PENDLE_LEDGER_KEY);
             contractAddresses[chainIds[i]][PENDLE_LEDGER_KEY] = address(A.pendleLedger);
-
-            A.superPositionSentinel = ISentinel(address(new SuperPositionSentinel(address(A.superRegistry))));
-            vm.label(address(A.superPositionSentinel), SUPER_POSITION_SENTINEL_KEY);
-            contractAddresses[chainIds[i]][SUPER_POSITION_SENTINEL_KEY] = address(A.superPositionSentinel);
 
             A.superExecutor = ISuperExecutor(address(new SuperExecutor(address(A.superRegistry))));
             vm.label(address(A.superExecutor), SUPER_EXECUTOR_KEY);
@@ -791,9 +784,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], "SuperLedgerConfiguration")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainIds[i], "SuperPositionSentinel")
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_RBAC_ID"), _getContract(chainIds[i], "SuperRbac")
