@@ -1291,25 +1291,29 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return abi.encodePacked(token, uint160(amount), uint48(expiration), uint48(nonce), spender, sigDeadline);
     }
 
-    function _create1InchClipperSwapHookData(
+    function _create1InchClipperSwapToHookData(
         address account,
-        address dstReceiver,
+        address dstToken,
+        address exchange,
         Address srcToken,
-        IERC20 dstToken,
-        uint256 amount,
-        uint256 minReturnAmount,
-        uint256 flags,
-        bytes32 salt,
-        bytes32 referral
+        uint256 amount
     )
         internal
         pure
         returns (bytes memory)
     {
         bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data
+            I1InchAggregationRouterV6.clipperSwapTo.selector,
+            exchange,
+            payable(account),
+            srcToken,
+            dstToken,
+            amount,
+            amount,
+            0,
+            bytes32(0),
+            bytes32(0)
         );
-
         return abi.encodePacked(dstToken, account, uint256(0), _calldata);
     }
 
