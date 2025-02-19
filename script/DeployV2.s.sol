@@ -6,8 +6,9 @@ import { Script } from "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 // Superform
+import "./DeploySuperDeployer.s.sol";
+import { SuperDeployer } from "./utils/SuperDeployer.sol";
 import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
-
 import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
@@ -114,6 +115,21 @@ contract DeployV2 is Script, Configuration {
         console2.log("Deploying on chainId: ", chainId);
 
         // deploy contracts
+        ISuperDeployer deployer = _getDeployer();
+        if (address(deployer) == address(0) || address(deployer).code.length == 0) {
+            bytes32 salt = "SuperformSuperDeployer.v1.0.5";
+            address expectedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
+            console2.log("SuperDeployer expected address:", expectedAddr);
+            if (expectedAddr.code.length > 0) {
+                console2.log("SuperDeployer already deployed at:", expectedAddr);
+                return;
+            }
+            SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
+            console2.log("SuperDeployer deployed at:", address(superDeployer));
+           
+            configuration.deployer = address(superDeployer);
+        }
+
         _deploy(chainId);
 
         // Configure contracts

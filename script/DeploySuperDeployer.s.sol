@@ -24,7 +24,7 @@ contract DeploySuperDeployer is Script {
     }
 
     function run(uint256 env) public broadcast(env) {
-        bytes32 salt = "SuperformSuperDeployer.v1.0.2";
+        bytes32 salt = "SuperformSuperDeployer.v1.0.3";
 
         address expectedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
         console2.log("Expected address:", expectedAddr);
