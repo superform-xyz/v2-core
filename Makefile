@@ -16,7 +16,7 @@ deploy-poc:
 build :; forge build && $(MAKE) generate
 ftest :; forge test
 
-coverage :; forge coverage --report lcov
+coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 test-vvv :; forge test --match-test test_ClaimRedeem -vvvv
 

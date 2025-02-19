@@ -810,6 +810,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11111));
         }
     }
 

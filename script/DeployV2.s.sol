@@ -301,12 +301,13 @@ contract DeployV2 is Script, Configuration {
             keccak256(bytes(ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID)),
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
         );
+
         superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
         superRegistry.setAddress(keccak256(bytes(PAYMASTER_ID)), configuration.paymaster);
         superRegistry.setAddress(keccak256(bytes(SUPER_BUNDLER_ID)), configuration.bundler);
         superRegistry.setAddress(keccak256(bytes(ORACLE_REGISTRY_ID)), _getContract(chainId, SUPER_ORACLE_KEY));
         superRegistry.setAddress(keccak256(bytes(SUPER_REGISTRY_ID)), _getContract(chainId, SUPER_REGISTRY_KEY));
-
+        superRegistry.setAddress(keccak256(bytes(TREASURY_ID)), configuration.treasury);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -441,7 +442,10 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[19] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
-            abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId]))
+            abi.encodePacked(
+                type(Swap1InchHook).creationCode,
+                abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId])
+            )
         );
 
         hooks[20] = HookDeployment(
@@ -515,7 +519,8 @@ contract DeployV2 is Script, Configuration {
 
     function _setupSuperLedgerConfiguration(uint64 chainId) private {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
