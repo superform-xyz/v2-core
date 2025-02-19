@@ -101,9 +101,9 @@ contract SuperVaultTest is MerkleReader {
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
         vm.startPrank(SV_MANAGER);
-        strategy.proposeHookRoot(hookRoot);
+        strategy.proposeOrExecuteHookRoot(hookRoot);
         vm.warp(block.timestamp + 7 days);
-        strategy.executeHookRootUpdate();
+        strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
 

@@ -560,20 +560,6 @@ set_initial_balance "$OPTIMISM_MAINNET"
 
 # Deploy on Ethereum Mainnet
 log "INFO" "Deploying on Ethereum Mainnet..."
-if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
-    --sig 'run(uint256)' $FORGE_ENV \
-    --verify \
-    --verifier-url $ETH_MAINNET_VERIFIER_URL \
-    --rpc-url $ETH_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    $(is_local_run || echo "--silent") \
-    --slow; then
-    log "ERROR" "Failed to deploy SuperDeployer on Ethereum"
-    cleanup_vnets
-    exit 1
-fi
-
 if ! forge script script/DeployV2.s.sol:DeployV2 \
     --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
     --verify \
@@ -591,19 +577,6 @@ wait
 
 # Deploy on Base Mainnet
 log "INFO" "Deploying on Base Mainnet..."
-if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
-    --sig 'run(uint256)' $FORGE_ENV \
-    --verify \
-    --verifier-url $BASE_MAINNET_VERIFIER_URL \
-    --rpc-url $BASE_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    $(is_local_run || echo "--silent") \
-    --slow; then
-    log "ERROR" "Failed to deploy SuperDeployer on Base"
-    cleanup_vnets
-    exit 1
-fi
 
 if ! forge script script/DeployV2.s.sol:DeployV2 \
     --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
@@ -622,19 +595,6 @@ wait
 
 # Deploy on Optimism Mainnet
 log "INFO" "Deploying on Optimism Mainnet..."
-if ! forge script script/DeploySuperDeployer.s.sol:DeploySuperDeployer \
-    --sig 'run(uint256)' $FORGE_ENV \
-    --verify \
-    --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
-    --rpc-url $OPTIMISM_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    $(is_local_run || echo "--silent") \
-    --slow; then
-    log "ERROR" "Failed to deploy SuperDeployer on Optimism"
-    cleanup_vnets
-    exit 1
-fi
 
 if ! forge script script/DeployV2.s.sol:DeployV2 \
     --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
