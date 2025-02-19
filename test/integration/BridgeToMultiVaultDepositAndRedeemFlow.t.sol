@@ -8,7 +8,8 @@ import { console2 } from "forge-std/console2.sol";
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 // Vault Interfaces
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
@@ -210,7 +211,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         eth7540HooksData[0] =
             _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
         eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             accountETH,
             amountPerVault,
@@ -366,7 +367,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         opHooksData[0] =
             _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, amountPerVault, false);
         opHooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressOP_USDCe, amountPerVault, true, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressOP_USDCe, amountPerVault, true, false
         );
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
@@ -425,7 +426,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory opHooksData = new bytes[](2);
         opHooksData[0] = _createWithdraw4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
@@ -470,7 +471,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7575_7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             accountETH,
             maxDeposit,
@@ -481,7 +482,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);
 
         vm.expectEmit(true, true, true, true);
-        emit ISuperLedger.AccountingInflow(
+        emit ISuperLedgerData.AccountingInflow(
             accountETH,
             addressOracleETH,
             yieldSource7540AddressETH_USDC,
@@ -523,7 +524,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7575_7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             accountETH,
             userExpectedAssets,
@@ -550,7 +551,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ISuperLedger.AccountingOutflow(
+        emit ISuperLedgerData.AccountingOutflow(
             accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
         );
         executeOp(redeemOpData);
@@ -593,7 +594,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7575_7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             accountETH,
             userExpectedAssets,
@@ -620,7 +621,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ISuperLedger.AccountingOutflow(
+        emit ISuperLedgerData.AccountingOutflow(
             accountETH, addressOracleETH, yieldSource7540AddressETH_USDC, userExpectedAssets, expectedFee
         );
         executeOp(redeemOpData);
@@ -668,7 +669,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7575_7540VaultHookData(
-            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             accountETH,
             userExpectedAssets,
@@ -725,7 +726,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory opHooksData = new bytes[](1);
         opHooksData[0] = _createWithdraw4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
@@ -755,7 +756,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
 
         vm.expectEmit(true, true, true, true);
-        emit ISuperLedger.AccountingOutflow(
+        emit ISuperLedgerData.AccountingOutflow(
             accountOP, addressOracleOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, expectedFee
         );
         executeOp(opUserOpData);
@@ -804,27 +805,30 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
             vm.startPrank(MANAGER);
 
-            ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](3);
-            configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+            configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: address(this)
+                feeRecipient: address(this),
+                ledger: address(ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)))
             });
-            configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: address(this)
+                feeRecipient: address(this),
+                ledger: address(ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)))
             });
-            configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: address(this)
+                feeRecipient: address(this),
+                ledger: address(ISuperLedger(_getContract(chainIds[i], PENDLE_LEDGER_KEY)))
             });
-            ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
+            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
         }
     }

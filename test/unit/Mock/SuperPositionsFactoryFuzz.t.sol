@@ -19,10 +19,10 @@ contract SuperPositionsFactoryTest is Helpers {
     // @dev test with 1M runs
     function testFuzz_SuperPositionFactory_UniqueSPId(
         address yieldSourceAddress1,
-        bytes32 yieldSourceOracleId1,
+        bytes4 yieldSourceOracleId1,
         uint64 chainId1,
         address yieldSourceAddress2,
-        bytes32 yieldSourceOracleId2,
+        bytes4 yieldSourceOracleId2,
         uint64 chainId2
     )
         public
@@ -44,7 +44,7 @@ contract SuperPositionsFactoryTest is Helpers {
     // @dev test with 1M runs
     function testFuzz_SuperPositionFactory_SameSPId(
         address yieldSourceAddress,
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         uint64 chainId
     )
         public

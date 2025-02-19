@@ -9,6 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 
 import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
@@ -27,6 +28,7 @@ contract FeesTest is BaseTest {
 
     ISuperExecutor public superExecutor;
     ISuperLedger public superLedger;
+    ISuperLedgerConfiguration public superLedgerConfiguration;
     string public constant MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY = "MockAccountingVaultYieldSourceOracle";
 
     function setUp() public override {
@@ -40,15 +42,17 @@ contract FeesTest is BaseTest {
         yieldSourceAddress = address(vault);
 
         //SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[0], SUPER_REGISTRY_KEY));
-        ISuperLedger.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedger.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: address(this)
+            feeRecipient: address(this),
+            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
+        superLedgerConfiguration = ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
         superLedger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
-        superLedger.setYieldSourceOracles(configs);
+        superLedgerConfiguration.setYieldSourceOracles(configs);
 
         yieldSourceOracle = _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY);
         vaultInstance = IERC4626(vault);
@@ -69,7 +73,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -107,7 +111,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -136,7 +140,7 @@ contract FeesTest is BaseTest {
 
         hooksData = new bytes[](1);
         hooksData[0] = _createWithdraw4626HookData(
-            bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddress,
             account,
             sharesToWithdraw,
@@ -174,7 +178,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -204,7 +208,7 @@ contract FeesTest is BaseTest {
 
         hooksData = new bytes[](1);
         hooksData[0] = _createWithdraw4626HookData(
-            bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddress,
             account,
             sharesToWithdraw,
@@ -242,7 +246,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -270,7 +274,7 @@ contract FeesTest is BaseTest {
 
         hooksData = new bytes[](1);
         hooksData[0] = _createWithdraw4626HookData(
-            bytes32(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddress,
             account,
             sharesToWithdraw,
