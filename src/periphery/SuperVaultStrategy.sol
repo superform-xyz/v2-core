@@ -119,15 +119,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function handleOperation(
         address controller,
         uint256 amount,
-        Operation operation,
-        bool isDeposit
+        Operation operation
     ) external {
-        if (operation == Operation.Request) {
-            isDeposit ? _handleRequestDeposit(controller, amount) : _handleRequestRedeem(controller, amount);
-        } else if (operation == Operation.Cancel) {
-            isDeposit ? _handleCancelDeposit(controller, amount) : _handleCancelRedeem(controller);
-        } else if (operation == Operation.Claim) {
-            isDeposit ? _handleClaimDeposit(controller, amount) : _handleClaimWithdraw(controller, amount);
+        if (operation == Operation.DepositRequest) {
+            _handleRequestDeposit(controller, amount);
+        } else if (operation == Operation.CancelDeposit) {
+            _handleCancelDeposit(controller, amount);
+        } else if (operation == Operation.ClaimDeposit) {
+            _handleClaimDeposit(controller, amount);
+        } else if (operation == Operation.RedeemRequest) {
+            _handleRequestRedeem(controller, amount);
+        } else if (operation == Operation.CancelRedeem) {
+            _handleCancelRedeem(controller);
+        } else if (operation == Operation.ClaimRedeem) {
+            _handleClaimWithdraw(controller, amount);
         } else {
             revert UNAUTHORIZED();
         }

@@ -158,9 +158,12 @@ interface ISuperVaultStrategy {
                                 ENUMS
     //////////////////////////////////////////////////////////////*/
     enum Operation {
-        Request,
-        Cancel,
-        Claim
+        DepositRequest,
+        CancelDeposit,
+        ClaimDeposit,
+        RedeemRequest,
+        CancelRedeem,
+        ClaimRedeem
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -188,8 +191,7 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @param assetsOrShares Amount of assets being deposited
     /// @param operation The operation to perform
-    /// @param isDeposit Whether the operation is a deposit
-    function handleOperation(address controller, uint256 assetsOrShares, Operation operation, bool isDeposit) external;
+    function handleOperation(address controller, uint256 assetsOrShares, Operation operation) external;
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
