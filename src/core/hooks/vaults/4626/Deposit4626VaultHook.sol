@@ -44,13 +44,9 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         override
         returns (Execution[] memory executions)
     {
-        console.log("-------------------------- length", data.length);
         address yieldSource = data.extractYieldSource();
-        console.log("-------------------------- yieldSource", yieldSource);
         uint256 amount = _decodeAmount(data);
-        console.log("-------------------------- amount", amount);
         bool usePrevHookAmount = _decodeBool(data, 56);
-        console.log("-------------------------- usePrevHookAmount", usePrevHookAmount);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();

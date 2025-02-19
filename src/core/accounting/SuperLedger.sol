@@ -2,8 +2,10 @@
 pragma solidity >=0.8.28;
 
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-import "./BaseLedger.sol";
+import {BaseLedger} from "./BaseLedger.sol";
 
 /// @notice Default ISuperLedger implementation
 contract SuperLedger is BaseLedger, ISuperLedger {

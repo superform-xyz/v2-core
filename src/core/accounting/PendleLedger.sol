@@ -2,10 +2,10 @@
 pragma solidity >=0.8.28;
 
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-import "./BaseLedger.sol";
-
-import "forge-std/console.sol";
+import {BaseLedger} from "./BaseLedger.sol";
 
 /// @notice Pendle vaults (5115) ISuperLedger implementation
 contract PendleLedger is BaseLedger, ISuperLedger {
@@ -138,30 +138,22 @@ contract PendleLedger is BaseLedger, ISuperLedger {
             uint256 ppsNow = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
             uint256 currentBasis = sharesConsumed * ppsNow / (10 ** ctx.decimals);
 
-            console.log("------ entryBasis", entryBasis);
-            console.log("------ currentBasis", currentBasis);
-
             if (currentBasis > entryBasis) {
                 ctx.profit += (currentBasis - entryBasis);
             }
 
-            console.log("-------sharesConsumed", sharesConsumed);
-            console.log("-------availableShares", availableShares);
             if (sharesConsumed == availableShares) {
-                console.log("-------increasing index current", ctx.currentIndex);
                 unchecked {
                     ++ctx.currentIndex;
                 }
             }
         }
         userLedger[user][yieldSource].unconsumedEntries = ctx.currentIndex;
-        console.log("--------- final profit", ctx.profit);
         if (ctx.profit > 0) {
             if (config.feePercent == 0) revert FEE_NOT_SET();
 
             // Calculate fee in assets but don't transfer - let the executor handle it
             feeAmount = (ctx.profit * config.feePercent) / 10_000;
-            console.log("------------fee amount", feeAmount);
         }
     }
 }
