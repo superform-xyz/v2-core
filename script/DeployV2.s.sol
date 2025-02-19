@@ -14,7 +14,10 @@ import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
+import { PendleLedger } from "../src/core/accounting/PendleLedger.sol";
+import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 
@@ -82,6 +85,8 @@ contract DeployV2 is Script, Configuration {
         address superRegistry;
         address superRbac;
         address superLedger;
+        address pendleLedger;
+        address superLedgerConfiguration;
         address superPositionSentinel;
         address acrossReceiveFundsGateway;
         address acrossReceiveFundsAndExecuteGateway;
@@ -115,7 +120,7 @@ contract DeployV2 is Script, Configuration {
         _configure(chainId);
 
         // Setup SuperLedger
-        _setupSuperLedger(chainId);
+        _setupSuperLedgerConfiguration(chainId);
     }
 
     function _getDeployer() internal view returns (ISuperDeployer deployer) {
@@ -167,13 +172,31 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperRbac).creationCode, abi.encode(configuration.owner))
         );
 
+        // Deploy SuperLedgerConfiguration
+        deployedContracts.superLedgerConfiguration = __deployContract(
+            deployer,
+            SUPER_LEDGER_CONFIGURATION_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_CONFIGURATION_KEY),
+            abi.encodePacked(type(SuperLedgerConfiguration).creationCode, abi.encode(deployedContracts.superRegistry))
+        );
+
         // Deploy SuperLedger
         deployedContracts.superLedger = __deployContract(
             deployer,
             SUPER_LEDGER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
-            abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superRegistry))
+            abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+        );
+
+        // Deploy PendleLedger
+        deployedContracts.pendleLedger = __deployContract(
+            deployer,
+            PENDLE_LEDGER_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, PENDLE_LEDGER_KEY),
+            abi.encodePacked(type(PendleLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
         // Deploy SuperPositionMock
@@ -249,21 +272,24 @@ contract DeployV2 is Script, Configuration {
         );
 
         // -- SuperRegistry
-        superRegistry.setAddress(keccak256("SUPER_LEDGER_ID"), _getContract(chainId, "SuperLedger"));
+        superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
         superRegistry.setAddress(
-            keccak256("SUPER_POSITION_SENTINEL_ID"), _getContract(chainId, "SuperPositionSentinel")
+            keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
-        superRegistry.setAddress(keccak256("SUPER_RBAC_ID"), _getContract(chainId, "SuperRbac"));
+        superRegistry.setAddress(
+            keccak256(bytes(SUPER_POSITION_SENTINEL_ID)), _getContract(chainId, SUPER_POSITION_SENTINEL_KEY)
+        );
+        superRegistry.setAddress(keccak256(bytes(SUPER_RBAC_ID)), _getContract(chainId, SUPER_RBAC_KEY));
 
         superRegistry.setAddress(
-            keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
-            _getContract(chainId, "AcrossReceiveFundsAndExecuteGateway")
+            keccak256(bytes(ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID)),
+            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
         );
-        superRegistry.setAddress(keccak256("SUPER_EXECUTOR_ID"), _getContract(chainId, "SuperExecutor"));
-        superRegistry.setAddress(keccak256("PAYMASTER_ID"), configuration.paymaster);
-        superRegistry.setAddress(keccak256("SUPER_BUNDLER_ID"), configuration.bundler);
-        superRegistry.setAddress(keccak256("ORACLE_REGISTRY_ID"), _getContract(chainId, SUPER_ORACLE_KEY));
-        superRegistry.setAddress(keccak256("SUPER_REGISTRY_ID"), _getContract(chainId, SUPER_REGISTRY_KEY));
+        superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
+        superRegistry.setAddress(keccak256(bytes(PAYMASTER_ID)), configuration.paymaster);
+        superRegistry.setAddress(keccak256(bytes(SUPER_BUNDLER_ID)), configuration.bundler);
+        superRegistry.setAddress(keccak256(bytes(ORACLE_REGISTRY_ID)), _getContract(chainId, SUPER_ORACLE_KEY));
+        superRegistry.setAddress(keccak256(bytes(SUPER_REGISTRY_ID)), _getContract(chainId, SUPER_REGISTRY_KEY));
 
     }
 
@@ -471,17 +497,18 @@ contract DeployV2 is Script, Configuration {
         }
     }
 
-    function _setupSuperLedger(uint64 chainId) private {
+    function _setupSuperLedgerConfiguration(uint64 chainId) private {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
-        ISuperLedger.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedger.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: superRegistry.getAddress(keccak256("PAYMASTER_ID"))
+            feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+            ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
 
-        ISuperLedger(_getContract(chainId, SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
+        ISuperLedgerConfiguration(_getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
     }
 
     function _deploySuperPositions(
