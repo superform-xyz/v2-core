@@ -52,7 +52,7 @@ contract SuperVaultTest is MerkleReader {
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
         // Deploy factory
-        factory = new SuperVaultFactory();
+        factory = new SuperVaultFactory(_getContract(ETH, SUPER_REGISTRY_KEY));
 
         // Set up roles
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
@@ -101,9 +101,9 @@ contract SuperVaultTest is MerkleReader {
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
         vm.startPrank(SV_MANAGER);
-        strategy.proposeHookRoot(hookRoot);
+        strategy.proposeOrExecuteHookRoot(hookRoot);
         vm.warp(block.timestamp + 7 days);
-        strategy.executeHookRootUpdate();
+        strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
 
@@ -349,7 +349,9 @@ contract SuperVaultTest is MerkleReader {
 
         // Verify state
         assertEq(vault.balanceOf(accountEth), initialShares - redeemShares, "Wrong final share balance");
-        assertApproxEqRel(asset.balanceOf(accountEth), initialAssetBalance + claimableAssets, 0.05e18, "Wrong final asset balance");
+        assertApproxEqRel(
+            asset.balanceOf(accountEth), initialAssetBalance + claimableAssets, 0.05e18, "Wrong final asset balance"
+        );
         assertEq(strategy.maxWithdraw(accountEth), 0, "Assets not claimed");
     }
 

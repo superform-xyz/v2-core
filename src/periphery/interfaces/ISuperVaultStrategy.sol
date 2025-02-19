@@ -46,10 +46,15 @@ interface ISuperVaultStrategy {
     error INCOMPLETE_DEPOSIT_MATCH();
     error INCOMPLETE_REDEEM_MATCH();
     error ZERO_AMOUNT();
+    error INVALID_ASSET_BALANCE();
+    error INVALID_BALANCE_CHANGE();
+    error REWARDS_DISTRIBUTOR_NOT_SET();
+    error INVALID_SUPER_REGISTRY();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
+
     event Initialized(
         address indexed vault,
         address indexed manager,
@@ -71,7 +76,14 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
-    /*//////////////////////////////////////////////////////////////
+    event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
+    event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
+    event RewardsClaimedAndCompounded(uint256 amount);
+    event RewardsDistributorSet(address indexed rewardsDistributor);
+    event RewardsDistributed(address[] tokens, uint256[] amounts);
+    event RewardsClaimed(address[] tokens, uint256[] amounts);
+
+    /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
 
@@ -80,6 +92,11 @@ interface ISuperVaultStrategy {
         uint256 superVaultCap; // Maximum total assets across all yield sources
         uint256 maxAllocationRate; // Maximum allocation percentage per yield source (in basis points)
         uint256 vaultThreshold; // Minimum TVL of a yield source that can be interacted with
+    }
+
+    struct FeeConfig {
+        uint256 performanceFeeBps; // Fee in basis points
+        address recipient; // Fee recipient address
     }
 
     struct SharePricePoint {
@@ -139,11 +156,6 @@ interface ISuperVaultStrategy {
         Execution[] executions;
     }
 
-    struct FeeConfig {
-        uint256 feeBps; // Fee in basis points
-        address recipient; // Fee recipient address
-    }
-
     struct YieldSource {
         address oracle; // Associated yield source oracle address
         bool isActive; // Whether the source is active
@@ -154,55 +166,51 @@ interface ISuperVaultStrategy {
         uint256 tvl;
     }
 
+    struct ClaimLocalVars {
+        // Initial state tracking
+        uint256 initialAssetBalance;
+        // Claim phase variables
+        uint256[] balanceChanges;
+        // Swap phase variables
+        uint256 assetGained;
+        // Allocation phase variables
+        FulfillmentVars fulfillmentVars;
+        address[] targetedYieldSources;
+    }
+
+    struct ProcessHooksLocalVars {
+        // Hook execution variables
+        uint256 hooksLength;
+        uint256 targetedSourcesCount;
+        address target;
+        // Hook execution results
+        uint256 amount;
+        address hookTarget;
+        // Arrays for tracking
+        address[] targetedYieldSources;
+        address[] resizedArray;
+    }
+
     /*//////////////////////////////////////////////////////////////
-                            INITIALIZATION
+                                ENUMS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Initialize the strategy contract
-    /// @param vault_ Address of the SuperVault
-    /// @param manager_ Address of the manager
-    /// @param strategist_ Address of the strategist
-    /// @param emergencyAdmin_ Address of the emergency admin
-    /// @param config_ Initial global configuration
-    function initialize(
-        address vault_,
-        address manager_,
-        address strategist_,
-        address emergencyAdmin_,
-        GlobalConfig memory config_
-    )
-        external;
+    enum Operation {
+        DepositRequest,
+        CancelDeposit,
+        ClaimDeposit,
+        RedeemRequest,
+        CancelRedeem,
+        ClaimRedeem
+    }
 
     /*//////////////////////////////////////////////////////////////
                         REQUEST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Update state for a new deposit request
+    /// @notice Update state for a deposit or a redeem operation
     /// @param controller The controller address
-    /// @param assets Amount of assets being deposited
-    function handleRequestDeposit(address controller, uint256 assets) external;
-
-    /// @notice Update state for a deposit request cancellation
-    /// @param controller The controller address
-    /// @param assets Amount of assets to return
-    function handleCancelDeposit(address controller, uint256 assets) external;
-
-    /// @notice Update state for a new redeem request
-    /// @param controller The controller address
-    /// @param shares Amount of shares being redeemed
-    function handleRequestRedeem(address controller, uint256 shares) external;
-
-    /// @notice Update state for a redeem request cancellation
-    /// @param controller The controller address
-    function handleCancelRedeem(address controller) external;
-
-    /// @notice Update state for a deposit claim
-    /// @param controller The controller address
-    /// @param shares Amount of shares being claimed
-    function handleDeposit(address controller, uint256 shares) external;
-
-    /// @notice Update state for a withdraw claim
-    /// @param controller The controller address
-    /// @param assets Amount of assets being claimed
-    function handleWithdraw(address controller, uint256 assets) external;
+    /// @param assetsOrShares Amount of assets being deposited
+    /// @param operation The operation to perform
+    function handleOperation(address controller, uint256 assetsOrShares, Operation operation) external;
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
@@ -249,14 +257,50 @@ interface ISuperVaultStrategy {
     )
         external;
 
-    /// @notice Claim rewards from yield sources
+    /// @notice Claim rewards and compound them back into the vault
+    /// @param hooks Array of arrays of hooks to use for claiming, swapping, and allocating rewards [claimHooks,
+    /// swapHooks, allocateHooks]
+    /// @param claimHookProofs Array of merkle proofs for claim hooks
+    /// @param swapHookProofs Array of merkle proofs for swap hooks
+    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
+    /// @param hookCalldata Array of arrays of calldata for hooks [claimHookCalldata, swapHookCalldata,
+    /// allocateHookCalldata]
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    function claimAndCompound(
+        address[][] calldata hooks,
+        bytes32[][] calldata claimHookProofs,
+        bytes32[][] calldata swapHookProofs,
+        bytes32[][] calldata allocateHookProofs,
+        bytes[][] calldata hookCalldata,
+        address[] calldata expectedTokensOut
+    )
+        external;
+
+    /// @notice Claims rewards from yield sources and stores them for later use
     /// @param hooks Array of hooks to use for claiming rewards
     /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
-    function claimRewards(
+    /// @param expectedTokensOut Array of tokens expected from hooks
+    function claim(
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+        bytes[] calldata hookCalldata,
+        address[] calldata expectedTokensOut
+    )
+        external;
+
+    /// @notice Compounds previously claimed tokens by swapping them to the asset and allocating to yield sources
+    /// @param hooks Array of arrays of hooks to use for swapping and allocating [swapHooks, allocateHooks]
+    /// @param swapHookProofs Array of merkle proofs for swap hooks
+    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
+    /// @param hookCalldata Array of arrays of calldata for hooks [swapHookCalldata, allocateHookCalldata]
+    /// @param claimedTokensToCompound Array of claimed token addresses to compound
+    function compoundClaimedTokens(
+        address[][] calldata hooks,
+        bytes32[][] calldata swapHookProofs,
+        bytes32[][] calldata allocateHookProofs,
+        bytes[][] calldata hookCalldata,
+        address[] calldata claimedTokensToCompound
     )
         external;
 
@@ -273,33 +317,63 @@ interface ISuperVaultStrategy {
     /// @param newOracle Address of the new oracle
     function updateYieldSourceOracle(address source, address newOracle) external;
 
-    /// @notice Deactivate a yield source
-    /// @param source Address of the yield source to deactivate
-    function deactivateYieldSource(address source) external;
+    /// @notice Toggle a yield source's active state
+    /// @param source Address of the yield source to toggle
+    /// @param activate Whether to activate or deactivate the yield source
+    function toggleYieldSource(address source, bool activate) external;
 
-    /// @notice Reactivate a previously removed yield source
-    /// @param source Address of the yield source to reactivate
-    function reactivateYieldSource(address source) external;
+    /// @notice Propose or execute a hook root update
+    /// @dev if newRoot is 0, executes the proposed hook root update
+    /// @param newRoot New hook root to propose or execute
+    function proposeOrExecuteHookRoot(bytes32 newRoot) external;
+
+    /// @notice Propose changes to vault-specific fee configuration
+    /// @param performanceFeeBps New performance fee in basis points
+    /// @param recipient New fee recipient
+    function proposeVaultFeeConfigUpdate(uint256 performanceFeeBps, address recipient) external;
+
+    /// @notice Execute the proposed vault fee configuration update after timelock
+    function executeVaultFeeConfigUpdate() external;
+
+    /// @notice Set an address for a given role
+    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
+    /// @param role The role identifier
+    /// @param account The address to set for the role
+    function setAddress(bytes32 role, address account) external;
+
+    /// @notice Propose a change to emergency withdrawable status
+    /// @param newWithdrawable The new emergency withdrawable status to propose
+    function proposeEmergencyWithdrawable(bool newWithdrawable) external;
+
+    /// @notice Execute the proposed emergency withdrawable update after timelock
+    function executeEmergencyWithdrawableUpdate() external;
+
+    /// @notice Emergency withdraw free assets from the vault
+    /// @dev Only works when emergency withdrawals are enabled
+    /// @param recipient Address to receive the withdrawn assets
+    /// @param amount Amount of free assets to withdraw
+    function emergencyWithdraw(address recipient, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Get whether the contract is initialized
-    /// @return Whether the contract is initialized
+    /// @notice Check if the strategy is initialized
+    /// @return True if the strategy is initialized, false otherwise
     function isInitialized() external view returns (bool);
 
-    /// @notice Get the vault address
-    /// @return The vault address
-    function getVault() external view returns (address);
+    /// @notice Get the vault info
+    /// @dev returns vault address, asset address, and vault decimals
+    function getVaultInfo() external view returns (address vault, address asset, uint8 vaultDecimals);
 
-    /// @notice Get the asset address
-    /// @return The asset address
-    function getAsset() external view returns (address);
+    /// @notice Get the hook info
+    /// @dev returns hook root, proposed hook root, and hook root effective time
+    function getHookInfo()
+        external
+        view
+        returns (bytes32 hookRoot, bytes32 proposedHookRoot, uint256 hookRootEffectiveTime);
 
-    /// @notice Get the vault decimals
-    /// @return The vault decimals
-    function getVaultDecimals() external view returns (uint8);
+    /// @notice Get the global and fee configurations
+    function getConfigInfo() external view returns (GlobalConfig memory globalConfig, FeeConfig memory feeConfig);
 
     /// @notice Get the current price per share of the SuperVault
     /// @return pricePerShare The current price per share in underlying decimals
@@ -328,21 +402,6 @@ interface ISuperVaultStrategy {
     /// @param source Address of the yield source
     function getYieldSource(address source) external view returns (YieldSource memory);
 
-    /// @notice Get the global configuration
-    function getGlobalConfig() external view returns (GlobalConfig memory);
-
-    /// @notice Get the fee configuration
-    function getFeeConfig() external view returns (FeeConfig memory);
-
-    /// @notice Get the current hook root
-    function getHookRoot() external view returns (bytes32);
-
-    /// @notice Get the proposed hook root
-    function getProposedHookRoot() external view returns (bytes32);
-
-    /// @notice Get the hook root effective time
-    function getHookRootEffectiveTime() external view returns (uint256);
-
     /// @notice Get the list of all yield sources
     function getYieldSourcesList() external view returns (address[] memory);
 
@@ -360,6 +419,11 @@ interface ISuperVaultStrategy {
     /// @param owner The owner address
     /// @return The average withdraw price for the user
     function getAverageWithdrawPrice(address owner) external view returns (uint256);
+
+    /// @notice Get the claimed token amounts in the vault
+    /// @param token The token address
+    /// @return The amount of tokens claimed
+    function claimedTokens(address token) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS

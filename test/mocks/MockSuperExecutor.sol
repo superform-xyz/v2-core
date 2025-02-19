@@ -15,7 +15,7 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
-import { ISuperCollectiveVault } from "../../src/core/interfaces/ISuperCollectiveVault.sol";
+import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
 

@@ -6,13 +6,15 @@ import { Script } from "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 // Superform
+import "./DeploySuperDeployer.s.sol";
+import { SuperDeployer } from "./utils/SuperDeployer.sol";
 import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
-
 import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
+import { HooksRegistry } from "../src/core/hooks/HooksRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { PendleLedger } from "../src/core/accounting/PendleLedger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
@@ -22,7 +24,6 @@ import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossR
 import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 
 import { SuperPositionsMock } from "../test/mocks/SuperPositionsMock.sol";
-import { SuperPositionSentinel } from "../src/core/sentinels/SuperPositionSentinel.sol";
 
 import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
 
@@ -93,6 +94,7 @@ contract DeployV2 is Script, Configuration {
         address debridgeReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
         address oracleRegistry;
+        address hooksRegistry;
     }
 
     modifier broadcast(uint256 env) {
@@ -114,6 +116,21 @@ contract DeployV2 is Script, Configuration {
         console2.log("Deploying on chainId: ", chainId);
 
         // deploy contracts
+        ISuperDeployer deployer = _getDeployer();
+        if (address(deployer) == address(0) || address(deployer).code.length == 0) {
+            bytes32 salt = "SuperformSuperDeployer.v1.0.5";
+            address expectedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
+            console2.log("SuperDeployer expected address:", expectedAddr);
+            if (expectedAddr.code.length > 0) {
+                console2.log("SuperDeployer already deployed at:", expectedAddr);
+                return;
+            }
+            SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
+            console2.log("SuperDeployer deployed at:", address(superDeployer));
+           
+            configuration.deployer = address(superDeployer);
+        }
+
         _deploy(chainId);
 
         // Configure contracts
@@ -140,6 +157,14 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_REGISTRY_KEY),
             abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
+        );
+
+        deployedContracts.hooksRegistry = __deployContract(
+            deployer,
+            HOOKS_REGISTRY_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, HOOKS_REGISTRY_KEY),
+            abi.encodePacked(type(HooksRegistry).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
         // Deploy SuperOracle
@@ -201,15 +226,6 @@ contract DeployV2 is Script, Configuration {
 
         // Deploy SuperPositionMock
         _deploySuperPositions(deployer, deployedContracts.superRegistry, configuration.superPositions, chainId);
-
-        // Deploy SuperPositionSentinel
-        deployedContracts.superPositionSentinel = __deployContract(
-            deployer,
-            SUPER_POSITION_SENTINEL_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_POSITION_SENTINEL_KEY),
-            abi.encodePacked(type(SuperPositionSentinel).creationCode, abi.encode(deployedContracts.superRegistry))
-        );
 
         // Deploy AcrossReceiveFundsAndExecuteGateway
         deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
@@ -273,24 +289,21 @@ contract DeployV2 is Script, Configuration {
 
         // -- SuperRegistry
         superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
+        superRegistry.setAddress(keccak256(bytes(SUPER_RBAC_ID)), _getContract(chainId, SUPER_RBAC_KEY));
         superRegistry.setAddress(
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
         superRegistry.setAddress(
-            keccak256(bytes(SUPER_POSITION_SENTINEL_ID)), _getContract(chainId, SUPER_POSITION_SENTINEL_KEY)
-        );
-        superRegistry.setAddress(keccak256(bytes(SUPER_RBAC_ID)), _getContract(chainId, SUPER_RBAC_KEY));
-
-        superRegistry.setAddress(
             keccak256(bytes(ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID)),
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
         );
+
         superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
         superRegistry.setAddress(keccak256(bytes(PAYMASTER_ID)), configuration.paymaster);
         superRegistry.setAddress(keccak256(bytes(SUPER_BUNDLER_ID)), configuration.bundler);
         superRegistry.setAddress(keccak256(bytes(ORACLE_REGISTRY_ID)), _getContract(chainId, SUPER_ORACLE_KEY));
         superRegistry.setAddress(keccak256(bytes(SUPER_REGISTRY_ID)), _getContract(chainId, SUPER_REGISTRY_KEY));
-
+        superRegistry.setAddress(keccak256(bytes(TREASURY_ID)), configuration.treasury);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -425,7 +438,10 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[19] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
-            abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId]))
+            abi.encodePacked(
+                type(Swap1InchHook).creationCode,
+                abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId])
+            )
         );
 
         hooks[20] = HookDeployment(
@@ -499,7 +515,8 @@ contract DeployV2 is Script, Configuration {
 
     function _setupSuperLedgerConfiguration(uint64 chainId) private {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),

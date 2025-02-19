@@ -97,4 +97,3 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
         emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledgerContract);
     }
 }
-
