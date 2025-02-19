@@ -19,7 +19,6 @@ import { IOdosRouterV2 } from "../../src/vendor/odos/IOdosRouterV2.sol";
 // Two briding actions to the same chain, Across gateway waits for both to arrive
 // Two target vaults where one requires a swap due to underlying mismatch which incurs slippage
 contract CrossChainDepositWithSlippage is BaseTest {
-
     IERC4626 public vaultInstance4626Base_USDC;
     IERC4626 public vaultInstance4626Base_WETH;
 
@@ -67,16 +66,15 @@ contract CrossChainDepositWithSlippage is BaseTest {
         underlyingOP_USDC = existingUnderlyingTokens[OP][USDC_KEY];
 
         // Set up the 4626 USDC yield source on BASE
-        yieldSource4626AddressBase_USDC 
-        = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
+        yieldSource4626AddressBase_USDC =
+            realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
 
-        vaultInstance4626Base_USDC 
-        = IERC4626(yieldSource4626AddressBase_USDC);
+        vaultInstance4626Base_USDC = IERC4626(yieldSource4626AddressBase_USDC);
         vm.label(yieldSource4626AddressBase_USDC, YIELD_SOURCE_4626_BASE_USDC_KEY);
 
         // Set up the 4626 WETH yield source on BASE
-        yieldSource4626AddressBase_WETH 
-        = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY];
+        yieldSource4626AddressBase_WETH =
+            realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY];
 
         vaultInstance4626Base_WETH = IERC4626(yieldSource4626AddressBase_WETH);
         vm.label(yieldSource4626AddressBase_WETH, YIELD_SOURCE_4626_BASE_WETH_KEY);
@@ -120,7 +118,7 @@ contract CrossChainDepositWithSlippage is BaseTest {
     /// @notice Must be called before _sendFundsFromEthToBase
     function _sendFundsFromOpToBase() internal {
         uint256 intentAmount = 1e10;
-        
+
         // BASE IS DST
         vm.selectFork(FORKS[BASE]);
 
@@ -135,10 +133,14 @@ contract CrossChainDepositWithSlippage is BaseTest {
         dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory dstHooksData = new bytes[](2);
-        dstHooksData[0] 
-        = _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase_USDC, intentAmount / 2, false);
+        dstHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase_USDC, intentAmount / 2, false);
         dstHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_USDC, intentAmount / 2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource4626AddressBase_USDC,
+            intentAmount / 2,
+            false,
+            false
         );
 
         UserOpData memory dstUserOpData = _createUserOpData(dstHooksAddresses, dstHooksData, BASE);
@@ -152,15 +154,16 @@ contract CrossChainDepositWithSlippage is BaseTest {
         src1HooksAddresses[1] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory src1HooksData = new bytes[](2);
-        src1HooksData[0] = _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], intentAmount / 2, false);
+        src1HooksData[0] =
+            _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], intentAmount / 2, false);
         src1HooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingOP_USDC,
-            underlyingBase_USDC, 
-            intentAmount / 2, 
-            intentAmount / 2, 
-            BASE, 
-            false, 
-            intentAmount, 
+            underlyingBase_USDC,
+            intentAmount / 2,
+            intentAmount / 2,
+            BASE,
+            false,
+            intentAmount,
             dstUserOpData
         );
 
@@ -184,12 +187,7 @@ contract CrossChainDepositWithSlippage is BaseTest {
         dstHooksAddresses[3] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory dstHooksData = new bytes[](4);
-        dstHooksData[0] = _createApproveHookData(
-          underlyingBase_USDC, 
-          odosRouters[BASE], 
-          intentAmount / 2, 
-          false
-        );
+        dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, odosRouters[BASE], intentAmount / 2, false);
         dstHooksData[1] = _createOdosSwapHookData(
             underlyingBase_USDC,
             intentAmount / 2,
@@ -202,10 +200,14 @@ contract CrossChainDepositWithSlippage is BaseTest {
             0,
             true
         );
-        dstHooksData[2] 
-        = _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount / 2, true);
+        dstHooksData[2] =
+            _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount / 2, true);
         dstHooksData[3] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_WETH, intentAmount / 2, true, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource4626AddressBase_WETH,
+            intentAmount / 2,
+            true,
+            false
         );
 
         UserOpData memory dstUserOpData = _createUserOpData(dstHooksAddresses, dstHooksData, BASE);
@@ -222,9 +224,9 @@ contract CrossChainDepositWithSlippage is BaseTest {
         src1HooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], intentAmount, false);
         src1HooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingETH_USDC,
-            underlyingBase_USDC, 
-            intentAmount / 2, 
-            intentAmount / 2, 
+            underlyingBase_USDC,
+            intentAmount / 2,
+            intentAmount / 2,
             BASE,
             false,
             intentAmount,
@@ -235,7 +237,6 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
         // enough balance is received
         _processAcrossV3Message(ETH, BASE, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
-
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -272,7 +273,9 @@ contract CrossChainDepositWithSlippage is BaseTest {
                 feeRecipient: address(this),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
+                configs
+            );
             vm.stopPrank();
         }
     }
