@@ -64,8 +64,8 @@ contract SuperVaultFactoryTest is BaseTest {
         assertEq(vaultContract.decimals(), 18, "Wrong decimals");
 
         // Check strategy state
-        (bool _initialized, address _vault, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
-        assertEq(_initialized, true, "Strategy not initialized");
+        (address _vault, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
+        assertEq(strategyContract.isInitialized(), true, "Strategy not initialized");
         assertEq(_vault, vault, "Wrong vault in strategy");
         assertEq(_asset, address(asset), "Wrong asset in strategy");
         assertEq(_decimals, 18, "Wrong decimals in strategy");
@@ -99,8 +99,7 @@ contract SuperVaultFactoryTest is BaseTest {
             assertEq(vaultContract.symbol(), symbols[i], "Wrong vault symbol");
             assertEq(vaultContract.decimals(), 18, "Wrong decimals");
 
-            (bool _initialized,,,) = ISuperVaultStrategy(strategy).getVaultInfo();
-            assertEq(_initialized, true, "Strategy not initialized");
+            assertEq(ISuperVaultStrategy(strategy).isInitialized(), true, "Strategy not initialized");
 
             assertTrue(SuperVaultEscrow(escrow).initialized(), "Escrow not initialized");
         }

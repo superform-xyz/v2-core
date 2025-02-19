@@ -71,7 +71,7 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
-    /*//////////////////////////////////////////////////////////////
+    /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
 
@@ -250,11 +250,15 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Add a new yield source or updates an existing one
+    /// @notice Add a new yield source to the system
     /// @param source Address of the yield source
     /// @param oracle Address of the yield source oracle
-    /// @param isNew Whether the yield source is new
-    function setYieldSource(address source, address oracle, bool isNew) external;
+    function addYieldSource(address source, address oracle) external;
+
+    /// @notice Update oracle for an existing yield source
+    /// @param source Address of the yield source
+    /// @param newOracle Address of the new oracle
+    function updateYieldSourceOracle(address source, address newOracle) external;
 
     /// @notice Toggle a yield source's active state
     /// @param source Address of the yield source to toggle
@@ -264,11 +268,13 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Check if the strategy is initialized
+    /// @return True if the strategy is initialized, false otherwise
+    function isInitialized() external view returns (bool);
 
     /// @notice Get the vault info
-    /// @dev returns initialized status, vault address, asset address, and vault decimals
+    /// @dev returns vault address, asset address, and vault decimals
     function getVaultInfo() external view returns (
-        bool initialized, 
         address vault, 
         address asset, 
         uint8 vaultDecimals

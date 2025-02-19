@@ -493,7 +493,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Forward to strategy
-        strategy.handleOperation(owner, shares, ISuperVaultStrategy.Operation.Claim, false);
+        strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.Claim, false);
 
         // Transfer shares back to vault and burn them
         ISuperVaultEscrow(escrow).transferShares(address(this), shares);

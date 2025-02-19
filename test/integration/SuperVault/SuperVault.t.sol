@@ -94,8 +94,8 @@ contract SuperVaultTest is MerkleReader {
 
         // Add yield sources as manager
         vm.startPrank(SV_MANAGER);
-        strategy.setYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), true);
-        strategy.setYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), true);
+        strategy.addYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        strategy.addYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
         vm.stopPrank();
 
         // Set up hook root

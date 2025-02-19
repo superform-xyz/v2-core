@@ -66,20 +66,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     mapping(address controller => SuperVaultState state) private superVaultState;
 
     // Convert modifiers to internal functions
-    function _requireManager() internal view {
-        if (msg.sender != addresses[MANAGER_ROLE]) revert UNAUTHORIZED();
-    }
-
-    function _requireStrategist() internal view {
-        if (msg.sender != addresses[STRATEGIST_ROLE]) revert UNAUTHORIZED();
-    }
-
-    function _requireEmergencyAdmin() internal view {
-        if (msg.sender != addresses[EMERGENCY_ADMIN_ROLE]) revert UNAUTHORIZED();
-    }
-
     function _requireVault() internal view {
         if (msg.sender != _vault) revert UNAUTHORIZED();
+    }
+
+    /// @dev MANAGER_ROLE, STRATEGIST_ROLE, EMERGENCY_ADMIN_ROLE
+    function _requireRole(bytes32 role) internal view{
+        if (msg.sender != addresses[role]) revert UNAUTHORIZED();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -152,7 +145,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         external
     {
-        _requireStrategist();
+        _requireRole(STRATEGIST_ROLE);
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
 
@@ -228,7 +221,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         external
     {
-        _requireStrategist();
+        _requireRole(STRATEGIST_ROLE);
         uint256 usersLength = users.length;
         uint256 hooksLength = hooks.length;
 
@@ -279,7 +272,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
     function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external {
-        _requireStrategist();
+        _requireRole(STRATEGIST_ROLE);
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
         if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
@@ -386,7 +379,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         external
     {
-        _requireStrategist();
+        _requireRole(STRATEGIST_ROLE);
         uint256 hooksLength = hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
@@ -487,7 +480,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         external
     {
-        _requireStrategist();
+        _requireRole(STRATEGIST_ROLE);
         uint256 hooksLength = hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
@@ -617,35 +610,43 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperVaultStrategy
-    function setYieldSource(address source, address oracle, bool isNew) external {
-        _requireManager();
+    /// @notice Add a new yield source to the system
+    /// @param source Address of the yield source
+    /// @param oracle Address of the yield source oracle
+    function addYieldSource(address source, address oracle) external {
+        _requireRole(MANAGER_ROLE);
         if (source == address(0)) revert INVALID_YIELD_SOURCE();
         if (oracle == address(0)) revert INVALID_ORACLE();
+        if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
+        // Check vault threshold
+        if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+
+        // Add yield source
+        yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
+        yieldSourcesList.push(source);
+
+        emit YieldSourceAdded(source, oracle);
+    }
+
+    /// @notice Update oracle for an existing yield source
+    /// @param source Address of the yield source
+    /// @param newOracle Address of the new oracle
+    function updateYieldSourceOracle(address source, address newOracle) external {
+        _requireRole(MANAGER_ROLE);
+        if (newOracle == address(0)) revert INVALID_ORACLE();
         YieldSource storage yieldSource = yieldSources[source];
-        if (isNew) {
-            if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
+        if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
 
-            if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_NOT_MET();
+        address oldOracle = yieldSource.oracle;
+        yieldSource.oracle = newOracle;
 
-            yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
-            yieldSourcesList.push(source);
-
-            emit YieldSourceAdded(source, oracle);
-        } else {
-            if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
-
-            address oldOracle = yieldSource.oracle;
-            yieldSource.oracle = oracle;
-
-            emit YieldSourceOracleUpdated(source, oldOracle, oracle);
-        }
+        emit YieldSourceOracleUpdated(source, oldOracle, newOracle);
     }
 
     /// @inheritdoc ISuperVaultStrategy
     function toggleYieldSource(address source, bool activate) external {
-        _requireManager();
+        _requireRole(MANAGER_ROLE);
         YieldSource storage yieldSource = yieldSources[source];
         if (activate) {
             if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
@@ -672,7 +673,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Update global configuration
     /// @param config New global configuration
     function updateGlobalConfig(GlobalConfig calldata config) external {
-        _requireManager();
+        _requireRole(MANAGER_ROLE);
         if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (config.maxAllocationRate == 0 || config.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -688,7 +689,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param feeBps New fee in basis points
     /// @param recipient New fee recipient
     function updateFeeConfig(uint256 feeBps, address recipient) external {
-        _requireManager();
+        _requireRole(MANAGER_ROLE);
         if (feeBps > ONE_HUNDRED_PERCENT) revert INVALID_FEE();
         if (recipient == address(0)) revert INVALID_FEE_RECIPIENT();
 
@@ -711,7 +712,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             emit HookRootUpdated(hookRoot);
         } else {
             // propose new hook
-            _requireManager();
+            _requireRole(MANAGER_ROLE);
             proposedHookRoot = newRoot;
             hookRootEffectiveTime = block.timestamp + ONE_WEEK;
             emit HookRootProposed(newRoot, hookRootEffectiveTime);
@@ -723,7 +724,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param role The role identifier
     /// @param account The address to set for the role
     function setAddress(bytes32 role, address account) external {
-        _requireManager();
+        _requireRole(MANAGER_ROLE);
         // Prevent setting zero address
         if (account == address(0)) revert ZERO_ADDRESS();
 
@@ -736,7 +737,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Propose a change to emergency withdrawable status
     /// @param newWithdrawable The new emergency withdrawable status to propose
     function proposeEmergencyWithdrawable(bool newWithdrawable) external {
-        _requireManager();
+        _requireRole(EMERGENCY_ADMIN_ROLE);
         proposedEmergencyWithdrawable = newWithdrawable;
         emergencyWithdrawableEffectiveTime = block.timestamp + ONE_WEEK;
         emit EmergencyWithdrawableProposed(newWithdrawable, emergencyWithdrawableEffectiveTime);
@@ -757,7 +758,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param recipient Address to receive the withdrawn assets
     /// @param amount Amount of free assets to withdraw
     function emergencyWithdraw(address recipient, uint256 amount) external {
-        _requireEmergencyAdmin();
+        _requireRole(EMERGENCY_ADMIN_ROLE);
         if (!emergencyWithdrawable) revert EMERGENCY_WITHDRAWALS_DISABLED();
         if (recipient == address(0)) revert ZERO_ADDRESS();
 
@@ -772,14 +773,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         MANAGEMENT VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Check if the vault is initialized
+    /// @return True if the vault is initialized, false otherwise
+    function isInitialized() external view returns (bool) {
+        return _initialized;
+    }
+
     /// @inheritdoc ISuperVaultStrategy
     function getVaultInfo() external view returns (
-        bool initialized_, 
         address vault_, 
         address asset_, 
         uint8 vaultDecimals_
     ) {
-        initialized_ = _initialized;
         vault_ = _vault;
         asset_ = address(_asset);
         vaultDecimals_ = _vaultDecimals;
