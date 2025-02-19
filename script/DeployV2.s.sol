@@ -16,7 +16,7 @@ import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { HooksRegistry } from "../src/core/hooks/HooksRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { PendleLedger } from "../src/core/accounting/PendleLedger.sol";
+import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
@@ -215,13 +215,13 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
-        // Deploy PendleLedger
+        // Deploy ERC1155Ledger
         deployedContracts.pendleLedger = __deployContract(
             deployer,
-            PENDLE_LEDGER_KEY,
+            ERC1155_LEDGER_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, PENDLE_LEDGER_KEY),
-            abi.encodePacked(type(PendleLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+            __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
+            abi.encodePacked(type(ERC1155Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
         // Deploy SuperPositionMock
