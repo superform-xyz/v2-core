@@ -14,6 +14,7 @@ import { Configuration } from "./utils/Configuration.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
+import { HooksRegistry } from "../src/core/hooks/HooksRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { PendleLedger } from "../src/core/accounting/PendleLedger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
@@ -93,6 +94,7 @@ contract DeployV2 is Script, Configuration {
         address debridgeReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
         address oracleRegistry;
+        address hooksRegistry;
     }
 
     modifier broadcast(uint256 env) {
@@ -155,6 +157,14 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_REGISTRY_KEY),
             abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
+        );
+
+        deployedContracts.hooksRegistry = __deployContract(
+            deployer,
+            HOOKS_REGISTRY_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, HOOKS_REGISTRY_KEY),
+            abi.encodePacked(type(HooksRegistry).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
         // Deploy SuperOracle
