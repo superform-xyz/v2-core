@@ -72,13 +72,13 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
         address yieldSourceOracle,
         uint256 feePercent,
         address feeRecipient,
-        address ledger
+        address ledgerContract
     )
         internal virtual
     {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-        if (ledger == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+        if (ledgerContract == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feePercent > 10_000) revert INVALID_FEE_PERCENT();
         if (yieldSourceOracleId == bytes4(0)) revert ZERO_ID_NOT_ALLOWED();
 
@@ -91,10 +91,10 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
             feePercent: feePercent,
             feeRecipient: feeRecipient,
             manager: msg.sender,
-            ledger: ledger
+            ledger: ledgerContract
         });
 
-        emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledger);
+        emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledgerContract);
     }
 }
 
