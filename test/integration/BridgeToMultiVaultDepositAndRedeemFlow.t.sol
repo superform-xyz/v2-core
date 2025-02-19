@@ -826,7 +826,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: address(this),
-                ledger: address(ISuperLedger(_getContract(chainIds[i], PENDLE_LEDGER_KEY)))
+                ledger: address(ISuperLedger(_getContract(chainIds[i], ERC1155_LEDGER_KEY)))
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();

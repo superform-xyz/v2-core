@@ -1,49 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 import {BaseLedger} from "./BaseLedger.sol";
 
-/// @notice Pendle vaults (5115) ISuperLedger implementation
-contract PendleLedger is BaseLedger, ISuperLedger {
+/// @notice 5115 vaults ledger implementation
+contract ERC1155Ledger is BaseLedger {
     constructor(address registry_) BaseLedger(registry_) { }
 
-    /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperLedger
-    function getLedger(
-        address user,
-        address yieldSource
-    )
-        external
-        view
-        returns (LedgerEntry[] memory entries, uint256 unconsumedEntries)
-    {
-        return _getLedger(user, yieldSource);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            EXTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperLedger
-    function updateAccounting(
-        address user,
-        address yieldSource,
-        bytes4 yieldSourceOracleId,
-        bool isInflow,
-        uint256 amountSharesOrAssets,
-        uint256 usedShares
-    )
-        external
-        onlyExecutor
-        returns (uint256 feeAmount)
-    {
-        return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
-    }
 
     /*//////////////////////////////////////////////////////////////
                             PRIVATE FUNCTIONS
@@ -57,7 +23,8 @@ contract PendleLedger is BaseLedger, ISuperLedger {
         uint256 usedShares
     )
         internal
-        virtual
+        onlyExecutor
+        override
         returns (uint256 feeAmount)
     {
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config = superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
@@ -133,11 +100,17 @@ contract PendleLedger is BaseLedger, ISuperLedger {
             uint256 sharesConsumed = availableShares > ctx.remainingShares ? ctx.remainingShares : availableShares;
             entry.amountSharesAvailableToConsume -= sharesConsumed;
             ctx.remainingShares -= sharesConsumed;
-
+            
+            // amount of assets in the entry price (registered at the INFLOW operation)
             uint256 entryBasis = sharesConsumed * entry.price / (10 ** ctx.decimals);
+
+            // current price of the yield source
             uint256 ppsNow = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+            // amount of assets in the current price
             uint256 currentBasis = sharesConsumed * ppsNow / (10 ** ctx.decimals);
 
+            // if pps increased => currentBasis > entryBasis
+            //   otherwise profit = 0 because the current price is lower than INFLOW price of the entry            
             if (currentBasis > entryBasis) {
                 ctx.profit += (currentBasis - entryBasis);
             }

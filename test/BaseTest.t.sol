@@ -14,7 +14,7 @@ import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISu
 // Superform contracts
 import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { PendleLedger } from "../src/core/accounting/PendleLedger.sol";
+import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
@@ -100,7 +100,7 @@ import "forge-std/console.sol";
 struct Addresses {
     ISuperRbac superRbac;
     ISuperLedger superLedger;
-    ISuperLedger pendleLedger;
+    ISuperLedger erc1155Ledger;
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
@@ -310,9 +310,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A.superLedger);
 
-            A.pendleLedger = ISuperLedger(address(new PendleLedger(address(A.superLedgerConfiguration))));
-            vm.label(address(A.pendleLedger), PENDLE_LEDGER_KEY);
-            contractAddresses[chainIds[i]][PENDLE_LEDGER_KEY] = address(A.pendleLedger);
+            A.erc1155Ledger = ISuperLedger(address(new ERC1155Ledger(address(A.superLedgerConfiguration))));
+            vm.label(address(A.erc1155Ledger), ERC1155_LEDGER_KEY);
+            contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A.erc1155Ledger);
 
             A.superExecutor = ISuperExecutor(address(new SuperExecutor(address(A.superRegistry))));
             vm.label(address(A.superExecutor), SUPER_EXECUTOR_KEY);
@@ -840,7 +840,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
-                ledger: _getContract(chainIds[i], PENDLE_LEDGER_KEY)
+                ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
