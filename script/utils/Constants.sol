@@ -20,11 +20,25 @@ abstract contract Constants {
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_RBAC_KEY = "SuperRbac";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
+    string internal constant PENDLE_LEDGER_KEY = "PendleLedger";
+    string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
     string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant MOCK_VALIDATOR_MODULE_KEY = "MockValidatorModule";
 
+    string internal constant SUPER_LEDGER_ID = "SUPER_LEDGER_ID";
+    string internal constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";   
+    string internal constant SUPER_POSITION_ID = "SUPER_POSITION_ID";
+    string internal constant SUPER_POSITION_SENTINEL_ID = "SUPER_POSITION_SENTINEL_ID";
+    string internal constant SUPER_RBAC_ID = "SUPER_RBAC_ID";
+    string internal constant SUPER_REGISTRY_ID = "SUPER_REGISTRY_ID";
+    string internal constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
+    string internal constant PAYMASTER_ID = "PAYMASTER_ID";
+    string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
+    string internal constant ORACLE_REGISTRY_ID = "ORACLE_REGISTRY_ID";
+    string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID = "ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID";
+    string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID = "DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID";
     // mainnets
     uint64 internal constant MAINNET_CHAIN_ID = 1;
     uint64 internal constant BASE_CHAIN_ID = 8453;
@@ -38,7 +52,7 @@ abstract contract Constants {
     uint64 internal constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
     // Common addresses
-    address internal constant SUPER_DEPLOYER = 0x4b38341B1126F45614B26319787CA98aeC1b6f57;
+    address internal constant SUPER_DEPLOYER = 0xcC6150c10Cd5DD89645ca116A96C6c1Ed4B7F25E;
     address internal constant PROD_MULTISIG = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 

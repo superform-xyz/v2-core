@@ -7,7 +7,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperRbac } from "../../../src/core/interfaces/ISuperRbac.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
@@ -68,7 +68,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -93,10 +93,10 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
         hooksData[2] = _createWithdraw4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, false
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);
@@ -105,7 +105,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
-        emit ISuperLedger.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
+        emit ISuperLedgerData.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
         executeOp(userOpData);
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
@@ -140,7 +140,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
-        emit ISuperLedger.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
+        emit ISuperLedgerData.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
         executeOp(userOpData);
 
         assertEq(Mock1InchRouter(executor).swappedAmount(), amount);
@@ -176,7 +176,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
-        emit ISuperLedger.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
+        emit ISuperLedgerData.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
         executeOp(userOpData);
 
         assertEq(Mock1InchRouter(executor).swappedAmount(), amount);
@@ -203,7 +203,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
-        emit ISuperLedger.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
+        emit ISuperLedgerData.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
         executeOp(userOpData);
 
         assertEq(Mock1InchRouter(executor).swappedAmount(), amount);
@@ -267,7 +267,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, true
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, true
         );
 
         // execute
@@ -291,10 +291,10 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
                         // mint SuperPositionMock to account
                         // should also create SP
-                        uint256 precomputedId = mockSuperPositionFactory.getSPId(yieldSourceAddress, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), uint64(ETH));
+                        uint256 precomputedId = mockSuperPositionFactory.getSPId(yieldSourceAddress, bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), uint64(ETH));
 
                         uint256 spCountBefore = mockSuperPositionFactory.spCount();
-                        mockSuperPositionFactory.mintSuperPosition(uint64(ETH), yieldSourceAddress, bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vaultInstance), account, amount);
+                        mockSuperPositionFactory.mintSuperPosition(uint64(ETH), yieldSourceAddress, bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vaultInstance), account, amount);
                         uint256 spCountAfter = mockSuperPositionFactory.spCount();
                         assertEq(spCountAfter, spCountBefore + 1);
 

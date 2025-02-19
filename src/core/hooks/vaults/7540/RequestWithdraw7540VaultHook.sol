@@ -15,15 +15,15 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title RequestWithdraw7540VaultHook
 /// @dev data has the following structure
-/// @notice         bytes32 yieldSourceOracleId = BytesLib.toBytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 72, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant AMOUNT_POSITION = 44;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
@@ -42,9 +42,9 @@ contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowO
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address controller = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
+        address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         uint256 shares = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 104);
+        bool usePrevHookAmount = _decodeBool(data, 76);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
