@@ -23,7 +23,7 @@ contract SuperPositionsFactoryTest is Helpers {
 
         address asset = address(asset18Decimals);
         address yieldSourceAddress = address(this);
-        bytes32 yieldSourceOracleId = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
+        bytes4 yieldSourceOracleId = bytes4(0x12345678);
         uint64 chainId = 1;
         address receiver = address(factory);
         uint256 amount = SMALL;
@@ -46,7 +46,7 @@ contract SuperPositionsFactoryTest is Helpers {
 
         address asset = address(asset6Decimals);
         address yieldSourceAddress = address(this);
-        bytes32 yieldSourceOracleId = 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef;
+        bytes4 yieldSourceOracleId = bytes4(0x12345678);
         uint64 chainId = 1;
         address receiver = address(factory);
         uint256 amount = 1e6;
