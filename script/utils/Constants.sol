@@ -55,7 +55,7 @@ abstract contract Constants {
     uint64 internal constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
     // Common addresses
-    address internal constant SUPER_DEPLOYER = 0x4b38341B1126F45614B26319787CA98aeC1b6f57;
+    address internal constant SUPER_DEPLOYER = 0xcC6150c10Cd5DD89645ca116A96C6c1Ed4B7F25E;
     address internal constant PROD_MULTISIG = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 

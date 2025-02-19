@@ -82,7 +82,8 @@ interface ISuperVaultStrategy {
     event RewardsDistributorSet(address indexed rewardsDistributor);
     event RewardsDistributed(address[] tokens, uint256[] amounts);
     event RewardsClaimed(address[] tokens, uint256[] amounts);
-    /*//////////////////////////////////////////////////////////////
+
+    /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
 
@@ -191,36 +192,25 @@ interface ISuperVaultStrategy {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                ENUMS
+    //////////////////////////////////////////////////////////////*/
+    enum Operation {
+        DepositRequest,
+        CancelDeposit,
+        ClaimDeposit,
+        RedeemRequest,
+        CancelRedeem,
+        ClaimRedeem
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         REQUEST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Update state for a new deposit request
+    /// @notice Update state for a deposit or a redeem operation
     /// @param controller The controller address
-    /// @param assets Amount of assets being deposited
-    function handleRequestDeposit(address controller, uint256 assets) external;
-
-    /// @notice Update state for a deposit request cancellation
-    /// @param controller The controller address
-    /// @param assets Amount of assets to return
-    function handleCancelDeposit(address controller, uint256 assets) external;
-
-    /// @notice Update state for a new redeem request
-    /// @param controller The controller address
-    /// @param shares Amount of shares being redeemed
-    function handleRequestRedeem(address controller, uint256 shares) external;
-
-    /// @notice Update state for a redeem request cancellation
-    /// @param controller The controller address
-    function handleCancelRedeem(address controller) external;
-
-    /// @notice Update state for a deposit claim
-    /// @param controller The controller address
-    /// @param shares Amount of shares being claimed
-    function handleDeposit(address controller, uint256 shares) external;
-
-    /// @notice Update state for a withdraw claim
-    /// @param controller The controller address
-    /// @param assets Amount of assets being claimed
-    function handleWithdraw(address controller, uint256 assets) external;
+    /// @param assetsOrShares Amount of assets being deposited
+    /// @param operation The operation to perform
+    function handleOperation(address controller, uint256 assetsOrShares, Operation operation) external;
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
@@ -327,29 +317,20 @@ interface ISuperVaultStrategy {
     /// @param newOracle Address of the new oracle
     function updateYieldSourceOracle(address source, address newOracle) external;
 
-    /// @notice Deactivate a yield source
-    /// @param source Address of the yield source to deactivate
-    function deactivateYieldSource(address source) external;
+    /// @notice Toggle a yield source's active state
+    /// @param source Address of the yield source to toggle
+    /// @param activate Whether to activate or deactivate the yield source
+    function toggleYieldSource(address source, bool activate) external;
 
-    /// @notice Reactivate a previously removed yield source
-    /// @param source Address of the yield source to reactivate
-    function reactivateYieldSource(address source) external;
-
-    /// @notice Set the rewards distributor address
-    /// @param rewardsDistributor_ The new rewards distributor address
-    function setRewardsDistributor(address rewardsDistributor_) external;
-
-    /// @notice Propose a new hook root
-    /// @param newRoot New hook root to propose
-    function proposeHookRoot(bytes32 newRoot) external;
-
-    /// @notice Execute the proposed hook root update after timelock
-    function executeHookRootUpdate() external;
+    /// @notice Propose or execute a hook root update
+    /// @dev if newRoot is 0, executes the proposed hook root update
+    /// @param newRoot New hook root to propose or execute
+    function proposeOrExecuteHookRoot(bytes32 newRoot) external;
 
     /// @notice Propose changes to vault-specific fee configuration
     /// @param performanceFeeBps New performance fee in basis points
     /// @param recipient New fee recipient
-    function proposeVaultFeeConfig(uint256 performanceFeeBps, address recipient) external;
+    function proposeVaultFeeConfigUpdate(uint256 performanceFeeBps, address recipient) external;
 
     /// @notice Execute the proposed vault fee configuration update after timelock
     function executeVaultFeeConfigUpdate() external;
@@ -376,22 +357,23 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Get whether the contract is initialized
-    /// @return Whether the contract is initialized
+    /// @notice Check if the strategy is initialized
+    /// @return True if the strategy is initialized, false otherwise
     function isInitialized() external view returns (bool);
 
-    /// @notice Get the vault address
-    /// @return The vault address
-    function getVault() external view returns (address);
+    /// @notice Get the vault info
+    /// @dev returns vault address, asset address, and vault decimals
+    function getVaultInfo() external view returns (address vault, address asset, uint8 vaultDecimals);
 
-    /// @notice Get the asset address
-    /// @return The asset address
-    function getAsset() external view returns (address);
+    /// @notice Get the hook info
+    /// @dev returns hook root, proposed hook root, and hook root effective time
+    function getHookInfo()
+        external
+        view
+        returns (bytes32 hookRoot, bytes32 proposedHookRoot, uint256 hookRootEffectiveTime);
 
-    /// @notice Get the vault decimals
-    /// @return The vault decimals
-    function getVaultDecimals() external view returns (uint8);
+    /// @notice Get the global and fee configurations
+    function getConfigInfo() external view returns (GlobalConfig memory globalConfig, FeeConfig memory feeConfig);
 
     /// @notice Get the current price per share of the SuperVault
     /// @return pricePerShare The current price per share in underlying decimals
@@ -419,21 +401,6 @@ interface ISuperVaultStrategy {
     /// @notice Get a yield source's configuration
     /// @param source Address of the yield source
     function getYieldSource(address source) external view returns (YieldSource memory);
-
-    /// @notice Get the global configuration
-    function getGlobalConfig() external view returns (GlobalConfig memory);
-
-    /// @notice Get the fee configuration
-    function getFeeConfig() external view returns (FeeConfig memory);
-
-    /// @notice Get the current hook root
-    function getHookRoot() external view returns (bytes32);
-
-    /// @notice Get the proposed hook root
-    function getProposedHookRoot() external view returns (bytes32);
-
-    /// @notice Get the hook root effective time
-    function getHookRootEffectiveTime() external view returns (uint256);
 
     /// @notice Get the list of all yield sources
     function getYieldSourcesList() external view returns (address[] memory);

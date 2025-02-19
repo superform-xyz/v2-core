@@ -38,7 +38,7 @@ out = "out"
 script = "src"
 solc = "0.8.28"
 src = "src"
-test = "src"
+test = "test"
 cbor_metadata = true
 libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./" }]

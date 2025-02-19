@@ -154,7 +154,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
         // Forward to strategy
         _asset.forceApprove(address(strategy), assets);
-        strategy.handleRequestDeposit(controller, assets);
+        strategy.handleOperation(controller, assets, ISuperVaultStrategy.Operation.DepositRequest);
         _asset.forceApprove(address(strategy), 0);
 
         emit DepositRequest(controller, owner, REQUEST_ID, msg.sender, assets);
@@ -171,7 +171,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (assets == 0) revert REQUEST_NOT_FOUND();
 
         // Forward to strategy
-        strategy.handleCancelDeposit(controller, assets);
+        strategy.handleOperation(controller, assets, ISuperVaultStrategy.Operation.CancelDeposit);
 
         // Return assets to user
         _asset.safeTransfer(msg.sender, assets);
@@ -195,7 +195,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         ISuperVaultEscrow(escrow).escrowShares(sender, shares);
 
         // Forward to strategy
-        strategy.handleRequestRedeem(controller, shares);
+        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.RedeemRequest);
 
         emit RedeemRequest(controller, owner, REQUEST_ID, msg.sender, shares);
         return REQUEST_ID;
@@ -210,7 +210,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (shares == 0) revert REQUEST_NOT_FOUND();
 
         // Forward to strategy
-        strategy.handleCancelRedeem(controller);
+        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.CancelRedeem);
 
         // Return shares to user
         ISuperVaultEscrow(escrow).returnShares(msg.sender, shares);
@@ -416,7 +416,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         shares = assets.mulDiv(1e18, averageDepositPrice, Math.Rounding.Floor);
 
         // Forward to strategy
-        strategy.handleDeposit(controller, shares);
+        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
 
         // Transfer shares to receiver
         ISuperVaultEscrow(escrow).transferShares(receiver, shares);
@@ -441,7 +441,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         assets = shares.mulDiv(averageDepositPrice, 1e18, Math.Rounding.Floor);
 
         // Forward to strategy
-        strategy.handleDeposit(controller, shares);
+        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
 
         // Transfer shares to receiver
         ISuperVaultEscrow(escrow).transferShares(receiver, shares);
@@ -468,7 +468,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         shares = assets.mulDiv(1e18, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Forward to strategy
-        strategy.handleWithdraw(owner, assets);
+        strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
 
         // Transfer shares back to vault and burn them
         ISuperVaultEscrow(escrow).transferShares(address(this), shares);
@@ -493,7 +493,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Forward to strategy
-        strategy.handleWithdraw(owner, assets);
+        strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
 
         // Transfer shares back to vault and burn them
         ISuperVaultEscrow(escrow).transferShares(address(this), shares);
