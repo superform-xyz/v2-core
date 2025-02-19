@@ -1291,15 +1291,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return abi.encodePacked(token, uint160(amount), uint48(expiration), uint48(nonce), spender, sigDeadline);
     }
 
-    /**
-        (, address dstReceiver,, IERC20 dstToken, uint256 amount, uint256 minReturnAmount,,,) = abi.decode(
-            txData_, (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
-        );
-         */
     function _create1InchClipperSwapHookData(
         address account,
         address dstReceiver,
-        Address ?,
+        Address srcToken,
         IERC20 dstToken,
         uint256 amount,
         uint256 minReturnAmount,
