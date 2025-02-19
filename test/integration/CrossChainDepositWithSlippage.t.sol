@@ -8,17 +8,18 @@ import { console2 } from "forge-std/console2.sol";
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
-//import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { I1InchAggregationRouterV6, IERC20, IERC20Permit } from "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
+import { IOdosRouterV2 } from "../../src/vendor/odos/IOdosRouterV2.sol";
 
 // Two briding actions to the same chain, Across gateway waits for both to arrive
 // Two target vaults where one requires a swap due to underlying mismatch which incurs slippage
 contract CrossChainDepositWithSlippage is BaseTest {
+
     IERC4626 public vaultInstance4626Base_USDC;
     IERC4626 public vaultInstance4626Base_WETH;
 
@@ -53,28 +54,6 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
     string public constant YIELD_SOURCE_4626_BASE_USDC_KEY = "ERC4626_BASE_USDC";
     string public constant YIELD_SOURCE_4626_BASE_WETH_KEY = "ERC4626_BASE_WETH";
-
-    /// @notice The permit data for a token
-    struct PermitDetails {
-        // ERC20 token address
-        address token;
-        // the maximum amount allowed to spend
-        uint160 amount;
-        // timestamp at which a spender's token allowances become invalid
-        uint48 expiration;
-        // an incrementing value indexed per owner,token,and spender for each signature
-        uint48 nonce;
-    }
-
-    /// @notice The permit message signed for a single token allowance
-    struct PermitSingle {
-        // the permit data for a single token alownce
-        PermitDetails details;
-        // address permissioned on the allowed tokens
-        address spender;
-        // deadline on the permit signature
-        uint256 sigDeadline;
-    }
 
     function setUp() public override {
         super.setUp();
@@ -122,7 +101,7 @@ contract CrossChainDepositWithSlippage is BaseTest {
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, "SuperExecutor"));
 
         // Set up the 1inch swap router
-        swapRouter = 0x111111125421cA6dc452d289314280a0f8842A65;
+        deal(underlyingBase_WETH, odosRouters[BASE], 1e12);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -156,9 +135,10 @@ contract CrossChainDepositWithSlippage is BaseTest {
         dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory dstHooksData = new bytes[](2);
-        dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase_USDC, intentAmount, false);
+        dstHooksData[0] 
+        = _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase_USDC, intentAmount / 2, false);
         dstHooksData[1] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_USDC, intentAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_USDC, intentAmount / 2, false, false
         );
 
         UserOpData memory dstUserOpData = _createUserOpData(dstHooksAddresses, dstHooksData, BASE);
@@ -199,42 +179,33 @@ contract CrossChainDepositWithSlippage is BaseTest {
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](4);
         dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        dstHooksAddresses[1] = _getHookAddress(BASE, SWAP_1INCH_HOOK_KEY);
+        dstHooksAddresses[1] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
         dstHooksAddresses[2] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
         dstHooksAddresses[3] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
-        bytes memory permitData = _createPermitData(intentAmount / 2);
-
         bytes[] memory dstHooksData = new bytes[](4);
-        // dstHooksData[0] = _createPermitHookData(
-        //     underlyingBase_USDC, 
-        //     swapRouter, 
-        //     intentAmount / 2, 
-        //     block.timestamp + 1 days, 
-        //     permitSingle.details.nonce
-        // );
         dstHooksData[0] = _createApproveHookData(
           underlyingBase_USDC, 
-          swapRouter, 
+          odosRouters[BASE], 
           intentAmount / 2, 
           false
         );
-        /**
-        (, address dstReceiver,, IERC20 dstToken, uint256 amount, uint256 minReturnAmount,,,) = abi.decode(
-            txData_, (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
+        dstHooksData[1] = _createOdosSwapHookData(
+            underlyingBase_USDC,
+            intentAmount / 2,
+            address(this),
+            underlyingBase_WETH,
+            intentAmount / 2,
+            0,
+            bytes(""),
+            odosRouters[BASE],
+            0,
+            true
         );
-         */
-        bytes1 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
-        dstHooksData[1] = _create1InchClipperSwapHookData(
-          accountBase, 
-          underlyingBase_WETH, 
-          swapRouter, 
-          selector,
-          bytes("")
-        );
-        dstHooksData[2] = _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount / 2, false);
+        dstHooksData[2] 
+        = _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount, false);
         dstHooksData[3] = _createDeposit4626HookData(
-            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_USDC, intentAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressBase_WETH, intentAmount / 2, false, false
         );
 
         UserOpData memory dstUserOpData = _createUserOpData(dstHooksAddresses, dstHooksData, BASE);
@@ -278,27 +249,30 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
             vm.startPrank(MANAGER);
 
-            ISuperLedger.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedger.YieldSourceOracleConfigArgs[](3);
-            configs[0] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+            configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: address(this)
+                feeRecipient: address(this),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            configs[1] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: address(this)
+                feeRecipient: address(this),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            configs[2] = ISuperLedger.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: address(this)
+                feeRecipient: address(this),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)).setYieldSourceOracles(configs);
+            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
             vm.stopPrank();
         }
     }
@@ -325,81 +299,5 @@ contract CrossChainDepositWithSlippage is BaseTest {
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
             return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
         }
-    }
-
-    function _createPermitDigest(
-        IERC20Permit token,
-        address owner,
-        address spender,
-        uint256 value,
-        uint256 deadline
-    ) internal view returns (bytes32) {
-        uint256 nonce = token.nonces(owner);
-
-        // Prepare the domain and types for EIP-712 signing
-        bytes32 DOMAIN_SEPARATOR = keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("USDC")),
-                keccak256(bytes("1")),
-                block.chainid,
-                address(token)
-            )
-        );
-        
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
-                owner,
-                spender,
-                value,
-                nonce,
-                deadline
-            )
-        );
-        
-        bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                DOMAIN_SEPARATOR,
-                structHash
-            )
-        );
-
-        return digest;
-    }
-
-    function _createPermitData(uint256 intentAmount) internal returns (bytes memory) {
-        bytes32 permitDigest = _createPermitDigest(
-            IERC20Permit(underlyingBase_USDC), 
-            accountBase, 
-            swapRouter, 
-            intentAmount / 2, 
-            block.timestamp + 1 days
-        );
-
-        // Simulate the owner signing the digest
-        vm.startPrank(accountBase);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xE1A28ECE307DE3C554828a51CB1e1F07a8614485, permitDigest);
-        IERC20Permit(underlyingBase_USDC).permit(
-            accountBase, 
-            swapRouter, 
-            intentAmount / 2,
-            block.timestamp + 1 days, 
-            v, 
-            r, 
-            s
-        );
-        vm.stopPrank();
-
-        PermitSingle memory permitSingle;
-        permitSingle.details.token = underlyingBase_USDC;
-        permitSingle.details.amount = uint160(intentAmount / 2);
-        permitSingle.details.expiration = uint48(block.timestamp + 1 days);
-        permitSingle.details.nonce = uint48(IERC20Permit(underlyingBase_USDC).nonces(accountBase));
-        permitSingle.spender = swapRouter;
-        permitSingle.sigDeadline = block.timestamp + 1 days;
-
-        return abi.encodePacked(v, r, s);
     }
 }
