@@ -219,20 +219,17 @@ contract CrossChainDepositWithSlippage is BaseTest {
           intentAmount / 2, 
           false
         );
-        dstHooksData[1] = _create1InchSwapHookData(
+        /**
+        (, address dstReceiver,, IERC20 dstToken, uint256 amount, uint256 minReturnAmount,,,) = abi.decode(
+            txData_, (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
+        );
+         */
+        bytes1 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
+        dstHooksData[1] = _create1InchClipperSwapHookData(
           accountBase, 
           underlyingBase_WETH, 
           swapRouter, 
-          I1InchAggregationRouterV6.SwapDescription({
-              srcToken: IERC20(underlyingBase_USDC),
-              dstToken: IERC20(underlyingBase_WETH),
-              srcReceiver: payable(accountBase),
-              dstReceiver: payable(accountBase),
-              amount: intentAmount / 2,
-              minReturnAmount: 1e9,
-              flags: 0
-          }), 
-          permitData,
+          selector,
           bytes("")
         );
         dstHooksData[2] = _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount / 2, false);
