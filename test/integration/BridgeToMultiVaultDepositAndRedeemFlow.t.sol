@@ -371,7 +371,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // OP IS DST
         vm.selectFork(FORKS[OP]);
 
-        // Fix start time
+        // Fix start time so that vault yield increases by redemption
         vm.warp(1_739_809_853);
 
         uint256 previewDepositAmountOP = vaultInstance4626OP.previewDeposit(amountPerVault);
@@ -430,7 +430,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.selectFork(FORKS[OP]);
 
-        // Fix start time
+        // Fix start time so that vault yield increases by redemption
         vm.warp(1_739_809_853);
 
         uint256 userBalanceSharesBefore = IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountOP);
@@ -466,6 +466,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     function _redeem_From_OP_And_Bridge_Back_To_Base() internal {
         vm.selectFork(FORKS[OP]);
+
+        // Fix start time so that vault yield increases on redemption
         vm.warp(1739810453);
 
         uint256 assetOutAmount = _redeem_From_OP();
@@ -485,6 +487,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // OP IS SRC
         vm.selectFork(FORKS[OP]);
+
+        // Fix start time so that vault yield increases on redemption
         vm.warp(1739810453);
 
         // PREPARE OP DATA
@@ -824,6 +828,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 userBalanceSharesBefore = IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountOP);
 
+        // Warp to increase yield by redemption
         vm.warp(block.timestamp + 150 days);
 
         uint256 expectedAssetOutAmount = vaultInstance4626OP.previewRedeem(userBalanceSharesBefore);
