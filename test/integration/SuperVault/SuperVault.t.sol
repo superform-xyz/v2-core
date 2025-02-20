@@ -12,8 +12,7 @@ import { console2 } from "forge-std/console2.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 
 contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
-
-    function setUp() public override (BaseTest, BaseSuperVaultTest) {
+    function setUp() public override(BaseTest, BaseSuperVaultTest) {
         super.setUp();
     }
 

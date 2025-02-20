@@ -113,7 +113,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
-    }    
+    }
 
     /*//////////////////////////////////////////////////////////////
                         INTERNAL HELPER FUNCTIONS
@@ -244,5 +244,4 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-    
 }
