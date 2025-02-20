@@ -21,6 +21,11 @@ contract HooksRegistry is SuperRegistryImplementer {
     error NOT_AUTHORIZED();
     error HOOK_NOT_REGISTERED();
     error HOOK_ALREADY_REGISTERED();
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event HookRegistered(address indexed hook);
+    event HookUnregistered(address indexed hook);
 
     modifier onlyHooksManager() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
@@ -35,11 +40,13 @@ contract HooksRegistry is SuperRegistryImplementer {
         if (isHookRegistered[hook_]) revert HOOK_ALREADY_REGISTERED();
         isHookRegistered[hook_] = true;
         registeredHooks.push(hook_);
+        emit HookRegistered(hook_);
     }
 
     function unregisterHook(address hook_) external onlyHooksManager {
         if (!isHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
         isHookRegistered[hook_] = false;
+        emit HookUnregistered(hook_);
     }
 
     /*//////////////////////////////////////////////////////////////
