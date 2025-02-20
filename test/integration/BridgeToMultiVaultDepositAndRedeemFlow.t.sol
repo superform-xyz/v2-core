@@ -517,7 +517,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             underlyingOP_USDC,
             underlyingBase_USDC,
             assetOutAmount,
-            amountAfterSlippage,
+            amountAfterSlippage, // outputAmount = amountAfterSlippage so that mock AcrossHelper sends the correct amount
             BASE,
             true,
             assetOutAmount,
