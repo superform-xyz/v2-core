@@ -263,7 +263,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
 
         // EXECUTE ETH
-        _processAcrossV3Message(BASE, ETH, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
+        _processAcrossV3Message(BASE, ETH, 0, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
 
@@ -351,7 +351,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
 
-        _processAcrossV3Message(ETH, BASE, executeOp(ethUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(ETH, BASE, 0, executeOp(ethUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
 
         vm.selectFork(FORKS[BASE]);
 
@@ -392,7 +392,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // BASE IS SRC
         vm.selectFork(FORKS[BASE]);
-        //vm.warp(1_739_809_853);
 
         uint256 userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
@@ -418,7 +417,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE);
 
         // EXECUTE OP
-        _processAcrossV3Message(BASE, OP, executeOp(srcUserOpDataOP), RELAYER_TYPE.ENOUGH_BALANCE, accountOP);
+        _processAcrossV3Message(BASE, OP, 0, executeOp(srcUserOpDataOP), RELAYER_TYPE.ENOUGH_BALANCE, accountOP);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amountPerVault);
 
@@ -469,7 +468,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         vm.selectFork(FORKS[OP]);
         vm.warp(1739810453);
 
-        uint256 expectedAssetOutAmount = _redeem_From_OP();
+        uint256 assetOutAmount = _redeem_From_OP();
+
+        uint256 amountAfterSlippage = assetOutAmount - (assetOutAmount * 50 / 10_000);
 
         // BASE IS DST
         vm.selectFork(FORKS[BASE]);
@@ -497,44 +498,57 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         opHooksData[0] = _createApproveHookData(
             underlyingOP_USDCe, 
             odosRouters[OP], 
-            expectedAssetOutAmount, 
+            assetOutAmount, 
             false
         );
         opHooksData[1] = _createOdosSwapHookData(
             underlyingOP_USDCe,  
-            expectedAssetOutAmount, 
+            assetOutAmount, 
             address(this),
             underlyingOP_USDC,
-            expectedAssetOutAmount, 
+            assetOutAmount, 
             0, 
             bytes(""),
             odosRouters[OP],
             0,
-            false
+            true
         );
         opHooksData[2] = _createApproveHookData(
             underlyingOP_USDC, 
             SPOKE_POOL_V3_ADDRESSES[OP], 
-            expectedAssetOutAmount, 
+            assetOutAmount, 
             true
         );
         opHooksData[3] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingOP_USDC,
             underlyingBase_USDC,
-            expectedAssetOutAmount / 2,
-            expectedAssetOutAmount / 2,
+            assetOutAmount,
+            amountAfterSlippage,
             BASE,
-            false,
-            expectedAssetOutAmount,
+            true,
+            assetOutAmount,
             baseUserOpData
         );
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
 
-        _processAcrossV3Message(OP, BASE, executeOp(opUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(
+            OP, 
+            BASE, 
+            1739810453, 
+            executeOp(opUserOpData), 
+            RELAYER_TYPE.ENOUGH_BALANCE, 
+            accountBase
+        );
+
+        vm.selectFork(FORKS[BASE]);
+
+        uint256 user_Base_USDC_Balance_After = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        uint256 expected_Base_USDC_BalanceIncrease = amountAfterSlippage;
 
         assertEq(
-            IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + expectedAssetOutAmount
+            user_Base_USDC_Balance_After, user_Base_USDC_Balance_Before + expected_Base_USDC_BalanceIncrease
         );
     }
 

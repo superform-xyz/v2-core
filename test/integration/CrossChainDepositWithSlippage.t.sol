@@ -184,7 +184,7 @@ contract CrossChainDepositWithSlippage is BaseTest {
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP);
 
         // not enough balance is received
-        _processAcrossV3Message(OP, BASE, executeOp(src1UserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(OP, BASE, 0, executeOp(src1UserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase);
     }
 
     function _sendFundsFromEthToBase() internal {
@@ -250,7 +250,7 @@ contract CrossChainDepositWithSlippage is BaseTest {
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, ETH);
 
         // enough balance is received
-        _processAcrossV3Message(ETH, BASE, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(ETH, BASE,  0,executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
 
         vm.selectFork(FORKS[BASE]);
 

@@ -187,7 +187,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         UserOpData memory srcUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
-        _processAcrossV3Message(ETH, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(ETH, BASE, 0, executeOp(srcUserOpData),RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
     }
 
     struct LocalVars {
@@ -251,7 +251,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         UserOpData memory srcUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         // not enough balance is received
-        _processAcrossV3Message(ETH, BASE, executeOp(srcUserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(ETH, BASE, 0, executeOp(srcUserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase);
 
         // OP is SRC2
         vm.selectFork(FORKS[OP]);
@@ -278,7 +278,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         srcUserOpData = _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entry));
         // balance is received and everything is executed
-        _processAcrossV3Message(OP, BASE, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(OP, BASE,  0, executeOp(srcUserOpData),RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
 
         vm.selectFork(FORKS[BASE]);
     }
