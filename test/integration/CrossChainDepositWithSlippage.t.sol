@@ -254,8 +254,8 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
         vm.selectFork(FORKS[BASE]);
 
-        uint256 sharesExpectedWETH 
-        = vaultInstance4626Base_WETH.convertToShares((intentAmount / 2) - ((intentAmount / 2) * 50 / 10_000));
+        uint256 sharesExpectedWETH =
+            vaultInstance4626Base_WETH.convertToShares((intentAmount / 2) - ((intentAmount / 2) * 50 / 10_000));
 
         uint256 sharesWETH = IERC4626(yieldSource4626AddressBase_WETH).balanceOf(accountBase);
         assertEq(sharesWETH, sharesExpectedWETH);
