@@ -230,7 +230,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(inputToken), odosRouters[ETH], amount, false);
         hooksData[1] = _createOdosSwapHookData(
-            address(inputToken), amount, account, address(outputToken), 0, amount, "", address(this), uint32(0), false
+            address(inputToken), amount, account, address(outputToken), amount, amount, "", address(this), uint32(0), false
         );
 
         // it should execute all hooks

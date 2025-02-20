@@ -5,8 +5,9 @@ pragma solidity >=0.8.28;
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { IHookRegistry } from "../interfaces/IHookRegistry.sol";
 
-contract HooksRegistry is SuperRegistryImplementer {
+contract HooksRegistry is SuperRegistryImplementer, IHookRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -14,13 +15,6 @@ contract HooksRegistry is SuperRegistryImplementer {
     address[] public registeredHooks;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) {}
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error NOT_AUTHORIZED();
-    error HOOK_NOT_REGISTERED();
-    error HOOK_ALREADY_REGISTERED();
 
     modifier onlyHooksManager() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
@@ -31,20 +25,25 @@ contract HooksRegistry is SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc IHookRegistry
     function registerHook(address hook_) external onlyHooksManager {
         if (isHookRegistered[hook_]) revert HOOK_ALREADY_REGISTERED();
         isHookRegistered[hook_] = true;
         registeredHooks.push(hook_);
+        emit HookRegistered(hook_);
     }
 
+    /// @inheritdoc IHookRegistry
     function unregisterHook(address hook_) external onlyHooksManager {
         if (!isHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
         isHookRegistered[hook_] = false;
+        emit HookUnregistered(hook_);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc IHookRegistry
     function getRegisteredHooks() external view returns (address[] memory) {
         return registeredHooks;
     }
