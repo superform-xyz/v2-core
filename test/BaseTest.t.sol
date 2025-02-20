@@ -903,6 +903,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _processAcrossV3Message(
         uint64 srcChainId,
         uint64 dstChainId,
+        uint256 warpTimestamp,
         ExecutionReturnData memory executionData,
         RELAYER_TYPE relayerType,
         address account
@@ -920,6 +921,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
             SPOKE_POOL_V3_ADDRESSES[dstChainId],
             ACROSS_RELAYER,
+            warpTimestamp,
             FORKS[dstChainId],
             dstChainId,
             srcChainId,
