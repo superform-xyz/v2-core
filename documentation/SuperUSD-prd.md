@@ -5,7 +5,7 @@ You are responsible for building SuperUSD on Ethereum meta vault that aggregates
 SuperUSD provides:
 - Simple onboarding: One-transaction deposits, where users receive SuperUSD shares at a 1:1 USD value.
 - Yield Accrual: A non-rebasing share price mechanism that compounds yield and fees.
-- Swaps & Redemption: The ability to swap between different SuperVault tokens (using oracle price feeds) and flexible redemption into any whitelisted stablecoin.
+- Swaps & Redemption: The ability to swap between different SuperVault tokens (using oracle price feeds) and flexible redemption into any whitelisted SuperStablecoin.
 - Governance & Risk Controls: A strategist role and governance framework that can whitelist vault tokens, set fee parameters, execute rapid rebalancing, and trigger circuit breakers in adverse conditions.
 
 You will be using Solidity with foundry for testing/deployment and leveraging openzeppelin-contracts as a library. Integration with the existing SuperVault tokens (adhering to ERC7540 standards) is required.
@@ -44,9 +44,9 @@ SuperUSD will follow ERC20 with some ERC4626 like capability for multi assets. I
        2. The contract uses SuperOracle to determine the current USD value for each token.
        3. A swap fee (approximately 0.04%) is applied, with the fee being reinvested in the meta vault to boost the share price.
    - Solidity Implementation:
-       - Develop a swap() function that accepts source and destination asset addresses, verifies that both are whitelisted, and then uses oracle price feeds to calculate the equivalent amounts.
+       - Develop a swap() function that accepts source and destination asset addresses, verifies that both are whitelisted, and then uses oracle price feeds from SuperOracle.sol to calculate the equivalent amounts.
        - Integrate fee deduction logic and update the vault’s total assets accordingly.
-       - Emit events for swap actions to ensure transparency and enable off-chain monitoring.
+       - Emit events for swap actions to enable off-chain monitoring.
 5. Flexible Redemption Process
    - A special redeem function is provided based on the ERC4626's redeem version. This non-standard function allows users to specify the underlying vault token (e.g., USDT or USDC) they wish to receive when exiting.
    - Solidity Implementation:
@@ -54,9 +54,9 @@ SuperUSD will follow ERC20 with some ERC4626 like capability for multi assets. I
        - Ensure that the function updates internal accounting correctly
 6. Strategist Functions & Automated Yield Reinvestment
    - Strategist Controls:
-       - Functions that allow the strategist to redeem assets from underperforming vaults and redeposit them into higher-yield or safer vaults.
+       - Functions that allow the strategist to reallocate assets from underperforming vaults into higher-yield or safer vaults.
        - Automated functions to harvest yield from underlying SuperVault strategies and compound it back into the meta vault.
-       - Reinvest accrued swap fees to drive share price appreciation.
+       - Reinvest accrued swap fees to drive share price appreciation (claim and compound)
    - Solidity Implementation:
        - Create a function (for example, harvestYield()) that interacts with underlying vault contracts to claim yield.
        - Create a function that allows the strategist to rebalance the vault by redeeming assets from one source and depositing them into another.
