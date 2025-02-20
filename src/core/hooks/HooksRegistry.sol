@@ -5,8 +5,9 @@ pragma solidity >=0.8.28;
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
+import { IHookRegistry } from "../interfaces/IHookRegistry.sol";
 
-contract HooksRegistry is SuperRegistryImplementer {
+contract HooksRegistry is SuperRegistryImplementer, IHookRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -14,18 +15,6 @@ contract HooksRegistry is SuperRegistryImplementer {
     address[] public registeredHooks;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) {}
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error NOT_AUTHORIZED();
-    error HOOK_NOT_REGISTERED();
-    error HOOK_ALREADY_REGISTERED();
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-    event HookRegistered(address indexed hook);
-    event HookUnregistered(address indexed hook);
 
     modifier onlyHooksManager() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
@@ -36,6 +25,7 @@ contract HooksRegistry is SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc IHookRegistry
     function registerHook(address hook_) external onlyHooksManager {
         if (isHookRegistered[hook_]) revert HOOK_ALREADY_REGISTERED();
         isHookRegistered[hook_] = true;
@@ -43,6 +33,7 @@ contract HooksRegistry is SuperRegistryImplementer {
         emit HookRegistered(hook_);
     }
 
+    /// @inheritdoc IHookRegistry
     function unregisterHook(address hook_) external onlyHooksManager {
         if (!isHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
         isHookRegistered[hook_] = false;
@@ -52,6 +43,7 @@ contract HooksRegistry is SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc IHookRegistry
     function getRegisteredHooks() external view returns (address[] memory) {
         return registeredHooks;
     }
