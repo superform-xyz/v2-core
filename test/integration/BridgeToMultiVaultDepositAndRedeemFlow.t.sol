@@ -30,6 +30,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IERC4626 public vaultInstance4626OP;
 
     address public underlyingETH_USDC;
+    address public underlyingOP_USDC;
     address public underlyingOP_USDCe;
 
     address public underlyingBase_USDC;
@@ -91,7 +92,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // Set up the underlying tokens
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
+        underlyingOP_USDC = existingUnderlyingTokens[OP][USDC_KEY];
+        vm.label(underlyingOP_USDC, "underlyingOP_USDC");
         underlyingOP_USDCe = existingUnderlyingTokens[OP][USDCe_KEY];
+        vm.label(underlyingOP_USDCe, "underlyingOP_USDCe");
 
         // Set up the 7540 yield source
         yieldSource7540AddressETH_USDC =
@@ -161,6 +165,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         assetId = poolManager.assetToId(underlyingETH_USDC);
         assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
+
+        vm.selectFork(FORKS[OP]);
+        deal(underlyingOP_USDCe, odosRouters[OP], 1e10);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -185,6 +192,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
         test_bridge_To_OP_And_Deposit();
         _redeem_From_OP();
+    }
+
+    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
+        test_bridge_To_OP_And_Deposit();
+        _redeem_From_OP_And_Bridge_Back_To_Base();
     }
 
     function test_OP_Bridge_Deposit_Redeem_Flow_With_Warping() public {
@@ -406,7 +418,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP);
     }
 
-    function _redeem_From_OP() internal {
+    function _redeem_From_OP() internal returns (uint256) {
         uint256 amountPerVault = 1e8 / 2;
 
         vm.selectFork(FORKS[OP]);
@@ -441,6 +453,79 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         assertEq(vaultInstance4626OP.balanceOf(accountOP), 0);
         assertEq(IERC20(underlyingOP_USDCe).balanceOf(accountOP), userBalanceUnderlyingBefore + expectedAssetOutAmount);
+
+        return expectedAssetOutAmount;
+    }
+
+    function _redeem_From_OP_And_Bridge_Back_To_Base() internal {
+        vm.selectFork(FORKS[OP]);
+
+        uint256 expectedAssetOutAmount = _redeem_From_OP();
+
+        // BASE IS DST
+        vm.selectFork(FORKS[BASE]);
+
+        uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // PREPARE BASE DATA
+        address[] memory baseHooksAddresses = new address[](0);
+        bytes[] memory baseHooksData = new bytes[](0);
+
+        UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE);
+
+        // OP IS SRC
+        vm.selectFork(FORKS[OP]);
+
+        // PREPARE OP DATA
+        address[] memory opHooksAddresses = new address[](4);
+        opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        opHooksAddresses[1] = _getHookAddress(OP, SWAP_ODOS_HOOK_KEY);
+        opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory opHooksData = new bytes[](4);
+        opHooksData[0] = _createApproveHookData(
+            underlyingOP_USDCe, 
+            odosRouters[OP], 
+            expectedAssetOutAmount, 
+            false
+        );
+        opHooksData[1] = _createOdosSwapHookData(
+            underlyingOP_USDCe,  
+            expectedAssetOutAmount, 
+            address(this),
+            underlyingOP_USDC,
+            expectedAssetOutAmount, 
+            0, 
+            bytes(""),
+            odosRouters[OP],
+            0,
+            false
+        );
+        opHooksData[2] = _createApproveHookData(
+            underlyingOP_USDC, 
+            SPOKE_POOL_V3_ADDRESSES[OP], 
+            expectedAssetOutAmount, 
+            true
+        );
+        opHooksData[3] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingOP_USDC,
+            underlyingBase_USDC,
+            expectedAssetOutAmount,
+            expectedAssetOutAmount,
+            BASE,
+            true,
+            expectedAssetOutAmount,
+            baseUserOpData
+        );
+
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
+
+        _processAcrossV3Message(OP, BASE, executeOp(opUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+
+        assertEq(
+            IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + expectedAssetOutAmount
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
