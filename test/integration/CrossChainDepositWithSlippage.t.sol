@@ -6,7 +6,9 @@ import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
 // Superform
+import { SuperRegistry } from "../../src/core/settings/SuperRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
@@ -31,6 +33,8 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
     address public swapRouter;
 
+    address public feeRecipientBase;
+
     address public yieldSource4626AddressBase_USDC;
     address public yieldSource4626AddressBase_WETH;
 
@@ -49,6 +53,8 @@ contract CrossChainDepositWithSlippage is BaseTest {
     ISuperExecutor public superExecutorOnETH;
     ISuperExecutor public superExecutorOnBase;
 
+    SuperRegistry public superRegistryBase;
+
     string public constant YIELD_SOURCE_ORACLE_4626_BASE = "YieldSourceOracle_4626";
 
     string public constant YIELD_SOURCE_4626_BASE_USDC_KEY = "ERC4626_BASE_USDC";
@@ -57,7 +63,13 @@ contract CrossChainDepositWithSlippage is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        _overrideSuperLedger();
+        vm.selectFork(FORKS[BASE]);
+
+        superRegistryBase = SuperRegistry(_getContract(BASE, SUPER_REGISTRY_KEY));
+
+        feeRecipientBase = superRegistryBase.getAddress(keccak256(bytes(PAYMASTER_ID)));
+
+        vm.selectFork(FORKS[ETH]);
 
         // Set up the underlying tokens
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
@@ -97,6 +109,8 @@ contract CrossChainDepositWithSlippage is BaseTest {
         superExecutorOnOP = ISuperExecutor(_getContract(OP, "SuperExecutor"));
         superExecutorOnETH = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, "SuperExecutor"));
+
+        vm.selectFork(FORKS[BASE]);
 
         // Set up the 1inch swap router
         deal(underlyingBase_WETH, odosRouters[BASE], 1e12);
@@ -237,48 +251,19 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
         // enough balance is received
         _processAcrossV3Message(ETH, BASE, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+
+        vm.selectFork(FORKS[BASE]);
+
+        uint256 sharesExpectedWETH 
+        = vaultInstance4626Base_WETH.convertToShares((intentAmount / 2) - ((intentAmount / 2) * 50 / 10_000));
+
+        uint256 sharesWETH = IERC4626(yieldSource4626AddressBase_WETH).balanceOf(accountBase);
+        assertEq(sharesWETH, sharesExpectedWETH);
     }
 
     /*//////////////////////////////////////////////////////////////
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
-
-    // Override the superledger with the fee recipient as this address
-    function _overrideSuperLedger() internal {
-        for (uint256 i; i < chainIds.length; ++i) {
-            vm.selectFork(FORKS[chainIds[i]]);
-
-            vm.startPrank(MANAGER);
-
-            ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
-            configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
-                feePercent: 100,
-                feeRecipient: address(this),
-                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
-            });
-            configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-                yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
-                feePercent: 100,
-                feeRecipient: address(this),
-                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
-            });
-            configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
-                yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
-                feePercent: 100,
-                feeRecipient: address(this),
-                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
-            });
-            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
-                configs
-            );
-            vm.stopPrank();
-        }
-    }
 
     // Creates userOpData for the given chainId
     function _createUserOpData(
