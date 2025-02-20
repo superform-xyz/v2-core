@@ -16,7 +16,7 @@ contract MockOdosRouterV2 {
         returns (uint256 amountOut)
     {
         ERC20(tokenInfo.inputToken).transferFrom(msg.sender, address(this), tokenInfo.inputAmount);
-        ERC20(tokenInfo.outputToken).transfer(msg.sender, tokenInfo.outputQuote - 1e7);
+        ERC20(tokenInfo.outputToken).transfer(msg.sender, tokenInfo.outputQuote - (tokenInfo.outputQuote * 50 / 10_000)); // 0.5% slippage
 
         return tokenInfo.outputMin;
     }
