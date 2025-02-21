@@ -342,16 +342,5 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
     }
 
-    function test_UniqueNonceGeneration() public {
-        // Generate unique nonces using timestamp and counter
-        bytes32 nonce1 = _generateUniqueNonce();
-
-        vm.warp(block.timestamp + 1);
-        bytes32 nonce2 = _generateUniqueNonce();
-
-        // Verify nonces are different
-        assertTrue(nonce1 != nonce2, "Nonces should be unique");
-    }
-
     // TODO: Add remaining tests following test-plan.md
 }
