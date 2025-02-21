@@ -229,7 +229,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Deploy hooks
         _deployHooks();
-        
+
         // Initialize accounts
         _initializeAccounts(RANDOM_ACCOUNT_COUNT);
 
@@ -314,9 +314,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
             assertTrue(A.superRbac.hasRole(SuperRbac(address(A.superRbac)).DEFAULT_ADMIN_ROLE(), address(this)));
 
-            A.superLedgerConfiguration = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A.superRegistry))));
+            A.superLedgerConfiguration =
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A.superRegistry))));
             vm.label(address(A.superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
-            contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A.superLedgerConfiguration);   
+            contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A.superLedgerConfiguration);
 
             A.superLedger = ISuperLedger(address(new SuperLedger(address(A.superLedgerConfiguration))));
             vm.label(address(A.superLedger), SUPER_LEDGER_KEY);
@@ -742,7 +743,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         /// @dev Optimism 4626vault addresses
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY] = CHAIN_10_AloeUSDC;
         vm.label(existingVaults[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY], ALOE_USDC_VAULT_KEY);
-        // existingVaults[10][1]["WETH"][0] = address(0);
 
         /// @dev Base 4626 vault addresses
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
@@ -867,7 +867,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
-            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
+                configs
+            );
             vm.stopPrank();
         }
     }
@@ -926,6 +928,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _processAcrossV3Message(
         uint64 srcChainId,
         uint64 dstChainId,
+        uint256 warpTimestamp,
         ExecutionReturnData memory executionData,
         RELAYER_TYPE relayerType,
         address account
@@ -943,6 +946,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
             SPOKE_POOL_V3_ADDRESSES[dstChainId],
             ACROSS_RELAYER,
+            warpTimestamp,
             FORKS[dstChainId],
             dstChainId,
             srcChainId,
@@ -1300,6 +1304,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         return abi.encodePacked(
             yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
         );
+    }
+
+    function _createPermitHookData(
+        address token,
+        address spender,
+        uint256 amount,
+        uint256 expiration,
+        uint256 sigDeadline,
+        uint256 nonce
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(token, uint160(amount), uint48(expiration), uint48(nonce), spender, sigDeadline);
     }
 
     function _create1InchGenericRouterSwapHookData(

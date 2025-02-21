@@ -3,13 +3,12 @@ pragma solidity =0.8.28;
 // external
 
 // superform
-import { AccountInstance } from "modulekit/ModuleKit.sol";
-import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
-import { SuperVaultTest } from "./SuperVault.t.sol";
+import { AccountInstance } from "modulekit/ModuleKit.sol";
+import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
-contract SuperVaultFulfillDepositRequestsTest is SuperVaultTest {
+contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
 
     AccountInstance[] accInstances;
     function setUp() public virtual override {

@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 import "../../../src/core/interfaces/ISuperRbac.sol";
 import { HooksRegistry } from "../../../src/core/hooks/HooksRegistry.sol";
+import { IHookRegistry } from "../../../src/core/interfaces/IHookRegistry.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
 import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 
@@ -33,7 +34,7 @@ contract HooksRegistryTest is BaseTest {
 
     function testRegisterHook_Fail_NotAuthorized() public {
         vm.prank(address(0x1));
-        vm.expectRevert(HooksRegistry.NOT_AUTHORIZED.selector);
+        vm.expectRevert(IHookRegistry.NOT_AUTHORIZED.selector);
         hooksRegistry.registerHook(testHook);
     }
 
@@ -45,7 +46,7 @@ contract HooksRegistryTest is BaseTest {
     }
 
     function testUnregisterHook_Fail_NotRegistered() public {
-        vm.expectRevert(HooksRegistry.HOOK_NOT_REGISTERED.selector);
+        vm.expectRevert(IHookRegistry.HOOK_NOT_REGISTERED.selector);
         hooksRegistry.unregisterHook(testHook);
     }
 
