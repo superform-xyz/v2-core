@@ -244,4 +244,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
+
+    // Helper function to generate unique nonces
+    function _generateUniqueNonce() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(block.timestamp, msg.sender, "AUTHORIZE_OPERATOR"));
+    }
 }
