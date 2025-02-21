@@ -178,7 +178,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         }
 
         // Should revert when trying to fulfill with insufficient allocation
-        vm.expectRevert(); // Add specific error if available
+        vm.expectRevert(); 
         _fulfillDepositForUsers(requestingUsers, invalidAmount, invalidAmount);
     }
 
@@ -208,6 +208,77 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
             assertGt(strategy.maxMint(accInstances[i].account), 0);
         }
     }
+
+
+    function test_RequestDeposit_MultipleUsers_SameTimestamp() public {
+        uint256 depositAmount = 1000e6;
+        
+        // Create deposit requests for all users at the same timestamp
+        uint256 timestamp = block.timestamp + 1 days;
+        vm.warp(timestamp);
+        
+        _requestDepositForAllUsers(depositAmount);
+        
+        // Verify all requests were created with same timestamp
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
+        }
+
+        // Fulfill all requests
+        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
+        uint256 allocationAmountVault1 = totalAmount / 2;
+        uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
+
+        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+    }
+
+    function test_RequestDeposit_MultipleUsers_DifferentTimestamps() public {
+        uint256 depositAmount = 1000e6;
+        
+        // Create deposit requests at different timestamps
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+            vm.warp(block.timestamp + 1 hours);
+            _getTokens(address(asset), accInstances[i].account, depositAmount);
+            _requestDepositForAccount(accInstances[i], depositAmount);
+        }
+
+        // Fulfill all requests
+        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
+        uint256 allocationAmountVault1 = totalAmount / 2;
+        uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
+
+        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+    }
+
+    function test_RequestDeposit_FullAllocationInOneVault() public {
+        uint256 depositAmount = 1000e6;
+        
+        // Create deposit requests for all users
+        _requestDepositForAllUsers(depositAmount);
+
+        // Try to fulfill all requests using only one vault
+        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
+        
+        // Should revert when trying to allocate everything to one vault
+        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
+        _fulfillDepositForUsers(requestingUsers, totalAmount, 0);
+    }
+
 
     function _requestDepositForAllUsers(uint256 depositAmount) internal {
          for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {

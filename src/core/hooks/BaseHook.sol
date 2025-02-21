@@ -52,6 +52,15 @@ abstract contract BaseHook is SuperRegistryImplementer {
         return value != 0;
     }
 
+    function _replaceCalldataAmount(bytes memory data, uint256 amount, uint256 offset) internal pure returns (bytes memory) {
+        bytes memory newAmountEncoded = abi.encodePacked(amount);
+        for (uint256 i; i < 32;) {
+            data[offset + i] = newAmountEncoded[i];
+            unchecked { ++i; }
+        }
+        return data;
+    }   
+
     function _getAddress(bytes32 id_) internal view returns (address) {
         return superRegistry.getAddress(id_);
     }
