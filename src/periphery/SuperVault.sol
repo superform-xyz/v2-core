@@ -326,6 +326,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC7741
     function invalidateNonce(bytes32 nonce) external {
+        if (nonce == bytes32(0)) revert INVALID_NONCE();
         _authorizations[msg.sender][nonce] = true;
     }
 
@@ -403,6 +404,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC7540Deposit
     function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(controller);
 
         uint256 averageDepositPrice = strategy.getAverageDepositPrice(controller);
@@ -426,11 +428,13 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         shares = deposit(assets, receiver, msg.sender);
     }
 
     /// @inheritdoc IERC7540Deposit
     function mint(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(controller);
 
         uint256 maxMintAmount = maxMint(controller);
@@ -456,6 +460,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256 shares) {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
         uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
@@ -480,6 +485,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
         uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
