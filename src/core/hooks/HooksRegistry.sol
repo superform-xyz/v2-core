@@ -12,9 +12,9 @@ contract HooksRegistry is SuperRegistryImplementer, IHookRegistry {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) public isHookRegistered;
-    address[] public registeredHooks;
+    address[] private registeredHooks;
 
-    constructor(address registry_) SuperRegistryImplementer(registry_) {}
+    constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     modifier onlyHooksManager() {
         ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
@@ -48,4 +48,3 @@ contract HooksRegistry is SuperRegistryImplementer, IHookRegistry {
         return registeredHooks;
     }
 }
-

@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol"; 
+import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 
 // Superform
 import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
@@ -11,15 +11,11 @@ contract SuperRbac is AccessControlEnumerable, ISuperRbac {
     /*//////////////////////////////////////////////////////////////
                                  ROLES
     //////////////////////////////////////////////////////////////*/
-    // roles
-    /**
-     *     BRIDGE_GATEWAY - can execute calls on SuperGatewayExecutor
-     */
 
     constructor(address owner) {
         if (owner == address(0)) revert INVALID_ACCOUNT();
         _grantRole(DEFAULT_ADMIN_ROLE, owner);
-     }
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
