@@ -9,11 +9,17 @@ import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
 // superform
+import { ISuperVault } from "src/periphery/interfaces/ISuperVault.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 
 contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
+    address operator = address(0x123);
+    uint256 constant userPrivateKey = 0xA11CE; // Replace with a known good testing private key
+    address userAddress; // Will be derived from private key
+
     function setUp() public override(BaseTest, BaseSuperVaultTest) {
         super.setUp();
+        userAddress = vm.addr(userPrivateKey); // Derive the correct address from private key
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,6 +138,219 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
             asset.balanceOf(accountEth), initialAssetBalance + claimableAssets, 0.05e18, "Wrong final asset balance"
         );
         assertEq(strategy.maxWithdraw(accountEth), 0, "Assets not claimed");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      OPERATOR AUTHORIZATION TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_AuthorizeOperator() public {
+        // Create signature components
+        bool approved = true;
+        bytes32 nonce = keccak256("test_nonce");
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // Generate signature
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                vault.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(vault.AUTHORIZE_OPERATOR_TYPEHASH(), userAddress, operator, approved, nonce, deadline)
+                )
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Debug logs
+        console2.log("User Address:", userAddress);
+        console2.log("Operator:", operator);
+        console2.log("Digest:", uint256(digest));
+
+        vm.prank(operator);
+        bool success = vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
+
+        assertTrue(success, "Authorization failed");
+        assertTrue(vault.isOperator(userAddress, operator), "Operator not authorized");
+        assertTrue(vault.authorizations(userAddress, nonce), "Nonce not marked as used");
+    }
+
+    function test_RevertWhen_AuthorizingOperatorWithExpiredDeadline() public {
+        bool approved = true;
+        bytes32 nonce = keccak256("test_nonce");
+        uint256 deadline = block.timestamp - 1; // Expired deadline
+
+        // Generate signature
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                vault.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(vault.AUTHORIZE_OPERATOR_TYPEHASH(), userAddress, operator, approved, nonce, deadline)
+                )
+            )
+        );
+
+        // User signs the message
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Operator tries to use expired signature
+        vm.prank(operator);
+        vm.expectRevert(ISuperVault.TIMELOCK_NOT_EXPIRED.selector);
+        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
+    }
+
+    function test_RevertWhen_AuthorizingOperatorWithUsedNonce() public {
+        bool approved = true;
+        bytes32 nonce = keccak256("test_nonce");
+        uint256 deadline = block.timestamp + 1 hours;
+
+        bytes32 domainSeparator = vault.DOMAIN_SEPARATOR();
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                keccak256(
+                    abi.encode(vault.AUTHORIZE_OPERATOR_TYPEHASH(), userAddress, operator, approved, nonce, deadline)
+                )
+            )
+        );
+        vm.startPrank(userAddress);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // First authorization
+        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
+
+        // Try to use same nonce again
+        vm.expectRevert(ISuperVault.UNAUTHORIZED.selector);
+        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
+
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_AuthorizingOperatorWithInvalidSignature() public {
+        bool approved = true;
+        bytes32 nonce = keccak256("test_nonce");
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // Generate signature with wrong private key
+        bytes32 domainSeparator = vault.DOMAIN_SEPARATOR();
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                keccak256(
+                    abi.encode(vault.AUTHORIZE_OPERATOR_TYPEHASH(), userAddress, operator, approved, nonce, deadline)
+                )
+            )
+        );
+        uint256 wrongPrivateKey = 0x789; // Different private key
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.prank(operator);
+        vm.expectRevert(ISuperVault.INVALID_SIGNATURE.selector);
+        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
+    }
+
+    function test_RevertWhen_OperatorAuthorizingSelf() public {
+        bool approved = true;
+        bytes32 nonce = keccak256("test_nonce");
+        uint256 deadline = block.timestamp + 1 hours;
+
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                vault.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(vault.AUTHORIZE_OPERATOR_TYPEHASH(), operator, operator, approved, nonce, deadline)
+                )
+            )
+        );
+
+        // Generate signature
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Operator tries to authorize themselves
+        vm.prank(operator);
+        vm.expectRevert(ISuperVault.UNAUTHORIZED.selector);
+        vault.authorizeOperator(operator, operator, approved, nonce, deadline, signature);
+    }
+
+    function test_RevertWhen_AuthorizingOperatorWithDifferentChainId() public {
+        bool approved = true;
+        bytes32 nonce = keccak256("test_nonce");
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // Change chain ID
+        uint256 originalChainId = block.chainid;
+        vm.chainId(originalChainId + 1);
+
+        // Generate signature with original chain ID
+        bytes32 domainSeparator = vault.DOMAIN_SEPARATOR();
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                keccak256(
+                    abi.encode(vault.AUTHORIZE_OPERATOR_TYPEHASH(), operator, operator, approved, nonce, deadline)
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.prank(operator);
+        vm.expectRevert(ISuperVault.INVALID_SIGNATURE.selector);
+        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
+
+        // Reset chain ID
+        vm.chainId(originalChainId);
+    }
+
+    function test_InvalidateNonce() public {
+        bytes32 nonce = keccak256("test_nonce");
+
+        // Invalidate nonce
+        vm.prank(userAddress);
+        vault.invalidateNonce(nonce);
+
+        // Try to use invalidated nonce
+        bool approved = true;
+        uint256 deadline = block.timestamp + 1 hours;
+
+        bytes32 domainSeparator = vault.DOMAIN_SEPARATOR();
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                keccak256(
+                    abi.encode(vault.AUTHORIZE_OPERATOR_TYPEHASH(), userAddress, operator, approved, nonce, deadline)
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.prank(operator);
+        vm.expectRevert(ISuperVault.UNAUTHORIZED.selector);
+        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
+    }
+
+    function test_UniqueNonceGeneration() public {
+        // Generate unique nonces using timestamp and counter
+        bytes32 nonce1 = _generateUniqueNonce();
+
+        vm.warp(block.timestamp + 1);
+        bytes32 nonce2 = _generateUniqueNonce();
+
+        // Verify nonces are different
+        assertTrue(nonce1 != nonce2, "Nonces should be unique");
     }
 
     // TODO: Add remaining tests following test-plan.md
