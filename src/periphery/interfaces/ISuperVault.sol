@@ -21,6 +21,7 @@ interface ISuperVault {
     error TIMELOCK_NOT_EXPIRED();
     error INVALID_SIGNATURE();
     error NOT_IMPLEMENTED();
+    error INVALID_NONCE();
     error INVALID_DEPOSIT_CLAIM();
     error INVALID_CONTROLLER();
     error INVALID_DEPOSIT_PRICE();
