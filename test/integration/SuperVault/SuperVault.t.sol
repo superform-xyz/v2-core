@@ -15,6 +15,8 @@ import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVau
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
+import "forge-std/console2.sol";
+
 contract SuperVaultTest is MerkleReader {
     address public accountEth;
     AccountInstance public instanceOnEth;
@@ -43,7 +45,7 @@ contract SuperVaultTest is MerkleReader {
     uint256 constant MAX_ALLOCATION_RATE = 5000; // 50%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
 
-    function setUp() public override {
+    function setUp() public override virtual {
         super.setUp();
 
         vm.selectFork(FORKS[ETH]);
@@ -106,12 +108,10 @@ contract SuperVaultTest is MerkleReader {
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
-
-    /*//////////////////////////////////////////////////////////////
-                        INTERNAL HELPER FUNCTIONS
+     /*//////////////////////////////////////////////////////////////
+                        PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    function _requestDeposit(uint256 depositAmount) internal {
+    function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) private {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -119,16 +119,57 @@ contract SuperVaultTest is MerkleReader {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, depositAmount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
     }
 
-    function _fulfillDeposit(uint256 depositAmount) internal {
+    function __claimDeposit(AccountInstance memory accInst, uint256 depositAmount) private {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createDeposit7540VaultHookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, depositAmount, false, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
+    }
+    
+    function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares) private {
+        address[] memory redeemHooksAddresses = new address[](1);
+        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, redeemShares, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory redeemEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
+        UserOpData memory redeemUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(redeemEntry));
+        executeOp(redeemUserOpData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function _requestDeposit(uint256 depositAmount) internal {
+        __requestDeposit(instanceOnEth, depositAmount);
+    }
+
+    function _requestDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
+        __requestDeposit(accInst, depositAmount);
+    }
+
+    function _fulfillDeposit(uint256 depositAmount) internal virtual {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -156,33 +197,18 @@ contract SuperVaultTest is MerkleReader {
     }
 
     function _claimDeposit(uint256 depositAmount) internal {
-        address[] memory claimHooksAddresses = new address[](1);
-        claimHooksAddresses[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
-
-        bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, depositAmount, false, false
-        );
-
-        ISuperExecutor.ExecutorEntry memory claimEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
-        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
-        executeOp(claimUserOpData);
+        __claimDeposit(instanceOnEth, depositAmount);
+    }
+    function _claimDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
+        __claimDeposit(accInst, depositAmount);
     }
 
     function _requestRedeem(uint256 redeemShares) internal {
-        address[] memory redeemHooksAddresses = new address[](1);
-        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+        __requestRedeem(instanceOnEth, redeemShares);
+    }
 
-        bytes[] memory redeemHooksData = new bytes[](1);
-        redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, redeemShares, false
-        );
-
-        ISuperExecutor.ExecutorEntry memory redeemEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
-        UserOpData memory redeemUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(redeemEntry));
-        executeOp(redeemUserOpData);
+    function _requestRedeemForAccount(AccountInstance memory accInst, uint256 redeemShares) internal {
+        __requestRedeem(accInst, redeemShares);
     }
 
     function _fulfillRedeem(uint256 redeemShares) internal {
