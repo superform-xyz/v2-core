@@ -20,11 +20,11 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         return IERC20Metadata(share).decimals();
     }
 
-    function getShareOutput(address yieldSourceAddress, uint256 assetsIn) external view override returns (uint256) {
+    function getShareOutput(address yieldSourceAddress, address, uint256 assetsIn) external view override returns (uint256) {
         return IERC7540(yieldSourceAddress).convertToShares(assetsIn);  
     }
 
-    function getAssetOutput(address yieldSourceAddress, uint256 sharesIn) external view override returns (uint256) {
+    function getAssetOutput(address yieldSourceAddress, address, uint256 sharesIn) external view override returns (uint256) {
         return IERC7540(yieldSourceAddress).convertToAssets(sharesIn);
     }
     
