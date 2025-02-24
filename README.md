@@ -369,8 +369,8 @@ To ensure transparency and facilitate the audit process, the following points ou
 cases: In an effort to preemptively address concerns that auditors might raise, we outline the following known edge
 cases and limitations:
 
-SuperBundler Centralization: Risk: Since SuperBundler manages both the bundling and validation of userOps, it can be
-seen as a centralized component. Mitigation:
+1. SuperBundler Centralization: Risk: Since SuperBundler manages both the bundling and validation of userOps, it can be
+   seen as a centralized component. Mitigation:
 
 - The design incorporates fallback paths if operations are submitted outside of SuperBundler.
 - We maintain transparency about this design trade-off and monitor usage patterns closely. Execution Outside
@@ -381,3 +381,11 @@ seen as a centralized component. Mitigation:
 - Misordering or misconfiguration of hooks can lead to unintended state changes. Mitigation:
 - The SuperExecutor's design ensures that hooks update and pass transient data in a controlled manner, with reversion on
   error to preserve state integrity.
+
+2. SuperLedger Accounting: In edge cases where price-per-share fluctuates rapidly, could users be locked into a
+   position?
+3. SuperVault withdrawals: Small rounding errors in fee calculations could be exploited over time?
+4. SuperExecutor module: Users could execute hooks by their own, without go through the SuperBundler. This could lead to
+   an avoidance of the validator module. However, this would affect only the user and not the protocol as each action is
+   executed in the context of the user's account. For extra safety, should we deny `target` as SuperExecutor for each
+   hook?
