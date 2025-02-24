@@ -1285,8 +1285,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
         // convert amount to underlying vault shares
-        target = HookDataDecoder.extractYieldSource(hookCalldata);
-        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[target].oracle).getShareOutput(target, address(_asset), amount);
+        address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(yieldSource, address(_asset), amount);
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
 
         // Execute hook with vault token approval
