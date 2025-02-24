@@ -1,7 +1,7 @@
 # Superform v2-Contracts
 
 This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and
-risks in v2-contracts. It is intended to help researchers understand the code and assess our design choices.
+risks in Superform's v2-contracts.
 
 ## Overview
 
@@ -125,11 +125,11 @@ Key Points for Auditors:
   transient storage to maintain state between hook invocations.
 - Known Considerations:
   - Complex interdependencies may arise if hooks are misconfigured.
-  - Failure handling is strict (reverting on hook failure), which can both protect and potentially limit flexibility.
+  - Failure handling is strict (reverting the entire operation on a specific hook failure).
   - All hooks are executed within the smart account context. This is why many typical checks such as in superform v1 can
     be removed, because the assumption is that the user will agree to the ordering and the type of hooks provided and
     this choice will solely affect his account and not the entire system, such as in superform v1.
-  - We have a HooksRegistry which essentially tells if a Hook is a considered a core hook or not (valid for SuperVaults
+  - There is a HooksRegistry which essentially tells if a Hook is a considered a core hook or not (valid for SuperVaults
     execution). However anyone can create a hook including a malicious one. Users select which hooks to use, but
     ultimately it is up to the SuperBundler to provide the correct suggestions for users in the majority of the cases.
     More considerations on this in the SuperBundler section.
@@ -183,6 +183,9 @@ Key Points for Auditors:
   - It is also important to assess if a user can ever be denied of exiting a position (due to a revert) in a certain
     state due to influences on the price per share accounting and the SuperLedger used for that yield source.
 
+Note: the user can specify which yieldSourceOracleId to use. SuperBundler will enforce the ones it wants Superform app users
+to use, but otherwise it won't be enforced.
+
 #### SuperOracle
 
 Definition & Role: SuperOracle is a specialized on-chain oracle system that provides USD price information for various
@@ -195,7 +198,7 @@ Key Points for Auditors:
 - Callees can provide provider 0 to get the average of all providers
 - Important for the get functions of YieldSourceOracles that translate metadata, such as PPS and TVL, to USD terms. Can
   be used on-chain in future contracts.
-- Risk Considerations:
+- Risk Considerations (typical oracle risks):
   - Oracle manipulation risks must be considered
   - Price staleness checks should be implemented
   - Failure modes should gracefully handle oracle unavailability
@@ -207,15 +210,15 @@ execution on destination chains.
 
 Key Points for Auditors:
 
-- Message Handling:
+- Relayed message handling:
   - Both bridges expect the full intent amount to be available to continue execution on destinaton
-  - Last-arrival-wins mechanism: the last bridge message to arrive continues the operation
+  - The last relay to happen continues the operation
 - Known and accepted cases:
-  - Failure of some messages with funds being relayed:
-    - It is entirely possible for a message to fail to be relayed with funds or that a user needs to cancel, due to a
-      lack of a fill by a solver. In this case, the funds remain on source. Any funds that were relayed successfully
-      will remain on destination and won't be bridged back. The assumption is we are operating under the chain
-      abstracted/one balance paradigm, so it doesn't matter where the funds land for the user
+  - Failure of a relay:
+    - It is entirely possible for a relay to fail due to a lack of a fill by a solver. In these types of cases, the
+      funds remain on source. Any funds that were relayed successfully will remain on destination and won't be bridged
+      back. The assumption for the operation mode is chain abstraction/one balance, so it shouldn't matter for the user
+      where the funds land.
   - Slippage loss due to bridging:
     - The user accepts the conditions the solver providers to execute the operations. All subsequent operations on
       destination are dependent on the actual value provided by the relayer. It is accepted that if the valued filled is
@@ -260,7 +263,7 @@ Key Points for Auditors:
   - Proof verification robustness
   - Replay attack prevention
 
-#### RBAC and Contracts Registry
+#### SuperRegistry
 
 SuperRegistry Definition & Role: The SuperRegistry centralizes the management of contract addresses. By using unique
 identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol. Also provides role-based access control for the protocol. It defines
@@ -367,23 +370,39 @@ To ensure transparency and facilitate the audit process, the following points ou
 cases: In an effort to preemptively address concerns that auditors might raise, we outline the following known edge
 cases and limitations:
 
-1. SuperBundler Centralization: Risk: Since SuperBundler manages both the bundling and validation of userOps, it can be
-   seen as a centralized component. Mitigation:
+SuperBundler Centralization: 
+- Risk:
+  - Since SuperBundler manages both the bundling and validation of userOps, it can be seen as a centralized component. 
+- Mitigation:
+  - The design incorporates fallback paths if operations are submitted outside of SuperBundler.
+  - We maintain transparency about this design trade-off and monitor usage patterns closely. 
 
-- The design incorporates fallback paths if operations are submitted outside of SuperBundler.
-- We maintain transparency about this design trade-off and monitor usage patterns closely. Execution Outside
-  SuperBundler: Risk: If userOps are executed directly (not via SuperBundler), certain optimizations and checks might be
-  bypassed. Mitigation:
-- Our modules are designed to handle direct execution gracefully, but users and integrators are advised to follow best
-  practices outlined in the documentation. Inter-Hook Dependencies: Risk:
-- Misordering or misconfiguration of hooks can lead to unintended state changes. Mitigation:
-- The SuperExecutor's design ensures that hooks update and pass transient data in a controlled manner, with reversion on
+Execution Outside SuperBundler: 
+- Risk:
+  - If userOps are executed directly (not via SuperBundler), certain optimizations and checks might be
+    bypassed. 
+- Mitigation:
+  - Our modules are designed to handle direct execution gracefully, but users and integrators are advised to follow best
+    practices outlined in the documentation and interact via Superform app.
+
+Inter-Hook Dependencies: 
+- Risk:
+  - Misordering or misconfiguration of hooks can lead to unintended state changes. 
+- Mitigation:
+  - The SuperExecutor's design ensures that hooks update and pass transient data in a controlled manner, with reversion on
   error to preserve state integrity.
 
-2. SuperLedger Accounting: In edge cases where price-per-share fluctuates rapidly, could users be locked into a
-   position?
-3. SuperVault withdrawals: Small rounding errors in fee calculations could be exploited over time?
-4. SuperExecutor module: Users could execute hooks by their own, without go through the SuperBundler. This could lead to
-   an avoidance of the validator module. However, this would affect only the user and not the protocol as each action is
-   executed in the context of the user's account. For extra safety, should we deny `target` as SuperExecutor for each
-   hook?
+SuperLedger Accounting: 
+- Risk:
+  - Any edge cases where users could be locked into a position?
+  - Small rounding errors in fee calculations could be exploited over time to reduce fee paid?
+- Mitigation:
+  - Regarding fee loss, a small loss due to rounding is accepted.
+  - Regarding being locked into a position, in serious problems with the core each yieldSourceOracle configured in SuperLedgerConfiguration can be set with a feePercent of 0 to allow users to skip the accounting calculation on exit. Aditionally, the yieldSourceOracleId can be configured to use a new ledger
+  contract.
+
+SuperExecutor module: 
+- Risk:
+  - Users could execute hooks by their own, without go through the SuperBundler. This could lead to an avoidance of the validator module. However, this would affect only the user and not the protocol as each action is executed in the context of the user's account. 
+- Mitigation:
+  - For extra safety, should we deny `target` as SuperExecutor for each hook?
