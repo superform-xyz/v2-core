@@ -50,6 +50,7 @@ interface ISuperVaultStrategy {
     error INVALID_BALANCE_CHANGE();
     error REWARDS_DISTRIBUTOR_NOT_SET();
     error INVALID_SUPER_REGISTRY();
+    error INSUFFICIENT_ASSETS();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
