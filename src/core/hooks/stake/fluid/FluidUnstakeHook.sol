@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -20,7 +20,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         bool lockForSP = _decodeBool(data, 57);
-contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -78,6 +78,11 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

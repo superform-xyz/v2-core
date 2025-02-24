@@ -199,6 +199,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     mapping(uint64 chainId => mapping(string name => Hook hookInstance)) public hooks;
 
     mapping(uint64 chainId => AccountInstance accountInstance) public accountInstances;
+    mapping(uint64 chainId => AccountInstance[] randomAccountInstances) public randomAccountInstances;
 
     mapping(uint64 chainId => address odosRouter) public odosRouters;
 
@@ -230,7 +231,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _deployHooks();
 
         // Initialize accounts
-        _initializeAccounts();
+        _initializeAccounts(RANDOM_ACCOUNT_COUNT);
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
@@ -250,6 +251,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _makeAccount(uint64 chainId, bytes32 accountName) internal returns (AccountInstance memory) {
+        AccountInstance memory _accInstance = makeAccountInstance(accountName);
+        _accInstance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: _getContract(chainId, SUPER_EXECUTOR_KEY),
+            data: ""
+        });
+        vm.label(_accInstance.account, "RandomAccount");
+        return _accInstance;
+    }
 
     function _getContract(uint64 chainId, string memory contractName) internal view returns (address) {
         return contractAddresses[chainId][contractName];
@@ -357,7 +369,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _deployHooks() internal {
-        console.log("---------------- DEPLOYING HOOKS ----------------");
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
@@ -413,7 +424,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY]
             );
-            console.log("deposit4626VaultHook deployed", address(Addr.deposit4626VaultHook));
+            
             Addr.withdraw4626VaultHook =
                 new Withdraw4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw4626VaultHook), WITHDRAW_4626_VAULT_HOOK_KEY);
@@ -428,7 +439,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY]
             );
-            console.log("withdraw4626VaultHook deployed", address(Addr.withdraw4626VaultHook));
 
             Addr.deposit5115VaultHook =
                 new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -444,7 +454,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
             );
-            console.log("deposit5115VaultHook deployed", address(Addr.deposit5115VaultHook));
+            
             Addr.withdraw5115VaultHook =
                 new Withdraw5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw5115VaultHook), WITHDRAW_5115_VAULT_HOOK_KEY);
@@ -459,7 +469,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY]
             );
-            console.log("withdraw5115VaultHook deployed", address(Addr.withdraw5115VaultHook));
+            
             Addr.requestDeposit7540VaultHook =
                 new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -474,7 +484,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
             );
-            console.log("requestDeposit7540VaultHook deployed", address(Addr.requestDeposit7540VaultHook));
 
             Addr.requestWithdraw7540VaultHook =
                 new RequestWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -491,17 +500,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY]
             );
-            console.log("requestWithdraw7540VaultHook deployed", address(Addr.requestWithdraw7540VaultHook));
+            
             Addr.deposit7575_7540VaultHook =
                 new Deposit7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.deposit7575_7540VaultHook), DEPOSIT_7575_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_7575_7540_VAULT_HOOK_KEY] = address(Addr.deposit7575_7540VaultHook);
-            console.log("deposit7575_7540VaultHook deployed", address(Addr.deposit7575_7540VaultHook));
+
             Addr.withdraw7575_7540VaultHook =
                 new Withdraw7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw7575_7540VaultHook), WITHDRAW_7575_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
-            console.log("withdraw7575_7540VaultHook deployed", address(Addr.withdraw7575_7540VaultHook));
+            
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
@@ -627,10 +636,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         }
     }
 
-    function _initializeAccounts() internal {
+    function _initializeAccounts(uint256 count) internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
+            // create Superform account
             string memory accountName = "SuperformAccount";
             AccountInstance memory instance = makeAccountInstance(keccak256(abi.encode(accountName)));
             accountInstances[chainIds[i]] = instance;
@@ -640,6 +650,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 data: ""
             });
             vm.label(instance.account, accountName);
+
+            // create random accounts to be used as users
+            for (uint256 j; j < count; ++j) {
+                AccountInstance memory _instance = makeAccountInstance(keccak256(abi.encode(block.timestamp, j)));
+                randomAccountInstances[chainIds[i]].push(_instance);
+                _instance.installModule({
+                    moduleTypeId: MODULE_TYPE_EXECUTOR,
+                    module: _getContract(chainIds[i], "SuperExecutor"),
+                    data: ""
+                });
+                vm.label(_instance.account, "RandomAccount");
+            }
         }
     }
 

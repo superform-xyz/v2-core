@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -10,7 +12,7 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // Core Interfaces
-import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow } from "../core/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow, ISuperHookOutflow } from "../core/interfaces/ISuperHook.sol";
 import { SuperRegistryImplementer } from "../core/utils/SuperRegistryImplementer.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -18,6 +20,9 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { ISuperRegistry } from "../core/interfaces/ISuperRegistry.sol";
+
+import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
+
 
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -156,7 +161,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address[] calldata users,
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+        bytes[] memory hookCalldata
     )
         external
     {
@@ -999,6 +1004,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (assets == 0) revert ZERO_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
+        console2.log("state.maxWithdraw", state.maxWithdraw);
+        console2.log("assets", assets);
+        console2.log("state.averageWithdrawPrice", state.averageWithdrawPrice);
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
 
         // Update state
@@ -1070,7 +1078,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _executeHook(
         address hook,
         address prevHook,
-        bytes calldata hookCalldata,
+        bytes memory hookCalldata,
         bytes32[] calldata hookProof,
         ISuperHook.HookType expectedHookType,
         bool validateYieldSource,
@@ -1160,7 +1168,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _processHooks(
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
+        bytes[] memory hookCalldata,
         FulfillmentVars memory vars,
         bool isDeposit
     )
@@ -1224,7 +1232,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _processInflowHookExecution(
         address hook,
         address prevHook,
-        bytes calldata hookCalldata,
+        bytes memory hookCalldata,
         bytes32[] calldata hookProof
     )
         internal
@@ -1274,7 +1282,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
-        bytes calldata hookCalldata,
+        bytes memory hookCalldata,
         bytes32[] calldata hookProof
     )
         internal
@@ -1282,6 +1290,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         // Get amount before execution
         amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
+
+        // convert amount to underlyuing vault shares
+        target = HookDataDecoder.extractYieldSource(hookCalldata);
+        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[target].oracle).getShareOutput(target, IERC4626(_vault).convertToAssets(amount));
+        hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
 
         // Execute hook with vault token approval
         target = _executeHook(

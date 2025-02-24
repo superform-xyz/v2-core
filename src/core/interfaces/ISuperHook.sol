@@ -25,10 +25,20 @@ interface ISuperHookInflowOutflow {
     function decodeAmount(bytes memory data) external pure returns (uint256);
 }
 
+interface ISuperHookOutflow {
+    /// @notice Replace the amount in the calldata
+    /// @param data The data to replace the amount in
+    /// @param amount The amount to replace
+    /// @return data The data with the replaced amount
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory);
+}
+
 interface ISuperHookResultOutflow is ISuperHookResult {
     /// @notice The amount of shares processed by the hook
     function usedShares() external view returns (uint256);
 }
+
+
 
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////

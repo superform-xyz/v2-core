@@ -11,6 +11,7 @@ import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/acc
 import { ISuperRbac } from "../../../src/core/interfaces/ISuperRbac.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
+import { ISuperHookOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
 
 import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
@@ -21,11 +22,13 @@ import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.s
 import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
 import "forge-std/console.sol";
 import {Vm} from "forge-std/Test.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest {
+    using BytesLib for bytes;
     using AddressLib for Address;
 
     IERC4626 public vaultInstance;
@@ -79,6 +82,18 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
         assertEq(accSharesAfter, sharesPreviewed);
+    }
+
+    function test_ReplaceCalldataAmount() public view {
+        uint256 amount = LARGE;
+        bytes memory hookData = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, SMALL, false, false
+        );
+
+        address hook = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        bytes memory replacedData = ISuperHookOutflow(hook).replaceCalldataAmount(hookData, amount);
+        uint256 finalAmount = BytesLib.toUint256(BytesLib.slice(replacedData, 44, 32), 0);
+        assertEq(finalAmount, amount);
     }
 
     function test_WhenHooksAreDefinedAndExecutionDataIsValid_Deposit_And_Withdraw_In_The_Same_Intent(uint256 amount)

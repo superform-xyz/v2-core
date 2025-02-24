@@ -6,7 +6,6 @@ import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadat
 import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
-import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 
 /// @title ERC7540YieldSourceOracle
@@ -21,6 +20,14 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         return IERC20Metadata(share).decimals();
     }
 
+    function getShareOutput(address yieldSourceAddress, uint256 assetsIn) external view override returns (uint256) {
+        return IERC7540(yieldSourceAddress).convertToShares(assetsIn);  
+    }
+
+    function getAssetOutput(address yieldSourceAddress, uint256 sharesIn) external view override returns (uint256) {
+        return IERC7540(yieldSourceAddress).convertToAssets(sharesIn);
+    }
+    
     /// @inheritdoc AbstractYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
         address share = IERC7540(yieldSourceAddress).share();

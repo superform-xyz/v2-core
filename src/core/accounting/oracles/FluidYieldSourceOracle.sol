@@ -27,6 +27,16 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
+    function getShareOutput(address, uint256 assetsIn) external pure override returns (uint256) {
+        return assetsIn;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getAssetOutput(address, uint256 sharesIn) external pure override returns (uint256) {
+        return sharesIn;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares

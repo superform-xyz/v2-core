@@ -11,7 +11,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -24,7 +24,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract Withdraw7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract Withdraw7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -90,6 +90,11 @@ contract Withdraw7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////
