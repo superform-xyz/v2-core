@@ -19,15 +19,14 @@ At a high level, Superform v2 is organized into two major parts:
 
 - Hooks: Lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an
   execution flow.
-- SuperExecutor: A central contract responsible for processing userOps. It sequentially executes one or more hooks
-  contained in a userOp, manages transient state storage for intermediate state, and interacts with the SuperLedger for
-  accounting.
+- SuperExecutor: Sequentially executes one or more hooks, manages transient state storage for intermediate state, and
+  interacts with the SuperLedger for accounting.
 - SuperLedger: Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW hooks. These fees are taken by
   Superform.
 - RBAC & SuperRegistry: Provide robust role-based access control and centralized address management for configuration
   and upgradeability.
 - SuperBundler: A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It also integrates with
-  a validation system (SuperValidator) to ensure secure operation.
+  a validation system (SuperMerkleValidator) to ensure secure operation.
 - SuperVault: A ERC7540 compliant vault capable of allocating an asset to various yield sources using hooks and allowing
   strategists to optimize the performance of the vault.
 
@@ -327,6 +326,8 @@ Key Points for Auditors:
   - Fee calculation accuracy
   - Rebalance accuracy
   - Guardrails to protect users/strategists against bad underlying vaults. Are they enough?
+  - Unique logic around matchRequests functionality, which will have high importance to reduce gas costs to fulfill requests in Coindidence of Wants format.
+  - Ensure all the above is secure in light of the existence of the escrow contract
 
 Factory Implementation:
 
@@ -358,7 +359,7 @@ Smart accounts that interact with Superform must install two essential ERC7579 m
 
 - SuperExecutor:
   - Installs hooks and executes operations.
-- SuperValidator:
+- SuperMerkleValidator:
   - Validates userOps against a Merkle root.
 - Additional Modules:
   - Rhinestone Resource Lock Module: Used for cross-chain resource locking.
@@ -374,8 +375,9 @@ SuperBundler Centralization:
 - Risk:
   - Since SuperBundler manages both the bundling and validation of userOps, it can be seen as a centralized component. 
 - Mitigation:
-  - The design incorporates fallback paths if operations are submitted outside of SuperBundler.
-  - We maintain transparency about this design trade-off and monitor usage patterns closely. 
+  - The v2-contracts design incorporates fallback paths if operations are submitted outside of SuperBundler.
+  - All SuperBundler can do is execute indicated user operations, no possibilities of malicious injection. Will be submitted
+  to a separate audit.
 
 Execution Outside SuperBundler: 
 - Risk:
