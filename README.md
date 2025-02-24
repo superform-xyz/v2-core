@@ -262,16 +262,14 @@ Key Points for Auditors:
 
 #### RBAC and Contracts Registry
 
-SuperRBAC Definition & Role: The SuperRBAC contract provides role-based access control for the protocol. It defines
+SuperRegistry Definition & Role: The SuperRegistry centralizes the management of contract addresses. By using unique
+identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol. Also provides role-based access control for the protocol. It defines
 roles (as bytes32 identifiers) for various operational functions such as configuration, execution, and system
 monitoring.
 
 Key Roles:
 
-- HOOKS_MANAGER: Can add / remove hooks from the HooksRegistry
-
-SuperRegistry Definition & Role: The SuperRegistry centralizes the management of contract addresses. By using unique
-identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol.
+- HOOKS_MANAGER: Can add / remove hooks from the HooksRegistry and add / remove router for 1inch and Odos hooks
 
 Key Points for Auditors:
 
