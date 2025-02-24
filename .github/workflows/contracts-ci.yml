@@ -23,7 +23,7 @@ on:
   push:
     branches:
       - dev
-      - 'feat/**'
+      - "feat/**"
 
 jobs:
   build:
@@ -57,7 +57,7 @@ jobs:
         run: pnpm install
 
       - name: "Build the contracts and print their size"
-        run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
+        run: "FOUNDRY_PROFILE=ci-sizes forge build"
 
       - name: "Add build summary"
         run: |
@@ -111,7 +111,9 @@ jobs:
 
   vnet-deploy:
     needs: ["test"]
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/') || contains(github.ref, '-test-'))
+    if:
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/dev' ||
+      startsWith(github.ref, 'refs/heads/feat/') || contains(github.ref, '-test-'))
     runs-on: "SuperformCore3"
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
@@ -119,7 +121,7 @@ jobs:
       optimism_mainnet_addresses: ${{ steps.get-addresses-optimism.outputs.addresses }}
     steps:
       # -------------------------------------------------------------------
-      # Block for OIDC 
+      # Block for OIDC
       # -------------------------------------------------------------------
       - name: Mask Secrets
         run: |
