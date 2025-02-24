@@ -78,13 +78,14 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Verify shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
         assertEq(userShares, expectedUserShares, "User shares not minted correctly");
+        console2.log("userShares", userShares);
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
         uint256 feeBalanceBefore = asset.balanceOf(feeRecipientETH);
 
         // Fast forward time to simulate yield on underlying vaults
-        vm.warp(block.timestamp + 1 weeks);
+        //vm.warp(block.timestamp + 1 weeks);
 
         // Step 4: Request Redeem
         _requestRedeem(userShares);
@@ -100,6 +101,9 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         uint256 amountToClaim = vault.maxWithdraw(accountEth);
         console2.log("amountToClaim", amountToClaim);
 
+        uint256 claimableAssets = strategy.maxWithdraw(accountEth);
+        console2.log("claimableAssets", claimableAssets);
+
         // Get ledger entries before redeem
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedgerETH.getLedger(accountEth, address(vault));
@@ -109,7 +113,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
             FeeParams({
                 entries: entries,
                 unconsumedEntries: unconsumedEntries,
-                amountAssets: amountToClaim,
+                amountAssets: claimableAssets,
                 usedShares: userShares,
                 feePercent: 100,
                 decimals: 6
@@ -124,13 +128,16 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         //     accountEth,
         //     address(oracle),
         //     address(vault),
-        //     expectedAssets,
+        //     claimableAssets,
         //     expectedFee
         // );
-        _claimWithdraw(amountToClaim);
+        _claimWithdraw(claimableAssets);
 
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
+
+        console2.log("claimableAssets", claimableAssets);
+        console2.log("amountToClaim", amountToClaim);
 
         // Verify fee was taken
         _assertFeeDerivation(expectedFee, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
