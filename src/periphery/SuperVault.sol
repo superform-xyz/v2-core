@@ -184,6 +184,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (shares == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
+
         if (balanceOf(owner) < shares) revert INVALID_AMOUNT();
 
         // If msg.sender is operator of owner, the transfer is executed as if

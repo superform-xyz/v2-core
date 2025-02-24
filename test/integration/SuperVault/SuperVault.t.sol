@@ -46,7 +46,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertGt(strategy.maxMint(accountEth), 0, "No shares available to mint");
     }
 
-    function test_FulfillRedeem_FullAmount() public {
+    function test_FulfillRedeem_FullAmountWithThreshold() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
         // First setup a deposit and claim it
@@ -64,7 +64,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertGt(strategy.maxWithdraw(accountEth), 0, "No assets available to withdraw");
     }
 
-    function test_FulfillRedeem_FullAmountV2() public {
+    function test_FulfillRedeem_FullAmount() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
         // First setup a deposit and claim it
@@ -75,6 +75,9 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         uint256 redeemShares = vault.balanceOf(accountEth);
         _requestRedeem(redeemShares);
         _fulfillRedeem(redeemShares);
+
+        uint256 vaultShares = vault.balanceOf(accountEth);
+        assertEq(vaultShares, 0, "Vault shares not zero");
 
         // Verify state
         assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
