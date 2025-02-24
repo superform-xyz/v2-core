@@ -173,18 +173,18 @@ Key Points for Auditors:
   - The YieldSourceOracle derives price-per-share and other relevant metadata (for off-chain purposes) for yield
     sources.
   - Hooks are passed the yieldSourceOracleId to use. It is up for the SuperBundler to suggest / enforce the correct
-    yieldSourceOracleIds to use, but nothing impedes a user to pass their own yieldSourceOracleIds and bypass the fee.
+    yieldSourceOracleIds to use, but nothing impedes a user to pass their own yieldSourceOracleId in a hook and bypass the fee.
     This is known and accepted.
-- Multiple yield source implementation
+- Multiple yield source oracle and ledger implementation system:
   - Provide more flexibility to adapt to yield source types that have special needs do determine fees for Superform
     (such as Pendle's EIP5115)
   - Risks may exist if the yield source oracles provide incorrect data, which may lead to no fees being taken by
     Superform.
   - It is also important to assess if a user can ever be denied of exiting a position (due to a revert) in a certain
     state due to influences on the price per share accounting and the SuperLedger used for that yield source.
-
-Note: the user can specify which yieldSourceOracleId to use. SuperBundler will enforce the ones it wants Superform app users
-to use, but otherwise it won't be enforced.
+  - SuperBundler will enforce the yieldSourceOracleId to use whenever a user interacts with Superform app or API. Otherwise 
+  this cannot be enforced. Each yieldSourceOracle is paired with a ledger contract which users can also specify when configuring
+  the yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through the Superform app and API and acknowledged by the team.
 
 #### SuperOracle
 
