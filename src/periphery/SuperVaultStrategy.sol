@@ -12,7 +12,13 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // Core Interfaces
-import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow, ISuperHookOutflow } from "../core/interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    Execution,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
@@ -1005,7 +1011,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         console2.log("state.maxWithdraw", state.maxWithdraw);
         console2.log("assets", assets);
         console2.log("state.averageWithdrawPrice", state.averageWithdrawPrice);
+
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
+
+        // Check actual asset balance
+        uint256 availableAssets = _asset.balanceOf(address(this));
+        if (availableAssets < assets) revert INSUFFICIENT_ASSETS();
 
         // Update state
         state.maxWithdraw -= assets;
@@ -1291,7 +1302,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // convert amount to underlying vault shares
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
-        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(yieldSource, address(_asset), amount);
+        uint256 amountConvertedToUnderlyingShares =
+            IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(yieldSource, address(_asset), amount);
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
 
         // Execute hook with vault token approval
@@ -1490,14 +1502,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        // TODO rounding
         uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
         // Update average withdraw price
-        // TODO are we doing a mistake by calculating average after taking fee?
         if (requestedShares > 0) {
-            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares, Math.Rounding.Floor);
+            state.averageWithdrawPrice = finalAssets.mulDiv(
+                1e18,
+                requestedShares,
+                Math.Rounding.Ceil // Use ceiling rounding to avoid underflow
+            );
         }
     }
 
