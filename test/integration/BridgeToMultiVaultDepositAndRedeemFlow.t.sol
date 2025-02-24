@@ -895,38 +895,4 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
         }
     }
-
-    function _overrideSuperLedger() internal {
-        for (uint256 i; i < chainIds.length; ++i) {
-            vm.selectFork(FORKS[chainIds[i]]);
-
-            vm.startPrank(MANAGER);
-
-            ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
-            configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
-                feePercent: 100,
-                feeRecipient: address(this),
-                ledger: address(ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)))
-            });
-            configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-                yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
-                feePercent: 100,
-                feeRecipient: address(this),
-                ledger: address(ISuperLedger(_getContract(chainIds[i], SUPER_LEDGER_KEY)))
-            });
-            configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
-                yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
-                feePercent: 100,
-                feeRecipient: address(this),
-                ledger: address(ISuperLedger(_getContract(chainIds[i], ERC1155_LEDGER_KEY)))
-            });
-            ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
-            vm.stopPrank();
-        }
-    }
 }
