@@ -26,7 +26,7 @@ test-integration :; forge test --match-test test_SuperVault_E2E_Flow -vvvv
 generate:
 	./script/run/retrieve-abis.sh
 	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
-	abigen --abi out/ISuperExecutor.sol/ISuperExecutor.abi --pkg contracts --type ISuperExecutor --out contract_bindings/ISuperExecutor.go
 	abigen --abi out/AcrossSendFundsAndExecuteOnDstHook.sol/AcrossSendFundsAndExecuteOnDstHook.abi --pkg contracts --type AcrossSendFundsAndExecuteOnDstHook --out contract_bindings/AcrossSendFundsAndExecuteOnDstHook.go
 	abigen --abi out/AcrossReceiveFundsAndExecuteGateway.sol/AcrossReceiveFundsAndExecuteGateway.abi --pkg contracts --type AcrossReceiveFundsAndExecuteGateway --out contract_bindings/AcrossReceiveFundsAndExecuteGateway.go
 	abigen --abi out/IAcrossV3Receiver.sol/IAcrossV3Receiver.abi --pkg contracts --type IAcrossV3Receiver --out contract_bindings/IAcrossV3Receiver.go
+	abigen --abi out/SuperRegistry.sol/SuperRegistry.abi --pkg contracts --type SuperRegistry --out contract_bindings/SuperRegistry.go

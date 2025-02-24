@@ -6,9 +6,12 @@ import { BaseTest } from "../../BaseTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
-import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
+import {
+    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
+} from "modulekit/ModuleKit.sol";
 
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
@@ -20,6 +23,8 @@ import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.so
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
 contract BaseSuperVaultTest is BaseTest, MerkleReader {
+    using ModuleKitHelpers for *;
+
     address public accountEth;
     AccountInstance public instanceOnEth;
     ISuperExecutor public superExecutorOnEth;
@@ -149,8 +154,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-
-    function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares) private {
+    
+    function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) private {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
 
@@ -162,6 +167,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         ISuperExecutor.ExecutorEntry memory redeemEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
         UserOpData memory redeemUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(redeemEntry));
+
+        if (shouldRevert) {
+            accInst.expect4337Revert();
+        }
         executeOp(redeemUserOpData);
     }
 
@@ -206,18 +215,22 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _claimDeposit(uint256 depositAmount) internal {
         __claimDeposit(instanceOnEth, depositAmount);
     }
-
     function _claimDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
         __claimDeposit(accInst, depositAmount);
     }
 
     function _requestRedeem(uint256 redeemShares) internal {
-        __requestRedeem(instanceOnEth, redeemShares);
+        __requestRedeem(instanceOnEth, redeemShares, false);
     }
 
     function _requestRedeemForAccount(AccountInstance memory accInst, uint256 redeemShares) internal {
-        __requestRedeem(accInst, redeemShares);
+        __requestRedeem(accInst, redeemShares, false);
     }
+
+    function _requestRedeemForAccount_Revert(AccountInstance memory accInst, uint256 redeemShares) internal {
+        __requestRedeem(accInst, redeemShares, true);
+    }
+
 
     function _fulfillRedeem(uint256 redeemShares) internal {
         address[] memory requestingUsers = new address[](1);

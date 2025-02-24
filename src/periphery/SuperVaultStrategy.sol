@@ -13,7 +13,6 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/ext
 
 // Core Interfaces
 import { ISuperHook, ISuperHookResult, Execution, ISuperHookInflowOutflow, ISuperHookOutflow } from "../core/interfaces/ISuperHook.sol";
-import { SuperRegistryImplementer } from "../core/utils/SuperRegistryImplementer.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
@@ -22,7 +21,6 @@ import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { ISuperRegistry } from "../core/interfaces/ISuperRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
-
 
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -1291,9 +1289,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get amount before execution
         amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
-        // convert amount to underlyuing vault shares
-        target = HookDataDecoder.extractYieldSource(hookCalldata);
-        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[target].oracle).getShareOutput(target, IERC4626(_vault).convertToAssets(amount));
+        // convert amount to underlying vault shares
+        address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(yieldSource, address(_asset), amount);
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
 
         // Execute hook with vault token approval
