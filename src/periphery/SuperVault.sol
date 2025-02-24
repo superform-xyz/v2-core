@@ -1,4 +1,3 @@
-
 pragma solidity =0.8.28;
 
 import { console2 } from "forge-std/console2.sol";
@@ -477,7 +476,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Calculate shares based on assets and average withdraw price
         shares = assets.mulDiv(1e18, averageWithdrawPrice, Math.Rounding.Floor);
         console2.log("shares", shares);
-        
+
         // Forward to strategy
         strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
 
