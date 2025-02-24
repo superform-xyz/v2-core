@@ -95,6 +95,9 @@ import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
+import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
+
+
 import "forge-std/console.sol";
 
 struct Addresses {
@@ -132,6 +135,7 @@ struct Addresses {
     FluidYieldSourceOracle fluidYieldSourceOracle;
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
+    PeripheryRegistry peripheryRegistry;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -303,6 +307,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
             vm.label(address(A.superRegistry), SUPER_REGISTRY_KEY);
             contractAddresses[chainIds[i]][SUPER_REGISTRY_KEY] = address(A.superRegistry);
+            vm.makePersistent(address(A.superRegistry));
 
             // Deploy SuperOracle
             A.oracleRegistry = new SuperOracle(address(this), new address[](0), new uint256[](0), new address[](0));
@@ -365,6 +370,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.fluidYieldSourceOracle = new FluidYieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
+
+            /// @dev periphery
+            A.peripheryRegistry = new PeripheryRegistry(address(this));
+            vm.label(address(A.peripheryRegistry), PERIPHERY_REGISTRY_KEY);
+            contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A.peripheryRegistry);
         }
     }
 
@@ -826,6 +836,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11111));
+
+            SuperRegistry(address(superRegistry)).setAddress(
+                keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
+            );
         }
     }
 

@@ -17,7 +17,7 @@ abstract contract Constants {
 
     // keys
     string internal constant SUPER_REGISTRY_KEY = "SuperRegistry";
-    string internal constant HOOKS_REGISTRY_KEY = "HooksRegistry";
+    string internal constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_RBAC_KEY = "SuperRbac";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";

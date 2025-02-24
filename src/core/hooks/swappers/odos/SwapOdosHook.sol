@@ -43,20 +43,6 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         odosRouterV2 = IOdosRouterV2(_routerV2);
     }
 
-    modifier onlyHooksManager() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
-        if (!rbac.hasRole(keccak256("HOOKS_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 OWNER METHODS
-    //////////////////////////////////////////////////////////////*/
-    function setRouter(address _odosRouter) external onlyHooksManager {
-        if (_odosRouter == address(0)) revert ADDRESS_NOT_VALID();
-        odosRouterV2 = IOdosRouterV2(_odosRouter);
-    }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

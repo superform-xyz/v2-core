@@ -222,11 +222,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         executeOp(userOpData);
 
         assertEq(Mock1InchRouter(executor).swappedAmount(), amount);
-
-        // test manager role
-        superRbac.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
-        hook.setRouter(address(this));
-        assertEq(address(hook.aggregationRouter()), address(this));
     }
 
     function test_SwapThroughMockOdosRouter(uint256 amount) external {
@@ -253,14 +248,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         executeOp(userOpData);
-
-        // test manager role
-        superRbac.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
-
-        SwapOdosHook hook = SwapOdosHook(hooksAddresses[1]);
-        hook.setRouter(address(this));
-        assertEq(address(hook.odosRouterV2()), address(this));
-
     }
 
     function test_MockedSuperPositionFlow(uint256 amount) external {

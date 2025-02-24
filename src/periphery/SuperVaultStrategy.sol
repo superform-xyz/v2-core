@@ -17,6 +17,7 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { ISuperRegistry } from "../core/interfaces/ISuperRegistry.sol";
+import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
@@ -77,7 +78,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     mapping(address token => uint256 amount) public claimedTokens;
 
     ISuperRegistry private superRegistry;
-
+    IPeripheryRegistry private peripheryRegistry;
+    
     function _requireVault() internal view {
         if (msg.sender != _vault) revert UNAUTHORIZED();
     }
@@ -124,6 +126,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
         superRegistry = ISuperRegistry(superRegistry_);
+        peripheryRegistry = IPeripheryRegistry(superRegistry.getAddress(keccak256("PERIPHERY_REGISTRY_ID")));
         globalConfig = config_;
     }
 
@@ -1425,7 +1428,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
-                uint256 superformFee = totalFee.mulDiv(superRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
+                uint256 superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees

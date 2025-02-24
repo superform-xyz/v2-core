@@ -54,20 +54,6 @@ contract Swap1InchHook is BaseHook, ISuperHook {
         aggregationRouter = I1InchAggregationRouterV6(aggregationRouter_);
     }
 
-    modifier onlyHooksManager() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
-        if (!rbac.hasRole(keccak256("HOOKS_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
-        _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 OWNER METHODS
-    //////////////////////////////////////////////////////////////*/
-    function setRouter(address _aggregationRouter) external onlyHooksManager {
-        if (_aggregationRouter == address(0)) revert ADDRESS_NOT_VALID();
-        aggregationRouter = I1InchAggregationRouterV6(_aggregationRouter);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
