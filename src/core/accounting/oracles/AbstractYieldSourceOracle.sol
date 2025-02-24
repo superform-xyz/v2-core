@@ -15,7 +15,14 @@ abstract contract AbstractYieldSourceOracle is SuperRegistryImplementer, IYieldS
 
     constructor(address _superRegistry) SuperRegistryImplementer(_superRegistry) { }
 
+    /// @inheritdoc IYieldSourceOracle
     function decimals(address yieldSourceAddress) external view virtual returns (uint8);
+
+    /// @inheritdoc IYieldSourceOracle
+    function getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn) external view virtual returns (uint256);
+
+    /// @inheritdoc IYieldSourceOracle
+    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn) external view virtual returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view virtual returns (uint256);

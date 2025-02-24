@@ -199,6 +199,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     mapping(uint64 chainId => mapping(string name => Hook hookInstance)) public hooks;
 
     mapping(uint64 chainId => AccountInstance accountInstance) public accountInstances;
+    mapping(uint64 chainId => AccountInstance[] randomAccountInstances) public randomAccountInstances;
 
     mapping(uint64 chainId => address odosRouter) public odosRouters;
 
@@ -230,7 +231,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _deployHooks();
 
         // Initialize accounts
-        _initializeAccounts();
+        _initializeAccounts(RANDOM_ACCOUNT_COUNT);
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
@@ -250,6 +251,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    function _makeAccount(uint64 chainId, bytes32 accountName) internal returns (AccountInstance memory) {
+        AccountInstance memory _accInstance = makeAccountInstance(accountName);
+        _accInstance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: _getContract(chainId, SUPER_EXECUTOR_KEY),
+            data: ""
+        });
+        vm.label(_accInstance.account, "RandomAccount");
+        return _accInstance;
+    }
 
     function _getContract(uint64 chainId, string memory contractName) internal view returns (address) {
         return contractAddresses[chainId][contractName];
@@ -627,10 +639,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         }
     }
 
-    function _initializeAccounts() internal {
+    function _initializeAccounts(uint256 count) internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
+            // create Superform account
             string memory accountName = "SuperformAccount";
             AccountInstance memory instance = makeAccountInstance(keccak256(abi.encode(accountName)));
             accountInstances[chainIds[i]] = instance;
@@ -640,6 +653,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 data: ""
             });
             vm.label(instance.account, accountName);
+
+            // create random accounts to be used as users
+            for (uint256 j; j < count; ++j) {
+                AccountInstance memory _instance = makeAccountInstance(keccak256(abi.encode(block.timestamp, j)));
+                randomAccountInstances[chainIds[i]].push(_instance);
+                _instance.installModule({
+                    moduleTypeId: MODULE_TYPE_EXECUTOR,
+                    module: _getContract(chainIds[i], "SuperExecutor"),
+                    data: ""
+                });
+                vm.label(_instance.account, "RandomAccount");
+            }
         }
     }
 

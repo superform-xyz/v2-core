@@ -12,7 +12,7 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -26,7 +26,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 108);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 109);
 /// @notice         bool lockForSP = _decodeBool(data, 110);
-contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -93,6 +93,11 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
+        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////
