@@ -14,7 +14,7 @@ interface ISuperRegistry {
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
-    //////////////////////////`////////////////////////////////////*/
+    //////////////////////////////////////////////////////////////*/
     /// @dev Set the address of an ID.
     /// @param id_ The ID.
     /// @param address_ The address.
@@ -27,7 +27,6 @@ interface ISuperRegistry {
     /// @param id_ The ID.
     /// @return The address.
     function getAddress(bytes32 id_) external view returns (address);
-
 
     /// @dev Get the treasury address.
     /// @return The treasury address.

@@ -12,7 +12,6 @@ import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
 import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
-import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
@@ -127,7 +126,7 @@ contract DeployV2 is Script, Configuration {
             }
             SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
             console2.log("SuperDeployer deployed at:", address(superDeployer));
-           
+
             configuration.deployer = address(superDeployer);
         }
 
@@ -186,15 +185,6 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
             abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
-        );
-
-        // Deploy SuperRbac
-        deployedContracts.superRbac = __deployContract(
-            deployer,
-            SUPER_RBAC_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_RBAC_KEY),
-            abi.encodePacked(type(SuperRbac).creationCode, abi.encode(configuration.owner))
         );
 
         // Deploy SuperLedgerConfiguration
@@ -268,28 +258,10 @@ contract DeployV2 is Script, Configuration {
     }
 
     function _configure(uint64 chainId) internal {
-        SuperRbac superRbac = SuperRbac(_getContract(chainId, SUPER_RBAC_KEY));
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
-
-        // -- Roles
-        // ---- | set external roles
-        uint256 len = configuration.externalRoles.length;
-        for (uint256 i; i < len;) {
-            RolesData memory _roleInfo = configuration.externalRoles[i];
-            superRbac.setRole(_roleInfo.addr, _roleInfo.role, true);
-
-            unchecked {
-                ++i;
-            }
-        }
-        // ---- | set deployed contracts roles
-        superRbac.setRole(
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
-        );
 
         // -- SuperRegistry
         superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
-        superRegistry.setAddress(keccak256(bytes(SUPER_RBAC_ID)), _getContract(chainId, SUPER_RBAC_KEY));
         superRegistry.setAddress(
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );

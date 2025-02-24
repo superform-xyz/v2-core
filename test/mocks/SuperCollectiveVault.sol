@@ -7,7 +7,6 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // Superform
-import { ISuperRbac } from "../../src/core/interfaces/ISuperRbac.sol";
 import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
@@ -34,9 +33,10 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
         _;
     }
 
+    address public immutable superCollectiveVaultManager;
+
     modifier onlySuperCollectiveVaultManager() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
-        if (!rbac.hasRole(keccak256("SUPER_COLLECTIVE_VAULT_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
+        if (superCollectiveVaultManager != msg.sender) revert NOT_AUTHORIZED();
         _;
     }
 
