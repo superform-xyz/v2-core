@@ -31,7 +31,6 @@ abstract contract Configuration is Constants {
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
         SuperPositionData[] superPositions;
-        RolesData[] externalRoles;
     }
 
     EnvironmentData public configuration;
@@ -58,8 +57,6 @@ abstract contract Configuration is Constants {
 
         // common configuration
         configuration.deployer = SUPER_DEPLOYER;
-
-        configuration.externalRoles.push(RolesData({ role: keccak256("HOOKS_MANAGER"), addr: PROD_MULTISIG }));
 
         if (env == 0) {
             configuration.owner = PROD_MULTISIG;

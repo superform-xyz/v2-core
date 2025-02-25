@@ -124,7 +124,7 @@ contract DeployV2 is Script, Configuration {
             }
             SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
             console2.log("SuperDeployer deployed at:", address(superDeployer));
-           
+
             configuration.deployer = address(superDeployer);
         }
 
@@ -258,21 +258,11 @@ contract DeployV2 is Script, Configuration {
     function _configure(uint64 chainId) internal {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
 
-        // -- Roles
-        // ---- | set external roles
-        uint256 len = configuration.externalRoles.length;
-        for (uint256 i; i < len;) {
-            RolesData memory _roleInfo = configuration.externalRoles[i];
-            superRegistry.setRole(_roleInfo.addr, _roleInfo.role, true);
-
-            unchecked {
-                ++i;
-            }
-        }
         // ---- | set deployed contracts roles
         superRegistry.setRole(
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
         );
+
 
         // -- SuperRegistry
         superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));

@@ -7,7 +7,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { ISuperHookOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
@@ -23,7 +23,7 @@ import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
 import "forge-std/console.sol";
-import {Vm} from "forge-std/Test.sol";
+import { Vm } from "forge-std/Test.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest {
     using BytesLib for bytes;
@@ -236,7 +236,16 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(inputToken), odosRouters[ETH], amount, false);
         hooksData[1] = _createOdosSwapHookData(
-            address(inputToken), amount, account, address(outputToken), amount, amount, "", address(this), uint32(0), false
+            address(inputToken),
+            amount,
+            account,
+            address(outputToken),
+            amount,
+            amount,
+            "",
+            address(this),
+            uint32(0),
+            false
         );
 
         // it should execute all hooks
@@ -271,7 +280,8 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         // execute
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        ExecutionReturnData memory executionReturnData = executeOp(_getExecOps(instance, superExecutor, abi.encode(entry)));
+        ExecutionReturnData memory executionReturnData =
+            executeOp(_getExecOps(instance, superExecutor, abi.encode(entry)));
 
         // assert shares location
         {
@@ -289,18 +299,28 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
                         // mint SuperPositionMock to account
                         // should also create SP
-                        uint256 precomputedId = mockSuperPositionFactory.getSPId(yieldSourceAddress, bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), uint64(ETH));
+                        uint256 precomputedId = mockSuperPositionFactory.getSPId(
+                            yieldSourceAddress, bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), uint64(ETH)
+                        );
 
                         uint256 spCountBefore = mockSuperPositionFactory.spCount();
-                        mockSuperPositionFactory.mintSuperPosition(uint64(ETH), yieldSourceAddress, bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vaultInstance), account, amount);
+                        mockSuperPositionFactory.mintSuperPosition(
+                            uint64(ETH),
+                            yieldSourceAddress,
+                            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                            address(vaultInstance),
+                            account,
+                            amount
+                        );
                         uint256 spCountAfter = mockSuperPositionFactory.spCount();
                         assertEq(spCountAfter, spCountBefore + 1);
 
                         assertNotEq(mockSuperPositionFactory.createdSPs(precomputedId), address(0));
                     }
-
                 }
-                unchecked { ++i; }
+                unchecked {
+                    ++i;
+                }
             }
         }
     }

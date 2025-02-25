@@ -95,7 +95,6 @@ import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 
-
 import "forge-std/console.sol";
 
 struct Addresses {
@@ -236,9 +235,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
-
-        // Set roles
-        _setRoles();
 
         // Setup SuperLedger
         _setupSuperLedger();
@@ -879,7 +875,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
-
     modifier addRole(ISuperRegistry superRegistry, bytes32 role_) {
         superRegistry.setRole(address(this), role_, true);
         _;
