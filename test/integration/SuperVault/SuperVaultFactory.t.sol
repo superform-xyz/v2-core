@@ -20,7 +20,7 @@ contract SuperVaultFactoryTest is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        vm.selectFork(ETH);
+        vm.selectFork(FORKS[ETH]);
 
         // Deploy the factory
         address superRegistry = _getContract(ETH, SUPER_REGISTRY_KEY);
@@ -62,14 +62,14 @@ contract SuperVaultFactoryTest is BaseTest {
         assertEq(vaultContract.symbol(), "SV", "Wrong vault symbol");
         assertEq(vaultContract.asset(), address(asset), "Wrong asset");
         assertEq(address(vaultContract.strategy()), strategy, "Wrong strategy");
-        assertEq(vaultContract.decimals(), 18, "Wrong decimals");
+        assertEq(vaultContract.decimals(), 6, "Wrong decimals");
 
         // Check strategy state
         (address _vault, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
         assertEq(strategyContract.isInitialized(), true, "Strategy not initialized");
         assertEq(_vault, vault, "Wrong vault in strategy");
         assertEq(_asset, address(asset), "Wrong asset in strategy");
-        assertEq(_decimals, 18, "Wrong decimals in strategy");
+        assertEq(_decimals, 6, "Wrong decimals in strategy");
 
         // Check escrow state
         assertTrue(escrowContract.initialized(), "Escrow not initialized");
@@ -98,7 +98,7 @@ contract SuperVaultFactoryTest is BaseTest {
             SuperVault vaultContract = SuperVault(vault);
             assertEq(vaultContract.name(), names[i], "Wrong vault name");
             assertEq(vaultContract.symbol(), symbols[i], "Wrong vault symbol");
-            assertEq(vaultContract.decimals(), 18, "Wrong decimals");
+            assertEq(vaultContract.decimals(), 6, "Wrong decimals");
 
             assertEq(ISuperVaultStrategy(strategy).isInitialized(), true, "Strategy not initialized");
 

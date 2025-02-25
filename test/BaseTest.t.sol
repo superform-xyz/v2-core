@@ -300,7 +300,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.superRegistry = ISuperRegistry(address(new SuperRegistry(address(this))));
             vm.label(address(A.superRegistry), SUPER_REGISTRY_KEY);
             contractAddresses[chainIds[i]][SUPER_REGISTRY_KEY] = address(A.superRegistry);
-            vm.makePersistent(address(A.superRegistry));
 
             // Deploy SuperOracle
             A.oracleRegistry = new SuperOracle(address(this), new address[](0), new uint256[](0), new address[](0));
