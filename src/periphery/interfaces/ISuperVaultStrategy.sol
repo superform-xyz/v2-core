@@ -11,8 +11,11 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INVALID_PARAM(uint8 index); // Covers: INVALID_VAULT, INVALID_MANAGER, INVALID_STRATEGIST, INVALID_EMERGENCY_ADMIN, INVALID_ORACLE, INVALID_HOOK, INVALID_HOOK_ROOT, INVALID_CONTROLLER, INVALID_SUPER_REGISTRY
-    error INVALID_AMOUNT(); // Covers: INVALID_VAULT_CAP, INVALID_SUPER_VAULT_CAP, INVALID_MAX_ALLOCATION_RATE, INVALID_ALLOCATION_RATE, INVALID_FEE, INVALID_FEE_RECIPIENT, INVALID_ASSET_BALANCE, INVALID_BALANCE_CHANGE
+    error INVALID_PARAM(uint8 index); // Covers: INVALID_VAULT, INVALID_MANAGER, INVALID_STRATEGIST,
+        // INVALID_EMERGENCY_ADMIN, INVALID_ORACLE, INVALID_HOOK, INVALID_HOOK_ROOT, INVALID_CONTROLLER,
+        // INVALID_SUPER_REGISTRY
+    error INVALID_AMOUNT(); // Covers: INVALID_VAULT_CAP, INVALID_SUPER_VAULT_CAP, INVALID_MAX_ALLOCATION_RATE,
+        // INVALID_ALLOCATION_RATE, INVALID_FEE, INVALID_FEE_RECIPIENT, INVALID_ASSET_BALANCE, INVALID_BALANCE_CHANGE
     error NOT_FOUND(); // Covers: REQUEST_NOT_FOUND, YIELD_SOURCE_NOT_FOUND
     error ALREADY_EXISTS(); // Covers: YIELD_SOURCE_ALREADY_EXISTS
     error ACCESS_DENIED(); // Covers: UNAUTHORIZED
@@ -101,6 +104,7 @@ interface ISuperVaultStrategy {
         uint256 availableAmount; // Only used in deposit to check initial balance
         // Variables for share calculations
         uint256 shares; // Used in deposit for minting shares
+        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct MatchVars {
@@ -183,7 +187,14 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @param assetsOrShares Amount of assets being deposited
     /// @param operation The operation to perform
-    function handleOperation(address controller, uint256 assetsOrShares, Operation operation) external;
+    /// @return assetsOrSharesOut The amount of assets or shares after the operation
+    function handleOperation(
+        address controller,
+        uint256 assetsOrShares,
+        Operation operation
+    )
+        external
+        returns (uint256 assetsOrSharesOut);
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
@@ -202,7 +213,6 @@ interface ISuperVaultStrategy {
         bool isDeposit
     )
         external;
-
 
     /// @notice Match redeem requests with deposit requests directly
     /// @param redeemUsers Array of users with pending redeem requests
@@ -273,17 +283,12 @@ interface ISuperVaultStrategy {
     /// @notice Manage yield sources: add, update oracle, and toggle activation.
     /// @param source Address of the yield source.
     /// @param oracle Address of the oracle (used for adding/updating).
-    /// @param actionType Type of action: 
+    /// @param actionType Type of action:
     ///        0 - Add new yield source,
     ///        1 - Update oracle,
     ///        2 - Toggle activation (oracle param ignored).
     /// @param activate Boolean flag for activation when actionType is 2.
-    function manageYieldSource(
-        address source,
-        address oracle,
-        uint8 actionType,
-        bool activate
-    ) external;
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
 
     /// @notice Propose or execute a hook root update
     /// @dev if newRoot is 0, executes the proposed hook root update
@@ -310,7 +315,7 @@ interface ISuperVaultStrategy {
     ///        1 - Execute emergency withdrawable update,
     ///        2 - Perform emergency withdrawal
     /// @param recipient The recipient of the withdrawn assets
-    /// @param amount The amount of assets to withdraw  
+    /// @param amount The amount of assets to withdraw
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
@@ -365,7 +370,6 @@ interface ISuperVaultStrategy {
     ///        4 - averageWithdrawPrice
     /// @return The state value
     function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
-
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS

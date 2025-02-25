@@ -61,7 +61,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         _claimDeposit(depositAmount);
 
         uint256 vaultBalance = vault.balanceOf(accountEth);
-        uint256 redeemShares = vaultBalance - (vaultBalance *2e4/1e5);
+        uint256 redeemShares = vaultBalance - (vaultBalance * 2e4 / 1e5);
         _requestRedeem(redeemShares);
         _fulfillRedeem(redeemShares);
 
@@ -89,8 +89,6 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
         assertGt(strategy.getSuperVaultState(accountEth, 2), 0, "No assets available to withdraw");
     }
-
-
 
     function test_ClaimDeposit() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
@@ -151,29 +149,32 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
     function test_ClaimRedeem() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
+        uint256 initialAssetBalance = asset.balanceOf(address(accountEth));
+        console2.log("-------------- initialAssetBalance user", initialAssetBalance);
 
         // First setup a deposit and claim it
         _requestDeposit(depositAmount);
-        console2.log("-------------- initialAssetBalance 1 ", asset.balanceOf(address(strategy)));
+        console2.log("-------------- initialAssetBalance strategy 1 ", asset.balanceOf(address(strategy)));
         _fulfillDeposit(depositAmount);
-        console2.log("-------------- initialAssetBalance 2 ", asset.balanceOf(address(strategy)));
+        console2.log("-------------- initialAssetBalance strategy 2 ", asset.balanceOf(address(strategy)));
         _claimDeposit(depositAmount);
-        console2.log("-------------- initialAssetBalance 3 ", asset.balanceOf(address(strategy)));
+        console2.log("-------------- initialAssetBalance strategy 3 ", asset.balanceOf(address(strategy)));
 
         // Get initial balances
-        uint256 initialAssetBalance = asset.balanceOf(accountEth);
+        uint256 assetBalanceAfterDeposit = asset.balanceOf(accountEth);
         uint256 initialShares = vault.balanceOf(accountEth);
 
-        console2.log("-------------- initialAssetBalance", initialAssetBalance);
-        console2.log("-------------- initialShares", initialShares);
+        console2.log("-------------- initialAssetBalance user", assetBalanceAfterDeposit);
+        console2.log("-------------- initialShares user", initialShares);
         // Request redeem of half the shares
         uint256 redeemShares = initialShares / 2;
         _requestRedeem(redeemShares);
         _fulfillRedeem(redeemShares);
 
+        console2.log("-------------- balance strategy after redeem ", asset.balanceOf(address(strategy)));
         // Get claimable assets
         uint256 claimableAssets = strategy.getSuperVaultState(accountEth, 2);
-
+        console2.log("-------------- claimableAssets user", claimableAssets);
         // Claim redeem
         _claimWithdraw(claimableAssets);
 
