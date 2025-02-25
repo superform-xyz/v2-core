@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -1008,9 +1006,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (assets == 0) revert ZERO_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
-        console2.log("state.maxWithdraw", state.maxWithdraw);
-        console2.log("assets", assets);
-        console2.log("state.averageWithdrawPrice", state.averageWithdrawPrice);
 
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
 
