@@ -11,45 +11,18 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ALREADY_INITIALIZED();
-    error INVALID_VAULT();
-    error INVALID_MANAGER();
-    error INVALID_STRATEGIST();
-    error INVALID_EMERGENCY_ADMIN();
-    error INVALID_VAULT_CAP();
-    error INVALID_SUPER_VAULT_CAP();
-    error INVALID_MAX_ALLOCATION_RATE();
-    error INVALID_VAULT_THRESHOLD();
-    error ZERO_ADDRESS();
-    error INVALID_ALLOCATION_RATE();
-    error INVALID_AMOUNT();
-    error INVALID_HOOK();
-    error INVALID_HOOK_ROOT();
-    error INVALID_ORACLE();
-    error INVALID_YIELD_SOURCE();
-    error INVALID_FEE();
-    error INVALID_FEE_RECIPIENT();
-    error INVALID_CONTROLLER();
-    error UNAUTHORIZED();
-    error TIMELOCK_NOT_EXPIRED();
-    error REQUEST_NOT_FOUND();
-    error YIELD_SOURCE_NOT_FOUND();
-    error YIELD_SOURCE_ALREADY_EXISTS();
-    error VAULT_THRESHOLD_NOT_MET();
-    error VAULT_CAP_EXCEEDED();
-    error MAX_ALLOCATION_RATE_EXCEEDED();
-    error EMERGENCY_WITHDRAWALS_DISABLED();
-    error INSUFFICIENT_FREE_ASSETS();
-    error ZERO_LENGTH();
-    error ARRAY_LENGTH_MISMATCH();
-    error EXECUTION_FAILED();
-    error INCOMPLETE_DEPOSIT_MATCH();
-    error INCOMPLETE_REDEEM_MATCH();
-    error ZERO_AMOUNT();
-    error INVALID_ASSET_BALANCE();
-    error INVALID_BALANCE_CHANGE();
-    error REWARDS_DISTRIBUTOR_NOT_SET();
-    error INVALID_SUPER_REGISTRY();
+    error INVALID_PARAM(uint8 index); // Covers: INVALID_VAULT, INVALID_MANAGER, INVALID_STRATEGIST, INVALID_EMERGENCY_ADMIN, INVALID_ORACLE, INVALID_HOOK, INVALID_HOOK_ROOT, INVALID_CONTROLLER, INVALID_SUPER_REGISTRY
+    error INVALID_AMOUNT(); // Covers: INVALID_VAULT_CAP, INVALID_SUPER_VAULT_CAP, INVALID_MAX_ALLOCATION_RATE, INVALID_ALLOCATION_RATE, INVALID_FEE, INVALID_FEE_RECIPIENT, INVALID_ASSET_BALANCE, INVALID_BALANCE_CHANGE
+    error NOT_FOUND(); // Covers: REQUEST_NOT_FOUND, YIELD_SOURCE_NOT_FOUND
+    error ALREADY_EXISTS(); // Covers: YIELD_SOURCE_ALREADY_EXISTS
+    error ACCESS_DENIED(); // Covers: UNAUTHORIZED
+    error INVALID_STATE(); // Covers: TIMELOCK_NOT_EXPIRED, EMERGENCY_WITHDRAWALS_DISABLED
+    error LIMIT_EXCEEDED(); // Covers: VAULT_CAP_EXCEEDED, MAX_ALLOCATION_RATE_EXCEEDED
+    error OPERATION_FAILED(); // Covers: EXECUTION_FAILED, REWARDS_DISTRIBUTOR_NOT_SET
+    error MISMATCH(); // Covers: ARRAY_LENGTH_MISMATCH, INCOMPLETE_DEPOSIT_MATCH, INCOMPLETE_REDEEM_MATCH
+    error INSUFFICIENT_FUNDS(); // Covers: INSUFFICIENT_FREE_ASSETS, INVALID_YIELD_SOURCE
+    error ZERO_VALUE(); // Covers: ZERO_ADDRESS, ZERO_LENGTH, ZERO_AMOUNT
+    error NOT_INITIALIZED(); // Covers: ALREADY_INITIALIZED (renamed for better clarity)
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -220,26 +193,16 @@ interface ISuperVaultStrategy {
     /// @param hooks Array of hooks to use for deposits
     /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
-    function fulfillDepositRequests(
+    /// @param isDeposit Whether the requests are deposits or redeems
+    function fulfillRequests(
         address[] calldata users,
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+        bytes[] calldata hookCalldata,
+        bool isDeposit
     )
         external;
 
-    /// @notice Fulfill redeem requests for multiple users
-    /// @param users Array of users with pending redeem requests
-    /// @param hooks Array of hooks to use for redeems
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    function fulfillRedeemRequests(
-        address[] calldata users,
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
-    )
-        external;
 
     /// @notice Match redeem requests with deposit requests directly
     /// @param redeemUsers Array of users with pending redeem requests
@@ -307,20 +270,20 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Add a new yield source to the system
-    /// @param source Address of the yield source
-    /// @param oracle Address of the yield source oracle
-    function addYieldSource(address source, address oracle) external;
-
-    /// @notice Update oracle for an existing yield source
-    /// @param source Address of the yield source
-    /// @param newOracle Address of the new oracle
-    function updateYieldSourceOracle(address source, address newOracle) external;
-
-    /// @notice Toggle a yield source's active state
-    /// @param source Address of the yield source to toggle
-    /// @param activate Whether to activate or deactivate the yield source
-    function toggleYieldSource(address source, bool activate) external;
+    /// @notice Manage yield sources: add, update oracle, and toggle activation.
+    /// @param source Address of the yield source.
+    /// @param oracle Address of the oracle (used for adding/updating).
+    /// @param actionType Type of action: 
+    ///        0 - Add new yield source,
+    ///        1 - Update oracle,
+    ///        2 - Toggle activation (oracle param ignored).
+    /// @param activate Boolean flag for activation when actionType is 2.
+    function manageYieldSource(
+        address source,
+        address oracle,
+        uint8 actionType,
+        bool activate
+    ) external;
 
     /// @notice Propose or execute a hook root update
     /// @dev if newRoot is 0, executes the proposed hook root update
@@ -341,18 +304,14 @@ interface ISuperVaultStrategy {
     /// @param account The address to set for the role
     function setAddress(bytes32 role, address account) external;
 
-    /// @notice Propose a change to emergency withdrawable status
-    /// @param newWithdrawable The new emergency withdrawable status to propose
-    function proposeEmergencyWithdrawable(bool newWithdrawable) external;
-
-    /// @notice Execute the proposed emergency withdrawable update after timelock
-    function executeEmergencyWithdrawableUpdate() external;
-
-    /// @notice Emergency withdraw free assets from the vault
-    /// @dev Only works when emergency withdrawals are enabled
-    /// @param recipient Address to receive the withdrawn assets
-    /// @param amount Amount of free assets to withdraw
-    function emergencyWithdraw(address recipient, uint256 amount) external;
+    /// @notice Manage emergency withdrawals
+    /// @param action The action to perform
+    ///        0 - Propose new emergency withdrawable state,
+    ///        1 - Execute emergency withdrawable update,
+    ///        2 - Perform emergency withdrawal
+    /// @param recipient The recipient of the withdrawn assets
+    /// @param amount The amount of assets to withdraw  
+    function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS

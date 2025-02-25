@@ -219,7 +219,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRedeemRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
         vm.stopPrank();
     }
 
