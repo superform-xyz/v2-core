@@ -8,10 +8,10 @@ interface IPeripheryRegistry {
     error NOT_AUTHORIZED();
     error INVALID_ACCOUNT();
     error INVALID_FEE_SPLIT();
+    error INVALID_SLIPPAGE_TOLERANCE();
     error HOOK_NOT_REGISTERED();
     error TIMELOCK_NOT_EXPIRED();
     error HOOK_ALREADY_REGISTERED();
-
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -20,6 +20,8 @@ interface IPeripheryRegistry {
     event HookUnregistered(address indexed hook);
     event FeeSplitUpdated(uint256 superformFeeSplit);
     event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime);
+    event SlippageToleranceUpdated(uint256 slippageTolerance);
+    event SlippageToleranceProposed(uint256 slippageTolerance, uint256 effectiveTime);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -30,6 +32,10 @@ interface IPeripheryRegistry {
 
     /// @notice Get all registered hooks
     function getRegisteredHooks() external view returns (address[] memory);
+
+    /// @dev Get the current slippage tolerance.
+    /// @return The slippage tolerance in basis points (0-1000).
+    function getSlippageTolerance() external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -48,6 +54,11 @@ interface IPeripheryRegistry {
 
     /// @dev Execute the proposed fee split update after timelock.
     function executeFeeSplitUpdate() external;
+
+    /// @dev Propose a new slippage tolerance.
+    /// @param slippageTolerance_ The new slippage tolerance in basis points (0-1000).
+    function proposeSlippageTolerance(uint256 slippageTolerance_) external;
+
+    /// @dev Execute the proposed slippage tolerance update after timelock.
+    function executeSlippageToleranceUpdate() external;
 }
-
-

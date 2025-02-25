@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol"; 
+import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 
 // Superform
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
@@ -18,9 +18,15 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
     uint256 private proposedFeeSplit;
     uint256 private feeSplitEffectiveTime;
 
+    // Slippage tolerance configuration
+    uint256 private slippageTolerance;
+    uint256 private proposedSlippageTolerance;
+    uint256 private slippageToleranceEffectiveTime;
+
     // Fee split configuration
     uint256 private constant ONE_WEEK = 7 days;
     uint256 private constant MAX_FEE_SPLIT = 10_000;
+    uint256 private constant MAX_SLIPPAGE_TOLERANCE = 1000; // 10% max slippage
 
     constructor(address owner_) {
         if (owner_ == address(0)) revert INVALID_ACCOUNT();
@@ -28,6 +34,9 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
 
         // Initialize with a default fee split of 20% (2000 basis points)
         feeSplit = 2000;
+
+        // Initialize with a default slippage tolerance of 1% (100 basis points)
+        slippageTolerance = 100;
     }
 
     modifier onlyHooksManager() {
@@ -63,6 +72,16 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
         emit FeeSplitProposed(feeSplit_, feeSplitEffectiveTime);
     }
 
+    /// @inheritdoc IPeripheryRegistry
+    function proposeSlippageTolerance(uint256 slippageTolerance_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (slippageTolerance_ > MAX_SLIPPAGE_TOLERANCE) revert INVALID_SLIPPAGE_TOLERANCE();
+
+        proposedSlippageTolerance = slippageTolerance_;
+        slippageToleranceEffectiveTime = block.timestamp + ONE_WEEK;
+
+        emit SlippageToleranceProposed(slippageTolerance_, slippageToleranceEffectiveTime);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
@@ -77,6 +96,17 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
         emit FeeSplitUpdated(feeSplit);
     }
 
+    /// @inheritdoc IPeripheryRegistry
+    function executeSlippageToleranceUpdate() external {
+        if (block.timestamp < slippageToleranceEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        slippageTolerance = proposedSlippageTolerance;
+        proposedSlippageTolerance = 0;
+        slippageToleranceEffectiveTime = 0;
+
+        emit SlippageToleranceUpdated(slippageTolerance);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -85,10 +115,13 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
         return registeredHooks;
     }
 
-    
     /// @inheritdoc IPeripheryRegistry
     function getSuperformFeeSplit() external view returns (uint256) {
         return feeSplit;
     }
-}
 
+    /// @inheritdoc IPeripheryRegistry
+    function getSlippageTolerance() external view returns (uint256) {
+        return slippageTolerance;
+    }
+}
