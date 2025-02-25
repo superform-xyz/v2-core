@@ -5,14 +5,12 @@ import { Helpers } from "./utils/Helpers.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 
 // Superform interfaces
-import { ISuperRbac } from "../src/core/interfaces/ISuperRbac.sol";
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 // Superform contracts
-import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
@@ -101,7 +99,6 @@ import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import "forge-std/console.sol";
 
 struct Addresses {
-    ISuperRbac superRbac;
     ISuperLedger superLedger;
     ISuperLedger erc1155Ledger;
     ISuperLedgerConfiguration superLedgerConfiguration;
@@ -313,11 +310,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.oracleRegistry = new SuperOracle(address(this), new address[](0), new uint256[](0), new address[](0));
             vm.label(address(A.oracleRegistry), SUPER_ORACLE_KEY);
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A.oracleRegistry);
-
-            A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
-            vm.label(address(A.superRbac), SUPER_RBAC_KEY);
-            contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
-            assertTrue(A.superRbac.hasRole(SuperRbac(address(A.superRbac)).DEFAULT_ADMIN_ROLE(), address(this)));
 
             A.superLedgerConfiguration =
                 ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A.superRegistry))));
@@ -821,9 +813,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], "SuperLedgerConfiguration")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_RBAC_ID"), _getContract(chainIds[i], "SuperRbac")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
                 _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
             );
@@ -846,8 +835,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _setRoles() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
-            superRbac.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
+            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            superRegistry.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
         }
     }
 
@@ -891,13 +880,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                          HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    modifier addRole(ISuperRbac superRbac, bytes32 role_) {
-        superRbac.setRole(address(this), role_, true);
+    modifier addRole(ISuperRegistry superRegistry, bytes32 role_) {
+        superRegistry.setRole(address(this), role_, true);
         _;
     }
 
-    modifier addRoleTo(ISuperRbac superRbac, bytes32 role_, address addr_) {
-        superRbac.setRole(addr_, role_, true);
+    modifier addRoleTo(ISuperRegistry superRegistry, bytes32 role_, address addr_) {
+        superRegistry.setRole(addr_, role_, true);
         _;
     }
 

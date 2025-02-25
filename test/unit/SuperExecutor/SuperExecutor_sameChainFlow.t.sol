@@ -7,15 +7,13 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperRbac } from "../../../src/core/interfaces/ISuperRbac.sol";
+import { ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { ISuperHookOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
 
 import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
-import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockLockVault } from "../../mocks/MockLockVault.sol";
 import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
@@ -38,7 +36,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
     address public account;
     AccountInstance public instance;
     ISuperExecutor public superExecutor;
-    ISuperRbac public superRbac;
     SuperRegistry public superRegistry;
     MockSuperPositionFactory public mockSuperPositionFactory;
 
@@ -53,7 +50,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
         account = accountInstances[ETH].account;
         instance = accountInstances[ETH];
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        superRbac = ISuperRbac(_getContract(ETH, SUPER_RBAC_KEY));
         superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
         mockSuperPositionFactory = new MockSuperPositionFactory(address(this));
         vm.label(address(mockSuperPositionFactory), "MockSuperPositionFactory");

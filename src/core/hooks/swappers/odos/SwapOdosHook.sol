@@ -10,7 +10,6 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperRbac } from "../../../interfaces/ISuperRbac.sol";
 import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -42,7 +41,6 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
         odosRouterV2 = IOdosRouterV2(_routerV2);
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

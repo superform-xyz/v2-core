@@ -8,7 +8,6 @@ import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperRbac } from "../../../interfaces/ISuperRbac.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Swap1InchHook
