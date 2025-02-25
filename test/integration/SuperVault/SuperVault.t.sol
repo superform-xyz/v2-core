@@ -49,7 +49,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Verify state
         assertEq(strategy.pendingDepositRequest(accountEth), 0, "Pending request not cleared");
-        assertGt(strategy.maxMint(accountEth), 0, "No shares available to mint");
+        assertGt(strategy.getSuperVaultState(accountEth, 1), 0, "No shares available to mint");
     }
 
     function test_FulfillRedeem_FullAmountWithThreshold() public {
@@ -67,7 +67,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Verify state
         assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
-        assertGt(strategy.maxWithdraw(accountEth), 0, "No assets available to withdraw");
+        assertGt(strategy.getSuperVaultState(accountEth, 2), 0, "No assets available to withdraw");
     }
 
     function test_FulfillRedeem_FullAmount() public {
@@ -87,7 +87,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Verify state
         assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
-        assertGt(strategy.maxWithdraw(accountEth), 0, "No assets available to withdraw");
+        assertGt(strategy.getSuperVaultState(accountEth, 2), 0, "No assets available to withdraw");
     }
 
 
@@ -100,14 +100,14 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         _fulfillDeposit(depositAmount);
 
         // Get claimable shares
-        uint256 claimableShares = strategy.maxMint(accountEth);
+        uint256 claimableShares = strategy.getSuperVaultState(accountEth, 1);
 
         // Claim deposit
         _claimDeposit(depositAmount);
 
         // Verify state
         assertEq(vault.balanceOf(accountEth), claimableShares, "Wrong share balance");
-        assertEq(strategy.maxMint(accountEth), 0, "Shares not claimed");
+        assertEq(strategy.getSuperVaultState(accountEth, 1), 0, "Shares not claimed");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -146,7 +146,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Verify state
         assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
-        assertGt(strategy.maxWithdraw(accountEth), 0, "No assets available to withdraw");
+        assertGt(strategy.getSuperVaultState(accountEth, 2), 0, "No assets available to withdraw");
     }
 
     function test_ClaimRedeem() public {
@@ -154,20 +154,25 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // First setup a deposit and claim it
         _requestDeposit(depositAmount);
+        console2.log("-------------- initialAssetBalance 1 ", asset.balanceOf(address(strategy)));
         _fulfillDeposit(depositAmount);
+        console2.log("-------------- initialAssetBalance 2 ", asset.balanceOf(address(strategy)));
         _claimDeposit(depositAmount);
+        console2.log("-------------- initialAssetBalance 3 ", asset.balanceOf(address(strategy)));
 
         // Get initial balances
         uint256 initialAssetBalance = asset.balanceOf(accountEth);
         uint256 initialShares = vault.balanceOf(accountEth);
 
+        console2.log("-------------- initialAssetBalance", initialAssetBalance);
+        console2.log("-------------- initialShares", initialShares);
         // Request redeem of half the shares
         uint256 redeemShares = initialShares / 2;
         _requestRedeem(redeemShares);
         _fulfillRedeem(redeemShares);
 
         // Get claimable assets
-        uint256 claimableAssets = strategy.maxWithdraw(accountEth);
+        uint256 claimableAssets = strategy.getSuperVaultState(accountEth, 2);
 
         // Claim redeem
         _claimWithdraw(claimableAssets);
@@ -177,7 +182,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertApproxEqRel(
             asset.balanceOf(accountEth), initialAssetBalance + claimableAssets, 0.05e18, "Wrong final asset balance"
         );
-        assertEq(strategy.maxWithdraw(accountEth), 0, "Assets not claimed");
+        assertEq(strategy.getSuperVaultState(accountEth, 2), 0, "Assets not claimed");
     }
 
     /*//////////////////////////////////////////////////////////////

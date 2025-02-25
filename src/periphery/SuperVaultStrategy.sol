@@ -178,7 +178,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // If deposit, check available balance
         if (isDeposit) {
-            vars.availableAmount = _asset.balanceOf(address(this));
+            vars.availableAmount = _getTokenBalance(address(_asset), address(this));
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
 
@@ -191,7 +191,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             _checkVaultCaps(targetedYieldSources);
         }
 
-        vars.pricePerShare = getSuperVaultPPS();
+        vars.pricePerShare = _getSuperVaultPPS();
 
         // Process requests
         for (uint256 i; i < usersLength;) {
@@ -220,7 +220,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (redeemLength == 0 || depositLength == 0) revert ZERO_VALUE();
 
         MatchVars memory vars;
-        vars.currentPricePerShare = getSuperVaultPPS();
+        vars.currentPricePerShare = _getSuperVaultPPS();
 
         // Track shares used from each redeemer in memory
         uint256[] memory sharesUsedByRedeemer = new uint256[](redeemLength);
@@ -276,7 +276,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             depositState.maxMint += vars.sharesNeeded;
 
             // Call vault callback instead of emitting event directly
-            ISuperVault(_vault).onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded);
+            _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded);
 
             unchecked {
                 ++i;
@@ -304,7 +304,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 redeemState.maxWithdraw += vars.finalAssets;
 
                 // Call vault callback instead of emitting event directly
-                ISuperVault(_vault).onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed);
+                _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed);
             }
 
             unchecked {
@@ -344,7 +344,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.executions.length > 1) revert INVALID_PARAM(1);
 
             // Get amount from hook
-            vars.amount = ISuperHookInflowOutflow(hooks[i]).decodeAmount(hookCalldata[i]);
+            vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
 
             // Validate target is an active yield source
             YieldSource storage source = yieldSources[vars.executions[0].target];
@@ -379,7 +379,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 inflowTargets[inflowCount++] = vars.executions[0].target;
 
                 // Approve spending
-                _asset.safeIncreaseAllowance(vars.executions[0].target, vars.amount);
+                _handleTokenApproval(address(_asset), vars.executions[0].target, vars.amount);
             }
 
             // Execute the transaction
@@ -389,7 +389,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             // Reset approval if it was an inflow
             if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                _asset.forceApprove(vars.executions[0].target, 0);
+                _resetTokenApproval(address(_asset), vars.executions[0].target);
             }
 
             // Update prevHook for next iteration
@@ -436,7 +436,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         ClaimLocalVars memory vars;
 
         // Get initial asset balance
-        vars.initialAssetBalance = _asset.balanceOf(address(this));
+        vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
 
         // Step 1: Execute claim hooks and get balance changes
         vars.balanceChanges = _processClaimHookExecution(hooks[0], claimHookProofs, hookCalldata[0], expectedTokensOut);
@@ -520,7 +520,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         ClaimLocalVars memory vars;
 
         // Get initial asset balance
-        vars.initialAssetBalance = _asset.balanceOf(address(this));
+        vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
 
         // Get balance changes for claimed tokens
         vars.balanceChanges = new uint256[](claimedTokensLength);
@@ -574,24 +574,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         pendingShares = superVaultState[controller].pendingRedeemRequest;
     }
 
-    /// @inheritdoc ISuperVaultStrategy
-    function getSuperVaultPPS() public view returns (uint256 pricePerShare) {
-        uint256 totalSupplyAmount = totalSupply();
-
-        if (totalSupplyAmount == 0) {
-            // For first deposit, set initial PPS to 1 unit in vault decimals
-            pricePerShare = 10 ** _vaultDecimals;
-        } else {
-            // Calculate current PPS
-            (uint256 totalAssets_,) = totalAssets();
-            pricePerShare = totalAssets_.mulDiv(10 ** _vaultDecimals, totalSupplyAmount);
-        }
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
-    function totalSupply() public view returns (uint256) {
-        return IERC4626(_vault).totalSupply();
-    }
 
     /// @inheritdoc ISuperVaultStrategy
     function totalAssets() public view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
@@ -604,8 +586,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 i; i < length;) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
-                uint256 tvl = IYieldSourceOracle(yieldSources[source].oracle)
-                    .getTVLByOwnerOfShares(source, address(this));
+                uint256 tvl = _getTvlByOwnerOfShares(source);
                 totalAssets_ += tvl;
                 sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
             }
@@ -620,24 +601,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function maxMint(address owner) public view returns (uint256) {
-        return superVaultState[owner].maxMint;
+    function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256) {
+        SuperVaultState storage state = superVaultState[owner];
+
+        if (stateType == 1) return state.maxMint;
+        if (stateType == 2) return state.maxWithdraw;
+        if (stateType == 3) return state.averageDepositPrice;
+        if (stateType == 4) return state.averageWithdrawPrice;
+
+        revert INVALID_PARAM(stateType);
     }
 
-    /// @inheritdoc ISuperVaultStrategy
-    function maxWithdraw(address owner) public view returns (uint256) {
-        return superVaultState[owner].maxWithdraw;
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
-    function getAverageDepositPrice(address owner) external view returns (uint256) {
-        return superVaultState[owner].averageDepositPrice;
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
-    function getAverageWithdrawPrice(address owner) external view returns (uint256) {
-        return superVaultState[owner].averageWithdrawPrice;
-    }
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
@@ -664,7 +638,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (oracle == address(0)) revert INVALID_PARAM(1);
             if (yieldSource.oracle != address(0)) revert ALREADY_EXISTS();
 
-            if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert INVALID_AMOUNT();
+            if (_total4626Assets(source) < globalConfig.vaultThreshold) revert INVALID_AMOUNT();
 
             yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
             yieldSourcesList.push(source);
@@ -681,7 +655,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (yieldSource.oracle == address(0)) revert NOT_FOUND();
                 if (yieldSource.isActive) revert ALREADY_EXISTS();
 
-                if (IERC4626(source).totalAssets() < globalConfig.vaultThreshold) revert INVALID_AMOUNT();
+                if (_total4626Assets(source) < globalConfig.vaultThreshold) revert INVALID_AMOUNT();
 
                 yieldSource.isActive = true;
                 emit YieldSourceReactivated(source);
@@ -856,8 +830,40 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    //--Core helpers--
-      function _processDeposit(
+    function _decodeHookAmount(address hook, bytes memory hookCalldata) private pure returns (uint256 amount) {
+        return ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
+    }
+
+    function _total4626Assets(address source) private view returns (uint256) {
+        return IERC4626(source).totalAssets();
+    }
+
+    function _onRedeemClaimable(address redeemer, uint256 assets, uint256 shares) private {
+        ISuperVault(_vault).onRedeemClaimable(redeemer, assets, shares);
+    }
+
+    function _onDepositClaimable(address depositor, uint256 assets, uint256 shares) private {
+        ISuperVault(_vault).onDepositClaimable(depositor, assets, shares);
+    }
+
+    function _getTvlByOwnerOfShares(address source) private view returns (uint256) {
+        return IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
+    }
+
+    function _getSuperVaultPPS() private view returns (uint256 pricePerShare) {
+        uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
+
+        if (totalSupplyAmount == 0) {
+            // For first deposit, set initial PPS to 1 unit in vault decimals
+            pricePerShare = 10 ** _vaultDecimals;
+        } else {
+            // Calculate current PPS
+            (uint256 totalAssets_,) = totalAssets();
+            pricePerShare = totalAssets_.mulDiv(10 ** _vaultDecimals, totalSupplyAmount, Math.Rounding.Ceil);
+        }
+    }
+
+    function _processDeposit(
         address user,
         SuperVaultState storage state,
         FulfillmentVars memory vars
@@ -869,7 +875,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 newTotalShares = vars.shares;
 
         if (state.maxMint > 0) {
-            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
+            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Ceil);
             newTotalShares += state.maxMint;
         }
 
@@ -882,7 +888,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
-        ISuperVault(_vault).onDepositClaimable(user, vars.requestedAmount, vars.shares);
+        _onDepositClaimable(user, vars.requestedAmount, vars.shares);
     }
 
     function _processRedeem(
@@ -891,7 +897,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         FulfillmentVars memory vars
     ) private {
         vars.requestedAmount = state.pendingRedeemRequest;
-
+        
         uint256 lastConsumedIndex;
         uint256 finalAssets;
         (finalAssets, lastConsumedIndex) =
@@ -901,7 +907,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.pendingRedeemRequest = 0;
         state.maxWithdraw += finalAssets;
 
-        ISuperVault(_vault).onRedeemClaimable(user, finalAssets, vars.requestedAmount);
+        _onRedeemClaimable(user, finalAssets, vars.requestedAmount);
     }
 
     function _handleRequestDeposit(address controller, uint256 assets) private {
@@ -960,7 +966,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.maxWithdraw -= assets;
 
         // Transfer assets to vault
-        _asset.safeTransfer(_vault, assets);
+        _safeTokenTransfer(address(_asset), _vault, assets);
     }
 
     //--Fulfilment and allocation helpers--
@@ -1089,7 +1095,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         changes = new uint256[](length);
 
         for (uint256 i; i < length;) {
-            uint256 finalBalance = IERC20(tokens[i]).balanceOf(address(this));
+            uint256 finalBalance = _getTokenBalance(tokens[i], address(this));
 
             if (requireZeroBalance) {
                 if (finalBalance != 0) revert INVALID_AMOUNT();
@@ -1186,7 +1192,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         returns (uint256 amount, address target)
     {
         // Get amount before execution
-        amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
+        amount = _decodeHookAmount(hook, hookCalldata);
 
         // Get all TVLs in one call
         (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
@@ -1236,14 +1242,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         returns (uint256 amount, address target)
     {
         // Get amount before execution
-        amount = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
+        amount = _decodeHookAmount(hook, hookCalldata);
 
         // convert amount to underlying vault shares
+        uint256 vaultAmount = amount.mulDiv(10 ** _vaultDecimals, _getSuperVaultPPS(), Math.Rounding.Ceil);
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
-        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(yieldSource, address(_asset), amount);
+        uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(yieldSource, address(_asset), vaultAmount);
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
-
         // Execute hook with vault token approval
+
         target = _executeHook(
             hook,
             prevHook,
@@ -1274,7 +1281,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get initial balances
         uint256[] memory initialBalances = new uint256[](expectedTokensOut.length);
         for (uint256 i = 0; i < expectedTokensOut.length;) {
-            initialBalances[i] = IERC20(expectedTokensOut[i]).balanceOf(address(this));
+            initialBalances[i] = _getTokenBalance(expectedTokensOut[i], address(this));
             unchecked {
                 ++i;
             }
@@ -1347,10 +1354,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         _trackBalanceChanges(expectedTokensOut, initialBalances, true);
 
         // Calculate asset gained by comparing final balance with initial
-        uint256 finalAssetBalance = _asset.balanceOf(address(this));
+        uint256 finalAssetBalance = _getTokenBalance(address(_asset), address(this));
         if (finalAssetBalance <= initialAssetBalance) revert INVALID_AMOUNT();
         assetGained = finalAssetBalance - initialAssetBalance;
     }
+
 
     /// @notice Check vault caps for targeted yield sources
     /// @param targetedYieldSources Array of yield sources to check
@@ -1358,8 +1366,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Note: This check is gas expensive due to getTVLByOwnerOfShares calls
         for (uint256 i; i < targetedYieldSources.length;) {
             address source = targetedYieldSources[i];
-            uint256 yieldSourceTVL =
-                IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
+            uint256 yieldSourceTVL = _getTvlByOwnerOfShares(source);
             if (yieldSourceTVL > globalConfig.vaultCap) revert LIMIT_EXCEEDED();
             unchecked {
                 ++i;
@@ -1384,12 +1391,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                 // Transfer fees
                 if (superformFee > 0) {
-                    _asset.safeTransfer(superRegistry.getTreasury(), superformFee);
+                    _safeTokenTransfer(address(_asset), superRegistry.getTreasury(), superformFee);
                     emit FeePaid(superRegistry.getTreasury(), superformFee, performanceFeeBps);
                 }
 
                 if (recipientFee > 0) {
-                    _asset.safeTransfer(feeConfig.recipient, recipientFee);
+                    _safeTokenTransfer(address(_asset), feeConfig.recipient, recipientFee);
                     emit FeePaid(feeConfig.recipient, recipientFee, performanceFeeBps);
                 }
 
@@ -1440,13 +1447,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Calculate current value and process fees
         // TODO rounding
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals);
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
         // Update average withdraw price
         // TODO are we doing a mistake by calculating average after taking fee?
         if (requestedShares > 0) {
-            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares, Math.Rounding.Floor);
+            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares);
         }
     }
 

@@ -334,28 +334,10 @@ interface ISuperVaultStrategy {
     /// @notice Get the global and fee configurations
     function getConfigInfo() external view returns (GlobalConfig memory globalConfig, FeeConfig memory feeConfig);
 
-    /// @notice Get the current price per share of the SuperVault
-    /// @return pricePerShare The current price per share in underlying decimals
-    function getSuperVaultPPS() external view returns (uint256 pricePerShare);
-
     /// @notice Get total assets managed by the strategy
     /// @return totalAssets_ Total assets across all yield sources and idle assets
     /// @return sourceTVLs Array of TVL information for each yield source
     function totalAssets() external view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs);
-
-    /// @notice Get the total supply of shares in the SuperVault
-    /// @return The total number of shares currently in circulation
-    function totalSupply() external view returns (uint256);
-
-    /// @notice Get the maximum amount of shares that can be minted for an owner
-    /// @param owner The owner address
-    /// @return The maximum amount of shares that can be minted
-    function maxMint(address owner) external view returns (uint256);
-
-    /// @notice Get the maximum amount of assets that can be withdrawn for an owner
-    /// @param owner The owner address
-    /// @return The maximum amount of assets that can be withdrawn
-    function maxWithdraw(address owner) external view returns (uint256);
 
     /// @notice Get a yield source's configuration
     /// @param source Address of the yield source
@@ -369,20 +351,21 @@ interface ISuperVaultStrategy {
     /// @param proof Merkle proof for the hook
     function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
 
-    /// @notice Get the average deposit price for a user
-    /// @param owner The owner address
-    /// @return The average deposit price for the user
-    function getAverageDepositPrice(address owner) external view returns (uint256);
-
-    /// @notice Get the average withdraw price for a user
-    /// @param owner The owner address
-    /// @return The average withdraw price for the user
-    function getAverageWithdrawPrice(address owner) external view returns (uint256);
-
     /// @notice Get the claimed token amounts in the vault
     /// @param token The token address
     /// @return The amount of tokens claimed
     function claimedTokens(address token) external view returns (uint256);
+
+    /// @notice Get the SuperVault state for a given owner and state type
+    /// @param owner The owner address
+    /// @param stateType The state type to get
+    ///        1 - maxMint,
+    ///        2 - maxWithdraw,
+    ///        3 - averageDepositPrice,
+    ///        4 - averageWithdrawPrice
+    /// @return The state value
+    function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
+
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
