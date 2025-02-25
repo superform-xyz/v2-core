@@ -19,7 +19,7 @@ import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/acc
 contract SuperVaultE2EFlow is BaseSuperVaultTest {
     ERC7540YieldSourceOracle public oracle;
     ISuperLedger public superLedgerETH;
-
+    SuperRegistry public superRegistry;
     address public feeRecipientETH;
 
     uint256 amountPerVault;
@@ -30,11 +30,13 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
     function setUp() public override {
         super.setUp();
 
-        _overrideSuperLedger();
+        _setUpSuperLedgerForVault();
 
         amountPerVault = 1000e6; // 1000 USDC
 
-        feeRecipientETH = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY)).getAddress(keccak256("PAYMASTER_ID"));
+        superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
+
+        feeRecipientETH = superRegistry.getTreasury();
 
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
 
@@ -82,10 +84,11 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
-        uint256 feeBalanceBefore = asset.balanceOf(feeRecipientETH);
 
         // Fast forward time to simulate yield on underlying vaults
-        //vm.warp(block.timestamp + 1 weeks);
+        vm.warp(block.timestamp + 1 weeks);
+
+        uint256 feeBalanceBefore = asset.balanceOf(feeRecipientETH);
 
         // Step 4: Request Redeem
         _requestRedeem(userShares);
@@ -98,15 +101,10 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         _fulfillRedeem(userShares);
 
         // Calculate expected assets based on shares
-        uint256 amountToClaim = vault.maxWithdraw(accountEth);
-        console2.log("amountToClaim", amountToClaim);
-
         uint256 claimableAssets = strategy.maxWithdraw(accountEth);
-        console2.log("claimableAssets", claimableAssets);
 
-        // Get ledger entries before redeem
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedgerETH.getLedger(accountEth, address(vault));
+        (ISuperLedger.LedgerEntry[] memory entries, 
+        uint256 unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
 
         // Calculate expected fee
         uint256 expectedFee = _deriveExpectedFee(
@@ -120,24 +118,13 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
             })
         );
 
-        console2.log("expectedFee", expectedFee);
-
         // Step 6: Claim Withdraw
-        // vm.expectEmit(true, true, true, true);
-        // emit ISuperLedgerData.AccountingOutflow(
-        //     accountEth,
-        //     address(oracle),
-        //     address(vault),
-        //     claimableAssets,
-        //     expectedFee
-        // );
-        _claimWithdraw(claimableAssets);
+        _claimWithdrawWithAccountingChecks(claimableAssets, expectedFee, address(oracle));
 
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
-        console2.log("claimableAssets", claimableAssets);
-        console2.log("amountToClaim", amountToClaim);
+        console2.log("expectedFee", expectedFee);
 
         // Verify fee was taken
         _assertFeeDerivation(expectedFee, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
@@ -145,7 +132,11 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Check final ledger state
         (entries, unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
         assertEq(entries.length, 1, "Should have one ledger entry");
-        assertEq(entries[0].amountSharesAvailableToConsume, userShares - amountToClaim, "Shares not consumed correctly");
+        assertEq(
+          entries[0].amountSharesAvailableToConsume, 
+          userShares - vault.convertToShares(claimableAssets), 
+          "Shares not consumed correctly"
+        );
         assertEq(unconsumedEntries, 0, "Should have no unconsumed entries");
     }
 
@@ -153,17 +144,16 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _overrideSuperLedger() internal {
+    function _setUpSuperLedgerForVault() internal {
         vm.selectFork(FORKS[ETH]);
         vm.startPrank(MANAGER);
-        SuperRegistry superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+            feeRecipient: feeRecipientETH,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
         ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);

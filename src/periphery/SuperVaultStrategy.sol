@@ -1006,17 +1006,58 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (assets == 0) revert ZERO_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
-
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
 
-        // Check actual asset balance
-        uint256 availableAssets = _asset.balanceOf(address(this));
-        if (availableAssets < assets) revert INSUFFICIENT_ASSETS();
+        // First check direct asset balance
+        uint256 directBalance = _asset.balanceOf(address(this));
+        if (directBalance >= assets) {
+            // We have enough direct balance, proceed with transfer
+            state.maxWithdraw -= assets;
+            _asset.safeTransfer(_vault, assets);
+            return;
+        }
 
-        // Update state
+        // Calculate how much we need to withdraw from vaults
+        uint256 remainingNeeded = assets - directBalance;
+        address[] memory sources = yieldSourcesList;
+
+        // Track total available assets across vaults for validation
+        uint256 totalAvailable = directBalance;
+
+        // First pass - calculate total available to ensure we can fulfill
+        for (uint256 i = 0; i < sources.length; i++) {
+            if (!yieldSources[sources[i]].isActive) continue;
+            uint256 shares = IERC4626(sources[i]).balanceOf(address(this));
+            if (shares > 0) {
+                totalAvailable += IERC4626(sources[i]).convertToAssets(shares);
+            }
+        }
+
+        if (totalAvailable < assets) revert INSUFFICIENT_ASSETS();
+
+        // Second pass - actually withdraw from vaults
+        for (uint256 i = 0; i < sources.length && remainingNeeded > 0; i++) {
+            if (!yieldSources[sources[i]].isActive) continue;
+
+            IERC4626 vault = IERC4626(sources[i]);
+            uint256 vaultShares = vault.balanceOf(address(this));
+            if (vaultShares == 0) continue;
+
+            uint256 vaultAssets = vault.convertToAssets(vaultShares);
+            uint256 withdrawAmount = remainingNeeded > vaultAssets ? vaultAssets : remainingNeeded;
+
+            if (withdrawAmount > 0) {
+                // Withdraw assets from vault
+                vault.withdraw(withdrawAmount, address(this), address(this));
+                remainingNeeded -= withdrawAmount;
+            }
+        }
+
+        // Verify we have enough balance after withdrawals
+        if (_asset.balanceOf(address(this)) < assets) revert INSUFFICIENT_ASSETS();
+
+        // Update state and transfer
         state.maxWithdraw -= assets;
-
-        // Transfer assets to vault
         _asset.safeTransfer(_vault, assets);
     }
 

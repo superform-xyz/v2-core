@@ -806,12 +806,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
             );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("PAYMASTER_ID"), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11112));
         }
     }
 
@@ -836,21 +835,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                feeRecipient: superRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                feeRecipient: superRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                feeRecipient: superRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
