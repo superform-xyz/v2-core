@@ -4,7 +4,6 @@ pragma solidity >=0.8.28;
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { IHookRegistry } from "../interfaces/IHookRegistry.sol";
 
 contract HooksRegistry is SuperRegistryImplementer, IHookRegistry {
@@ -12,13 +11,12 @@ contract HooksRegistry is SuperRegistryImplementer, IHookRegistry {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) public isHookRegistered;
-    address[] public registeredHooks;
+    address[] private registeredHooks;
 
-    constructor(address registry_) SuperRegistryImplementer(registry_) {}
+    constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     modifier onlyHooksManager() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
-        if (!rbac.hasRole(keccak256("HOOKS_MANAGER_ROLE"), msg.sender)) revert NOT_AUTHORIZED();
+        if (!superRegistry.hasRole(keccak256("HOOKS_MANAGER_ROLE"), msg.sender)) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -48,4 +46,3 @@ contract HooksRegistry is SuperRegistryImplementer, IHookRegistry {
         return registeredHooks;
     }
 }
-

@@ -10,7 +10,6 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { ISuperRbac } from "../../../interfaces/ISuperRbac.sol";
 import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
 
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -44,8 +43,7 @@ contract SwapOdosHook is BaseHook, ISuperHook {
     }
 
     modifier onlyHooksManager() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
-        if (!rbac.hasRole(keccak256("HOOKS_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
+        if (!superRegistry.hasRole(keccak256("HOOKS_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
         _;
     }
 

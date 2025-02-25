@@ -10,7 +10,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
-import { ISuperRbac } from "../interfaces/ISuperRbac.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
@@ -27,13 +26,6 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     mapping(address => bool) internal _initialized;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
-
-    // TODO: check if sender is bridge gateway; otherwise enforce at the logic level
-    modifier onlyBridgeGateway() {
-        ISuperRbac rbac = ISuperRbac(superRegistry.getAddress(keccak256("SUPER_RBAC_ID")));
-        if (!rbac.hasRole(keccak256("BRIDGE_GATEWAY"), msg.sender)) revert NOT_AUTHORIZED();
-        _;
-    }
 
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
@@ -79,9 +71,11 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         for (uint256 i; i < hooksLen;) {
             address currentHook = entry.hooksAddresses[i];
             _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
-            prevHook= currentHook;
+            prevHook = currentHook;
             // go to next hook
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
@@ -105,8 +99,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedgerConfiguration ledgerConfiguration = ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
-         
+            ISuperLedgerConfiguration ledgerConfiguration =
+                ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
+
             bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
