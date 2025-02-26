@@ -1,0 +1,352 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Structure
+
+```
+.
+├── .cursor
+│   └── rules
+│       ├── agent.mdc
+│       ├── structure.mdc
+│       └── superform-solidity-rules.mdc
+├── .env.example
+├── .github
+│   ├── CODEOWNERS
+│   └── workflows
+│       └── contracts-ci.yml
+├── .gitignore
+├── .gitmodules
+├── .prettierignore
+├── .prettierrc.yml
+├── .solhint.json
+├── Makefile
+├── README.md
+├── contract_bindings
+│   ├── AcrossReceiveFundsAndExecuteGateway.go
+│   ├── AcrossSendFundsAndExecuteOnDstHook.go
+│   ├── HooksRegistry.go
+│   ├── IAcrossV3Receiver.go
+│   ├── SuperExecutor.go
+│   └── SuperRegistry.go
+├── documentation
+│   └── original-instructions.md
+├── foundry.toml
+├── go.mod
+├── go.sum
+├── lib
+│   ├── ExcessivelySafeCall
+│   ├── forge-std
+│   ├── modulekit
+│   ├── openzeppelin-contracts
+│   ├── pigeon
+│   └── solady
+├── script
+│   ├── DeploySuperDeployer.s.sol
+│   ├── DeployV2.s.sol
+│   ├── output
+│   │   ├── feat
+│   │   │   ├── 7540-phase2
+│   │   │   │   └── latest.json
+│   │   │   ├── 7540SuperVault
+│   │   │   │   └── latest.json
+│   │   │   ├── SUP-10329-de-brdige
+│   │   │   │   └── latest.json
+│   │   │   ├── SUP-10520-staking-oracles
+│   │   │   │   └── latest.json
+│   │   │   ├── SUP-10536-account-param
+│   │   │   │   └── latest.json
+│   │   │   ├── fixCi
+│   │   │   │   └── latest.json
+│   │   │   ├── fixSuperLedger
+│   │   │   │   └── latest.json
+│   │   │   ├── minorFixes
+│   │   │   │   └── latest.json
+│   │   │   ├── remove-stake-hooks
+│   │   │   │   └── latest.json
+│   │   │   └── super-ledger-fixes
+│   │   │       └── latest.json
+│   │   ├── latest.json
+│   │   └── local
+│   │       ├── 1
+│   │       │   └── Ethereum-latest.json
+│   │       ├── 10
+│   │       │   └── Optimism-latest.json
+│   │       ├── 8453
+│   │       │   └── Base-latest.json
+│   │       └── latest.json
+│   ├── run
+│   │   ├── deploy_superDeployer.sh
+│   │   ├── deploy_v2_testnet.sh
+│   │   ├── deploy_v2_vnet.sh
+│   │   ├── deploy_v2_vnet_s3.sh
+│   │   ├── retrieve-abis.sh
+│   │   ├── tenderly
+│   │   │   └── index.js
+│   │   ├── update_structure.sh
+│   │   └── verify_v2_vnet.sh
+│   └── utils
+│       ├── Configuration.sol
+│       ├── Constants.sol
+│       ├── ISuperDeployer.sol
+│       └── SuperDeployer.sol
+├── src
+│   ├── core
+│   │   ├── accounting
+│   │   │   ├── BaseLedger.sol
+│   │   │   ├── ERC1155Ledger.sol
+│   │   │   ├── SuperLedger.sol
+│   │   │   ├── SuperLedgerConfiguration.sol
+│   │   │   └── oracles
+│   │   │       ├── AbstractYieldSourceOracle.sol
+│   │   │       ├── ERC4626YieldSourceOracle.sol
+│   │   │       ├── ERC5115YieldSourceOracle.sol
+│   │   │       ├── ERC7540YieldSourceOracle.sol
+│   │   │       ├── FluidYieldSourceOracle.sol
+│   │   │       ├── GearboxYieldSourceOracle.sol
+│   │   │       └── SuperOracle.sol
+│   │   ├── bridges
+│   │   │   ├── AcrossReceiveFundsAndExecuteGateway.sol
+│   │   │   └── DeBridgeReceiveFundsAndExecuteGateway.sol
+│   │   ├── executors
+│   │   │   └── SuperExecutor.sol
+│   │   ├── hooks
+│   │   │   ├── BaseHook.sol
+│   │   │   ├── bridges
+│   │   │   │   ├── across
+│   │   │   │   │   └── AcrossSendFundsAndExecuteOnDstHook.sol
+│   │   │   │   └── debridge
+│   │   │   │       └── DeBridgeSendFundsAndExecuteOnDstHook.sol
+│   │   │   ├── claim
+│   │   │   │   ├── BaseClaimRewardHook.sol
+│   │   │   │   ├── fluid
+│   │   │   │   │   └── FluidClaimRewardHook.sol
+│   │   │   │   ├── gearbox
+│   │   │   │   │   └── GearboxClaimRewardHook.sol
+│   │   │   │   └── yearn
+│   │   │   │       ├── YearnClaimAllRewardsHook.sol
+│   │   │   │       └── YearnClaimOneRewardHook.sol
+│   │   │   ├── stake
+│   │   │   │   ├── fluid
+│   │   │   │   │   ├── FluidStakeHook.sol
+│   │   │   │   │   ├── FluidStakeWithPermitHook.sol
+│   │   │   │   │   └── FluidUnstakeHook.sol
+│   │   │   │   └── gearbox
+│   │   │   │       ├── GearboxStakeHook.sol
+│   │   │   │       └── GearboxUnstakeHook.sol
+│   │   │   ├── swappers
+│   │   │   │   ├── 1inch
+│   │   │   │   │   └── Swap1InchHook.sol
+│   │   │   │   └── odos
+│   │   │   │       └── SwapOdosHook.sol
+│   │   │   ├── tokens
+│   │   │   │   └── erc20
+│   │   │   │       ├── ApproveERC20Hook.sol
+│   │   │   │       └── TransferERC20Hook.sol
+│   │   │   └── vaults
+│   │   │       ├── 4626
+│   │   │       │   ├── Deposit4626VaultHook.sol
+│   │   │       │   └── Withdraw4626VaultHook.sol
+│   │   │       ├── 5115
+│   │   │       │   ├── Deposit5115VaultHook.sol
+│   │   │       │   └── Withdraw5115VaultHook.sol
+│   │   │       ├── 7540
+│   │   │       │   ├── Deposit7540VaultHook.sol
+│   │   │       │   ├── RequestDeposit7540VaultHook.sol
+│   │   │       │   ├── RequestWithdraw7540VaultHook.sol
+│   │   │       │   └── Withdraw7540VaultHook.sol
+│   │   │       └── 7575_7540
+│   │   │           ├── Deposit7575_7540VaultHook.sol
+│   │   │           └── Withdraw7575_7540VaultHook.sol
+│   │   ├── interfaces
+│   │   │   ├── ISuperExecutor.sol
+│   │   │   ├── ISuperHook.sol
+│   │   │   ├── ISuperRegistry.sol
+│   │   │   └── accounting
+│   │   │       ├── ISuperLedger.sol
+│   │   │       ├── ISuperLedgerConfiguration.sol
+│   │   │       ├── ISuperOracle.sol
+│   │   │       └── IYieldSourceOracle.sol
+│   │   ├── libraries
+│   │   │   └── HookDataDecoder.sol
+│   │   ├── paymaster
+│   │   │   └── SuperNativePaymaster.sol
+│   │   ├── settings
+│   │   │   └── SuperRegistry.sol
+│   │   ├── utils
+│   │   │   └── SuperRegistryImplementer.sol
+│   │   └── validators
+│   │       └── SuperMerkleValidator.sol
+│   ├── periphery
+│   │   ├── PeripheryRegistry.sol
+│   │   ├── SuperVault.sol
+│   │   ├── SuperVaultEscrow.sol
+│   │   ├── SuperVaultFactory.sol
+│   │   ├── SuperVaultStrategy.sol
+│   │   └── interfaces
+│   │       ├── IPeripheryRegistry.sol
+│   │       ├── ISuperVault.sol
+│   │       ├── ISuperVaultEscrow.sol
+│   │       └── ISuperVaultStrategy.sol
+│   └── vendor
+│       ├── 1inch
+│       │   └── I1InchAggregationRouterV6.sol
+│       ├── BoringSolidity
+│       │   └── BoringERC20.sol
+│       ├── BytesLib.sol
+│       ├── account-abstraction
+│       │   └── IMinimalEntryPoint.sol
+│       ├── awesome-oracles
+│       │   └── IOracle.sol
+│       ├── bridges
+│       │   ├── across
+│       │   │   ├── IAcrossSpokePoolV3.sol
+│       │   │   ├── IAcrossV3Interpreter.sol
+│       │   │   └── IAcrossV3Receiver.sol
+│       │   └── debridge
+│       │       └── IDeBridgeGate.sol
+│       ├── chainlink
+│       │   └── AggregatorV3Interface.sol
+│       ├── fluid
+│       │   └── IFluidLendingStakingRewards.sol
+│       ├── gearbox
+│       │   └── IGearboxFarmingPool.sol
+│       ├── odos
+│       │   └── IOdosRouterV2.sol
+│       ├── pendle
+│       │   └── IStandardizedYield.sol
+│       ├── permit
+│       │   └── permit-hooks
+│       │       ├── ApproveWithPermit2Hook.sol
+│       │       ├── PermitBatchWithPermit2Hook.sol
+│       │       ├── PermitWithPermit2Hook.sol
+│       │       ├── TransferBatchWithPermit2Hook.sol
+│       │       └── TransferWithPermit2Hook.sol
+│       ├── standards
+│       │   ├── ERC7540
+│       │   │   └── IERC7540Vault.sol
+│       │   ├── ERC7575
+│       │   │   └── IERC7575.sol
+│       │   ├── ERC7741
+│       │   │   └── IERC7741.sol
+│       │   └── erc4337
+│       │       ├── IEntryPoint.sol
+│       │       └── IUserOperation.sol
+│       ├── uniswap
+│       │   └── permit2
+│       │       ├── IAllowanceTransfer.sol
+│       │       ├── IEIP712.sol
+│       │       ├── IPermit2.sol
+│       │       ├── IPermit2Batch.sol
+│       │       ├── IPermit2Single.sol
+│       │       └── ISignatureTransfer.sol
+│       ├── vaults
+│       │   ├── 5115
+│       │   │   └── IERC5115.sol
+│       │   └── 7540
+│       │       └── IERC7540.sol
+│       └── yearn
+│           └── IYearnStakingRewardsMulti.sol
+└── test
+    ├── BaseE2ETest.t.sol
+    ├── BaseTest.t.sol
+    ├── integration
+    │   ├── BridgeToMultiVaultDepositAndRedeemFlow.t.sol
+    │   ├── CrossChainDepositWithSlippage.t.sol
+    │   ├── E2EExecution.t.sol
+    │   ├── ERC4626DepositRedeemFlow.t.sol
+    │   ├── MultiVaultDepositFlow.t.sol
+    │   ├── SuperVault
+    │   │   ├── BaseSuperVaultTest.t.sol
+    │   │   ├── SuperVault.fulfillDepositRequests.t.sol
+    │   │   ├── SuperVault.fulfillRedeemRequests.t.sol
+    │   │   ├── SuperVault.t.sol
+    │   │   ├── SuperVaultFactory.t.sol
+    │   │   └── test-plan.md
+    │   ├── accounting
+    │   │   ├── Fees.t.sol
+    │   │   ├── oracles
+    │   │   │   ├── ERC4626YieldSourceOracle.t.sol
+    │   │   │   ├── ERC5115YieldSourceOracle.t.sol
+    │   │   │   ├── ERC7540YieldSourceOracle.t.sol
+    │   │   │   ├── FluidYieldSourceOracleIntegration.t.sol
+    │   │   │   └── YearnV3OracleIntegration.t.sol
+    │   │   └── price
+    │   │       ├── PendlePriceIntegration.t.sol
+    │   │       └── YearnV3PriceIntegration.t.sol
+    │   └── swappers
+    │       └── SwapWithOdos.t.sol
+    ├── mocks
+    │   ├── ISuperCollectiveVault.sol
+    │   ├── ISuperPositions.sol
+    │   ├── Mock1InchRouter.sol
+    │   ├── Mock4626Vault.sol
+    │   ├── Mock5115Vault.sol
+    │   ├── Mock7540Vault.sol
+    │   ├── MockAccountingVault.sol
+    │   ├── MockERC20.sol
+    │   ├── MockExecutorModule.sol
+    │   ├── MockLockVault.sol
+    │   ├── MockOdosRouterV2.sol
+    │   ├── MockRegistry.sol
+    │   ├── MockSignature.sol
+    │   ├── MockStakingProtocol.sol
+    │   ├── MockSuperExecutor.sol
+    │   ├── MockSuperPositionFactory.sol
+    │   ├── MockValidatorModule.sol
+    │   ├── SuperCollectiveVault.sol
+    │   ├── SuperPositionsMock.sol
+    │   ├── VaultMock.sol
+    │   ├── centrifuge
+    │   │   ├── IGateway.sol
+    │   │   ├── IHook.sol
+    │   │   ├── IInvestmentManager.sol
+    │   │   ├── IMessageHandler.sol
+    │   │   ├── IPoolManager.sol
+    │   │   ├── IRecoverable.sol
+    │   │   ├── IRestrictionManager.sol
+    │   │   ├── IRestrictionManagerLike.sol
+    │   │   ├── IRoot.sol
+    │   │   └── ITranch.sol
+    │   └── sentinel
+    │       ├── ISentinel.sol
+    │       └── SuperPositionSentinel.sol
+    ├── unit
+    │   ├── Mock
+    │   │   ├── Mock.t.sol
+    │   │   ├── Mock.tree
+    │   │   ├── SuperPositionsFactory.t.sol
+    │   │   └── SuperPositionsFactoryFuzz.t.sol
+    │   ├── SuperExecutor
+    │   │   ├── SuperExecutor_sameChainFlow.t.sol
+    │   │   └── SuperExecutor_sameChainFlow.tree
+    │   ├── hooks
+    │   │   └── PeripheryRegistry.t.sol
+    │   └── validators
+    │       ├── SuperMerkleValidator.t.sol
+    │       └── SuperMerkleValidator.tree
+    ├── utils
+    │   ├── Constants.sol
+    │   ├── Events.sol
+    │   ├── Helpers.sol
+    │   └── merkle
+    │       ├── helper
+    │       │   └── MerkleReader.sol
+    │       ├── merkle-js
+    │       │   ├── generateMerkleTree.js
+    │       │   └── package.json
+    │       └── target
+    │           ├── input0.json
+    │           ├── jsGeneratedRoot0.json
+    │           └── jsTreeDump0.json
+    └── vendors
+        └── nexus
+            ├── IERC7484.sol
+            ├── INexus.sol
+            ├── INexusBootstrap.sol
+            └── INexusFactory.sol
+
+112 directories, 229 files
+```

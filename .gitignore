@@ -21,5 +21,3 @@ broadcast/*/31337/
 
 # node_modules
 lib/modulekit/node_modules
-
-.cursor
