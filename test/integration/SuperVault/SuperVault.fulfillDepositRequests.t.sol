@@ -49,7 +49,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         // check that all pending requests are cleared
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
-            assertGt(strategy.maxMint(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
             unchecked { ++i; }
         }
     }
@@ -78,14 +78,14 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         // check that all pending requests are cleared
         for (uint256 i; i < partialUsersCount;) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
-            assertGt(strategy.maxMint(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
             unchecked { ++i; }
         }
         
         // check that the remaining users have not been affected
         for (uint256 i = partialUsersCount; i < RANDOM_ACCOUNT_COUNT;) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
-            assertEq(strategy.maxMint(accInstances[i].account), 0);
+            assertEq(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
             unchecked { ++i; }
         }
 
@@ -128,7 +128,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
         
         assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0);
-        assertGt(strategy.maxMint(accInstances[0].account), 0);
+        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0);
     }
 
     function test_RequestDeposit_MultipleUsers_DifferentAmounts() public {
@@ -158,7 +158,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         // Verify all deposits were fulfilled
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
-            assertGt(strategy.maxMint(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
         }
     }
 
@@ -205,7 +205,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         // Verify all deposits were fulfilled correctly
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
-            assertGt(strategy.maxMint(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
         }
     }
 
@@ -310,7 +310,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillDepositRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
         vm.stopPrank();
     }
 }

@@ -33,6 +33,8 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
         _;
     }
 
+    address public immutable superCollectiveVaultManager;
+
     modifier onlySuperCollectiveVaultManager() {
         if (!superRegistry.hasRole(keccak256("SUPER_COLLECTIVE_VAULT_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
         _;

@@ -32,7 +32,6 @@ rpc_urls=("$ETH_MAINNET" "$BASE_MAINNET")
 files_to_verify=(
     "src/settings/SuperRegistry.sol"
     "src/executors/SuperExecutor.sol"
-    "src/settings/SuperRbac.sol"
     "src/accounting/SuperLedger.sol"
     "src/sentinels/SuperPositionSentinel.sol"
     "src/bridges/AcrossReceiveFundsAndExecuteGateway.sol"
@@ -110,7 +109,6 @@ contract_addresses=(
 constructor_args=(
     "$owner_arg"  # SuperRegistry
     "$super_registry_arg"  # SuperExecutor
-    "$owner_arg"  # SuperRbac
     "$super_registry_arg"  # SuperLedger
     "$super_registry_arg"  # SuperPositionSentinel
     "$acrossReceiveFundsAndExecuteGateway_arg"  # AcrossReceiveFundsAndExecuteGateway

@@ -366,7 +366,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function maxMint(address owner) public view override returns (uint256) {
-        return strategy.maxMint(owner);
+        return strategy.getSuperVaultState(owner, 1);
     }
 
     /// @inheritdoc IERC4626
@@ -376,7 +376,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function maxWithdraw(address owner) public view override returns (uint256) {
-        return strategy.maxWithdraw(owner);
+        return strategy.getSuperVaultState(owner, 2);
     }
 
     /// @inheritdoc IERC4626
@@ -409,7 +409,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(controller);
 
-        uint256 averageDepositPrice = strategy.getAverageDepositPrice(controller);
+        uint256 averageDepositPrice = strategy.getSuperVaultState(controller, 3);
         if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
 
         // Convert maxMint to assets using average deposit price
@@ -442,7 +442,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         uint256 maxMintAmount = maxMint(controller);
 
         if (shares > maxMintAmount) revert INVALID_DEPOSIT_CLAIM();
-        uint256 averageDepositPrice = strategy.getAverageDepositPrice(controller);
+        uint256 averageDepositPrice = strategy.getSuperVaultState(controller, 3);
         if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
         assets = shares.mulDiv(averageDepositPrice, 1e18, Math.Rounding.Floor);
 
@@ -465,8 +465,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
-        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
-        console2.log("averageWithdrawPrice", averageWithdrawPrice);
+        uint256 averageWithdrawPrice = strategy.getSuperVaultState(owner, 4);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
@@ -478,7 +477,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         console2.log("shares", shares);
 
         // Forward to strategy
-        strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
+        // true assets transferred are returned here
+        assets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
 
         // Transfer shares back to vault and burn them
         ISuperVaultEscrow(escrow).transferShares(address(this), shares);
@@ -493,7 +493,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
-        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        uint256 averageWithdrawPrice = strategy.getSuperVaultState(owner, 4);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         // Calculate assets based on shares and average withdraw price
@@ -504,7 +504,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Forward to strategy
-        strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
+        // true assets transferred are returned here
+        assets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
 
         // Transfer shares back to vault and burn them
         ISuperVaultEscrow(escrow).transferShares(address(this), shares);

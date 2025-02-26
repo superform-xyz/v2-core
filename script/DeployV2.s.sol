@@ -13,7 +13,7 @@ import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
-import { HooksRegistry } from "../src/core/hooks/HooksRegistry.sol";
+import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
@@ -91,7 +91,7 @@ contract DeployV2 is Script, Configuration {
         address debridgeReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
         address oracleRegistry;
-        address hooksRegistry;
+        address peripheryRegistry;
     }
 
     modifier broadcast(uint256 env) {
@@ -124,7 +124,7 @@ contract DeployV2 is Script, Configuration {
             }
             SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
             console2.log("SuperDeployer deployed at:", address(superDeployer));
-           
+
             configuration.deployer = address(superDeployer);
         }
 
@@ -156,12 +156,12 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
         );
 
-        deployedContracts.hooksRegistry = __deployContract(
+        deployedContracts.peripheryRegistry = __deployContract(
             deployer,
-            HOOKS_REGISTRY_KEY,
+            PERIPHERY_REGISTRY_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, HOOKS_REGISTRY_KEY),
-            abi.encodePacked(type(HooksRegistry).creationCode, abi.encode(deployedContracts.superRegistry))
+            __getSalt(configuration.owner, configuration.deployer, PERIPHERY_REGISTRY_KEY),
+            abi.encodePacked(type(PeripheryRegistry).creationCode, abi.encode(configuration.owner))
         );
 
         // Deploy SuperOracle
@@ -258,21 +258,11 @@ contract DeployV2 is Script, Configuration {
     function _configure(uint64 chainId) internal {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
 
-        // -- Roles
-        // ---- | set external roles
-        uint256 len = configuration.externalRoles.length;
-        for (uint256 i; i < len;) {
-            RolesData memory _roleInfo = configuration.externalRoles[i];
-            superRegistry.setRole(_roleInfo.addr, _roleInfo.role, true);
-
-            unchecked {
-                ++i;
-            }
-        }
         // ---- | set deployed contracts roles
         superRegistry.setRole(
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
         );
+
 
         // -- SuperRegistry
         superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
