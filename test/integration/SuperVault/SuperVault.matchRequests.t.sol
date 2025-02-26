@@ -166,6 +166,12 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         // Simulate yield by depositing and withdrawing from underlying vaults
         uint256 yieldAmount = amount / 2;
         _getTokens(address(asset), address(this), yieldAmount);
+        
+        // Deposit into underlying vaults to simulate yield
+        asset.approve(address(fluidVault), yieldAmount / 2);
+        asset.approve(address(aaveVault), yieldAmount / 2);
+        fluidVault.deposit(yieldAmount / 2, address(strategy));
+        aaveVault.deposit(yieldAmount / 2, address(strategy));
 
         // Simulate yield increase by warping
         vm.warp(block.timestamp + 1 weeks);
