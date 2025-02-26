@@ -27,6 +27,8 @@ import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
+import "forge-std/console.sol";
+
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -39,11 +41,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
+    uint256 private constant PRECISION_DECIMALS = 18;
+    uint256 private constant PRECISION  = 1e18;
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 private constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
     bytes32 private constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
+
 
     /*//////////////////////////////////////////////////////////////
                                 STATE
@@ -204,6 +209,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         (vars.pricePerShare, vars.totalAssets) = _getSuperVaultAssetInfo();
+
+       
 
         // Process requests
         for (uint256 i; i < usersLength;) {
@@ -858,29 +865,34 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _getSuperVaultAssetInfo() private view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
         uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
-            // For first deposit, set initial PPS to 1 unit in vault decimals
-            pricePerShare = 10 ** _vaultDecimals;
+            // For first deposit, set initial PPS to 1 unit in price decimals
+            pricePerShare = PRECISION;
         } else {
-            // Calculate current PPS
+            // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            pricePerShare = totalAssetsValue.mulDiv(10 ** _vaultDecimals, totalSupplyAmount, Math.Rounding.Ceil);
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
+            console.log("totalAssetsValue", totalAssetsValue);
+            console.log("totalSupplyAmount", totalSupplyAmount);
+            console.log("pricePerShare", pricePerShare);
+            console.log("pricePerShare raw", totalAssetsValue * PRECISION / totalSupplyAmount);
+            console.log("pricePerShare remainder", (totalAssetsValue * PRECISION) % totalSupplyAmount);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare);
+        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare);
 
         uint256 newTotalAssets = vars.requestedAmount;
         uint256 newTotalShares = vars.shares;
 
         if (state.maxMint > 0) {
-            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
+            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
             newTotalShares += state.maxMint;
         }
 
         if (newTotalShares > 0) {
-            state.averageDepositPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+            state.averageDepositPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
@@ -1254,14 +1266,26 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
+        console.log("----- amount", amount);    
 
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
-        uint256 vaultAmount = amount.mulDiv(10 ** _vaultDecimals, pricePerShare, Math.Rounding.Ceil);
+        uint256 vaultAmount =  _toPriceDecimals(amount).mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
+        console.log("vaultAmount  1e18 ", vaultAmount);
+        vaultAmount = _fromPriceDecimals(vaultAmount);
+        console.log("vaultAmount  1e6  ", vaultAmount);
+
+        if (pricePerShare < PRECISION && (vaultAmount * PRECISION) % pricePerShare != 0) {
+            vaultAmount--;
+        }
+
+        console.log("vaultAmount (manual)", vaultAmount);
+        console.log("rawVaultAmount remainder", (vaultAmount * PRECISION) % pricePerShare);
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), vaultAmount
         );
+        console.log("----- amountConvertedToUnderlyingShares", amountConvertedToUnderlyingShares);
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval
 
@@ -1441,7 +1465,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _vaultDecimals);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1467,7 +1491,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // TODO: We are not truly averaging in, just replacing the value
         // If the user submits multiple requests the average withdraw price will be overriden instead of averaged
         if (requestedShares > 0) {
-            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares, Math.Rounding.Floor);
+            state.averageWithdrawPrice = finalAssets.mulDiv(PRECISION, requestedShares, Math.Rounding.Floor);
         }
     }
 
@@ -1531,5 +1555,26 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _getTokenBalance(address token, address account) private view returns (uint256) {
         return IERC20(token).balanceOf(account);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            PRICE CONVERSION
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Convert amount to price decimals
+    /// @param amount Amount to convert
+    function _toPriceDecimals(uint256 amount) internal view returns (uint256) {
+        if (_vaultDecimals == PRECISION_DECIMALS) {
+            return amount;
+        }
+        return amount * (10 ** (PRECISION_DECIMALS - _vaultDecimals));
+    }
+
+    /// @notice Convert amount from price decimals to vault decimals
+    /// @param amount Amount to convert
+    function _fromPriceDecimals(uint256 amount) internal view returns (uint256) {
+        if (_vaultDecimals == PRECISION_DECIMALS) {
+            return amount;
+        }
+        return amount / (10 ** (PRECISION_DECIMALS - _vaultDecimals));
     }
 }
