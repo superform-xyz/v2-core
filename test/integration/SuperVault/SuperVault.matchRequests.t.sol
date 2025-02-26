@@ -238,4 +238,132 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
         }
     }
+
+    function test_MatchRequests_DuplicateUsers() public {
+        uint256 amount = 1000e6;
+        _completeDepositFlow(amount);
+
+        // Create deposit request
+        _getTokens(address(asset), accInstances[0].account, amount);
+        _requestDepositForAccount(accInstances[0], amount);
+
+        // Create two redeem requests
+        uint256 redeemShares = vault.balanceOf(accInstances[1].account);
+        _requestRedeemForAccount(accInstances[1], redeemShares / 2);
+        _requestRedeemForAccount(accInstances[1], redeemShares / 2); // Second request from same user
+
+        address[] memory redeemUsers = new address[](2);
+        address[] memory depositUsers = new address[](2);
+        redeemUsers[0] = accInstances[1].account;
+        redeemUsers[1] = accInstances[1].account; // Duplicate user
+        depositUsers[0] = accInstances[0].account;
+        depositUsers[1] = accInstances[0].account;
+
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert(ISuperVaultStrategy.REQUEST_NOT_FOUND.selector); // Second request should not exist
+        strategy.matchRequests(redeemUsers, depositUsers);
+        vm.stopPrank();
+    }
+
+    function test_MatchRequests_ZeroAddresses() public {
+        uint256 amount = 1000e6;
+        _completeDepositFlow(amount);
+
+        address[] memory redeemUsers = new address[](1);
+        address[] memory depositUsers = new address[](1);
+        redeemUsers[0] = address(0);
+        depositUsers[0] = address(0);
+
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert(ISuperVaultStrategy.REQUEST_NOT_FOUND.selector);
+        strategy.matchRequests(redeemUsers, depositUsers);
+        vm.stopPrank();
+    }
+
+    function test_MatchRequests_AfterEmergencyWithdraw() public {
+        uint256 amount = 1000e6;
+        _completeDepositFlow(amount);
+
+        // Setup requests
+        _getTokens(address(asset), accInstances[0].account, amount);
+        _requestDepositForAccount(accInstances[0], amount);
+        _requestRedeemForAccount(accInstances[1], vault.balanceOf(accInstances[1].account));
+
+        // Trigger emergency withdrawal
+        vm.startPrank(EMERGENCY_ADMIN);
+        strategy.manageEmergencyWithdraw(1, address(0), 0); // Propose emergency withdrawal
+        vm.warp(block.timestamp + 7 days);
+        strategy.manageEmergencyWithdraw(2, address(0), 0); // Execute emergency withdrawal
+        vm.stopPrank();
+
+        address[] memory redeemUsers = new address[](1);
+        address[] memory depositUsers = new address[](1);
+        redeemUsers[0] = accInstances[1].account;
+        depositUsers[0] = accInstances[0].account;
+
+        vm.startPrank(STRATEGIST);
+        strategy.matchRequests(redeemUsers, depositUsers);
+        vm.stopPrank();
+
+        // Verify matching still works in emergency state
+        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0, "Deposit not matched");
+        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0, "No shares to mint");
+        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
+    }
+
+    function test_MatchRequests_MaxValues() public {
+        uint256 maxAmount = type(uint128).max; // Using uint128 to avoid overflow
+        
+        vm.assume(maxAmount > 100e6); // Ensure amount is above minimum
+        
+        _completeDepositFlow(maxAmount);
+
+        _getTokens(address(asset), accInstances[0].account, maxAmount);
+        _requestDepositForAccount(accInstances[0], maxAmount);
+
+        uint256 redeemShares = vault.balanceOf(accInstances[1].account);
+        _requestRedeemForAccount(accInstances[1], redeemShares);
+
+        address[] memory redeemUsers = new address[](1);
+        address[] memory depositUsers = new address[](1);
+        redeemUsers[0] = accInstances[1].account;
+        depositUsers[0] = accInstances[0].account;
+
+        vm.startPrank(STRATEGIST);
+        strategy.matchRequests(redeemUsers, depositUsers);
+        vm.stopPrank();
+
+        // Verify matching works with max values
+        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0, "Deposit not matched");
+        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0, "No shares to mint");
+        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
+    }
+
+    function test_RevertWhen_MatchRequests_UnequalArrayLengths() public {
+        // Setup initial state with valid requests
+        uint256 amount = 1000e6;
+        _completeDepositFlow(amount);
+
+        // Create two deposit requests
+        _getTokens(address(asset), accInstances[0].account, amount);
+        _requestDepositForAccount(accInstances[0], amount);
+        _getTokens(address(asset), accInstances[2].account, amount);
+        _requestDepositForAccount(accInstances[2], amount);
+
+        // Create one redeem request with matching total amount
+        uint256 redeemShares = vault.balanceOf(accInstances[1].account);
+        _requestRedeemForAccount(accInstances[1], redeemShares);
+
+        // Create arrays with different lengths (but non-zero)
+        address[] memory redeemUsers = new address[](1);
+        address[] memory depositUsers = new address[](2);
+        redeemUsers[0] = accInstances[1].account;
+        depositUsers[0] = accInstances[0].account;
+        depositUsers[1] = accInstances[2].account;
+
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert(ISuperVaultStrategy.MISMATCH.selector);
+        strategy.matchRequests(redeemUsers, depositUsers);
+        vm.stopPrank();
+    }
 }
