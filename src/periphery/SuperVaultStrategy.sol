@@ -875,7 +875,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 newTotalShares = vars.shares;
 
         if (state.maxMint > 0) {
-            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Ceil);
+            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
             newTotalShares += state.maxMint;
         }
 
