@@ -178,10 +178,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.selectFork(FORKS[OP]);
         deal(underlyingOP_USDC, odosRouters[OP], 1e18);
-        feeRecipientOP = SuperRegistry(_getContract(OP, SUPER_REGISTRY_KEY)).getAddress(keccak256("PAYMASTER_ID"));
+        feeRecipientOP = SuperRegistry(_getContract(OP, SUPER_REGISTRY_KEY)).getTreasury();
 
         vm.selectFork(FORKS[ETH]);
-        feeRecipientETH = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY)).getAddress(keccak256("PAYMASTER_ID"));
+        feeRecipientETH = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY)).getTreasury();
     }
 
     /*//////////////////////////////////////////////////////////////
