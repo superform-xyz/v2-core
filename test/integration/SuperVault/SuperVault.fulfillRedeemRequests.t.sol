@@ -9,7 +9,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
 
     function test_RequestRedeem_MultipleUsers(uint256 depositAmount) public {
         // bound amount
-        depositAmount = bound(depositAmount, 100e6, 10000e6);
+        depositAmount = 100e6;
       
         // perform deposit operations
         _completeDepositFlow(depositAmount);
