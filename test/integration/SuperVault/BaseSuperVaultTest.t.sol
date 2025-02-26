@@ -21,6 +21,7 @@ import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
 import { ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
@@ -80,6 +81,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Set up super executor
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
+        SuperRegistry superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
+
         // Deploy factory
         factory = new SuperVaultFactory(_getContract(ETH, SUPER_REGISTRY_KEY));
 
@@ -87,7 +90,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        FEE_RECIPIENT = _deployAccount(FEE_RECIPIENT_KEY, "FEE_RECIPIENT");
+
+        FEE_RECIPIENT = superRegistry.getTreasury();
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
@@ -96,6 +100,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         address aaveVaultAddr = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
         vm.label(fluidVaultAddr, "FluidVault");
         vm.label(aaveVaultAddr, "AaveVault");
+
         // Get real yield sources from fork
         fluidVault = IERC4626(fluidVaultAddr);
         aaveVault = IERC4626(aaveVaultAddr);
@@ -136,6 +141,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             false // addYieldSource
         );
         vm.stopPrank();
+
+        // vm.startPrank(SV_MANAGER);
+        // strategy.proposeVaultFeeConfigUpdate(300, FEE_RECIPIENT);
+        // vm.warp(block.timestamp + 1 weeks);
+        // strategy.executeVaultFeeConfigUpdate();
+        // vm.stopPrank();
 
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
