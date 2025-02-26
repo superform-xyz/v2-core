@@ -40,13 +40,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
     uint256 private constant PRECISION_DECIMALS = 18;
-    uint256 private constant PRECISION  = 1e18;
+    uint256 private constant PRECISION = 1e18;
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
     bytes32 private constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
     bytes32 private constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
-
 
     /*//////////////////////////////////////////////////////////////
                                 STATE
@@ -207,8 +206,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         (vars.pricePerShare, vars.totalAssets) = _getSuperVaultAssetInfo();
-
-       
 
         // Process requests
         for (uint256 i; i < usersLength;) {
@@ -817,6 +814,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         } else {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
+            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
+            // Otherwise rounding issues in other places becomes bigger
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
         }
     }
@@ -1218,19 +1217,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 precision = PRECISION;
         uint256 vaultAmount;
         if (pricePerShare < PRECISION) {
-            // @dev in the following cases `totalAssets` < `totalSupply`
-            //   and it produces a remainder when converting to shares
-            //   we need to subtract 1 from the PRECISION to avoid rounding errors
+            /// @dev in the following cases `totalAssets` < `totalSupply`
+            /// @dev     and it produces a remainder when converting to shares
+            /// @dev     we need to subtract 1 from the PRECISION to avoid rounding errors
+            /// @dev  an alternative to avoid this could be to supply all SuperVaultsv2 on deployment with some assets
+            /// which remain locked there forever.
+            /// @dev @audit what do you think of this?
             precision--;
             uint256 shares = amount;
             if ((shares * PRECISION) % pricePerShare != 0) {
                 shares--;
             }
-            vaultAmount =  shares.mulDiv(precision, pricePerShare, Math.Rounding.Floor);
+            vaultAmount = shares.mulDiv(precision, pricePerShare, Math.Rounding.Floor);
         } else {
             vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
         }
- 
+
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), vaultAmount
@@ -1441,22 +1443,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // maxWithdraw (assets) = maxRedeem * previousPpsValue
         // newRedeemPrice = (maxWithdraw(assets) + assets))/ (maxRedeem + shares)
         if (requestedShares > 0) {
-        uint256 existingShares = 0;
-        uint256 existingAssets = 0;
+            uint256 existingShares = 0;
+            uint256 existingAssets = 0;
 
-        // Calculate existing assets based on current maxWithdraw
-        if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
-            // Calculate equivalent shares based on current averageWithdrawPrice
-            existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
-            existingAssets = state.maxWithdraw;
-        }
+            // Calculate existing assets based on current maxWithdraw
+            if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
+                // Calculate equivalent shares based on current averageWithdrawPrice
+                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
+                existingAssets = state.maxWithdraw;
+            }
 
-        uint256 newTotalShares = existingShares + requestedShares;
-        uint256 newTotalAssets = existingAssets + finalAssets;
+            uint256 newTotalShares = existingShares + requestedShares;
+            uint256 newTotalAssets = existingAssets + finalAssets;
 
-        if (newTotalShares > 0) {
-            state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
-        }
+            if (newTotalShares > 0) {
+                state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+            }
         }
     }
 
