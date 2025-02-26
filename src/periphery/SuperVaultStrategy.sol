@@ -423,57 +423,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function claimAndCompound(
-        address[][] calldata hooks,
-        bytes32[][] calldata claimHookProofs,
-        bytes32[][] calldata swapHookProofs,
-        bytes32[][] calldata allocateHookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external
-    {
-        _requireRole(STRATEGIST_ROLE);
-
-        // Validate overall hook sets
-        _validateHookSets(hooks, hookCalldata, 3); // Must have exactly 3 arrays: claim, swap, allocate
-        if (expectedTokensOut.length == 0) revert ZERO_LENGTH();
-
-        // Validate individual hook arrays
-        _validateHookArrayLengths(hooks[0], claimHookProofs, hookCalldata[0]);
-        _validateHookArrayLengths(hooks[1], swapHookProofs, hookCalldata[1]);
-        _validateHookArrayLengths(hooks[2], allocateHookProofs, hookCalldata[2]);
-
-        ClaimLocalVars memory vars;
-
-        // Get initial asset balance
-        vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
-
-        // Step 1: Execute claim hooks and get balance changes
-        vars.balanceChanges = _processClaimHookExecution(hooks[0], claimHookProofs, hookCalldata[0], expectedTokensOut);
-
-        // Step 2: Execute swap hooks and get asset gained
-        vars.assetGained = _processSwapHookExecution(
-            hooks[1], swapHookProofs, hookCalldata[1], expectedTokensOut, vars.balanceChanges, vars.initialAssetBalance
-        );
-
-        // Step 3: Execute inflow hooks to allocate gained assets
-        // assume requested amount is the asset gain
-        vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
-
-        (vars.fulfillmentVars, vars.targetedYieldSources) =
-            _processHooks(hooks[2], allocateHookProofs, hookCalldata[2], vars.fulfillmentVars, true);
-
-        // Check vault caps after all hooks are processed
-        _checkVaultCaps(vars.targetedYieldSources);
-
-        // Verify all assets were allocated
-        if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_ASSET_BALANCE();
-
-        emit RewardsClaimedAndCompounded(vars.assetGained);
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
     function claim(
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
