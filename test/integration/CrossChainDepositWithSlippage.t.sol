@@ -67,7 +67,7 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
         superRegistryBase = SuperRegistry(_getContract(BASE, SUPER_REGISTRY_KEY));
 
-        feeRecipientBase = superRegistryBase.getAddress(keccak256(bytes(PAYMASTER_ID)));
+        feeRecipientBase = superRegistryBase.getTreasury();
 
         vm.selectFork(FORKS[ETH]);
 

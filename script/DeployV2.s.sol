@@ -275,7 +275,6 @@ contract DeployV2 is Script, Configuration {
         );
 
         superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setAddress(keccak256(bytes(PAYMASTER_ID)), configuration.paymaster);
         superRegistry.setAddress(keccak256(bytes(SUPER_BUNDLER_ID)), configuration.bundler);
         superRegistry.setAddress(keccak256(bytes(ORACLE_REGISTRY_ID)), _getContract(chainId, SUPER_ORACLE_KEY));
         superRegistry.setAddress(keccak256(bytes(SUPER_REGISTRY_ID)), _getContract(chainId, SUPER_REGISTRY_KEY));
@@ -497,7 +496,7 @@ contract DeployV2 is Script, Configuration {
             yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+            feeRecipient: superRegistry.getTreasury(),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
 
