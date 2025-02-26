@@ -95,7 +95,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
             requestingUsers[j] = accInstances[i].account;
             unchecked { ++i; ++j; }
         }
-        vm.expectRevert(ISuperVaultStrategy.LIMIT_EXCEEDED.selector);
+        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
         _fulfillDepositForUsers(requestingUsers, totalAmount, 0);
 
         // fullfill the rest of the users in 2 vaults
@@ -275,7 +275,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
         
         // Should revert when trying to allocate everything to one vault
-        vm.expectRevert(ISuperVaultStrategy.LIMIT_EXCEEDED.selector);
+        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
         _fulfillDepositForUsers(requestingUsers, totalAmount, 0);
     }
 
