@@ -77,6 +77,7 @@ abstract contract Constants {
     string public constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
+    string public constant TREASURY_ID = "TREASURY_ID";
     string public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
@@ -130,7 +131,6 @@ abstract contract Constants {
     string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_ID";
-    string public constant PAYMASTER_ID = "PAYMASTER_ID";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;
