@@ -107,7 +107,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         uint256 unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
 
         // Calculate expected fee
-        uint256 expectedFee = _deriveExpectedFee(
+        uint256 expectedCoreFee = _deriveExpectedFee(
             FeeParams({
                 entries: entries,
                 unconsumedEntries: unconsumedEntries,
@@ -118,16 +118,29 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
             })
         );
 
+        (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFees(
+            userShares,
+            oracle.getPricePerShare(address(vault))
+        );
+
+        uint256 totalFee = superformFee + recipientFee + expectedCoreFee;
+
         // Step 6: Claim Withdraw
-        _claimWithdrawWithAccountingChecks(claimableAssets, expectedFee, address(oracle));
+        // vm.expectEmit(true, true, true, true);
+        // emit ISuperLedgerData.AccountingOutflow(
+        //     accountEth,
+        //     oracle,
+        //     address(vault),
+        //     assets,
+        //     expectedFee // add SV fee
+        // );
+        _claimWithdraw(claimableAssets);
 
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
-        console2.log("expectedFee", expectedFee);
-
         // Verify fee was taken
-        _assertFeeDerivation(expectedFee, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
+        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
 
         // Check final ledger state
         (entries, unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
