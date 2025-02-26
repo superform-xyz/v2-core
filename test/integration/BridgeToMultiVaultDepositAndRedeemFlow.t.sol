@@ -95,9 +95,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     function setUp() public override {
         super.setUp();
 
-        warpTimeOP = 1739809853;
-        warpTimeETH = 1740137231;
-        warpTimeBase = 1740137237;
+        warpTimeOP = 1_739_809_853;
+        warpTimeETH = 1_740_137_231;
+        warpTimeBase = 1_740_137_237;
 
         // Set up the underlying tokens
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];

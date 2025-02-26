@@ -18,8 +18,7 @@ ftest :; forge test
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_ClaimRedeem -vv
-
+test-vvv :; forge test --match-test test_Bridge_To_ETH_And_Deposit -vvv
 test-integration :; forge test --match-test test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow -vvvv
 
 .PHONY: generate
