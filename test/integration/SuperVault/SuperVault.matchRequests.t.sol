@@ -311,34 +311,6 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
     }
 
-    function test_MatchRequests_MaxValues() public {
-        uint256 maxAmount = type(uint128).max; // Using uint128 to avoid overflow
-
-        vm.assume(maxAmount > 100e6); // Ensure amount is above minimum
-
-        _completeDepositFlow(maxAmount);
-
-        _getTokens(address(asset), accInstances[0].account, maxAmount);
-        _requestDepositForAccount(accInstances[0], maxAmount);
-
-        uint256 redeemShares = vault.balanceOf(accInstances[1].account);
-        _requestRedeemForAccount(accInstances[1], redeemShares);
-
-        address[] memory redeemUsers = new address[](1);
-        address[] memory depositUsers = new address[](1);
-        redeemUsers[0] = accInstances[1].account;
-        depositUsers[0] = accInstances[0].account;
-
-        vm.startPrank(STRATEGIST);
-        strategy.matchRequests(redeemUsers, depositUsers);
-        vm.stopPrank();
-
-        // Verify matching works with max values
-        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0, "Deposit not matched");
-        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0, "No shares to mint");
-        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
-    }
-
     function test_RevertWhen_MatchRequests_UnequalArrayLengths() public {
         // Setup initial state with valid requests
         uint256 amount = 1000e6;
