@@ -173,7 +173,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         fluidVault.deposit(yieldAmount / 2, address(strategy));
         aaveVault.deposit(yieldAmount / 2, address(strategy));
 
-        // Simulate yield increase by warping
+        // Simulate pps increase by warping
         vm.warp(block.timestamp + 1 weeks);
 
         address[] memory redeemUsers = new address[](1);
