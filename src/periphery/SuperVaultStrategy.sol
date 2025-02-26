@@ -1453,7 +1453,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Update average withdraw price
         // TODO are we doing a mistake by calculating average after taking fee?
         if (requestedShares > 0) {
-            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares);
+            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares, Math.Rounding.Floor);
         }
     }
 
