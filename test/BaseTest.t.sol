@@ -93,6 +93,8 @@ import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
+import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
+
 import "forge-std/console.sol";
 
 struct Addresses {
@@ -129,6 +131,7 @@ struct Addresses {
     FluidYieldSourceOracle fluidYieldSourceOracle;
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
+    PeripheryRegistry peripheryRegistry;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -232,9 +235,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
-
-        // Set roles
-        _setRoles();
 
         // Setup SuperLedger
         _setupSuperLedger();
@@ -357,6 +357,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.fluidYieldSourceOracle = new FluidYieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
+
+            /// @dev periphery
+            A.peripheryRegistry = new PeripheryRegistry(address(this));
+            vm.label(address(A.peripheryRegistry), PERIPHERY_REGISTRY_KEY);
+            contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A.peripheryRegistry);
         }
     }
 
@@ -662,9 +667,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL);
-        forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
-        forks[BASE] = vm.createFork(BASE_RPC_URL);
+        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
+        forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
+        forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
         rpcURLs[ETH] = ETHEREUM_RPC_URL;
@@ -814,6 +819,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11111));
+
+            SuperRegistry(address(superRegistry)).setAddress(
+                keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
+            );
         }
     }
 
@@ -864,7 +873,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
-
     modifier addRole(ISuperRegistry superRegistry, bytes32 role_) {
         superRegistry.setRole(address(this), role_, true);
         _;

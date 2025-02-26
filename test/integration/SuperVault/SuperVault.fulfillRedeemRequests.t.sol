@@ -9,7 +9,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
 
     function test_RequestRedeem_MultipleUsers(uint256 depositAmount) public {
         // bound amount
-        depositAmount = 100e6;
+        depositAmount = bound(depositAmount, 100e6, 10000e6);
       
         // perform deposit operations
         _completeDepositFlow(depositAmount);
@@ -50,7 +50,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         // check that all pending requests are cleared
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
-            assertGt(strategy.maxWithdraw(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
             unchecked { ++i; }
         }
     }
@@ -92,12 +92,11 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         // verify all redeems were fulfilled
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
-            assertGt(strategy.maxWithdraw(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
         }
     }
 
     function test_RequestRedeemMultipleUsers_With_PartialUsersFullfilment(uint256 depositAmount) public {
-        // bound amount
         depositAmount = 100e6;
       
         // perform deposit operations
@@ -138,14 +137,14 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         // check that fulfilled requests are cleared
         for (uint256 i; i < partialUsersCount;) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
-            assertGt(strategy.maxWithdraw(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
             unchecked { ++i; }
         }
         
         // check that remaining users still have pending requests
         for (uint256 i = partialUsersCount; i < RANDOM_ACCOUNT_COUNT;) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), redeemAmounts[i]);
-            assertEq(strategy.maxWithdraw(accInstances[i].account), 0);
+            assertEq(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
             unchecked { ++i; }
         }
 
@@ -219,7 +218,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRedeemRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
         vm.stopPrank();
     }
 

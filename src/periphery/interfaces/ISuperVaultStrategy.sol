@@ -11,45 +11,46 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ALREADY_INITIALIZED();
-    error INVALID_VAULT();
-    error INVALID_MANAGER();
-    error INVALID_STRATEGIST();
-    error INVALID_EMERGENCY_ADMIN();
-    error INVALID_VAULT_CAP();
-    error INVALID_SUPER_VAULT_CAP();
-    error INVALID_MAX_ALLOCATION_RATE();
-    error INVALID_VAULT_THRESHOLD();
-    error ZERO_ADDRESS();
-    error INVALID_ALLOCATION_RATE();
-    error INVALID_AMOUNT();
-    error INVALID_HOOK();
-    error INVALID_HOOK_ROOT();
-    error INVALID_ORACLE();
-    error INVALID_YIELD_SOURCE();
-    error INVALID_FEE();
-    error INVALID_FEE_RECIPIENT();
-    error INVALID_CONTROLLER();
-    error UNAUTHORIZED();
-    error TIMELOCK_NOT_EXPIRED();
-    error REQUEST_NOT_FOUND();
-    error YIELD_SOURCE_NOT_FOUND();
-    error YIELD_SOURCE_ALREADY_EXISTS();
-    error VAULT_THRESHOLD_NOT_MET();
-    error VAULT_CAP_EXCEEDED();
-    error MAX_ALLOCATION_RATE_EXCEEDED();
-    error EMERGENCY_WITHDRAWALS_DISABLED();
-    error INSUFFICIENT_FREE_ASSETS();
+    error MISMATCH(); 
     error ZERO_LENGTH();
-    error ARRAY_LENGTH_MISMATCH();
-    error EXECUTION_FAILED();
-    error INCOMPLETE_DEPOSIT_MATCH();
-    error INCOMPLETE_REDEEM_MATCH();
-    error ZERO_AMOUNT();
+    error INVALID_HOOK();
+    error ZERO_ADDRESS();
+    error INVALID_VAULT();
+    error ACCESS_DENIED(); 
+    error INVALID_ORACLE();
+    error INVALID_AMOUNT(); 
+    error ALREADY_EXISTS(); 
+    error LIMIT_EXCEEDED(); 
+    error INVALID_MANAGER();
+    error NOT_INITIALIZED(); 
+    error OPERATION_FAILED(); 
+    error INVALID_TIMESTAMP();
+    error REQUEST_NOT_FOUND(); 
+    error INVALID_HOOK_ROOT();
+    error INVALID_VAULT_CAP();
+    error INVALID_HOOK_TYPE();
+    error INSUFFICIENT_FUNDS(); 
+    error INVALID_STRATEGIST();
+    error INVALID_CONTROLLER();
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
-    error REWARDS_DISTRIBUTOR_NOT_SET();
     error INVALID_SUPER_REGISTRY();
+    error ACTION_TYPE_DISALLOWED();
+    error YIELD_SOURCE_NOT_FOUND();
+    error INVALID_VAULT_THRESHOLD();
+    error YIELD_SOURCE_NOT_ACTIVE();
+    error INVALID_SUPER_VAULT_CAP();
+    error INVALID_EMERGENCY_ADMIN();
+    error VAULT_THRESHOLD_EXCEEDED();
+    error INCOMPLETE_DEPOSIT_MATCH();
+    error YIELD_SOURCE_ALREADY_EXISTS();
+    error INVALID_MAX_ALLOCATION_RATE();
+    error YIELD_SOURCE_ALREADY_ACTIVE();
+    error INVALID_PERFORMANCE_FEE_BPS();
+    error INVALID_EMERGENCY_WITHDRAWAL();
+    error MAX_ALLOCATION_RATE_EXCEEDED();
+    error YIELD_SOURCE_ORACLE_NOT_FOUND();
+
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -128,6 +129,7 @@ interface ISuperVaultStrategy {
         uint256 availableAmount; // Only used in deposit to check initial balance
         // Variables for share calculations
         uint256 shares; // Used in deposit for minting shares
+        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct MatchVars {
@@ -210,7 +212,14 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @param assetsOrShares Amount of assets being deposited
     /// @param operation The operation to perform
-    function handleOperation(address controller, uint256 assetsOrShares, Operation operation) external;
+    /// @return assetsOrSharesOut The amount of assets or shares after the operation
+    function handleOperation(
+        address controller,
+        uint256 assetsOrShares,
+        Operation operation
+    )
+        external
+        returns (uint256 assetsOrSharesOut);
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
@@ -220,24 +229,13 @@ interface ISuperVaultStrategy {
     /// @param hooks Array of hooks to use for deposits
     /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
-    function fulfillDepositRequests(
+    /// @param isDeposit Whether the requests are deposits or redeems
+    function fulfillRequests(
         address[] calldata users,
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
-    )
-        external;
-
-    /// @notice Fulfill redeem requests for multiple users
-    /// @param users Array of users with pending redeem requests
-    /// @param hooks Array of hooks to use for redeems
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    function fulfillRedeemRequests(
-        address[] calldata users,
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+        bytes[] calldata hookCalldata,
+        bool isDeposit
     )
         external;
 
@@ -307,20 +305,15 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Add a new yield source to the system
-    /// @param source Address of the yield source
-    /// @param oracle Address of the yield source oracle
-    function addYieldSource(address source, address oracle) external;
-
-    /// @notice Update oracle for an existing yield source
-    /// @param source Address of the yield source
-    /// @param newOracle Address of the new oracle
-    function updateYieldSourceOracle(address source, address newOracle) external;
-
-    /// @notice Toggle a yield source's active state
-    /// @param source Address of the yield source to toggle
-    /// @param activate Whether to activate or deactivate the yield source
-    function toggleYieldSource(address source, bool activate) external;
+    /// @notice Manage yield sources: add, update oracle, and toggle activation.
+    /// @param source Address of the yield source.
+    /// @param oracle Address of the oracle (used for adding/updating).
+    /// @param actionType Type of action:
+    ///        0 - Add new yield source,
+    ///        1 - Update oracle,
+    ///        2 - Toggle activation (oracle param ignored).
+    /// @param activate Boolean flag for activation when actionType is 2.
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
 
     /// @notice Propose or execute a hook root update
     /// @dev if newRoot is 0, executes the proposed hook root update
@@ -341,18 +334,14 @@ interface ISuperVaultStrategy {
     /// @param account The address to set for the role
     function setAddress(bytes32 role, address account) external;
 
-    /// @notice Propose a change to emergency withdrawable status
-    /// @param newWithdrawable The new emergency withdrawable status to propose
-    function proposeEmergencyWithdrawable(bool newWithdrawable) external;
-
-    /// @notice Execute the proposed emergency withdrawable update after timelock
-    function executeEmergencyWithdrawableUpdate() external;
-
-    /// @notice Emergency withdraw free assets from the vault
-    /// @dev Only works when emergency withdrawals are enabled
-    /// @param recipient Address to receive the withdrawn assets
-    /// @param amount Amount of free assets to withdraw
-    function emergencyWithdraw(address recipient, uint256 amount) external;
+    /// @notice Manage emergency withdrawals
+    /// @param action The action to perform
+    ///        0 - Propose new emergency withdrawable state,
+    ///        1 - Execute emergency withdrawable update,
+    ///        2 - Perform emergency withdrawal
+    /// @param recipient The recipient of the withdrawn assets
+    /// @param amount The amount of assets to withdraw
+    function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
@@ -375,28 +364,10 @@ interface ISuperVaultStrategy {
     /// @notice Get the global and fee configurations
     function getConfigInfo() external view returns (GlobalConfig memory globalConfig, FeeConfig memory feeConfig);
 
-    /// @notice Get the current price per share of the SuperVault
-    /// @return pricePerShare The current price per share in underlying decimals
-    function getSuperVaultPPS() external view returns (uint256 pricePerShare);
-
     /// @notice Get total assets managed by the strategy
     /// @return totalAssets_ Total assets across all yield sources and idle assets
     /// @return sourceTVLs Array of TVL information for each yield source
     function totalAssets() external view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs);
-
-    /// @notice Get the total supply of shares in the SuperVault
-    /// @return The total number of shares currently in circulation
-    function totalSupply() external view returns (uint256);
-
-    /// @notice Get the maximum amount of shares that can be minted for an owner
-    /// @param owner The owner address
-    /// @return The maximum amount of shares that can be minted
-    function maxMint(address owner) external view returns (uint256);
-
-    /// @notice Get the maximum amount of assets that can be withdrawn for an owner
-    /// @param owner The owner address
-    /// @return The maximum amount of assets that can be withdrawn
-    function maxWithdraw(address owner) external view returns (uint256);
 
     /// @notice Get a yield source's configuration
     /// @param source Address of the yield source
@@ -410,20 +381,20 @@ interface ISuperVaultStrategy {
     /// @param proof Merkle proof for the hook
     function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
 
-    /// @notice Get the average deposit price for a user
-    /// @param owner The owner address
-    /// @return The average deposit price for the user
-    function getAverageDepositPrice(address owner) external view returns (uint256);
-
-    /// @notice Get the average withdraw price for a user
-    /// @param owner The owner address
-    /// @return The average withdraw price for the user
-    function getAverageWithdrawPrice(address owner) external view returns (uint256);
-
     /// @notice Get the claimed token amounts in the vault
     /// @param token The token address
     /// @return The amount of tokens claimed
     function claimedTokens(address token) external view returns (uint256);
+
+    /// @notice Get the SuperVault state for a given owner and state type
+    /// @param owner The owner address
+    /// @param stateType The state type to get
+    ///        1 - maxMint,
+    ///        2 - maxWithdraw,
+    ///        3 - averageDepositPrice,
+    ///        4 - averageWithdrawPrice
+    /// @return The state value
+    function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS

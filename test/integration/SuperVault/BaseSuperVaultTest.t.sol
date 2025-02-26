@@ -107,8 +107,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // Add yield sources as manager
         vm.startPrank(SV_MANAGER);
-        strategy.addYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
-        strategy.addYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false); // addYieldSource
+        strategy.manageYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false); // addYieldSource
         vm.stopPrank();
 
         // Set up hook root
@@ -208,7 +208,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillDepositRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
         vm.stopPrank();
     }
 
@@ -265,7 +265,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRedeemRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
         vm.stopPrank();
     }
 

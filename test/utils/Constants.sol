@@ -86,7 +86,7 @@ abstract contract Constants {
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string public constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
-
+    string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     // tokens
     string public constant DAI_KEY = "DAI";
     string public constant USDC_KEY = "USDC";
@@ -131,6 +131,7 @@ abstract contract Constants {
     string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_ID";
+    string public constant PERIPHERY_REGISTRY_ID = "PERIPHERY_REGISTRY_ID";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;
@@ -146,7 +147,7 @@ abstract contract Constants {
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
 
-    // bridgesa
+    // bridges
     string public constant DEBRIDGE_GATE_ADDRESS_KEY = "DeBridgeGateAddress";
 
     address public constant CHAIN_1_SPOKE_POOL_V3_ADDRESS = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
