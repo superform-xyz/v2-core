@@ -6,6 +6,7 @@ import { BaseTest } from "../../BaseTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
@@ -18,6 +19,7 @@ import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
 import { ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
@@ -25,6 +27,7 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 
 contract BaseSuperVaultTest is BaseTest, MerkleReader {
     using ModuleKitHelpers for *;
+    using Math for uint256;
 
     address public accountEth;
     AccountInstance public instanceOnEth;
@@ -52,6 +55,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
     uint256 constant MAX_ALLOCATION_RATE = 5000; // 50%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
+    uint256 constant ONE_HUNDRED_PERCENT = 10_000;
+
+    struct SharePricePoint {
+        /// @notice Number of shares at this price point
+        uint256 shares;
+        /// @notice Price per share in asset decimals when these shares were minted
+        uint256 pricePerShare;
+    }
+
+    mapping(address user => uint256 sharePricePointCursor) public userSharePricePointCursors;
+
+    mapping(address user => SharePricePoint[] sharePricePoints) public userSharePricePoints;
 
     function setUp() public virtual override {
         super.setUp();
@@ -108,8 +123,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // Add yield sources as manager
         vm.startPrank(SV_MANAGER);
-        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false); // addYieldSource
-        strategy.manageYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false); // addYieldSource
+        strategy.manageYieldSource(
+            address(fluidVault), 
+            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            0, 
+            false // addYieldSource
+        );
+        strategy.manageYieldSource(
+            address(aaveVault), 
+            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            0, 
+            false // addYieldSource
+        );
         vm.stopPrank();
 
         // Set up hook root
@@ -211,6 +236,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.startPrank(STRATEGIST);
         strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
         vm.stopPrank();
+
+        (uint256 pricePerShare, ) = _getSuperVaultAssetInfo();
+        userSharePricePoints[accountEth].push(SharePricePoint({
+            shares: depositAmount,
+            pricePerShare: pricePerShare
+        }));
     }
 
     function _claimDeposit(uint256 depositAmount) internal {
@@ -285,31 +316,86 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(claimUserOpData);
     }
 
-    function _claimWithdrawWithAccountingChecks(
-        uint256 assets,
-        uint256 expectedFee,
-        address oracle
-    ) internal {
-        address[] memory claimHooksAddresses = new address[](1);
-        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+    /*//////////////////////////////////////////////////////////////
+                        FEE DERIVATION FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
-        bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, assets, false, false
-        );
-        ISuperExecutor.ExecutorEntry memory claimEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+    function _deriveSuperVaultFees(
+        uint256 requestedShares,
+        uint256 currentPricePerShare
+    ) internal returns (uint256, uint256) {
+        uint256 historicalAssets = 0;
+        SharePricePoint[] memory sharePricePoints = userSharePricePoints[accountEth];
+        uint256 sharePricePointsLength = sharePricePoints.length;
+        uint256 remainingShares = requestedShares;
+        uint256 currentIndex = userSharePricePointCursors[accountEth];
+        uint256 lastConsumedIndex = currentIndex;
 
-        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
+        // Calculate historicalAssets for each share price point
+        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
+            SharePricePoint memory point = sharePricePoints[j];
+            uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** vault.decimals());
 
-        // vm.expectEmit(true, true, true, true);
-        // emit ISuperLedgerData.AccountingOutflow(
-        //     accountEth,
-        //     oracle,
-        //     address(vault),
-        //     assets,
-        //     expectedFee // add SV fee
-        // );
-        executeOp(claimUserOpData);
+            // Update point's remaining shares or mark for deletion
+            if (sharesFromPoint == point.shares) {
+                // Point fully consumed, move cursor
+                lastConsumedIndex = j + 1;
+                userSharePricePointCursors[accountEth]++;
+            } else if (sharesFromPoint < point.shares) {
+                // Point partially consumed, update shares
+                sharePricePoints[j].shares -= sharesFromPoint;
+            }
+
+            remainingShares -= sharesFromPoint;
+            unchecked {
+                ++j;
+            }
+        }
+
+        // Calculate current value and process fees
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** vault.decimals(), Math.Rounding.Floor);
+
+        (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFeesFromAssets(currentAssets, historicalAssets);
+
+        return (superformFee, recipientFee);
     }
+
+    function _deriveSuperVaultFeesFromAssets(
+        uint256 currentAssets, 
+        uint256 historicalAssets
+    ) internal view returns (uint256, uint256) {
+        uint256 superformFee;
+        uint256 recipientFee;
+
+        (, SuperVaultStrategy.FeeConfig memory feeConfig) = strategy.getConfigInfo();
+
+        if (currentAssets > historicalAssets) {
+            uint256 profit = currentAssets - historicalAssets;
+            uint256 performanceFeeBps = feeConfig.performanceFeeBps;
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT);
+
+            PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
+
+            if (totalFee > 0) {
+                // Calculate Superform's portion of the fee
+                superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
+                recipientFee = totalFee - superformFee;
+            }
+        }
+        return (superformFee, recipientFee);
+    }
+
+    function _getSuperVaultAssetInfo() internal view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
+        uint256 totalSupplyAmount = IERC4626(address(vault)).totalSupply();
+        if (totalSupplyAmount == 0) {
+            // For first deposit, set initial PPS to 1 unit in vault decimals
+            pricePerShare = 10 ** vault.decimals();
+        } else {
+            // Calculate current PPS
+            totalAssetsValue = vault.totalAssets();
+            pricePerShare = totalAssetsValue.mulDiv(10 ** vault.decimals(), totalSupplyAmount, Math.Rounding.Ceil);
+        }
+    }
+
 }
