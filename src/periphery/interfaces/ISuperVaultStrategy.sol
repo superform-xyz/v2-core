@@ -12,13 +12,11 @@ interface ISuperVaultStrategy {
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
     error MISMATCH(); 
-    error NOT_FOUND(); 
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
     error INVALID_VAULT();
     error ACCESS_DENIED(); 
-    error INVALID_STATE(); 
     error INVALID_ORACLE();
     error INVALID_AMOUNT(); 
     error ALREADY_EXISTS(); 
@@ -26,20 +24,31 @@ interface ISuperVaultStrategy {
     error INVALID_MANAGER();
     error NOT_INITIALIZED(); 
     error OPERATION_FAILED(); 
+    error INVALID_TIMESTAMP();
+    error REQUEST_NOT_FOUND(); 
     error INVALID_HOOK_ROOT();
     error INVALID_VAULT_CAP();
     error INVALID_HOOK_TYPE();
     error INSUFFICIENT_FUNDS(); 
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
+    error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
     error INVALID_SUPER_REGISTRY();
+    error ACTION_TYPE_DISALLOWED();
+    error YIELD_SOURCE_NOT_FOUND();
     error YIELD_SOURCE_NOT_ACTIVE();
     error INVALID_SUPER_VAULT_CAP();
     error INVALID_EMERGENCY_ADMIN();
+    error VAULT_THRESHOLD_EXCEEDED();
+    error INCOMPLETE_DEPOSIT_MATCH();
+    error YIELD_SOURCE_ALREADY_EXISTS();
     error INVALID_MAX_ALLOCATION_RATE();
+    error YIELD_SOURCE_ALREADY_ACTIVE();
     error INVALID_PERFORMANCE_FEE_BPS();
+    error INVALID_EMERGENCY_WITHDRAWAL();
     error MAX_ALLOCATION_RATE_EXCEEDED();
+    error YIELD_SOURCE_ORACLE_NOT_FOUND();
 
 
     /*//////////////////////////////////////////////////////////////
