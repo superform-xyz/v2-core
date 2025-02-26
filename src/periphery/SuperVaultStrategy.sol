@@ -27,8 +27,6 @@ import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
-import "forge-std/console.sol";
-
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -871,11 +869,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
-            console.log("totalAssetsValue", totalAssetsValue);
-            console.log("totalSupplyAmount", totalSupplyAmount);
-            console.log("pricePerShare", pricePerShare);
-            console.log("pricePerShare raw", totalAssetsValue * PRECISION / totalSupplyAmount);
-            console.log("pricePerShare remainder", (totalAssetsValue * PRECISION) % totalSupplyAmount);
         }
     }
 
@@ -883,15 +876,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare);
 
-        uint256 newTotalAssets = vars.requestedAmount;
-        uint256 newTotalShares = vars.shares;
-
-        if (state.maxMint > 0) {
-            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
-            newTotalShares += state.maxMint;
-        }
+        // Calculate new weighted average deposit price
+        // maxDeposit (assets) = maxMint * previousPpsValue
+        // newDepositPrice = (maxDeposit(assets) + assets))/ (maxMint + shares)
+        uint256 newTotalShares = state.maxMint + vars.shares;
 
         if (newTotalShares > 0) {
+            uint256 existingAssets = 0;
+            if (state.maxMint > 0 && state.averageDepositPrice > 0) {
+                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
+            }
+
+            uint256 newTotalAssets = existingAssets + vars.requestedAmount;
             state.averageDepositPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
         }
 
@@ -1266,26 +1262,30 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
-        console.log("----- amount", amount);    
 
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
-        uint256 vaultAmount =  _toPriceDecimals(amount).mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
-        console.log("vaultAmount  1e18 ", vaultAmount);
-        vaultAmount = _fromPriceDecimals(vaultAmount);
-        console.log("vaultAmount  1e6  ", vaultAmount);
 
-        if (pricePerShare < PRECISION && (vaultAmount * PRECISION) % pricePerShare != 0) {
-            vaultAmount--;
+        uint256 precision = PRECISION;
+        uint256 vaultAmount;
+        if (pricePerShare < PRECISION) {
+            // @dev in the following cases `totalAssets` < `totalSupply`
+            //   and it produces a remainder when converting to shares
+            //   we need to subtract 1 from the PRECISION to avoid rounding errors
+            precision--;
+            uint256 shares = amount;
+            if ((shares * PRECISION) % pricePerShare != 0) {
+                shares--;
+            }
+            vaultAmount =  shares.mulDiv(precision, pricePerShare, Math.Rounding.Floor);
+        } else {
+            vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
         }
-
-        console.log("vaultAmount (manual)", vaultAmount);
-        console.log("rawVaultAmount remainder", (vaultAmount * PRECISION) % pricePerShare);
+ 
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), vaultAmount
         );
-        console.log("----- amountConvertedToUnderlyingShares", amountConvertedToUnderlyingShares);
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval
 
@@ -1485,13 +1485,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Calculate current value and process fees
         uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
 
-
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
-        // Update average withdraw price
-        // TODO: We are not truly averaging in, just replacing the value
-        // If the user submits multiple requests the average withdraw price will be overriden instead of averaged
+
+        // Update average withdraw price using weighted average
+        // Calculate new weighted average redeem price
+        // maxWithdraw (assets) = maxRedeem * previousPpsValue
+        // newRedeemPrice = (maxWithdraw(assets) + assets))/ (maxRedeem + shares)
         if (requestedShares > 0) {
-            state.averageWithdrawPrice = finalAssets.mulDiv(PRECISION, requestedShares, Math.Rounding.Floor);
+        uint256 existingShares = 0;
+        uint256 existingAssets = 0;
+
+        // Calculate existing assets based on current maxWithdraw
+        if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
+            // Calculate equivalent shares based on current averageWithdrawPrice
+            existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
+            existingAssets = state.maxWithdraw;
+        }
+
+        uint256 newTotalShares = existingShares + requestedShares;
+        uint256 newTotalAssets = existingAssets + finalAssets;
+
+        if (newTotalShares > 0) {
+            state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+        }
         }
     }
 
