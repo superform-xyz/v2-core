@@ -174,20 +174,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(redeemUserOpData);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INTERNAL HELPER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    function _requestDeposit(uint256 depositAmount) internal {
-        __requestDeposit(instanceOnEth, depositAmount);
-    }
-
-    function _requestDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
-        __requestDeposit(accInst, depositAmount);
-    }
-
-    function _fulfillDeposit(uint256 depositAmount) internal {
+    function __fulfillDepositRequest(AccountInstance memory accInst, uint256 depositAmount) private {
         address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accountEth;
+        requestingUsers[0] = accInst.account;
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -211,6 +200,25 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy.fulfillDepositRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData);
         vm.stopPrank();
     }
+
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function _requestDeposit(uint256 depositAmount) internal {
+        __requestDeposit(instanceOnEth, depositAmount);
+    }
+
+    function _requestDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
+        __requestDeposit(accInst, depositAmount);
+    }
+
+    function _fulfillDeposit(uint256 depositAmount) internal {
+       __fulfillDepositRequest(instanceOnEth, depositAmount);
+    }
+
+    function _fulfillDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
+        __fulfillDepositRequest(accInst, depositAmount);
+    }   
 
     function _claimDeposit(uint256 depositAmount) internal {
         __claimDeposit(instanceOnEth, depositAmount);
