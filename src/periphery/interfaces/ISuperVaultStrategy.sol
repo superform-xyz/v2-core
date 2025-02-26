@@ -37,6 +37,7 @@ interface ISuperVaultStrategy {
     error INVALID_SUPER_REGISTRY();
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
+    error INVALID_VAULT_THRESHOLD();
     error YIELD_SOURCE_NOT_ACTIVE();
     error INVALID_SUPER_VAULT_CAP();
     error INVALID_EMERGENCY_ADMIN();

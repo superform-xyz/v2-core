@@ -119,7 +119,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (config_.maxAllocationRate == 0 || config_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
             revert INVALID_MAX_ALLOCATION_RATE();
         }
-        if (config_.vaultThreshold == 0) revert INVALID_AMOUNT();
+        if (config_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
 
         _initialized = true;
         _vault = vault_;
@@ -686,7 +686,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (config.maxAllocationRate == 0 || config.maxAllocationRate > ONE_HUNDRED_PERCENT) {
             revert INVALID_MAX_ALLOCATION_RATE();
         }
-        if (config.vaultThreshold == 0) revert INVALID_AMOUNT();
+        if (config.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
 
         globalConfig = config;
         emit GlobalConfigUpdated(config.vaultCap, config.superVaultCap, config.maxAllocationRate, config.vaultThreshold);
