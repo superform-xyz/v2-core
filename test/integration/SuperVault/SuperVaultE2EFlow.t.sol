@@ -101,7 +101,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         _fulfillRedeem(userShares);
 
         // Calculate expected assets based on shares
-        uint256 claimableAssets = strategy.maxWithdraw(accountEth);
+        uint256 claimableAssets = vault.maxWithdraw(accountEth);
 
         (ISuperLedger.LedgerEntry[] memory entries, 
         uint256 unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
