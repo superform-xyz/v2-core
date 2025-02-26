@@ -667,9 +667,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL);
-        forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
-        forks[BASE] = vm.createFork(BASE_RPC_URL);
+        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
+        forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
+        forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
         rpcURLs[ETH] = ETHEREUM_RPC_URL;
