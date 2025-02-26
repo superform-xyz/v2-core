@@ -11,18 +11,35 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INVALID_PARAM(uint8 index); // Covers: INVALID_VAULT, INVALID_MANAGER, INVALID_STRATEGIST, INVALID_EMERGENCY_ADMIN, INVALID_ORACLE, INVALID_HOOK, INVALID_HOOK_ROOT, INVALID_CONTROLLER, INVALID_SUPER_REGISTRY
-    error INVALID_AMOUNT(); // Covers: INVALID_VAULT_CAP, INVALID_SUPER_VAULT_CAP, INVALID_MAX_ALLOCATION_RATE, INVALID_ALLOCATION_RATE, INVALID_FEE, INVALID_FEE_RECIPIENT, INVALID_ASSET_BALANCE, INVALID_BALANCE_CHANGE
-    error NOT_FOUND(); // Covers: REQUEST_NOT_FOUND, YIELD_SOURCE_NOT_FOUND
-    error ALREADY_EXISTS(); // Covers: YIELD_SOURCE_ALREADY_EXISTS
-    error ACCESS_DENIED(); // Covers: UNAUTHORIZED
-    error INVALID_STATE(); // Covers: TIMELOCK_NOT_EXPIRED, EMERGENCY_WITHDRAWALS_DISABLED
-    error LIMIT_EXCEEDED(); // Covers: VAULT_CAP_EXCEEDED, MAX_ALLOCATION_RATE_EXCEEDED
-    error OPERATION_FAILED(); // Covers: EXECUTION_FAILED, REWARDS_DISTRIBUTOR_NOT_SET
-    error MISMATCH(); // Covers: ARRAY_LENGTH_MISMATCH, INCOMPLETE_DEPOSIT_MATCH, INCOMPLETE_REDEEM_MATCH
-    error INSUFFICIENT_FUNDS(); // Covers: INSUFFICIENT_FREE_ASSETS, INVALID_YIELD_SOURCE
-    error ZERO_VALUE(); // Covers: ZERO_ADDRESS, ZERO_LENGTH, ZERO_AMOUNT
-    error NOT_INITIALIZED(); // Covers: ALREADY_INITIALIZED (renamed for better clarity)
+    error MISMATCH(); 
+    error NOT_FOUND(); 
+    error ZERO_VALUE(); 
+    error ZERO_LENGTH();
+    error INVALID_HOOK();
+    error ZERO_ADDRESS();
+    error INVALID_VAULT();
+    error ACCESS_DENIED(); 
+    error INVALID_STATE(); 
+    error INVALID_ORACLE();
+    error INVALID_AMOUNT(); 
+    error ALREADY_EXISTS(); 
+    error LIMIT_EXCEEDED(); 
+    error INVALID_MANAGER();
+    error NOT_INITIALIZED(); 
+    error OPERATION_FAILED(); 
+    error INVALID_HOOK_ROOT();
+    error INVALID_VAULT_CAP();
+    error INVALID_HOOK_TYPE();
+    error INSUFFICIENT_FUNDS(); 
+    error INVALID_STRATEGIST();
+    error INVALID_CONTROLLER();
+    error INVALID_SUPER_REGISTRY();
+    error YIELD_SOURCE_NOT_ACTIVE();
+    error INVALID_SUPER_VAULT_CAP();
+    error INVALID_EMERGENCY_ADMIN();
+    error INVALID_MAX_ALLOCATION_RATE();
+    error INVALID_PERFORMANCE_FEE_BPS();
+
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
