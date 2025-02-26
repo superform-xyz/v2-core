@@ -39,6 +39,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
+    uint256 private constant PRECISION_DECIMALS = 18;
+    uint256 private constant PRECISION = 1e18;
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -807,18 +809,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _getSuperVaultAssetInfo() private view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
         uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
-            // For first deposit, set initial PPS to 1 unit in vault decimals
-            pricePerShare = 10 ** _vaultDecimals;
+            // For first deposit, set initial PPS to 1 unit in price decimals
+            pricePerShare = PRECISION;
         } else {
-            // Calculate current PPS
+            // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            pricePerShare = totalAssetsValue.mulDiv(10 ** _vaultDecimals, totalSupplyAmount, Math.Rounding.Ceil);
+            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
+            // Otherwise rounding issues in other places becomes bigger
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare);
+        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare);
 
         // Calculate new weighted average deposit price
         // maxDeposit (assets) = maxMint * previousPpsValue
@@ -828,11 +832,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (newTotalShares > 0) {
             uint256 existingAssets = 0;
             if (state.maxMint > 0 && state.averageDepositPrice > 0) {
-                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
+                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
             }
 
             uint256 newTotalAssets = existingAssets + vars.requestedAmount;
-            state.averageDepositPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+            state.averageDepositPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
@@ -1209,7 +1213,26 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
-        uint256 vaultAmount = amount.mulDiv(10 ** _vaultDecimals, pricePerShare, Math.Rounding.Ceil);
+
+        uint256 precision = PRECISION;
+        uint256 vaultAmount;
+        if (pricePerShare < PRECISION) {
+            /// @dev in the following cases `totalAssets` < `totalSupply`
+            /// @dev     and it produces a remainder when converting to shares
+            /// @dev     we need to subtract 1 from the PRECISION to avoid rounding errors
+            /// @dev  an alternative to avoid this could be to supply all SuperVaultsv2 on deployment with some assets
+            /// which remain locked there forever.
+            /// @dev @audit what do you think of this?
+            precision--;
+            uint256 shares = amount;
+            if ((shares * PRECISION) % pricePerShare != 0) {
+                shares--;
+            }
+            vaultAmount = shares.mulDiv(precision, pricePerShare, Math.Rounding.Floor);
+        } else {
+            vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
+        }
+
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), vaultAmount
@@ -1393,7 +1416,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _vaultDecimals);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1426,7 +1449,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Calculate existing assets based on current maxWithdraw
             if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
                 // Calculate equivalent shares based on current averageWithdrawPrice
-                existingShares = state.maxWithdraw.mulDiv(1e18, state.averageWithdrawPrice, Math.Rounding.Floor);
+                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
                 existingAssets = state.maxWithdraw;
             }
 
@@ -1434,7 +1457,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 newTotalAssets = existingAssets + finalAssets;
 
             if (newTotalShares > 0) {
-                state.averageWithdrawPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+                state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
             }
         }
     }
