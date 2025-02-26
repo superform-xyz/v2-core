@@ -1572,25 +1572,4 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _getTokenBalance(address token, address account) private view returns (uint256) {
         return IERC20(token).balanceOf(account);
     }
-
-    /*//////////////////////////////////////////////////////////////
-                            PRICE CONVERSION
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Convert amount to price decimals
-    /// @param amount Amount to convert
-    function _toPriceDecimals(uint256 amount) internal view returns (uint256) {
-        if (_vaultDecimals == PRECISION_DECIMALS) {
-            return amount;
-        }
-        return amount * (10 ** (PRECISION_DECIMALS - _vaultDecimals));
-    }
-
-    /// @notice Convert amount from price decimals to vault decimals
-    /// @param amount Amount to convert
-    function _fromPriceDecimals(uint256 amount) internal view returns (uint256) {
-        if (_vaultDecimals == PRECISION_DECIMALS) {
-            return amount;
-        }
-        return amount / (10 ** (PRECISION_DECIMALS - _vaultDecimals));
-    }
 }
