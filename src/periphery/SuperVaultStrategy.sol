@@ -217,7 +217,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         _requireRole(STRATEGIST_ROLE);
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
-        if (redeemLength == 0 || depositLength == 0) revert ZERO_VALUE();
+        if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
 
         MatchVars memory vars;
         vars.currentPricePerShare = _getSuperVaultPPS();
@@ -426,7 +426,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Validate overall hook sets
         _validateHookSets(hooks, hookCalldata, 3); // Must have exactly 3 arrays: claim, swap, allocate
-        if (expectedTokensOut.length == 0) revert ZERO_VALUE();
+        if (expectedTokensOut.length == 0) revert ZERO_LENGTH();
 
         // Validate individual hook arrays
         _validateHookArrayLengths(hooks[0], claimHookProofs, hookCalldata[0]);
@@ -476,7 +476,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Validate hook arrays
         _validateHookArrayLengths(hooks, hookProofs, hookCalldata);
         uint256 expectedTokensLength = expectedTokensOut.length;
-        if (expectedTokensLength == 0) revert ZERO_VALUE();
+        if (expectedTokensLength == 0) revert ZERO_LENGTH();
 
         // Execute claim hooks and get balance changes
         uint256[] memory balanceChanges = _processClaimHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
@@ -515,7 +515,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         _validateHookArrayLengths(hooks[1], allocateHookProofs, hookCalldata[1]);
 
         uint256 claimedTokensLength = claimedTokensToCompound.length;
-        if (claimedTokensLength == 0) revert ZERO_VALUE();
+        if (claimedTokensLength == 0) revert ZERO_LENGTH();
 
         ClaimLocalVars memory vars;
 
@@ -983,7 +983,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         private
         pure
     {
-        if (hooksLength == 0) revert ZERO_VALUE();
+        if (hooksLength == 0) revert ZERO_LENGTH();
 
         // Validate array lengths match
         if (hooksLength != hookProofsLength || hooksLength != hookCalldataLength) {
@@ -1221,7 +1221,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_)
                 > globalConfig.maxAllocationRate
         ) {
-            revert LIMIT_EXCEEDED();
+            revert MAX_ALLOCATION_RATE_EXCEEDED();
         }
     }
 
@@ -1355,7 +1355,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Calculate asset gained by comparing final balance with initial
         uint256 finalAssetBalance = _getTokenBalance(address(_asset), address(this));
-        if (finalAssetBalance <= initialAssetBalance) revert INVALID_AMOUNT();
+        if (finalAssetBalance <= initialAssetBalance) revert INVALID_BALANCE_CHANGE();
         assetGained = finalAssetBalance - initialAssetBalance;
     }
 
@@ -1487,7 +1487,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         pure
     {
         uint256 hooksLength = hooks.length;
-        if (hooksLength == 0) revert ZERO_VALUE();
+        if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
             revert MISMATCH();
         }

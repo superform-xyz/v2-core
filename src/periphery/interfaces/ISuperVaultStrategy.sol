@@ -13,7 +13,6 @@ interface ISuperVaultStrategy {
     //////////////////////////////////////////////////////////////*/
     error MISMATCH(); 
     error NOT_FOUND(); 
-    error ZERO_VALUE(); 
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
@@ -33,13 +32,14 @@ interface ISuperVaultStrategy {
     error INSUFFICIENT_FUNDS(); 
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
+    error INVALID_BALANCE_CHANGE();
     error INVALID_SUPER_REGISTRY();
     error YIELD_SOURCE_NOT_ACTIVE();
     error INVALID_SUPER_VAULT_CAP();
     error INVALID_EMERGENCY_ADMIN();
     error INVALID_MAX_ALLOCATION_RATE();
     error INVALID_PERFORMANCE_FEE_BPS();
-
+    error MAX_ALLOCATION_RATE_EXCEEDED();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
