@@ -17,9 +17,8 @@ abstract contract Constants {
 
     // keys
     string internal constant SUPER_REGISTRY_KEY = "SuperRegistry";
-    string internal constant HOOKS_REGISTRY_KEY = "HooksRegistry";
+    string internal constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
-    string internal constant SUPER_RBAC_KEY = "SuperRbac";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
@@ -35,7 +34,6 @@ abstract contract Constants {
     string internal constant SUPER_RBAC_ID = "SUPER_RBAC_ID";
     string internal constant SUPER_REGISTRY_ID = "SUPER_REGISTRY_ID";
     string internal constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
-    string internal constant PAYMASTER_ID = "PAYMASTER_ID";
     string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
     string internal constant ORACLE_REGISTRY_ID = "ORACLE_REGISTRY_ID";
     string internal constant TREASURY_ID = "TREASURY_ID";

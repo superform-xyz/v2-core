@@ -5,14 +5,12 @@ import { Helpers } from "./utils/Helpers.sol";
 import { VmSafe } from "forge-std/Vm.sol";
 
 // Superform interfaces
-import { ISuperRbac } from "../src/core/interfaces/ISuperRbac.sol";
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 // Superform contracts
-import { SuperRbac } from "../src/core/settings/SuperRbac.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
@@ -95,10 +93,11 @@ import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
+import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
+
 import "forge-std/console.sol";
 
 struct Addresses {
-    ISuperRbac superRbac;
     ISuperLedger superLedger;
     ISuperLedger erc1155Ledger;
     ISuperLedgerConfiguration superLedgerConfiguration;
@@ -132,6 +131,7 @@ struct Addresses {
     FluidYieldSourceOracle fluidYieldSourceOracle;
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
+    PeripheryRegistry peripheryRegistry;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -236,9 +236,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
 
-        // Set roles
-        _setRoles();
-
         // Setup SuperLedger
         _setupSuperLedger();
 
@@ -309,11 +306,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.oracleRegistry), SUPER_ORACLE_KEY);
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A.oracleRegistry);
 
-            A.superRbac = ISuperRbac(address(new SuperRbac(address(this))));
-            vm.label(address(A.superRbac), SUPER_RBAC_KEY);
-            contractAddresses[chainIds[i]][SUPER_RBAC_KEY] = address(A.superRbac);
-            assertTrue(A.superRbac.hasRole(SuperRbac(address(A.superRbac)).DEFAULT_ADMIN_ROLE(), address(this)));
-
             A.superLedgerConfiguration =
                 ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A.superRegistry))));
             vm.label(address(A.superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
@@ -365,6 +357,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.fluidYieldSourceOracle = new FluidYieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
+
+            /// @dev periphery
+            A.peripheryRegistry = new PeripheryRegistry(address(this));
+            vm.label(address(A.peripheryRegistry), PERIPHERY_REGISTRY_KEY);
+            contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A.peripheryRegistry);
         }
     }
 
@@ -670,9 +667,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL);
-        forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
-        forks[BASE] = vm.createFork(BASE_RPC_URL);
+        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
+        forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
+        forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
         rpcURLs[ETH] = ETHEREUM_RPC_URL;
@@ -811,29 +808,29 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], "SuperLedgerConfiguration")
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_RBAC_ID"), _getContract(chainIds[i], "SuperRbac")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
                 _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
             );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("PAYMASTER_ID"), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), address(0x11111));
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11111));
+
+            SuperRegistry(address(superRegistry)).setAddress(
+                keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
+            );
         }
     }
 
     function _setRoles() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            ISuperRbac superRbac = ISuperRbac(_getContract(chainIds[i], "SuperRbac"));
-            superRbac.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
+            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            superRegistry.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
         }
     }
 
@@ -850,21 +847,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                feeRecipient: superRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                feeRecipient: superRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getAddress(keccak256(bytes(PAYMASTER_ID))),
+                feeRecipient: superRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
@@ -876,14 +873,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
-
-    modifier addRole(ISuperRbac superRbac, bytes32 role_) {
-        superRbac.setRole(address(this), role_, true);
+    modifier addRole(ISuperRegistry superRegistry, bytes32 role_) {
+        superRegistry.setRole(address(this), role_, true);
         _;
     }
 
-    modifier addRoleTo(ISuperRbac superRbac, bytes32 role_, address addr_) {
-        superRbac.setRole(addr_, role_, true);
+    modifier addRoleTo(ISuperRegistry superRegistry, bytes32 role_, address addr_) {
+        superRegistry.setRole(addr_, role_, true);
         _;
     }
 

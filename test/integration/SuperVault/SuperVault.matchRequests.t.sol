@@ -35,8 +35,8 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
 
         assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0);
         assertGt(pendingRedeembefore, strategy.pendingRedeemRequest(accInstances[1].account));
-        assertGt(strategy.maxMint(accInstances[0].account), 0);
-        assertGt(strategy.maxWithdraw(accInstances[1].account), 0);
+        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0);
+        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0);
     }
 
     /**
