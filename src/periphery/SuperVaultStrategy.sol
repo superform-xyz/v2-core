@@ -871,15 +871,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare);
 
-        uint256 newTotalAssets = vars.requestedAmount;
-        uint256 newTotalShares = vars.shares;
-
-        if (state.maxMint > 0) {
-            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
-            newTotalShares += state.maxMint;
-        }
+        // Calculate new weighted average deposit price
+        // maxDeposit (assets) = maxMint * previousPpsValue
+        // newDepositPrice = (maxDeposit(assets) + assets))/ (maxMint + shares)
+        uint256 newTotalShares = state.maxMint + vars.shares;
 
         if (newTotalShares > 0) {
+            uint256 existingAssets = 0;
+            if (state.maxMint > 0 && state.averageDepositPrice > 0) {
+                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
+            }
+
+            uint256 newTotalAssets = existingAssets + vars.requestedAmount;
             state.averageDepositPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
         }
 
@@ -1461,13 +1464,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Calculate current value and process fees
         uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
 
-
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
-        // Update average withdraw price
-        // TODO: We are not truly averaging in, just replacing the value
-        // If the user submits multiple requests the average withdraw price will be overriden instead of averaged
+
+        // Update average withdraw price using weighted average
+        // Calculate new weighted average redeem price
+        // maxWithdraw (assets) = maxRedeem * previousPpsValue
+        // newRedeemPrice = (maxWithdraw(assets) + assets))/ (maxRedeem + shares)
         if (requestedShares > 0) {
-            state.averageWithdrawPrice = finalAssets.mulDiv(1e18, requestedShares, Math.Rounding.Floor);
+            uint256 existingShares = 0;
+            uint256 existingAssets = 0;
+
+            // Calculate existing assets based on current maxWithdraw
+            if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
+                // Calculate equivalent shares based on current averageWithdrawPrice
+                existingShares = state.maxWithdraw.mulDiv(1e18, state.averageWithdrawPrice, Math.Rounding.Floor);
+                existingAssets = state.maxWithdraw;
+            }
+
+            uint256 newTotalShares = existingShares + requestedShares;
+            uint256 newTotalAssets = existingAssets + finalAssets;
+
+            if (newTotalShares > 0) {
+                state.averageWithdrawPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+            }
         }
     }
 
