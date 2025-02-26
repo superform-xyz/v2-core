@@ -231,6 +231,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
         if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
+        if (redeemLength != depositLength) revert MISMATCH();
 
         MatchVars memory vars;
         (vars.currentPricePerShare,) = _getSuperVaultAssetInfo();
