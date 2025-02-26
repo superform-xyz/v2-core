@@ -14,7 +14,10 @@ deploy-poc:
 	forge script script/PoC/Deploy.s.sol --broadcast --legacy --multi --verify
 
 build :; forge build && $(MAKE) generate
+
 ftest :; forge test
+
+ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
