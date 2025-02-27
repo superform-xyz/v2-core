@@ -27,6 +27,7 @@ import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
+
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -245,7 +246,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
-            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _vaultDecimals, vars.currentPricePerShare);
+            vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare);
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
@@ -1433,7 +1434,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
 
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
