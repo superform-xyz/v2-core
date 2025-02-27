@@ -301,7 +301,12 @@ contract DeployV2 is Script, Configuration {
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(
+                    registry,
+                    configuration.owner,
+                    configuration.acrossSpokePoolV3s[chainId],
+                    _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+                )
             )
         );
         hooks[1] = HookDeployment(

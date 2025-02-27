@@ -512,7 +512,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY),
                 address(this),
                 SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
-                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
+                _getContract(chainIds[i], ACROSS_GATEWAY_EXECUTOR_KEY)
             );
             vm.label(address(Addr.acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =

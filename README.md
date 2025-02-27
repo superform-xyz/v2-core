@@ -414,3 +414,119 @@ SuperExecutor module:
   - Users could execute hooks by their own, without go through the SuperBundler. This could lead to an avoidance of the validator module. However, this would affect only the user and not the protocol as each action is executed in the context of the user's account. 
 - Mitigation:
   - For extra safety, should we deny `target` as SuperExecutor for each hook?
+
+
+---
+
+# **Role-Gated Functions in Superform V2 Contracts**
+
+## **Core Contracts**
+
+### **SuperRegistry.sol**
+
+**Function**: setAddress(bytes32 id_, address address_)
+
+**Role**: onlyOwner
+
+**Purpose**: Updates contract addresses in the registry
+
+**Justification**: Owner control is needed to manage the system's core contract addresses, ensuring only authorized changes to critical infrastructure components
+
+---
+
+### **SuperOracle.sol**
+
+**Function**: setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness)
+
+**Role**: onlyOwner
+
+**Purpose**: Sets the maximum staleness period for a price provider
+
+**Justification**: Owner control ensures price feed reliability by allowing only authorized updates to staleness parameters, preventing manipulation of price validity windows 
+
+<br>
+
+**Function**: queueOracleUpdate(address[] calldata bases, uint256[] calldata providers, address[] calldata oracleAddresses)
+
+**Role**: onlyOwner
+
+**Purpose**: Queues an update to oracle addresses with a timelock
+
+**Justification**: Owner control with timelock protection prevents immediate changes to price oracles, reducing risk of malicious oracle manipulation while allowing for necessary updates
+
+
+---
+
+## **Periphery Contracts**
+
+### **PeripheryRegistry.sol**
+
+**Function**: registerHook(address hook_)
+
+**Role**: onlyOwner
+
+**Purpose**: Registers a new hook in the system
+
+**Justification**: Owner control ensures only core verified and audited hooks can be added to the system, preventing malicious hooks from being registered
+
+<br>
+
+**Function**: unregisterHook(address hook_)
+
+**Role**: onlyOwner
+
+**Purpose**: Removes a hook from the system
+
+**Justification**: Owner control allows disabling compromised or deprecated hooks, protecting users from potential vulnerabilities
+
+<br>
+
+**Function**: proposeFeeSplit(uint256 feeSplit_)
+
+**Role**: onlyOwner
+
+**Purpose**: Proposes a new fee split with a timelock
+
+**Justification**: Owner control with timelock ensures transparent and gradual changes to fee structures, preventing sudden changes that could harm users
+
+<br>
+
+**Function**: setTreasury(address treasury_)
+
+**Role**: onlyOwner
+
+**Purpose**: Updates the treasury address
+
+**Justification**: Owner control protects the destination of collected fees, ensuring they go to the legitimate project treasury
+
+---
+
+### **SuperVaultStrategy.sol (roles are set by creators of SuperVaults)**
+
+**Function**: Various strategy management functions
+
+**Role**: STRATEGIST_ROLE
+
+**Purpose**: Manages yield sources and strategy execution
+
+**Justification**: Specialized role for optimizing yield strategies, requiring deep DeFi expertise and quick response to market conditions
+
+<br>
+
+**Function**: Various configuration functions
+
+**Role**: MANAGER_ROLE
+
+**Purpose**: Manages global configuration and fee settings
+
+**Justification**: Administrative role for overall vault management, separate from strategy execution for better separation of concerns
+
+<br>
+
+**Function**: Emergency functions
+
+**Role**: EMERGENCY_ADMIN_ROLE
+
+**Purpose**: Handles emergency situations
+
+**Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during critical situations without full admin privileges
