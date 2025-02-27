@@ -150,12 +150,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
         vm.stopPrank();
 
-        vm.startPrank(SV_MANAGER);
-        strategy.proposeVaultFeeConfigUpdate(100, FEE_RECIPIENT);
-        vm.warp(block.timestamp + 1 weeks);
-        strategy.executeVaultFeeConfigUpdate();
-        vm.stopPrank();
-
         _setFeeConfig(100, FEE_RECIPIENT);
 
         // Set up hook root
