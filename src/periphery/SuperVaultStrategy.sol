@@ -402,7 +402,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.hookType == ISuperHook.HookType.INFLOW) {
                 _resetTokenApproval(address(_asset), vars.executions[0].target);
             }
-
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
 
