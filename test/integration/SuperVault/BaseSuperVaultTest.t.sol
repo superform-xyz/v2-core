@@ -66,7 +66,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
         // Deploy factory
-        factory = new SuperVaultFactory(_getContract(ETH, SUPER_REGISTRY_KEY));
+        factory = new SuperVaultFactory(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
         // Set up roles
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
@@ -157,7 +157,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-    
+
     function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) private {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -218,6 +218,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _claimDeposit(uint256 depositAmount) internal {
         __claimDeposit(instanceOnEth, depositAmount);
     }
+
     function _claimDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
         __claimDeposit(accInst, depositAmount);
     }
@@ -233,7 +234,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _requestRedeemForAccount_Revert(AccountInstance memory accInst, uint256 redeemShares) internal {
         __requestRedeem(accInst, redeemShares, true);
     }
-
 
     function _fulfillRedeem(uint256 redeemShares) internal {
         address[] memory requestingUsers = new address[](1);
