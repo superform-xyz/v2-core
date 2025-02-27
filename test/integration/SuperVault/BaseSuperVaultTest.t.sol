@@ -6,6 +6,7 @@ import { BaseTest } from "../../BaseTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
+import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
@@ -52,6 +53,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant MAX_ALLOCATION_RATE = 5000; // 50%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
 
+    AccountInstance[] public accInstances;
+
     function setUp() public virtual override {
         super.setUp();
 
@@ -60,6 +63,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Set up accounts
         accountEth = accountInstances[ETH].account;
         instanceOnEth = accountInstances[ETH];
+
+        accInstances = randomAccountInstances[ETH];
 
         // Set up super executor
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
@@ -154,7 +159,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-    
+
     function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) private {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -208,21 +213,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         __requestDeposit(instanceOnEth, depositAmount);
     }
 
-    function _requestDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
-        __requestDeposit(accInst, depositAmount);
-    }
-
     function _fulfillDeposit(uint256 depositAmount) internal {
-       __fulfillDepositRequest(instanceOnEth, depositAmount);
+        __fulfillDepositRequest(instanceOnEth, depositAmount);
     }
 
     function _fulfillDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
         __fulfillDepositRequest(accInst, depositAmount);
-    }   
+    }
 
     function _claimDeposit(uint256 depositAmount) internal {
         __claimDeposit(instanceOnEth, depositAmount);
     }
+
     function _claimDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
         __claimDeposit(accInst, depositAmount);
     }
@@ -231,14 +233,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         __requestRedeem(instanceOnEth, redeemShares, false);
     }
 
-    function _requestRedeemForAccount(AccountInstance memory accInst, uint256 redeemShares) internal {
-        __requestRedeem(accInst, redeemShares, false);
-    }
-
     function _requestRedeemForAccount_Revert(AccountInstance memory accInst, uint256 redeemShares) internal {
         __requestRedeem(accInst, redeemShares, true);
     }
-
 
     function _fulfillRedeem(uint256 redeemShares) internal {
         address[] memory requestingUsers = new address[](1);
@@ -290,5 +287,87 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
+    }
+
+    function _completeDepositFlow(uint256 amount, AccountInstance memory account) internal {
+        if (account.account == address(0)) {
+            account = instanceOnEth;
+        }
+        _getTokens(address(asset), account.account, amount);
+        _requestDepositForAccount(account, amount);
+        __fulfillDepositRequest(account, amount);
+    }
+
+    function _requestDepositForAccount(AccountInstance memory account, uint256 amount) internal {
+        vm.startPrank(account.account);
+        asset.approve(address(vault), amount);
+        vault.requestDeposit(amount, account.account, account.account);
+        vm.stopPrank();
+    }
+
+    function _requestRedeemForAccount(AccountInstance memory account, uint256 shares) internal {
+        vm.startPrank(account.account);
+        vault.requestRedeem(shares, account.account, account.account);
+        vm.stopPrank();
+    }
+
+    function _fulfillDepositRequest(AccountInstance memory account) internal {
+        // Get the pending deposit amount for this account
+        uint256 depositAmount = strategy.pendingDepositRequest(account.account);
+        require(depositAmount > 0, "No pending deposit");
+
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooks = new address[](2);
+        hooks[0] = depositHookAddress;
+        hooks[1] = depositHookAddress;
+
+        bytes32[][] memory hookProofs = new bytes32[][](2);
+        hookProofs[0] = _getMerkleProof(depositHookAddress);
+        hookProofs[1] = hookProofs[0];
+
+        bytes[] memory hookCalldata = new bytes[](2);
+        // allocate up to the max allocation rate in the two Vaults
+        hookCalldata[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(fluidVault), 
+            depositAmount / 2, 
+            false, 
+            false
+        );
+        hookCalldata[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(aaveVault), 
+            depositAmount / 2, 
+            false, 
+            false
+        );
+
+        address[] memory users = new address[](1);
+        users[0] = account.account;
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(users, hooks, hookProofs, hookCalldata, true);
+        vm.stopPrank();
+    }
+
+    function _fulfillRedeemRequest(AccountInstance memory account) internal {
+        address[] memory hooks = new address[](1);
+        hooks[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+
+        bytes32[][] memory hookProofs = new bytes32[][](1);
+        hookProofs[0] = new bytes32[](0);
+
+        bytes[] memory hookCalldata = new bytes[](1);
+        hookCalldata[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(strategy), 0, true, false
+        );
+
+        address[] memory users = new address[](1);
+        users[0] = account.account;
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(users, hooks, hookProofs, hookCalldata, false);
+        vm.stopPrank();
     }
 }
