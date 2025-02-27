@@ -7,11 +7,12 @@ import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
 import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Interface.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { BoringERC20 } from "../../../vendor/BoringSolidity/BoringERC20.sol";
+import { SuperRegistryImplementer } from "../../utils/SuperRegistryImplementer.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs
 /// @notice Registry for managing oracle providers and getting quotes
-contract SuperOracle is Ownable, ISuperOracle, IOracle {
+contract SuperOracle is SuperRegistryImplementer, ISuperOracle, IOracle {
     using BoringERC20 for IERC20;
 
     /// @notice Mapping of base asset to array of oracle providers
@@ -32,21 +33,28 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
     PendingUpdate private pendingUpdate;
 
     constructor(
-        address owner,
+        address superRegistry_,
         address[] memory initialBases,
         uint256[] memory initialProviders,
         address[] memory initialOracleAddresses
     )
-        Ownable(owner)
+        SuperRegistryImplementer(superRegistry_)
     {
+        uint256 length = initialProviders.length;
         // Set default staleness for initial providers
-        for (uint256 i = 0; i < initialProviders.length;) {
+        for (uint256 i; i < length;) {
             providerMaxStaleness[initialProviders[i]] = 1 days;
             unchecked {
                 ++i;
             }
         }
         _configureOracles(initialBases, initialProviders, initialOracleAddresses);
+    }
+
+    /// @notice Modifier to check if caller has SUPER_ORACLE_MANAGER role
+    modifier onlySuperOracleManager() {
+        if (!superRegistry.hasRole(keccak256("SUPER_ORACLE_MANAGER"), msg.sender)) revert NOT_ADMIN();
+        _;
     }
 
     // -- Get quote functions --
@@ -113,7 +121,7 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
     // -- External configuration functions --
 
     /// @inheritdoc ISuperOracle
-    function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
+    function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlySuperOracleManager {
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
@@ -125,7 +133,7 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
         address[] calldata oracleAddresses
     )
         external
-        onlyOwner
+        onlySuperOracleManager
     {
         if (pendingUpdate.timestamp != 0) revert PENDING_UPDATE_EXISTS();
         if (bases.length != providers.length || providers.length != oracleAddresses.length) {

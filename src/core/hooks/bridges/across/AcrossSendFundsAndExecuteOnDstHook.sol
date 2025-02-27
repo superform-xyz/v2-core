@@ -32,6 +32,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable spokePoolV3;
+    address public immutable acrossGatewayExecutor;
 
     struct AcrossV3DepositAndExecuteData {
         uint256 value;
@@ -51,12 +52,15 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     constructor(
         address registry_,
         address author_,
-        address spokePoolV3_
+        address spokePoolV3_,
+        address acrossGatewayExecutor_
     )
         BaseHook(registry_, author_, HookType.NONACCOUNTING)
     {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (acrossGatewayExecutor_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
+        acrossGatewayExecutor = acrossGatewayExecutor_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -105,7 +109,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
             callData: abi.encodeCall(
                 IAcrossSpokePoolV3.depositV3Now,
                 (
-                    _getAcrossGatewayExecutor(), // assume it has the same address on all chains
+                    acrossGatewayExecutor,
                     acrossV3DepositAndExecuteData.recipient,
                     acrossV3DepositAndExecuteData.inputToken,
                     acrossV3DepositAndExecuteData.outputToken,
@@ -129,11 +133,4 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address, bytes memory) external view onlyExecutor { }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _getAcrossGatewayExecutor() private view returns (address) {
-        return superRegistry.getAddress(keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"));
-    }
 }

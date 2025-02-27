@@ -314,7 +314,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][SUPER_REGISTRY_KEY] = address(A.superRegistry);
 
             // Deploy SuperOracle
-            A.oracleRegistry = new SuperOracle(address(this), new address[](0), new uint256[](0), new address[](0));
+            A.oracleRegistry =
+                new SuperOracle(address(A.superRegistry), new address[](0), new uint256[](0), new address[](0));
             vm.label(address(A.oracleRegistry), SUPER_ORACLE_KEY);
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A.oracleRegistry);
 
@@ -524,7 +525,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
             if (DEBUG) console.log("withdraw7575_7540VaultHook deployed", address(Addr.withdraw7575_7540VaultHook));
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY),
+                address(this),
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
+                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
             );
             vm.label(address(Addr.acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
@@ -658,7 +662,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             accountInstances[chainIds[i]] = instance;
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
-                module: _getContract(chainIds[i], "SuperExecutor"),
+                module: _getContract(chainIds[i], SUPER_EXECUTOR_KEY),
                 data: ""
             });
             vm.label(instance.account, accountName);
@@ -813,35 +817,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_LEDGER_ID"), _getContract(chainIds[i], "SuperLedger")
-            );
+
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], "SuperLedgerConfiguration")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
-                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
             );
             SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), SUPER_BUNDLER);
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
-            );
 
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
             );
-        }
-    }
-
-    function _setRoles() internal {
-        for (uint256 i = 0; i < chainIds.length; ++i) {
-            vm.selectFork(FORKS[chainIds[i]]);
-            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
-            superRegistry.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
         }
     }
 

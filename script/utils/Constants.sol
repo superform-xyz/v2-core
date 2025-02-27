@@ -27,7 +27,6 @@ abstract contract Constants {
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant MOCK_VALIDATOR_MODULE_KEY = "MockValidatorModule";
 
-    string internal constant SUPER_LEDGER_ID = "SUPER_LEDGER_ID";
     string internal constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
     string internal constant SUPER_POSITION_ID = "SUPER_POSITION_ID";
     string internal constant SUPER_POSITION_SENTINEL_ID = "SUPER_POSITION_SENTINEL_ID";
@@ -35,9 +34,7 @@ abstract contract Constants {
     string internal constant SUPER_REGISTRY_ID = "SUPER_REGISTRY_ID";
     string internal constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
     string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
-    string internal constant ORACLE_REGISTRY_ID = "ORACLE_REGISTRY_ID";
     string internal constant TREASURY_ID = "TREASURY_ID";
-    string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID = "ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
         "DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID";
     // mainnets

@@ -39,7 +39,6 @@ contract SuperMerkleValidator is
 
     mapping(address => bool) private _initialized;
 
-
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,6 +63,7 @@ contract SuperMerkleValidator is
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
+
     function onUninstall(bytes calldata) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
@@ -181,7 +181,10 @@ contract SuperMerkleValidator is
         return UserOpData(sender, nonce, callData, accountGasLimits);
     }
 
-    function _decodeSignatureAndUserOpData(bytes memory data, address sender)
+    function _decodeSignatureAndUserOpData(
+        bytes memory data,
+        address sender
+    )
         private
         pure
         returns (SignatureData memory, UserOpData memory)

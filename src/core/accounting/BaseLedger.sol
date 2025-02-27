@@ -60,7 +60,6 @@ abstract contract BaseLedger is ISuperLedger {
         return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
     }
 
-
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -69,8 +68,8 @@ abstract contract BaseLedger is ISuperLedger {
         address yieldSource
     )
         internal
-        virtual
         view
+        virtual
         returns (LedgerEntry[] memory entries, uint256 unconsumedEntries)
     {
         Ledger storage ledger = userLedger[user][yieldSource];
@@ -94,11 +93,12 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 usedShares
     )
         internal
-        onlyExecutor
         virtual
+        onlyExecutor
         returns (uint256 feeAmount)
     {
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config = superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
@@ -202,5 +202,4 @@ abstract contract BaseLedger is ISuperLedger {
             feeAmount = (profit * config.feePercent) / 10_000;
         }
     }
-
 }

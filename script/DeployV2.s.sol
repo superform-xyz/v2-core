@@ -174,7 +174,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_ORACLE_KEY),
             abi.encodePacked(
                 type(SuperOracle).creationCode,
-                abi.encode(configuration.owner, new address[](0), new uint256[](0), new address[](0))
+                abi.encode(deployedContracts.superRegistry, new address[](0), new uint256[](0), new address[](0))
             )
         );
 
@@ -265,19 +265,17 @@ contract DeployV2 is Script, Configuration {
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
         );
 
+        // Set up SUPER_ORACLE_MANAGER role
+        superRegistry.setRole(configuration.owner, keccak256("SUPER_ORACLE_MANAGER"), true);
+
         // -- SuperRegistry
-        superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
         superRegistry.setAddress(
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
-        superRegistry.setAddress(
-            keccak256(bytes(ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID)),
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
-        );
+
 
         superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
         superRegistry.setAddress(keccak256(bytes(SUPER_BUNDLER_ID)), configuration.bundler);
-        superRegistry.setAddress(keccak256(bytes(ORACLE_REGISTRY_ID)), _getContract(chainId, SUPER_ORACLE_KEY));
         superRegistry.setAddress(keccak256(bytes(SUPER_REGISTRY_ID)), _getContract(chainId, SUPER_REGISTRY_KEY));
         superRegistry.setAddress(keccak256(bytes(TREASURY_ID)), configuration.treasury);
     }

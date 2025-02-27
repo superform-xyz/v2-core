@@ -1,30 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { IAccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/IAccessControlEnumerable.sol";
-
-interface ISuperRegistry is IAccessControlEnumerable {
+interface ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event AddressSet(bytes32 indexed id, address indexed addr);
-    event RoleUpdated(address indexed account, bytes32 indexed role, bool allowed);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INVALID_ROLE();
     error INVALID_ACCOUNT();
     error INVALID_ADDRESS();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @dev Add a role to an account.
-    /// @param account_ The address of the account.
-    /// @param role_ The role to add.
-    /// @param allowed_ Whether the role is allowed.
-    function setRole(address account_, bytes32 role_, bool allowed_) external;
 
     /// @dev Set the address of an ID.
     /// @param id_ The ID.
