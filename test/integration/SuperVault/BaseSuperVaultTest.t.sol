@@ -6,6 +6,7 @@ import { BaseTest } from "../../BaseTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
@@ -180,30 +181,50 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function __fulfillDepositRequest(AccountInstance memory accInst, uint256 depositAmount) internal {
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accInst.account;
+        console2.log("Starting fulfill deposit request for amount:", depositAmount);
+        
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        console2.log("Using deposit hook:", depositHookAddress);
 
-        address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = depositHookAddress;
-        fulfillHooksAddresses[1] = depositHookAddress;
+        // Split the deposit between two hooks
+        uint256 halfAmount = depositAmount / 2;
+        
+        address[] memory hooks = new address[](2);
+        hooks[0] = depositHookAddress;
+        hooks[1] = depositHookAddress;
 
         bytes32[][] memory proofs = new bytes32[][](2);
         proofs[0] = _getMerkleProof(depositHookAddress);
         proofs[1] = proofs[0];
 
-        bytes[] memory fulfillHooksData = new bytes[](2);
-        // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
+        bytes[] memory hookCalldata = new bytes[](2);
+        // First half to fluid vault
+        hookCalldata[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(fluidVault), 
+            halfAmount,  // Use half amount
+            false, 
+            false
         );
-        fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
+        // Second half to aave vault
+        hookCalldata[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(aaveVault), 
+            depositAmount - halfAmount,  // Use remaining amount to handle odd numbers
+            false, 
+            false
         );
 
+        address[] memory users = new address[](1);
+        users[0] = accInst.account;
+
+        console2.log("Strategy balance before fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
+        
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        strategy.fulfillRequests(users, hooks, proofs, hookCalldata, true);
         vm.stopPrank();
+        
+        console2.log("Strategy balance after fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -289,13 +310,25 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(claimUserOpData);
     }
 
-    function _completeDepositFlow(uint256 amount, AccountInstance memory account) internal {
-        if (account.account == address(0)) {
-            account = instanceOnEth;
-        }
-        _getTokens(address(asset), account.account, amount);
-        _requestDepositForAccount(account, amount);
-        __fulfillDepositRequest(account, amount);
+    function _completeDepositFlow(uint256 amount, AccountInstance memory acc) internal virtual {
+        _getTokens(address(asset), acc.account, amount);
+
+        uint256 balanceBefore = IERC20(address(asset)).balanceOf(acc.account);
+        uint256 sharesBefore = vault.balanceOf(acc.account);
+        console2.log("Starting complete deposit flow for amount:", amount);
+        console2.log("Using account:", acc.account);
+        console2.log("Balance before:", balanceBefore, "after:", IERC20(address(asset)).balanceOf(acc.account));
+
+        _requestDepositForAccount(acc, amount);
+        uint256 pendingRequest = strategy.pendingDepositRequest(acc.account);
+        console2.log("Deposit requested");
+        console2.log("Pending request amount:", pendingRequest);
+
+        __fulfillDepositRequest(acc, amount);  // Use existing helper
+        console2.log("Deposit fulfilled");
+
+        uint256 sharesAfter = vault.balanceOf(acc.account);
+        console2.log("Shares minted:", sharesAfter - sharesBefore);
     }
 
     function _requestDepositForAccount(AccountInstance memory account, uint256 amount) internal {
@@ -308,46 +341,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _requestRedeemForAccount(AccountInstance memory account, uint256 shares) internal {
         vm.startPrank(account.account);
         vault.requestRedeem(shares, account.account, account.account);
-        vm.stopPrank();
-    }
-
-    function _fulfillDepositRequest(AccountInstance memory account) internal {
-        // Get the pending deposit amount for this account
-        uint256 depositAmount = strategy.pendingDepositRequest(account.account);
-        require(depositAmount > 0, "No pending deposit");
-
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory hooks = new address[](2);
-        hooks[0] = depositHookAddress;
-        hooks[1] = depositHookAddress;
-
-        bytes32[][] memory hookProofs = new bytes32[][](2);
-        hookProofs[0] = _getMerkleProof(depositHookAddress);
-        hookProofs[1] = hookProofs[0];
-
-        bytes[] memory hookCalldata = new bytes[](2);
-        // allocate up to the max allocation rate in the two Vaults
-        hookCalldata[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(fluidVault), 
-            depositAmount / 2, 
-            false, 
-            false
-        );
-        hookCalldata[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(aaveVault), 
-            depositAmount / 2, 
-            false, 
-            false
-        );
-
-        address[] memory users = new address[](1);
-        users[0] = account.account;
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(users, hooks, hookProofs, hookCalldata, true);
         vm.stopPrank();
     }
 

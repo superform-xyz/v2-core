@@ -18,7 +18,7 @@ ftest :; forge test
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_MatchRequests_MultiplePairs -vvvv
+test-vvv :; forge test --match-test test_MatchRequests_MultiplePairs -vvv
 
 test-integration :; forge test --match-test test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow -vvvv
 
