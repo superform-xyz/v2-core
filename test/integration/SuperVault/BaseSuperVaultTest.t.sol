@@ -220,6 +220,21 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
         executeOp(redeemUserOpData);
     }
+    
+    function __claimWithdraw(AccountInstance memory accInst, uint256 assets) internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createWithdraw7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, assets, false, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
+    }
 
     /*//////////////////////////////////////////////////////////////
                         VAULT OPERATIONS
@@ -324,27 +339,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    function _claimWithdrawForAccount(AccountInstance memory accInst, uint256 assets) internal {
+        __claimWithdraw(accInst, assets);
+    }
     function _claimWithdraw(uint256 assets) internal {
-        address[] memory claimHooksAddresses = new address[](1);
-        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
-
-        bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accountEth, assets, false, false
-        );
-
-        ISuperExecutor.ExecutorEntry memory claimEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
-        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
-
-        // vm.expectEmit(true, true, true, true);
-        // emit ISuperLedgerData.AccountingOutflowSkipped(
-        //     accountEth,
-        //     address(vault),
-        //     bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-        //     assets
-        // );
-        executeOp(claimUserOpData);
+        __claimWithdraw(instanceOnEth, assets);
     }
 
     /*//////////////////////////////////////////////////////////////
