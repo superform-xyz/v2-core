@@ -16,7 +16,7 @@ import {
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
-import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
+import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
@@ -72,7 +72,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        FEE_RECIPIENT = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY)).getTreasury();
+        FEE_RECIPIENT = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY)).getTreasury();
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
