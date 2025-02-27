@@ -23,8 +23,8 @@ contract SuperVaultFactoryTest is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         // Deploy the factory
-        address superRegistry = _getContract(ETH, SUPER_REGISTRY_KEY);
-        factory = new SuperVaultFactory(superRegistry);
+        address peripheryRegistry = _getContract(ETH, PERIPHERY_REGISTRY_KEY);
+        factory = new SuperVaultFactory(peripheryRegistry);
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
