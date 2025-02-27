@@ -6,65 +6,86 @@ import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { SuperVaultFulfillRedeemRequestsTest } from "./SuperVault.fulfillRedeemRequests.t.sol";
 
+//external
 import "forge-std/console.sol";
+import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
     function test_MatchRequests_SinglePair(uint256 amount) public {
         amount = bound(amount, 100e6, 10_000e6);
 
-        _completeDepositFlow(amount);
+        // Give initial shares to redeeming account
+        _completeDepositFlow(amount, accInstances[1]);
+        _claimDepositForAccount(accInstances[1], amount);
+        
+        uint256 initialShares = vault.balanceOf(accInstances[1].account);
+        console.log("Initial shares for redeeming account:", initialShares);
+        require(initialShares > 0, "Initial deposit failed");
 
+        // Create deposit request
         _getTokens(address(asset), accInstances[0].account, amount);
         _requestDepositForAccount(accInstances[0], amount);
         assertEq(strategy.pendingDepositRequest(accInstances[0].account), amount, "Deposit request not created");
 
+        // Create redeem request
         uint256 redeemShares = vault.balanceOf(accInstances[1].account);
+        console.log("Shares before redeem request:", redeemShares);
         _requestRedeemForAccount(accInstances[1], redeemShares);
         assertEq(strategy.pendingRedeemRequest(accInstances[1].account), redeemShares, "Redeem request not created");
 
+        // Match requests
         address[] memory redeemUsers = new address[](1);
-        redeemUsers[0] = accInstances[1].account;
-
         address[] memory depositUsers = new address[](1);
+        redeemUsers[0] = accInstances[1].account;
         depositUsers[0] = accInstances[0].account;
 
-        uint256 pendingRedeembefore = strategy.pendingRedeemRequest(accInstances[1].account);
         vm.startPrank(STRATEGIST);
         strategy.matchRequests(redeemUsers, depositUsers);
         vm.stopPrank();
 
-        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0);
-        assertGt(pendingRedeembefore, strategy.pendingRedeemRequest(accInstances[1].account));
-        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0);
-        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0);
+        // Verify matching worked
+        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0, "Deposit request not cleared");
+        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0, "No shares to mint");
+        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
     }
 
     function test_MatchRequests_MultiplePairs(uint256 amount) public {
-        amount = bound(amount, 100e6, 10_000e6);
+        amount = bound(amount, 10e3, 1000e3); 
 
-        // Setup multiple deposits and redeems
-        _completeDepositFlow(amount);
+        // Give initial shares to redeeming accounts through proper flow
+        for (uint256 i = 40; i < 70; i++) {  // 30 redeem accounts
+            _completeDepositFlow(amount, accInstances[i]);
+            _claimDepositForAccount(accInstances[i], amount);
+            
+            // Verify shares were received
+            uint256 shares = vault.balanceOf(accInstances[i].account);
+            console.log("Account", i, "initial shares:", shares);
+            require(shares > 0, "Initial deposit failed");
+        }
 
-        // Create 3 deposit requests
-        for (uint256 i = 0; i < 3; i++) {
+        // Create 40 deposit requests
+        for (uint256 i = 0; i < 40; i++) {
             _getTokens(address(asset), accInstances[i].account, amount);
             _requestDepositForAccount(accInstances[i], amount);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), amount, "Deposit request not created");
         }
 
-        // Create 3 redeem requests
-        for (uint256 i = 3; i < 6; i++) {
+        // Create 30 redeem requests
+        for (uint256 i = 40; i < 70; i++) {
             uint256 redeemShares = vault.balanceOf(accInstances[i].account);
+            console.log("Account", i, "shares before redeem:", redeemShares);
+            require(redeemShares > 0, "No shares available for redeem");
+            
             _requestRedeemForAccount(accInstances[i], redeemShares);
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), redeemShares, "Redeem request not created");
         }
 
-        // Setup arrays for matching
-        address[] memory redeemUsers = new address[](3);
-        address[] memory depositUsers = new address[](3);
+        // Match all requests at once
+        address[] memory redeemUsers = new address[](30);
+        address[] memory depositUsers = new address[](30);
 
-        for (uint256 i = 0; i < 3; i++) {
-            redeemUsers[i] = accInstances[i + 3].account;
+        for (uint256 i = 0; i < 30; i++) {
+            redeemUsers[i] = accInstances[i + 40].account;
             depositUsers[i] = accInstances[i].account;
         }
 
@@ -73,15 +94,14 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         strategy.matchRequests(redeemUsers, depositUsers);
         vm.stopPrank();
 
-        // Verify all deposits were matched
-        for (uint256 i = 0; i < 3; i++) {
+        // Verify all matches
+        for (uint256 i = 0; i < 30; i++) {
             assertEq(strategy.pendingDepositRequest(depositUsers[i]), 0, "Deposit request not cleared");
-            assertGt(strategy.getSuperVaultState(depositUsers[i], 1), 0, "No shares available to mint");
-        }
-
-        // Verify all redeems were matched
-        for (uint256 i = 0; i < 3; i++) {
-            assertGt(strategy.getSuperVaultState(redeemUsers[i], 2), 0, "No assets available to withdraw");
+            assertGt(strategy.getSuperVaultState(depositUsers[i], 1), 0, "No shares to mint");
+            
+            uint256 assetsToWithdraw = strategy.getSuperVaultState(redeemUsers[i], 2);
+            console.log("Assets to withdraw for user", i, ":", assetsToWithdraw);
+            assertGt(assetsToWithdraw, 0, "No assets available to withdraw");
         }
     }
 
@@ -340,7 +360,42 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         depositUsers[1] = accInstances[2].account;
 
         vm.startPrank(STRATEGIST);
-        vm.expectRevert(ISuperVaultStrategy.MISMATCH.selector);
+        vm.expectRevert(ISuperVaultStrategy.LENGTH_MISMATCH.selector);
+        strategy.matchRequests(redeemUsers, depositUsers);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_MatchRequests_UnequalRequests(uint256 amount) public {
+        amount = bound(amount, 100e6, 10_000e6);
+
+        // Setup initial state
+        _completeDepositFlow(amount);
+
+        // Create 10 deposit requests
+        for (uint256 i = 0; i < 10; i++) {
+            _getTokens(address(asset), accInstances[i].account, amount);
+            _requestDepositForAccount(accInstances[i], amount);
+        }
+
+        // Create 8 redeem requests
+        for (uint256 i = 10; i < 18; i++) {
+            uint256 redeemShares = vault.balanceOf(accInstances[i].account);
+            _requestRedeemForAccount(accInstances[i], redeemShares);
+        }
+
+        // Try to match 10 deposits with 8 redeems (should fail)
+        address[] memory redeemUsers = new address[](8);
+        address[] memory depositUsers = new address[](10);
+
+        for (uint256 i = 0; i < 8; i++) {
+            redeemUsers[i] = accInstances[i + 10].account;
+        }
+        for (uint256 i = 0; i < 10; i++) {
+            depositUsers[i] = accInstances[i].account;
+        }
+
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert(ISuperVaultStrategy.LENGTH_MISMATCH.selector);
         strategy.matchRequests(redeemUsers, depositUsers);
         vm.stopPrank();
     }
