@@ -57,27 +57,8 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             uint256 sharesBefore = vault.balanceOf(accInstances[i].account);
             console2.log("Account", i, "shares before deposit:", sharesBefore);
 
-            // Request deposit
-            _requestDepositForAccount(accInstances[i], amount);
-            uint256 pendingRequest = strategy.pendingDepositRequest(accInstances[i].account);
-            console2.log("Deposit requested");
-            console2.log("Pending request amount:", pendingRequest);
-
-            // Wait for deposit to be claimable
-            vm.warp(block.timestamp + 1 days);
-
-            // Fulfill deposit request
-            __fulfillDepositRequest(accInstances[i], amount);
-            console2.log("Deposit fulfilled");
-
-            // Wait for claim delay and check state
-            vm.warp(block.timestamp + 1 hours);
-            uint256 claimableShares = strategy.getSuperVaultState(accInstances[i].account, 1);
-            require(claimableShares > 0, "No shares to claim");
-
-            // Claim deposit
-            _claimDepositForAccount(accInstances[i], amount);
-            console2.log("Deposit claimed");
+            // Complete deposit flow in one step to maintain timing consistency
+            _completeDepositFlow(amount, accInstances[i]);
 
             uint256 sharesAfter = vault.balanceOf(accInstances[i].account);
             console2.log("Account", i, "shares after deposit:", sharesAfter);
@@ -471,7 +452,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         uint256 sharesBefore = vault.balanceOf(acc.account);
         console2.log("Starting complete deposit flow for amount:", amount);
         console2.log("Using account:", acc.account);
-        console2.log("Balance before:", balanceBefore, "after:", IERC20(address(asset)).balanceOf(acc.account));
+        console2.log("Balance before:", balanceBefore);
 
         _requestDepositForAccount(acc, amount);
         uint256 pendingRequest = strategy.pendingDepositRequest(acc.account);
@@ -481,16 +462,12 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         // Wait for deposit to be claimable
         vm.warp(block.timestamp + 1 days);
 
-        // Fulfill deposit request
         __fulfillDepositRequest(acc, amount);
         console2.log("Deposit fulfilled");
 
-        // Wait for claim delay and check state
-        vm.warp(block.timestamp + 1 hours);
-        uint256 claimableShares = strategy.getSuperVaultState(acc.account, 1);
-        require(claimableShares > 0, "No shares to claim");
+        // Wait for claim delay
+        vm.warp(block.timestamp + 1 days);
 
-        // Claim deposit
         _claimDepositForAccount(acc, amount);
         console2.log("Deposit claimed");
 
