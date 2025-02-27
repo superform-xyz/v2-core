@@ -167,7 +167,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
+            feePercent: 0, // 0% fee is required for Ledger entries where the SuperVault is the target so that we don't double charge fees
             feeRecipient: feeRecipientETH,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
