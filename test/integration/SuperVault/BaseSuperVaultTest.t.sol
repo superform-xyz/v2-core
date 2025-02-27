@@ -37,7 +37,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     ISuperExecutor public superExecutorOnEth;
 
     // Core contracts
-    
     SuperVault public vault;
     SuperVaultEscrow public escrow;
     SuperVaultFactory public factory;
@@ -48,9 +47,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     address public SV_MANAGER;
     address public STRATEGIST;
     address public EMERGENCY_ADMIN;
-    address public FEE_RECIPIENT;
-
-    address public feeRecipientETH;
 
     // Tokens and yield sources
     IERC20Metadata public asset;
@@ -83,8 +79,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         peripheryRegistry = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
-        feeRecipientETH = peripheryRegistry.getTreasury();
-
         // Set up accounts
         accountEth = accountInstances[ETH].account;
         instanceOnEth = accountInstances[ETH];
@@ -99,7 +93,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        FEE_RECIPIENT = peripheryRegistry.getTreasury();
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
@@ -123,7 +116,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // Deploy vault trio
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
-            address(asset), "SuperVault USDC", "svUSDC", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, FEE_RECIPIENT
+            address(asset), "SuperVault USDC", "svUSDC", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, TREASURY
         );
         vm.label(vaultAddr, "SuperVault");
         vm.label(strategyAddr, "SuperVaultStrategy");
@@ -150,7 +143,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
         vm.stopPrank();
 
-        _setFeeConfig(100, FEE_RECIPIENT);
+        _setFeeConfig(100, TREASURY);
 
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
@@ -162,6 +155,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        PRIVATE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) private {
@@ -195,7 +191,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-
+    
     function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) private {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -231,7 +227,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        VAULT OPERATIONS
+                        INTERNAL HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _requestDeposit(uint256 depositAmount) internal {
         __requestDeposit(instanceOnEth, depositAmount);
@@ -241,9 +237,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         __requestDeposit(accInst, depositAmount);
     }
 
-    function _fulfillDeposit(uint256 depositAmount, address user) internal {
+    function _fulfillDeposit(uint256 depositAmount) internal {
         address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = user;
+        requestingUsers[0] = accountEth;
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -269,17 +265,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
         uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
-        userSharePricePoints[user].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
-    }
-
-    function _fulfillDeposit(uint256 depositAmount) internal {
-        _fulfillDeposit(depositAmount, accountEth);
+        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
     }
 
     function _claimDeposit(uint256 depositAmount) internal {
         __claimDeposit(instanceOnEth, depositAmount);
     }
-
     function _claimDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
         __claimDeposit(accInst, depositAmount);
     }
@@ -295,6 +286,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _requestRedeemForAccount_Revert(AccountInstance memory accInst, uint256 redeemShares) internal {
         __requestRedeem(accInst, redeemShares, true);
     }
+
 
     function _fulfillRedeem(uint256 redeemShares) internal {
         address[] memory requestingUsers = new address[](1);
@@ -362,7 +354,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 0,
-            feeRecipient: feeRecipientETH,
+            feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
         ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
@@ -376,7 +368,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _deriveSuperVaultFees(
         uint256 requestedShares,
         uint256 currentPricePerShare
-    ) internal returns (uint256, uint256) {
+    )
+        internal
+        returns (uint256, uint256)
+    {
         uint256 historicalAssets = 0;
         SharePricePoint[] memory sharePricePoints = userSharePricePoints[accountEth];
         uint256 sharePricePointsLength = sharePricePoints.length;
@@ -415,9 +410,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _deriveSuperVaultFeesFromAssets(
-        uint256 currentAssets, 
+        uint256 currentAssets,
         uint256 historicalAssets
-    ) internal view returns (uint256, uint256) {
+    )
+        internal
+        view
+        returns (uint256, uint256)
+    {
         uint256 superformFee;
         uint256 recipientFee;
 
@@ -436,7 +435,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
         return (superformFee, recipientFee);
     }
-
 
     function _getSuperVaultPricePerShare() internal view returns (uint256 pricePerShare) {
         uint256 totalSupplyAmount = vault.totalSupply();

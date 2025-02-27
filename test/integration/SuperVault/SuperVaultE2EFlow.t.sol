@@ -75,7 +75,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
-        uint256 feeBalanceBefore = asset.balanceOf(feeRecipientETH);
+        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
@@ -107,10 +107,10 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         console2.log("Superform fee", superformFee);
         console2.log("Recipient fee", recipientFee);
         console2.log("feeBalanceBefore", feeBalanceBefore);
-        console2.log("asset.balanceOf(feeRecipientETH)", asset.balanceOf(feeRecipientETH));
+        console2.log("asset.balanceOf(TREASURY)", asset.balanceOf(TREASURY));
 
         // Verify fee was taken
-        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
+        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
 
         // Check final ledger state
         (ISuperLedger.LedgerEntry[] memory entries,) = superLedgerETH.getLedger(accountEth, address(vault));
