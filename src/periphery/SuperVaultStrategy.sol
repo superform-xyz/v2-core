@@ -85,7 +85,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Claimed tokens tracking
     mapping(address token => uint256 amount) public claimedTokens;
 
-    ISuperRegistry private superRegistry;
     IPeripheryRegistry private peripheryRegistry;
 
     function _requireVault() internal view {
@@ -105,7 +104,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address manager_,
         address strategist_,
         address emergencyAdmin_,
-        address superRegistry_,
+        address peripheryRegistry_,
         GlobalConfig memory config_
     )
         external
@@ -115,7 +114,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
-        if (superRegistry_ == address(0)) revert INVALID_SUPER_REGISTRY();
+        if (peripheryRegistry_ == address(0)) revert INVALID_PERIPHERY_REGISTRY();
         if (config_.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (config_.maxAllocationRate == 0 || config_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -132,8 +131,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[MANAGER_ROLE] = manager_;
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
-        superRegistry = ISuperRegistry(superRegistry_);
-        peripheryRegistry = IPeripheryRegistry(superRegistry.getAddress(keccak256("PERIPHERY_REGISTRY_ID")));
+        peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
         globalConfig = config_;
     }
 
@@ -1379,8 +1377,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                 // Transfer fees
                 if (superformFee > 0) {
-                    _safeTokenTransfer(address(_asset), superRegistry.getTreasury(), superformFee);
-                    emit FeePaid(superRegistry.getTreasury(), superformFee, performanceFeeBps);
+                    address treasury = peripheryRegistry.getTreasury();
+                    _safeTokenTransfer(address(_asset), treasury, superformFee);
+                    emit FeePaid(treasury, superformFee, performanceFeeBps);
                 }
 
                 if (recipientFee > 0) {

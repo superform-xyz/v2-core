@@ -33,8 +33,6 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
     address public swapRouter;
 
-    address public feeRecipientBase;
-
     address public yieldSource4626AddressBase_USDC;
     address public yieldSource4626AddressBase_WETH;
 
@@ -53,8 +51,6 @@ contract CrossChainDepositWithSlippage is BaseTest {
     ISuperExecutor public superExecutorOnETH;
     ISuperExecutor public superExecutorOnBase;
 
-    SuperRegistry public superRegistryBase;
-
     string public constant YIELD_SOURCE_ORACLE_4626_BASE = "YieldSourceOracle_4626";
 
     string public constant YIELD_SOURCE_4626_BASE_USDC_KEY = "ERC4626_BASE_USDC";
@@ -62,12 +58,6 @@ contract CrossChainDepositWithSlippage is BaseTest {
 
     function setUp() public override {
         super.setUp();
-
-        vm.selectFork(FORKS[BASE]);
-
-        superRegistryBase = SuperRegistry(_getContract(BASE, SUPER_REGISTRY_KEY));
-
-        feeRecipientBase = superRegistryBase.getTreasury();
 
         vm.selectFork(FORKS[ETH]);
 
@@ -250,7 +240,7 @@ contract CrossChainDepositWithSlippage is BaseTest {
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, ETH);
 
         // enough balance is received
-        _processAcrossV3Message(ETH, BASE,  0,executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(ETH, BASE, 0, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
 
         vm.selectFork(FORKS[BASE]);
 
