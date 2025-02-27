@@ -6,11 +6,10 @@ import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultFulfillDepositRequestsTest } from "./SuperVault.fulfillDepositRequests.t.sol";
 
 contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequestsTest {
-
     function test_RequestRedeem_MultipleUsers(uint256 depositAmount) public {
         // bound amount
-        depositAmount = bound(depositAmount, 100e6, 10000e6);
-      
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
         // perform deposit operations
         _completeDepositFlow(depositAmount);
 
@@ -20,16 +19,18 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
 
     function test_RequestRedeemMultipleUsers_With_CompleteFullfilment(uint256 depositAmount) public {
         // bound amount
-        depositAmount = bound(depositAmount, 100e6, 10000e6);
-      
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
         // perform deposit operations
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // request redeem for all users
@@ -38,49 +39,50 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         // create fullfillment data
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
-        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // fulfill redeem
         _fulfillRedeemForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
 
         // check that all pending requests are cleared
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
     function test_RequestRedeem_MultipleUsers_DifferentAmounts() public {
         uint256 depositAmount = 1000e6;
-        
+
         // first deposit same amount for all users
         _completeDepositFlow(depositAmount);
 
-        uint256[] memory redeemAmounts = new uint256[](RANDOM_ACCOUNT_COUNT);
+        uint256[] memory redeemAmounts = new uint256[](ACCOUNT_COUNT);
         uint256 totalRedeemShares;
-        
+
         // create redeem requests with randomized amounts based on vault balance
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             // random amount between 50% and 100% of maxRedeemable
-            redeemAmounts[i] = bound(
-                uint256(keccak256(abi.encodePacked(block.timestamp, i))),
-                vaultBalance / 2,
-                vaultBalance
-            );
+            redeemAmounts[i] =
+                bound(uint256(keccak256(abi.encodePacked(block.timestamp, i))), vaultBalance / 2, vaultBalance);
             _requestRedeemForAccount(accInstances[i], redeemAmounts[i]);
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), redeemAmounts[i]);
             totalRedeemShares += redeemAmounts[i];
         }
 
         // fulfill all redeem requests
-        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
             requestingUsers[i] = accInstances[i].account;
         }
 
@@ -90,7 +92,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         _fulfillRedeemForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
 
         // verify all redeems were fulfilled
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
         }
@@ -98,34 +100,40 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
 
     function test_RequestRedeemMultipleUsers_With_PartialUsersFullfilment(uint256 depositAmount) public {
         depositAmount = 100e6;
-      
+
         // perform deposit operations
         _completeDepositFlow(depositAmount);
 
         // store redeem amounts for later verification
-        uint256[] memory redeemAmounts = new uint256[](RANDOM_ACCOUNT_COUNT);
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        uint256[] memory redeemAmounts = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             redeemAmounts[i] = vault.balanceOf(accInstances[i].account);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // request redeem for all users
         _requestRedeemForAllUsers();
 
         // create fulfillment data for half the users
-        uint256 partialUsersCount = RANDOM_ACCOUNT_COUNT / 2;
+        uint256 partialUsersCount = ACCOUNT_COUNT / 2;
         uint256 totalRedeemShares;
-        
+
         // calculate total redeem shares for partial users
         for (uint256 i; i < partialUsersCount;) {
             totalRedeemShares += strategy.pendingRedeemRequest(accInstances[i].account);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         address[] memory requestingUsers = new address[](partialUsersCount);
         for (uint256 i; i < partialUsersCount;) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
@@ -138,24 +146,31 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         for (uint256 i; i < partialUsersCount;) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
-        
+
         // check that remaining users still have pending requests
-        for (uint256 i = partialUsersCount; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT;) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), redeemAmounts[i]);
             assertEq(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
 
         // calculate total redeem shares for remaining users
         totalRedeemShares = 0;
         uint256 j;
-        requestingUsers = new address[](RANDOM_ACCOUNT_COUNT - partialUsersCount);
-        for (uint256 i = partialUsersCount; i < RANDOM_ACCOUNT_COUNT;) {
+        requestingUsers = new address[](ACCOUNT_COUNT - partialUsersCount);
+        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT;) {
             requestingUsers[j] = accInstances[i].account;
             totalRedeemShares += strategy.pendingRedeemRequest(accInstances[i].account);
-            unchecked { ++i; ++j; }
+            unchecked {
+                ++i;
+                ++j;
+            }
         }
 
         allocationAmountVault1 = totalRedeemShares / 2;
@@ -166,8 +181,8 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
     }
 
     function test_RequestRedeem_RevertOnExceedingBalance(uint256 depositAmount) public {
-        depositAmount = bound(depositAmount, 100e6, 10000e6);
-        
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
         // first deposit for single user
         _completeDepositFlow(depositAmount);
 
@@ -184,10 +199,12 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
     //////////////////////////////////////////////////////////////*/
 
     function _fulfillRedeemForUsers(
-        address[] memory requestingUsers, 
-        uint256 redeemSharesVault1, 
+        address[] memory requestingUsers,
+        uint256 redeemSharesVault1,
         uint256 redeemSharesVault2
-    ) internal {
+    )
+        internal
+    {
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -227,29 +244,35 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         _requestDepositForAllUsers(depositAmount);
 
         // create fullfillment data
-        uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
+        uint256 totalAmount = depositAmount * ACCOUNT_COUNT;
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
-        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
         // fulfill deposits
         _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
 
         // claim deposits
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             _claimDepositForAccount(accInstances[i], depositAmount);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
     function _requestRedeemForAllUsers() internal {
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             uint256 redeemShares = vault.balanceOf(accInstances[i].account);
             _requestRedeemForAccount(accInstances[i], redeemShares);
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 }
