@@ -326,6 +326,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(claimUserOpData);
     }
 
+    function _getSuperVaultAssetInfo() internal view returns (uint256 pricePerShare, uint256 totalAssets) {
+        (pricePerShare, totalAssets) = strategy.getAssetInfo();
+    }
+
     function _setFeeConfig(uint256 performanceFeeBps, address recipient) internal {
         vm.startPrank(SV_MANAGER);
         strategy.proposeVaultFeeConfigUpdate(performanceFeeBps, recipient);
