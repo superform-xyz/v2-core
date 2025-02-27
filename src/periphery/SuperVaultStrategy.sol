@@ -22,11 +22,9 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 // Periphery Interfaces
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
-import { ISuperRegistry } from "../core/interfaces/ISuperRegistry.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
-
 
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -306,7 +304,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 // Calculate historical assets and process fees once for total shares used
                 (vars.finalAssets, vars.lastConsumedIndex) =
                     _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
-
                 // Update share price point cursor
                 if (vars.lastConsumedIndex > redeemState.sharePricePointCursor) {
                     redeemState.sharePricePointCursor = vars.lastConsumedIndex;
@@ -1214,27 +1211,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         uint256 precision = PRECISION;
         uint256 vaultAmount;
-        if (pricePerShare < PRECISION) {
-            /// @dev in the following cases `totalAssets` < `totalSupply`
-            /// @dev     and it produces a remainder when converting to shares
-            /// @dev     we need to subtract 1 from the PRECISION to avoid rounding errors
-            /// @dev  an alternative to avoid this could be to supply all SuperVaultsv2 on deployment with some assets
-            /// which remain locked there forever.
-            /// @dev @audit what do you think of this?
-            precision--;
-            uint256 shares = amount;
-            if ((shares * PRECISION) % pricePerShare != 0) {
-                shares--;
-            }
-            vaultAmount = shares.mulDiv(precision, pricePerShare, Math.Rounding.Floor);
-        } else {
-            vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
-        }
+       
+        vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
 
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), vaultAmount
         );
+        if (pricePerShare < PRECISION) {
+            /// @dev account for rounding errors
+            ///      This can happen 2 times during the whole process currently
+            ///      When pps < PRECISION for operations using PPS, mulDiv will round it 2 times
+            //          resulting in a +2 error 
+            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
+        }
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval
 
@@ -1415,7 +1405,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1433,8 +1423,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
-
+        // @dev we Ceil here because we Floor at shares calculation
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Ceil);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
         // Update average withdraw price using weighted average
