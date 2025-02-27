@@ -1,7 +1,5 @@
 pragma solidity =0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 // External
 import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
@@ -469,12 +467,10 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
-        console2.log("maxWithdrawAmount", maxWithdrawAmount);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price
         shares = assets.mulDiv(1e18, averageWithdrawPrice, Math.Rounding.Floor);
-        console2.log("shares", shares);
 
         // Forward to strategy
         // true assets transferred are returned here
