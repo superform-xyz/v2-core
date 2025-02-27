@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 // external
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Interface.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
@@ -14,7 +14,7 @@ import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
 /// @title SuperOracle
 /// @author Superform Labs
 /// @notice Registry for managing oracle providers and getting quotes
-contract SuperOracle is Ownable, ISuperOracle, IOracle {
+contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     using BoringERC20 for IERC20;
 
     /// @notice Mapping of base asset to array of oracle providers

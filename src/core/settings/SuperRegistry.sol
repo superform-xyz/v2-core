@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 // Superform
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
@@ -10,7 +10,7 @@ import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 /// @title SuperRegistry
 /// @author Superform Labs
 /// @notice A registry for storing addresses of contracts
-contract SuperRegistry is Ownable, ISuperRegistry {
+contract SuperRegistry is Ownable2Step, ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
