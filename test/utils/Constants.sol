@@ -29,8 +29,8 @@ abstract contract Constants {
     uint64 public constant ETH = 1;
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
-    
-    uint256 public constant RANDOM_ACCOUNT_COUNT = 10; //should be divisible by 2
+
+    uint256 public constant ACCOUNT_COUNT = 100; //should be divisible by 2
 
     address public constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 

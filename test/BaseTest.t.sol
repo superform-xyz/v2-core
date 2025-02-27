@@ -231,7 +231,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _deployHooks();
 
         // Initialize accounts
-        _initializeAccounts(100);
+        _initializeAccounts(ACCOUNT_COUNT);
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
