@@ -412,6 +412,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
 
         // Convert maxMint to assets using average deposit price
+        /// @dev we use `Ceil` rounding here because `Floor` is used for shares
         uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, 1e18, Math.Rounding.Ceil);
         if (assets > maxAssets) revert INVALID_DEPOSIT_CLAIM();
 

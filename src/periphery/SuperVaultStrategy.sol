@@ -1219,13 +1219,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             yieldSource, address(_asset), vaultAmount
         );
         if (pricePerShare < PRECISION) {
-            uint256 balance = IERC4626(yieldSource).balanceOf(address(this));
-            if (amountConvertedToUnderlyingShares >= balance) {
-                /// @dev account for rounding errors
-                ///      This can happen 2 times during the whole process currently\
-                ///         when pps < PRECISION
-                amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
-            }
+            /// @dev account for rounding errors
+            ///      This can happen 2 times during the whole process currently
+            ///      When pps < PRECISION for operations using PPS, mulDiv will round it 2 times
+            //          resulting in a +2 error 
+            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
         }
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval

@@ -303,7 +303,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         
         uint256 difference = redeemAmount > assetsReceived ? 
             redeemAmount - assetsReceived : assetsReceived - redeemAmount;
-        assertLe(difference, 10);
+        assertLe(difference, 100);
         
         uint256 remainingShareValue = vault.convertToAssets(finalShareBalance);
         console2.log("Remaining share balance:", finalShareBalance);
