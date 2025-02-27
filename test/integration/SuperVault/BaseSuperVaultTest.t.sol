@@ -16,6 +16,7 @@ import {
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
+import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
@@ -71,7 +72,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        FEE_RECIPIENT = _deployAccount(FEE_RECIPIENT_KEY, "FEE_RECIPIENT");
+        FEE_RECIPIENT = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY)).getTreasury();
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
@@ -110,6 +111,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false); // addYieldSource
         strategy.manageYieldSource(address(aaveVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false); // addYieldSource
         vm.stopPrank();
+
+        _setFeeConfig(100, FEE_RECIPIENT);
 
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
@@ -282,5 +285,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
+    }
+
+    function _setFeeConfig(uint256 performanceFeeBps, address recipient) internal {
+        vm.startPrank(SV_MANAGER);
+        strategy.proposeVaultFeeConfigUpdate(performanceFeeBps, recipient);
+        vm.warp(block.timestamp + 7 days);
+        strategy.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
     }
 }
