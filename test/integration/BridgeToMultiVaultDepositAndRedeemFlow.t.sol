@@ -74,9 +74,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     uint256 public balance_Base_USDC_Before;
 
-    uint256 warpTimeOP;
-    uint256 warpTimeETH;
-    uint256 warpTimeBase;
+    uint256 public constant WARP_START_TIME = 1_740_137_231;
 
     uint64 public poolId;
     bytes16 public trancheId;
@@ -94,10 +92,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     function setUp() public override {
         super.setUp();
-
-        warpTimeOP = 1739809853;
-        warpTimeETH = 1740137231;
-        warpTimeBase = 1740137237;
 
         // Set up the underlying tokens
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
@@ -226,10 +220,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 amountPerVault = 1e8 / 2;
 
         // ETH IS DST
-        vm.selectFork(FORKS[ETH]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeETH);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         // PREPARE ETH DATA
         address[] memory eth7540HooksAddresses = new address[](2);
@@ -250,10 +241,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory ethUserOpData = _createUserOpData(eth7540HooksAddresses, eth7540HooksData, ETH);
 
         // BASE IS SRC
-        vm.selectFork(FORKS[BASE]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeBase);
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
 
         // PREPARE BASE DATA
         address[] memory srcHooksAddresses = new address[](2);
@@ -277,7 +265,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
 
         // EXECUTE ETH
-        _processAcrossV3Message(BASE, ETH, 0, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountETH);
+        _processAcrossV3Message(
+            BASE,
+            ETH,
+            WARP_START_TIME + 30 days + 10 seconds,
+            executeOp(srcUserOpData),
+            RELAYER_TYPE.ENOUGH_BALANCE,
+            accountETH
+        );
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
 
@@ -303,15 +298,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 amountPerVault = 1e8 / 2;
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
-        vm.warp(warpTimeBase);
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
 
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
         UserOpData memory baseUserOpData = _createUserOpData(new address[](0), new bytes[](0), BASE);
 
-        vm.selectFork(FORKS[ETH]);
-        vm.warp(warpTimeETH);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         uint256 userAssetsBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
 
@@ -367,10 +360,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
 
-        _processAcrossV3Message(ETH, BASE, 0, executeOp(ethUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
-
-        vm.selectFork(FORKS[BASE]);
-        vm.warp(warpTimeBase);
+        _processAcrossV3Message(
+            ETH, BASE, WARP_START_TIME + 10 seconds, executeOp(ethUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+        );
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 10 seconds);
 
         if (isFullRedeem) {
             assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), user_Base_USDC_Balance_Before + amountPerVault);
@@ -386,10 +379,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 amountPerVault = 1e8 / 2;
 
         // OP IS DST
-        vm.selectFork(FORKS[OP]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeOP);
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
         uint256 previewDepositAmountOP = vaultInstance4626OP.previewDeposit(amountPerVault);
 
@@ -408,7 +398,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
 
         // BASE IS SRC
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
 
         uint256 userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
@@ -445,10 +435,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     function _redeem_From_OP() internal returns (uint256) {
         uint256 amountPerVault = 1e8 / 2;
 
-        vm.selectFork(FORKS[OP]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeOP);
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
         uint256 userBalanceSharesBefore = IERC20(yieldSource4626AddressOP_USDCe).balanceOf(accountOP);
 
@@ -482,17 +469,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     }
 
     function _redeem_From_OP_And_Bridge_Back_To_Base() internal {
-        vm.selectFork(FORKS[OP]);
-
-        // Fix start time so that vault yield increases on redemption
-        vm.warp(warpTimeOP);
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
         uint256 assetOutAmount = _redeem_From_OP();
 
         uint256 amountAfterSlippage = assetOutAmount - (assetOutAmount * 50 / 10_000);
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
 
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
@@ -503,10 +487,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE);
 
         // OP IS SRC
-        vm.selectFork(FORKS[OP]);
-
-        // Fix start time so that vault yield increases on redemption
-        vm.warp(warpTimeOP);
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
         // PREPARE OP DATA
         address[] memory opHooksAddresses = new address[](4);
@@ -545,7 +526,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
 
         _processAcrossV3Message(
-            OP, BASE, 1_739_810_453, executeOp(opUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+            OP, BASE, WARP_START_TIME + 10 seconds, executeOp(opUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
         );
 
         vm.selectFork(FORKS[BASE]);
@@ -563,10 +544,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     // Deposits the given amount of ETH into the 7540 vault
     function _execute7540DepositFlow(uint256 amountPerVault) internal returns (uint256 userShares) {
-        vm.selectFork(FORKS[ETH]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeETH);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
 
@@ -615,10 +593,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     // Redeems all of the user 7540 vault shares on ETH
     function _execute7540RedeemFlow() internal returns (uint256 userAssets) {
-        vm.selectFork(FORKS[ETH]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeETH);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         uint256 userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
 
@@ -688,10 +663,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
     // Redeems half of the user 7540 vault shares on ETH
     function _execute7540PartialRedeemFlow() internal returns (uint256 userAssets) {
-        vm.selectFork(FORKS[ETH]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeETH);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         uint256 redeemAmount = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH) / 2;
 
@@ -762,10 +734,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     }
 
     function _warped_Redeem_From_ETH_And_Bridge_Back_To_Base() internal returns (uint256 userAssets) {
-        vm.selectFork(FORKS[ETH]);
-
-        // Fix start time so that vault yield increases by redemption
-        vm.warp(warpTimeETH);
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         uint256 userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
 

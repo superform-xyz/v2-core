@@ -14,13 +14,15 @@ deploy-poc:
 	forge script script/PoC/Deploy.s.sol --broadcast --legacy --multi --verify
 
 build :; forge build && $(MAKE) generate
+
 ftest :; forge test
+
+ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_ClaimRedeem -vvv
-
-test-integration :; forge test --match-test test_SuperVault_E2E_Flow -vvvv
+test-vvv :; forge test --match-test test_Bridge_To_ETH_And_Deposit -vvv
+test-integration :; forge test --match-test test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow -vvvv
 
 .PHONY: generate
 generate:

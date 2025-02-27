@@ -11,25 +11,25 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error MISMATCH(); 
+    error MISMATCH();
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
     error INVALID_VAULT();
-    error ACCESS_DENIED(); 
+    error ACCESS_DENIED();
     error INVALID_ORACLE();
-    error INVALID_AMOUNT(); 
-    error ALREADY_EXISTS(); 
-    error LIMIT_EXCEEDED(); 
+    error INVALID_AMOUNT();
+    error ALREADY_EXISTS();
+    error LIMIT_EXCEEDED();
     error INVALID_MANAGER();
-    error NOT_INITIALIZED(); 
-    error OPERATION_FAILED(); 
+    error NOT_INITIALIZED();
+    error OPERATION_FAILED();
     error INVALID_TIMESTAMP();
-    error REQUEST_NOT_FOUND(); 
+    error REQUEST_NOT_FOUND();
     error INVALID_HOOK_ROOT();
     error INVALID_VAULT_CAP();
     error INVALID_HOOK_TYPE();
-    error INSUFFICIENT_FUNDS(); 
+    error INSUFFICIENT_FUNDS();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
     error INVALID_ASSET_BALANCE();
@@ -50,7 +50,6 @@ interface ISuperVaultStrategy {
     error INVALID_EMERGENCY_WITHDRAWAL();
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
-
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -252,25 +251,6 @@ interface ISuperVaultStrategy {
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata
-    )
-        external;
-
-    /// @notice Claim rewards and compound them back into the vault
-    /// @param hooks Array of arrays of hooks to use for claiming, swapping, and allocating rewards [claimHooks,
-    /// swapHooks, allocateHooks]
-    /// @param claimHookProofs Array of merkle proofs for claim hooks
-    /// @param swapHookProofs Array of merkle proofs for swap hooks
-    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
-    /// @param hookCalldata Array of arrays of calldata for hooks [claimHookCalldata, swapHookCalldata,
-    /// allocateHookCalldata]
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    function claimAndCompound(
-        address[][] calldata hooks,
-        bytes32[][] calldata claimHookProofs,
-        bytes32[][] calldata swapHookProofs,
-        bytes32[][] calldata allocateHookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata expectedTokensOut
     )
         external;
 

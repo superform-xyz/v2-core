@@ -39,6 +39,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
+    uint256 private constant PRECISION_DECIMALS = 18;
+    uint256 private constant PRECISION = 1e18;
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -420,57 +422,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Check vault caps for all inflow targets after processing
         _checkVaultCaps(inflowTargets);
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
-    function claimAndCompound(
-        address[][] calldata hooks,
-        bytes32[][] calldata claimHookProofs,
-        bytes32[][] calldata swapHookProofs,
-        bytes32[][] calldata allocateHookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external
-    {
-        _requireRole(STRATEGIST_ROLE);
-
-        // Validate overall hook sets
-        _validateHookSets(hooks, hookCalldata, 3); // Must have exactly 3 arrays: claim, swap, allocate
-        if (expectedTokensOut.length == 0) revert ZERO_LENGTH();
-
-        // Validate individual hook arrays
-        _validateHookArrayLengths(hooks[0], claimHookProofs, hookCalldata[0]);
-        _validateHookArrayLengths(hooks[1], swapHookProofs, hookCalldata[1]);
-        _validateHookArrayLengths(hooks[2], allocateHookProofs, hookCalldata[2]);
-
-        ClaimLocalVars memory vars;
-
-        // Get initial asset balance
-        vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
-
-        // Step 1: Execute claim hooks and get balance changes
-        vars.balanceChanges = _processClaimHookExecution(hooks[0], claimHookProofs, hookCalldata[0], expectedTokensOut);
-
-        // Step 2: Execute swap hooks and get asset gained
-        vars.assetGained = _processSwapHookExecution(
-            hooks[1], swapHookProofs, hookCalldata[1], expectedTokensOut, vars.balanceChanges, vars.initialAssetBalance
-        );
-
-        // Step 3: Execute inflow hooks to allocate gained assets
-        // assume requested amount is the asset gain
-        vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
-
-        (vars.fulfillmentVars, vars.targetedYieldSources) =
-            _processHooks(hooks[2], allocateHookProofs, hookCalldata[2], vars.fulfillmentVars, true);
-
-        // Check vault caps after all hooks are processed
-        _checkVaultCaps(vars.targetedYieldSources);
-
-        // Verify all assets were allocated
-        if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_ASSET_BALANCE();
-
-        emit RewardsClaimedAndCompounded(vars.assetGained);
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -858,29 +809,34 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _getSuperVaultAssetInfo() private view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
         uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
-            // For first deposit, set initial PPS to 1 unit in vault decimals
-            pricePerShare = 10 ** _vaultDecimals;
+            // For first deposit, set initial PPS to 1 unit in price decimals
+            pricePerShare = PRECISION;
         } else {
-            // Calculate current PPS
+            // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            pricePerShare = totalAssetsValue.mulDiv(10 ** _vaultDecimals, totalSupplyAmount, Math.Rounding.Ceil);
+            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
+            // Otherwise rounding issues in other places becomes bigger
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare);
+        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare);
 
-        uint256 newTotalAssets = vars.requestedAmount;
-        uint256 newTotalShares = vars.shares;
-
-        if (state.maxMint > 0) {
-            newTotalAssets += state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
-            newTotalShares += state.maxMint;
-        }
+        // Calculate new weighted average deposit price
+        // maxDeposit (assets) = maxMint * previousPpsValue
+        // newDepositPrice = (maxDeposit(assets) + assets))/ (maxMint + shares)
+        uint256 newTotalShares = state.maxMint + vars.shares;
 
         if (newTotalShares > 0) {
-            state.averageDepositPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+            uint256 existingAssets = 0;
+            if (state.maxMint > 0 && state.averageDepositPrice > 0) {
+                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
+            }
+
+            uint256 newTotalAssets = existingAssets + vars.requestedAmount;
+            state.averageDepositPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
@@ -1257,7 +1213,26 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
-        uint256 vaultAmount = amount.mulDiv(10 ** _vaultDecimals, pricePerShare, Math.Rounding.Ceil);
+
+        uint256 precision = PRECISION;
+        uint256 vaultAmount;
+        if (pricePerShare < PRECISION) {
+            /// @dev in the following cases `totalAssets` < `totalSupply`
+            /// @dev     and it produces a remainder when converting to shares
+            /// @dev     we need to subtract 1 from the PRECISION to avoid rounding errors
+            /// @dev  an alternative to avoid this could be to supply all SuperVaultsv2 on deployment with some assets
+            /// which remain locked there forever.
+            /// @dev @audit what do you think of this?
+            precision--;
+            uint256 shares = amount;
+            if ((shares * PRECISION) % pricePerShare != 0) {
+                shares--;
+            }
+            vaultAmount = shares.mulDiv(precision, pricePerShare, Math.Rounding.Floor);
+        } else {
+            vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
+        }
+
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), vaultAmount
@@ -1441,7 +1416,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _vaultDecimals);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1461,17 +1436,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Calculate current value and process fees
         uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
 
-
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
-        // Update average withdraw price
-        // TODO: We are not truly averaging in, just replacing the value
-        // If the user submits multiple requests the average withdraw price will be overriden instead of averaged
+
+        // Update average withdraw price using weighted average
+        // Calculate new weighted average redeem price
+        // maxWithdraw (assets) = maxRedeem * previousPpsValue
+        // newRedeemPrice = (maxWithdraw(assets) + assets))/ (maxRedeem + shares)
         if (requestedShares > 0) {
-            state.averageWithdrawPrice = finalAssets.mulDiv(
-                1e18,
-                requestedShares,
-                Math.Rounding.Ceil // Use ceiling rounding to avoid underflow
-            );
+            uint256 existingShares = 0;
+            uint256 existingAssets = 0;
+
+            // Calculate existing assets based on current maxWithdraw
+            if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
+                // Calculate equivalent shares based on current averageWithdrawPrice
+                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
+                existingAssets = state.maxWithdraw;
+            }
+
+            uint256 newTotalShares = existingShares + requestedShares;
+            uint256 newTotalAssets = existingAssets + finalAssets;
+
+            if (newTotalShares > 0) {
+                state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+            }
         }
     }
 
