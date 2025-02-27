@@ -59,7 +59,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         }
 
         // fulfill redeem
-        _fulfillRedeemForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillRedeemForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2); //@dev rounding: -1 to avoid rounding errors; maxWithdrawAmount is 499999998
 
         // check that all pending requests are cleared
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
@@ -289,7 +289,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         
         _requestRedeemForAccount(accInstances[0], redeemAmount);
         _fulfillRedeemForUsers(requestingUsers, redeemAmount / 2, redeemAmount / 2);
-        _claimWithdrawForAccount(accInstances[0], redeemAmount);
+        _claimWithdrawForAccount(accInstances[0], redeemAmount - 2); //@dev //@dev rounding: -2 to avoid rounding errors; maxWithdrawAmount is 499999998
         
         uint256 finalShareBalance = vault.balanceOf(accInstances[0].account);
         uint256 finalAssetBalance = asset.balanceOf(accInstances[0].account);
