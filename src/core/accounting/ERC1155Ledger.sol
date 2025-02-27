@@ -3,9 +3,10 @@ pragma solidity >=0.8.28;
 
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-
 import { BaseLedger } from "./BaseLedger.sol";
 
+/// @title ERC1155Ledger
+/// @author Superform Labs
 /// @notice 5115 vaults ledger implementation
 contract ERC1155Ledger is BaseLedger {
     constructor(address registry_) BaseLedger(registry_) { }

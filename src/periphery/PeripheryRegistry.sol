@@ -7,6 +7,9 @@ import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensio
 // Superform
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
+/// @title PeripheryRegistry
+/// @author Superform Labs
+/// @notice A registry for periphery configurations
 contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE

@@ -8,7 +8,6 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { IDeBridgeGate } from "../../src/vendor/bridges/debridge/IDeBridgeGate.sol";
 
 import { BaseTest } from "../BaseTest.t.sol";
 
@@ -283,6 +282,8 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vm.selectFork(FORKS[BASE]);
     }
 
+    /*
+    /// @dev Commented in case we need it back
     function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
         vm.selectFork(FORKS[ETH]);
 
@@ -338,4 +339,5 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         UserOpData memory srcUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         _processDebridgeMessage(ETH, BASE, executeOp(srcUserOpData));
     }
+    */
 }

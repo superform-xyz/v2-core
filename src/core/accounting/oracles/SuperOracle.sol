@@ -1,18 +1,20 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+// external
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
-import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
 import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Interface.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { BoringERC20 } from "../../../vendor/BoringSolidity/BoringERC20.sol";
-import { SuperRegistryImplementer } from "../../utils/SuperRegistryImplementer.sol";
+
+// Superform
+import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs
 /// @notice Registry for managing oracle providers and getting quotes
-contract SuperOracle is SuperRegistryImplementer, ISuperOracle, IOracle {
+contract SuperOracle is Ownable, ISuperOracle, IOracle {
     using BoringERC20 for IERC20;
 
     /// @notice Mapping of base asset to array of oracle providers
@@ -33,13 +35,14 @@ contract SuperOracle is SuperRegistryImplementer, ISuperOracle, IOracle {
     PendingUpdate private pendingUpdate;
 
     constructor(
-        address superRegistry_,
+        address owner_,
         address[] memory initialBases,
         uint256[] memory initialProviders,
         address[] memory initialOracleAddresses
     )
-        SuperRegistryImplementer(superRegistry_)
+        Ownable(owner_)
     {
+        if (owner_ == address(0)) revert ZERO_ADDRESS();
         uint256 length = initialProviders.length;
         // Set default staleness for initial providers
         for (uint256 i; i < length;) {
@@ -49,12 +52,6 @@ contract SuperOracle is SuperRegistryImplementer, ISuperOracle, IOracle {
             }
         }
         _configureOracles(initialBases, initialProviders, initialOracleAddresses);
-    }
-
-    /// @notice Modifier to check if caller has SUPER_ORACLE_MANAGER role
-    modifier onlySuperOracleManager() {
-        if (!superRegistry.hasRole(keccak256("SUPER_ORACLE_MANAGER"), msg.sender)) revert NOT_ADMIN();
-        _;
     }
 
     // -- Get quote functions --
@@ -121,7 +118,7 @@ contract SuperOracle is SuperRegistryImplementer, ISuperOracle, IOracle {
     // -- External configuration functions --
 
     /// @inheritdoc ISuperOracle
-    function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlySuperOracleManager {
+    function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
@@ -133,7 +130,7 @@ contract SuperOracle is SuperRegistryImplementer, ISuperOracle, IOracle {
         address[] calldata oracleAddresses
     )
         external
-        onlySuperOracleManager
+        onlyOwner
     {
         if (pendingUpdate.timestamp != 0) revert PENDING_UPDATE_EXISTS();
         if (bases.length != providers.length || providers.length != oracleAddresses.length) {

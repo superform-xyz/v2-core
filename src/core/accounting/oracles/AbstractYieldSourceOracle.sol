@@ -1,9 +1,11 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
+
+// external
+import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
-import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 
 /// @title AbstractYieldSourceOracle
 /// @author Superform Labs

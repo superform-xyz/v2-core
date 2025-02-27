@@ -394,6 +394,12 @@ Inter-Hook Dependencies:
   - The SuperExecutor's design ensures that hooks update and pass transient data in a controlled manner, with reversion on
   error to preserve state integrity.
 
+SuperLedger Funds Separation: 
+- Risk:
+  - Right now assets obtained to fulfill redeem requests remain in the SuperVaultStrategy and contribute temporarily to the PPS/totalAssets. However they must not be used for fulfillDepositRequests as they are meant to be given to users who have already claimed
+- Mitigation:
+  - Separate these assets into a new Escrow Assets contract for users to claim?
+
 SuperLedger Accounting: 
 - Risk:
   - Any edge cases where users could be locked into a position?

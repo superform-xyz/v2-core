@@ -1,6 +1,9 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+/// @title IPeripheryRegistry
+/// @author Superform Labs
+/// @notice Interface for the PeripheryRegistry contract that manages periphery addresses
 interface IPeripheryRegistry {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS

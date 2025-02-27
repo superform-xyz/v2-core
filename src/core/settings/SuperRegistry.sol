@@ -7,15 +7,18 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 // Superform
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 
-contract SuperRegistry is ISuperRegistry, Ownable {
+/// @title SuperRegistry
+/// @author Superform Labs
+/// @notice A registry for storing addresses of contracts
+contract SuperRegistry is Ownable, ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
     mapping(bytes32 => mapping(address => bool)) private roles;
 
-    constructor(address owner) Ownable(owner) {
-        if (owner == address(0)) revert INVALID_ACCOUNT();
+    constructor(address owner_) Ownable(owner_) {
+        if (owner_ == address(0)) revert INVALID_ACCOUNT();
     }
 
     /*//////////////////////////////////////////////////////////////

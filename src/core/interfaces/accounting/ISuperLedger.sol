@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+/// @title ISuperLedgerData
+/// @author Superform Labs
+/// @notice Interface for the SuperLedgerData contract that manages ledger data
 interface ISuperLedgerData {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS

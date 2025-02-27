@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+/// @title ISuperRegistry
+/// @author Superform Labs
+/// @notice Interface for the SuperRegistry contract that manages addresses
 interface ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS

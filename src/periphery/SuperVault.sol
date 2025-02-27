@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 // External
 import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
@@ -23,8 +23,8 @@ import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
 /// @title SuperVault
-/// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
 /// @author SuperForm Labs
+/// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
 contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     using SafeERC20 for IERC20;
     using Math for uint256;

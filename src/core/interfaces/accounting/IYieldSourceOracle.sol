@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // Superform
@@ -40,7 +40,7 @@ interface IYieldSourceOracle {
 
     /// @notice Returns the oracle registry contract
     /// @return oracleRegistry The oracle registry contract
-    function oracleRegistry() external view returns (address);
+    function oracleRegistry() external view returns (IOracle);
 
     /// @notice Returns the number of decimals of the yield source shares
     /// @return decimals The number of decimals of the yield source shares

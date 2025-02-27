@@ -4,15 +4,15 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address recipient = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);

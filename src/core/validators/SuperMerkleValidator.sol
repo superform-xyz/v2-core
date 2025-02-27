@@ -8,15 +8,10 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-// Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-
-//import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
-
-contract SuperMerkleValidator is
-    SuperRegistryImplementer,
-    ERC7579ValidatorBase // ISuperValidator {
-{
+/// @title SuperMerkleValidator
+/// @author Superform Labs
+/// @notice A userOp validator contract
+contract SuperMerkleValidator is ERC7579ValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -38,8 +33,6 @@ contract SuperMerkleValidator is
     error ALREADY_INITIALIZED();
 
     mapping(address => bool) private _initialized;
-
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -2,10 +2,12 @@
 pragma solidity >=0.8.28;
 
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImplementer {
+/// @title SuperLedgerConfiguration
+/// @author Superform Labs
+/// @notice Configuration for SuperLedger
+contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfiguration {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/

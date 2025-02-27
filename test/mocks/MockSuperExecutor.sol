@@ -29,11 +29,6 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
-    modifier onlyBridgeGateway() {
-        if (!superRegistry.hasRole(keccak256("BRIDGE_GATEWAY"), msg.sender)) revert NOT_AUTHORIZED();
-        _;
-    }
-
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
     }
