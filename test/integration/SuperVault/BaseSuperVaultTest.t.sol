@@ -17,6 +17,7 @@ import {
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
+import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
@@ -84,14 +85,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         SuperRegistry superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
 
         // Deploy factory
-        factory = new SuperVaultFactory(_getContract(ETH, SUPER_REGISTRY_KEY));
+        factory = new SuperVaultFactory(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
         // Set up roles
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-
-        FEE_RECIPIENT = superRegistry.getTreasury();
+        FEE_RECIPIENT = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY)).getTreasury();
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
@@ -147,6 +147,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.warp(block.timestamp + 1 weeks);
         strategy.executeVaultFeeConfigUpdate();
         vm.stopPrank();
+
+        _setFeeConfig(100, FEE_RECIPIENT);
 
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
@@ -324,93 +326,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(claimUserOpData);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        FEE DERIVATION FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    function _deriveSuperVaultFees(
-        uint256 requestedShares,
-        uint256 currentPricePerShare
-    )
-        internal
-        returns (uint256, uint256)
-    {
-        uint256 historicalAssets = 0;
-        SharePricePoint[] memory sharePricePoints = userSharePricePoints[accountEth];
-        uint256 sharePricePointsLength = sharePricePoints.length;
-        uint256 remainingShares = requestedShares;
-        uint256 currentIndex = userSharePricePointCursors[accountEth];
-        uint256 lastConsumedIndex = currentIndex;
-
-        // Calculate historicalAssets for each share price point
-        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
-            SharePricePoint memory point = sharePricePoints[j];
-            uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** vault.decimals());
-
-            // Update point's remaining shares or mark for deletion
-            if (sharesFromPoint == point.shares) {
-                // Point fully consumed, move cursor
-                lastConsumedIndex = j + 1;
-                userSharePricePointCursors[accountEth]++;
-            } else if (sharesFromPoint < point.shares) {
-                // Point partially consumed, update shares
-                sharePricePoints[j].shares -= sharesFromPoint;
-            }
-
-            remainingShares -= sharesFromPoint;
-            unchecked {
-                ++j;
-            }
-        }
-
-        // Calculate current value and process fees
-        uint256 currentAssets =
-            requestedShares.mulDiv(currentPricePerShare, 10 ** vault.decimals(), Math.Rounding.Floor);
-
-        (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFeesFromAssets(currentAssets, historicalAssets);
-
-        return (superformFee, recipientFee);
-    }
-
-    function _deriveSuperVaultFeesFromAssets(
-        uint256 currentAssets,
-        uint256 historicalAssets
-    )
-        internal
-        view
-        returns (uint256, uint256)
-    {
-        uint256 superformFee;
-        uint256 recipientFee;
-
-        (, SuperVaultStrategy.FeeConfig memory feeConfig) = strategy.getConfigInfo();
-
-        if (currentAssets > historicalAssets) {
-            uint256 profit = currentAssets - historicalAssets;
-            uint256 performanceFeeBps = feeConfig.performanceFeeBps;
-            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT);
-
-            PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
-
-            if (totalFee > 0) {
-                // Calculate Superform's portion of the fee
-                superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
-                recipientFee = totalFee - superformFee;
-            }
-        }
-        return (superformFee, recipientFee);
-    }
-
-    function _getSuperVaultAssetInfo() internal view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
-        uint256 totalSupplyAmount = IERC4626(address(vault)).totalSupply();
-        if (totalSupplyAmount == 0) {
-            // For first deposit, set initial PPS to 1 unit in vault decimals
-            pricePerShare = 10 ** vault.decimals();
-        } else {
-            // Calculate current PPS
-            totalAssetsValue = vault.totalAssets();
-            pricePerShare = totalAssetsValue.mulDiv(10 ** vault.decimals(), totalSupplyAmount, Math.Rounding.Ceil);
-        }
+    function _setFeeConfig(uint256 performanceFeeBps, address recipient) internal {
+        vm.startPrank(SV_MANAGER);
+        strategy.proposeVaultFeeConfigUpdate(performanceFeeBps, recipient);
+        vm.warp(block.timestamp + 7 days);
+        strategy.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
     }
 }

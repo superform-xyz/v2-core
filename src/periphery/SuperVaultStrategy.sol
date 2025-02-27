@@ -27,6 +27,7 @@ import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
+
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -85,7 +86,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Claimed tokens tracking
     mapping(address token => uint256 amount) public claimedTokens;
 
-    ISuperRegistry private superRegistry;
     IPeripheryRegistry private peripheryRegistry;
 
     function _requireVault() internal view {
@@ -105,7 +105,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address manager_,
         address strategist_,
         address emergencyAdmin_,
-        address superRegistry_,
+        address peripheryRegistry_,
         GlobalConfig memory config_
     )
         external
@@ -115,7 +115,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
-        if (superRegistry_ == address(0)) revert INVALID_SUPER_REGISTRY();
+        if (peripheryRegistry_ == address(0)) revert INVALID_PERIPHERY_REGISTRY();
         if (config_.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (config_.maxAllocationRate == 0 || config_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -132,8 +132,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[MANAGER_ROLE] = manager_;
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
-        superRegistry = ISuperRegistry(superRegistry_);
-        peripheryRegistry = IPeripheryRegistry(superRegistry.getAddress(keccak256("PERIPHERY_REGISTRY_ID")));
+        peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
         globalConfig = config_;
     }
 
@@ -247,7 +246,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
-            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _vaultDecimals, vars.currentPricePerShare);
+            vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare);
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
@@ -1379,8 +1378,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                 // Transfer fees
                 if (superformFee > 0) {
-                    _safeTokenTransfer(address(_asset), superRegistry.getTreasury(), superformFee);
-                    emit FeePaid(superRegistry.getTreasury(), superformFee, performanceFeeBps);
+                    address treasury = peripheryRegistry.getTreasury();
+                    _safeTokenTransfer(address(_asset), treasury, superformFee);
+                    emit FeePaid(treasury, superformFee, performanceFeeBps);
                 }
 
                 if (recipientFee > 0) {
@@ -1434,7 +1434,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
 
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 

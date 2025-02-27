@@ -11,7 +11,7 @@ interface IPeripheryRegistry {
     error HOOK_NOT_REGISTERED();
     error TIMELOCK_NOT_EXPIRED();
     error HOOK_ALREADY_REGISTERED();
-
+    error INVALID_ADDRESS();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -20,6 +20,7 @@ interface IPeripheryRegistry {
     event HookUnregistered(address indexed hook);
     event FeeSplitUpdated(uint256 superformFeeSplit);
     event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime);
+    event TreasuryUpdated(address indexed treasury);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -48,6 +49,12 @@ interface IPeripheryRegistry {
 
     /// @dev Execute the proposed fee split update after timelock.
     function executeFeeSplitUpdate() external;
+
+    /// @dev Get the treasury address.
+    /// @return The treasury address.
+    function getTreasury() external view returns (address);
+
+    /// @dev Set the treasury address.
+    /// @param treasury_ The new treasury address.
+    function setTreasury(address treasury_) external;
 }
-
-

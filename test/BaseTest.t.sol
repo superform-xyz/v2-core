@@ -221,6 +221,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function setUp() public virtual {
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
+        TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
+        SUPER_BUNDLER = _deployAccount(SUPER_BUNDLER_KEY, "SUPER_BUNDLER");
         ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
 
         // Setup forks
@@ -369,7 +371,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
 
             /// @dev periphery
-            A.peripheryRegistry = new PeripheryRegistry(address(this));
+            A.peripheryRegistry = new PeripheryRegistry(address(this), TREASURY);
             vm.label(address(A.peripheryRegistry), PERIPHERY_REGISTRY_KEY);
             contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A.peripheryRegistry);
         }
@@ -824,11 +826,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
             );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), SUPER_BUNDLER);
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11111));
 
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
@@ -850,28 +851,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             vm.startPrank(MANAGER);
 
-            SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainIds[i], PERIPHERY_REGISTRY_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getTreasury(),
+                feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getTreasury(),
+                feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getTreasury(),
+                feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(

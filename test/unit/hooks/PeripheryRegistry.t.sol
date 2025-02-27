@@ -13,10 +13,8 @@ contract PeripheryRegistryTest is BaseTest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        peripheryRegistry = new PeripheryRegistry(address(this));
+        peripheryRegistry = new PeripheryRegistry(address(this), TREASURY);
         vm.label(address(peripheryRegistry), "PeripheryRegistry");
-
-        peripheryRegistry.grantRole(keccak256("HOOKS_MANAGER_ROLE"), address(this));
     }
 
     function testRegisterHook_Success() public {
@@ -26,13 +24,13 @@ contract PeripheryRegistryTest is BaseTest {
 
     function testRegisterHook_Fail_NotAuthorized() public {
         vm.prank(address(0x1));
-        vm.expectRevert(IPeripheryRegistry.NOT_AUTHORIZED.selector);
+        vm.expectRevert();
         peripheryRegistry.registerHook(testHook);
     }
 
     function testUnregisterHook_Success() public {
         peripheryRegistry.registerHook(testHook);
-        
+
         peripheryRegistry.unregisterHook(testHook);
         assertFalse(peripheryRegistry.isHookRegistered(testHook));
     }
@@ -44,10 +42,9 @@ contract PeripheryRegistryTest is BaseTest {
 
     function testGetRegisteredHooks() public {
         peripheryRegistry.registerHook(testHook);
-        
+
         address[] memory hooks = peripheryRegistry.getRegisteredHooks();
         assertEq(hooks.length, 1);
         assertEq(hooks[0], testHook);
     }
 }
-

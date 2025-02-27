@@ -16,7 +16,8 @@ abstract contract Constants {
     uint256 public constant STRATEGIST_KEY = 0x5;
     uint256 public constant EMERGENCY_ADMIN_KEY = 0x6;
     uint256 public constant FEE_RECIPIENT_KEY = 0x7;
-    uint256 public constant SUPERFORM_TREASURY_KEY = 0x8;
+    uint256 public constant TREASURY_KEY = 0x8;
+    uint256 public constant SUPER_BUNDLER_KEY = 0x9;
 
     // RBAC ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
@@ -29,7 +30,7 @@ abstract contract Constants {
     uint64 public constant ETH = 1;
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
-    
+
     uint256 public constant RANDOM_ACCOUNT_COUNT = 10; //should be divisible by 2
 
     address public constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
@@ -77,7 +78,6 @@ abstract contract Constants {
     string public constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
-    string public constant TREASURY_ID = "TREASURY_ID";
     string public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
