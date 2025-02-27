@@ -10,18 +10,13 @@ import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // superform
-import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { ISuperVault } from "../../../src/periphery/interfaces/ISuperVault.sol";
-import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 contract SuperVaultE2EFlow is BaseSuperVaultTest {
     ERC7540YieldSourceOracle public oracle;
     ISuperLedger public superLedgerETH;
-    SuperRegistry public superRegistry;
-
-    address public feeRecipientETH;
 
     uint256 amount;
 
@@ -33,10 +28,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         vm.selectFork(FORKS[ETH]);
 
-        superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
-
-        feeRecipientETH = superRegistry.getTreasury();
 
         oracle = ERC7540YieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY));
 
@@ -61,9 +53,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Verify assets transferred from user to vault
         assertEq(
-            asset.balanceOf(accountEth),
-            initialUserAssets - amount,
-            "User assets not reduced after deposit request"
+            asset.balanceOf(accountEth), initialUserAssets - amount, "User assets not reduced after deposit request"
         );
         assertEq(
             asset.balanceOf(address(strategy)),
@@ -85,11 +75,10 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
+        uint256 feeBalanceBefore = asset.balanceOf(feeRecipientETH);
 
         // Fast forward time to simulate yield on underlying vaults
-        vm.warp(block.timestamp + 10 weeks);
-
-        uint256 feeBalanceBefore = asset.balanceOf(feeRecipientETH);
+        vm.warp(block.timestamp + 50 weeks);
 
         // Step 4: Request Redeem
         _requestRedeem(userShares);
@@ -98,63 +87,35 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         assertEq(IERC20(vault.share()).balanceOf(accountEth), 0, "User shares not transferred from account");
         assertEq(IERC20(vault.share()).balanceOf(address(escrow)), userShares, "Shares not transferred to escrow");
 
+        (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFees(userShares, _getSuperVaultPricePerShare());
+
+        uint256 totalFee = superformFee + recipientFee;
+
         // Step 5: Fulfill Redeem
         _fulfillRedeem(userShares);
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
 
-        // (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFees(
-        //     userShares,
-        //     oracle.getPricePerShare(address(vault))
-        // );
-
-        // uint256 totalFee = superformFee + recipientFee;
-
         // Step 6: Claim Withdraw
-        // vm.expectEmit(true, true, true, true);
-        // emit ISuperLedgerData.AccountingOutflow(
-        //     accountEth,
-        //     oracle,
-        //     address(vault),
-        //     assets,
-        //     0 // add SV fee
-        // );
         _claimWithdraw(claimableAssets);
 
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
+        console2.log("totalFee", totalFee);
+        console2.log("Superform fee", superformFee);
+        console2.log("Recipient fee", recipientFee);
+        console2.log("feeBalanceBefore", feeBalanceBefore);
+        console2.log("asset.balanceOf(feeRecipientETH)", asset.balanceOf(feeRecipientETH));
+
         // Verify fee was taken
-        _assertFeeDerivation(0, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
+        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
 
         // Check final ledger state
-        (ISuperLedger.LedgerEntry[] memory entries, 
-        uint256 unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
+        (ISuperLedger.LedgerEntry[] memory entries,) = superLedgerETH.getLedger(accountEth, address(vault));
 
         assertEq(entries.length, 1, "Should have one ledger entry");
         // Shares are not consumed because the SuperVault is the target and AccountingOutflow is skipped
-
-        console2.log("decimals", vault.decimals());
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                HELPERS
-    //////////////////////////////////////////////////////////////*/
-
-    function _setUpSuperLedgerForVault() internal {
-        vm.selectFork(FORKS[ETH]);
-        vm.startPrank(MANAGER);
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 0, // 0% fee is required for Ledger entries where the SuperVault is the target so that we don't double charge fees
-            feeRecipient: feeRecipientETH,
-            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
-        });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
-        vm.stopPrank();
     }
 }
