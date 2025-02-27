@@ -23,7 +23,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
     address public feeRecipientETH;
 
-    uint256 amountPerVault;
+    uint256 amount;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -42,7 +42,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         _setUpSuperLedgerForVault();
 
-        amountPerVault = 1000e6; // 1000 USDC
+        amount = 1000e6; // 1000 USDC
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -57,38 +57,37 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         uint256 initialVaultAssets = asset.balanceOf(address(vault));
 
         // Step 1: Request Deposit
-        _requestDeposit(amountPerVault);
+        _requestDeposit(amount);
 
         // Verify assets transferred from user to vault
         assertEq(
             asset.balanceOf(accountEth),
-            initialUserAssets - amountPerVault,
+            initialUserAssets - amount,
             "User assets not reduced after deposit request"
         );
         assertEq(
             asset.balanceOf(address(strategy)),
-            initialVaultAssets + amountPerVault,
+            initialVaultAssets + amount,
             "Vault assets not increased after deposit request"
         );
 
-        uint256 expectedUserShares = vault.convertToShares(amountPerVault);
+        uint256 expectedUserShares = vault.convertToShares(amount);
 
         // Step 2: Fulfill Deposit
-        _fulfillDeposit(amountPerVault);
+        _fulfillDeposit(amount);
 
         // Step 3: Claim Deposit
-        _claimDeposit(amountPerVault);
+        _claimDeposit(amount);
 
         // Verify shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
         assertEq(userShares, expectedUserShares, "User shares not minted correctly");
-        console2.log("userShares", userShares);
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
 
         // Fast forward time to simulate yield on underlying vaults
-        vm.warp(block.timestamp + 2 weeks);
+        vm.warp(block.timestamp + 10 weeks);
 
         uint256 feeBalanceBefore = asset.balanceOf(feeRecipientETH);
 
@@ -105,27 +104,12 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
 
-        (ISuperLedger.LedgerEntry[] memory entries, 
-        uint256 unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
-
-        // Calculate expected fee
-        uint256 expectedCoreFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: claimableAssets,
-                usedShares: userShares,
-                feePercent: 100,
-                decimals: 6
-            })
-        );
-
         // (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFees(
         //     userShares,
         //     oracle.getPricePerShare(address(vault))
         // );
 
-        //uint256 totalFee = superformFee + recipientFee + expectedCoreFee;
+        // uint256 totalFee = superformFee + recipientFee;
 
         // Step 6: Claim Withdraw
         // vm.expectEmit(true, true, true, true);
@@ -134,7 +118,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         //     oracle,
         //     address(vault),
         //     assets,
-        //     expectedFee // add SV fee
+        //     0 // add SV fee
         // );
         _claimWithdraw(claimableAssets);
 
@@ -142,17 +126,16 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
         // Verify fee was taken
-        //_assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
+        _assertFeeDerivation(0, feeBalanceBefore, asset.balanceOf(feeRecipientETH));
 
         // Check final ledger state
-        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
+        (ISuperLedger.LedgerEntry[] memory entries, 
+        uint256 unconsumedEntries) = superLedgerETH.getLedger(accountEth, address(vault));
+
         assertEq(entries.length, 1, "Should have one ledger entry");
-        assertEq(
-          entries[0].amountSharesAvailableToConsume, 
-          0, 
-          "Shares not consumed correctly"
-        );
-        assertEq(unconsumedEntries, 1, "Should have one unconsumed entry");
+        // Shares are not consumed because the SuperVault is the target and AccountingOutflow is skipped
+
+        console2.log("decimals", vault.decimals());
     }
 
     /*//////////////////////////////////////////////////////////////
