@@ -129,24 +129,24 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Add yield sources as manager
         vm.startPrank(SV_MANAGER);
         strategy.manageYieldSource(
-            address(fluidVault), 
+            address(fluidVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-            0, 
+            0,
             false // addYieldSource
         );
         strategy.manageYieldSource(
-            address(aaveVault), 
+            address(aaveVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-            0, 
+            0,
             false // addYieldSource
         );
         vm.stopPrank();
 
-        // vm.startPrank(SV_MANAGER);
-        // strategy.proposeVaultFeeConfigUpdate(300, FEE_RECIPIENT);
-        // vm.warp(block.timestamp + 1 weeks);
-        // strategy.executeVaultFeeConfigUpdate();
-        // vm.stopPrank();
+        vm.startPrank(SV_MANAGER);
+        strategy.proposeVaultFeeConfigUpdate(100, FEE_RECIPIENT);
+        vm.warp(block.timestamp + 1 weeks);
+        strategy.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
 
         // Set up hook root
         bytes32 hookRoot = _getMerkleRoot();
@@ -248,11 +248,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
         vm.stopPrank();
 
-        (uint256 pricePerShare, ) = _getSuperVaultAssetInfo();
-        userSharePricePoints[accountEth].push(SharePricePoint({
-            shares: depositAmount,
-            pricePerShare: pricePerShare
-        }));
+        (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
+        userSharePricePoints[accountEth].push(SharePricePoint({ shares: depositAmount, pricePerShare: pricePerShare }));
     }
 
     function _claimDeposit(uint256 depositAmount) internal {
@@ -334,7 +331,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _deriveSuperVaultFees(
         uint256 requestedShares,
         uint256 currentPricePerShare
-    ) internal returns (uint256, uint256) {
+    )
+        internal
+        returns (uint256, uint256)
+    {
         uint256 historicalAssets = 0;
         SharePricePoint[] memory sharePricePoints = userSharePricePoints[accountEth];
         uint256 sharePricePointsLength = sharePricePoints.length;
@@ -365,7 +365,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
 
         // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** vault.decimals(), Math.Rounding.Floor);
+        uint256 currentAssets =
+            requestedShares.mulDiv(currentPricePerShare, 10 ** vault.decimals(), Math.Rounding.Floor);
 
         (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFeesFromAssets(currentAssets, historicalAssets);
 
@@ -373,9 +374,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _deriveSuperVaultFeesFromAssets(
-        uint256 currentAssets, 
+        uint256 currentAssets,
         uint256 historicalAssets
-    ) internal view returns (uint256, uint256) {
+    )
+        internal
+        view
+        returns (uint256, uint256)
+    {
         uint256 superformFee;
         uint256 recipientFee;
 
@@ -408,5 +413,4 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             pricePerShare = totalAssetsValue.mulDiv(10 ** vault.decimals(), totalSupplyAmount, Math.Rounding.Ceil);
         }
     }
-
 }
