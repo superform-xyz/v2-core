@@ -12,41 +12,33 @@ import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
     function test_MatchRequests_SinglePair(uint256 amount) public {
-        amount = bound(amount, 100e6, 10_000e6);
+        amount = bound(amount, 100e6, 10000e6);
 
-        // Give initial shares to redeeming account
-        _completeDepositFlow(amount, accInstances[1]);
-        _claimDepositForAccount(accInstances[1], amount);
-        
-        uint256 initialShares = vault.balanceOf(accInstances[1].account);
-        console.log("Initial shares for redeeming account:", initialShares);
-        require(initialShares > 0, "Initial deposit failed");
+        _completeDepositFlow(amount);
 
-        // Create deposit request
         _getTokens(address(asset), accInstances[0].account, amount);
         _requestDepositForAccount(accInstances[0], amount);
         assertEq(strategy.pendingDepositRequest(accInstances[0].account), amount, "Deposit request not created");
 
-        // Create redeem request
         uint256 redeemShares = vault.balanceOf(accInstances[1].account);
-        console.log("Shares before redeem request:", redeemShares);
         _requestRedeemForAccount(accInstances[1], redeemShares);
         assertEq(strategy.pendingRedeemRequest(accInstances[1].account), redeemShares, "Redeem request not created");
 
-        // Match requests
         address[] memory redeemUsers = new address[](1);
-        address[] memory depositUsers = new address[](1);
         redeemUsers[0] = accInstances[1].account;
+
+        address[] memory depositUsers = new address[](1);
         depositUsers[0] = accInstances[0].account;
 
+        uint256 pendingRedeembefore = strategy.pendingRedeemRequest(accInstances[1].account);
         vm.startPrank(STRATEGIST);
         strategy.matchRequests(redeemUsers, depositUsers);
         vm.stopPrank();
 
-        // Verify matching worked
-        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0, "Deposit request not cleared");
-        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0, "No shares to mint");
-        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
+        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0);
+        assertGt(pendingRedeembefore, strategy.pendingRedeemRequest(accInstances[1].account));
+        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0);
+        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0);
     }
 
     function test_MatchRequests_MultiplePairs(uint256 amount) public {
