@@ -1208,9 +1208,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
 
-        uint256 precision = PRECISION;
         uint256 vaultAmount;
-       
+
         vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
 
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
@@ -1221,8 +1220,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             /// @dev account for rounding errors
             ///      This can happen 2 times during the whole process currently
             ///      When pps < PRECISION for operations using PPS, mulDiv will round it 2 times
-            //          resulting in a +2 error 
-            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
+            //          resulting in a +2 error
+            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2;
         }
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval

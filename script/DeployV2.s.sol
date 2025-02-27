@@ -304,7 +304,7 @@ contract DeployV2 is Script, Configuration {
                 abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3s[chainId])
             )
         );
-        hooks[21] = HookDeployment(
+        hooks[1] = HookDeployment(
             FLUID_CLAIM_REWARD_HOOK_KEY,
             abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );

@@ -44,30 +44,8 @@ alwaysApply: false
 │   ├── pigeon
 │   └── solady
 ├── script
-│   ├── DeploySuperDeployer.s.sol
 │   ├── DeployV2.s.sol
 │   ├── output
-│   │   ├── feat
-│   │   │   ├── 7540-phase2
-│   │   │   │   └── latest.json
-│   │   │   ├── 7540SuperVault
-│   │   │   │   └── latest.json
-│   │   │   ├── SUP-10329-de-brdige
-│   │   │   │   └── latest.json
-│   │   │   ├── SUP-10520-staking-oracles
-│   │   │   │   └── latest.json
-│   │   │   ├── SUP-10536-account-param
-│   │   │   │   └── latest.json
-│   │   │   ├── fixCi
-│   │   │   │   └── latest.json
-│   │   │   ├── fixSuperLedger
-│   │   │   │   └── latest.json
-│   │   │   ├── minorFixes
-│   │   │   │   └── latest.json
-│   │   │   ├── remove-stake-hooks
-│   │   │   │   └── latest.json
-│   │   │   └── super-ledger-fixes
-│   │   │       └── latest.json
 │   │   ├── latest.json
 │   │   └── local
 │   │       ├── 1
@@ -78,9 +56,7 @@ alwaysApply: false
 │   │       │   └── Base-latest.json
 │   │       └── latest.json
 │   ├── run
-│   │   ├── deploy_superDeployer.sh
 │   │   ├── deploy_v2_testnet.sh
-│   │   ├── deploy_v2_vnet.sh
 │   │   ├── deploy_v2_vnet_s3.sh
 │   │   ├── retrieve-abis.sh
 │   │   ├── tenderly
@@ -108,17 +84,14 @@ alwaysApply: false
 │   │   │       ├── GearboxYieldSourceOracle.sol
 │   │   │       └── SuperOracle.sol
 │   │   ├── bridges
-│   │   │   ├── AcrossReceiveFundsAndExecuteGateway.sol
-│   │   │   └── DeBridgeReceiveFundsAndExecuteGateway.sol
+│   │   │   └── AcrossReceiveFundsAndExecuteGateway.sol
 │   │   ├── executors
 │   │   │   └── SuperExecutor.sol
 │   │   ├── hooks
 │   │   │   ├── BaseHook.sol
 │   │   │   ├── bridges
-│   │   │   │   ├── across
-│   │   │   │   │   └── AcrossSendFundsAndExecuteOnDstHook.sol
-│   │   │   │   └── debridge
-│   │   │   │       └── DeBridgeSendFundsAndExecuteOnDstHook.sol
+│   │   │   │   └── across
+│   │   │   │       └── AcrossSendFundsAndExecuteOnDstHook.sol
 │   │   │   ├── claim
 │   │   │   │   ├── BaseClaimRewardHook.sol
 │   │   │   │   ├── fluid
@@ -126,7 +99,6 @@ alwaysApply: false
 │   │   │   │   ├── gearbox
 │   │   │   │   │   └── GearboxClaimRewardHook.sol
 │   │   │   │   └── yearn
-│   │   │   │       ├── YearnClaimAllRewardsHook.sol
 │   │   │   │       └── YearnClaimOneRewardHook.sol
 │   │   │   ├── stake
 │   │   │   │   ├── fluid
@@ -263,6 +235,7 @@ alwaysApply: false
     │   │   ├── SuperVault.fulfillDepositRequests.t.sol
     │   │   ├── SuperVault.fulfillRedeemRequests.t.sol
     │   │   ├── SuperVault.t.sol
+    │   │   ├── SuperVaultE2EFlow.t.sol
     │   │   ├── SuperVaultFactory.t.sol
     │   │   └── test-plan.md
     │   ├── accounting
@@ -310,9 +283,14 @@ alwaysApply: false
     │   │   ├── IRestrictionManagerLike.sol
     │   │   ├── IRoot.sol
     │   │   └── ITranch.sol
-    │   └── sentinel
-    │       ├── ISentinel.sol
-    │       └── SuperPositionSentinel.sol
+    │   ├── sentinel
+    │   │   ├── ISentinel.sol
+    │   │   └── SuperPositionSentinel.sol
+    │   ├── unused-bridges
+    │   │   └── DeBridgeReceiveFundsAndExecuteGateway.sol
+    │   └── unused-hooks
+    │       ├── DeBridgeSendFundsAndExecuteOnDstHook.sol
+    │       └── YearnClaimAllRewardsHook.sol
     ├── unit
     │   ├── Mock
     │   │   ├── Mock.t.sol
@@ -348,5 +326,5 @@ alwaysApply: false
             ├── INexusBootstrap.sol
             └── INexusFactory.sol
 
-112 directories, 229 files
+102 directories, 217 files
 ```
