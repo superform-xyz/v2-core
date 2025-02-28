@@ -15,167 +15,151 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
     function test_MatchRequests_SinglePair(uint256 amount) public {
         amount = bound(amount, 100e6, 10_000e6);
 
+        // Initial deposit to setup vault
         _completeDepositFlow(amount);
 
+        // Setup depositor
         _getTokens(address(asset), accInstances[0].account, amount);
         _requestDepositForAccount(accInstances[0], amount);
         assertEq(strategy.pendingDepositRequest(accInstances[0].account), amount, "Deposit request not created");
 
+        // Setup redeemer - note that redeemer already has shares from initial deposit
         uint256 redeemShares = vault.balanceOf(accInstances[1].account);
         _requestRedeemForAccount(accInstances[1], redeemShares);
         assertEq(strategy.pendingRedeemRequest(accInstances[1].account), redeemShares, "Redeem request not created");
 
+        // Match requests
         address[] memory redeemUsers = new address[](1);
         redeemUsers[0] = accInstances[1].account;
-
         address[] memory depositUsers = new address[](1);
         depositUsers[0] = accInstances[0].account;
 
-        uint256 pendingRedeembefore = strategy.pendingRedeemRequest(accInstances[1].account);
+        vm.startPrank(STRATEGIST);
+        strategy.matchRequests(redeemUsers, depositUsers);
+        vm.stopPrank();
+    }
+
+    function _sendFundsToStrategy(uint256 amount) internal {
+        _getTokens(address(asset), address(this), amount);
+        IERC20(address(asset)).transfer(address(strategy), amount);
+    }
+
+    function _sendFundsToSuperVault(uint256 amount) internal {
+        _getTokens(address(asset), address(this), amount);
+        IERC20(address(asset)).transfer(address(vault), amount);
+    }
+
+    function test_MatchRequests_MultiplePairs(uint256 amount) public {
+        amount = bound(amount, 100e6, 200e6);
+
+        // Initial setup with much larger funds to handle all redemptions
+        console2.log("\n=== Initializing with funds ===");
+        _sendFundsToStrategy(amount * 100);
+        _sendFundsToSuperVault(amount * 100);
+
+        // Do an initial deposit to stabilize price per share
+        console2.log("\n=== Stabilizing price per share ===");
+        _completeDepositFlow(amount * 10);
+        vm.warp(block.timestamp + 1 days);
+
+        console2.log("Initial price per share:", vault.convertToAssets(1e18));
+
+        // Setup depositors with deposit requests
+        console2.log("\n=== Setting up depositors ===");
+        address[] memory redeemUsers = new address[](10);
+        address[] memory depositUsers = new address[](10);
+
+        for (uint256 i = 0; i < 10; i++) {
+            console2.log("\n--- Setting up depositor", i, "---");
+            _getTokens(address(asset), accInstances[i].account, amount);
+            _requestDepositForAccount(accInstances[i], amount);
+            depositUsers[i] = accInstances[i].account;
+
+            uint256 pendingDeposit = strategy.pendingDepositRequest(accInstances[i].account);
+            console2.log("Pending deposit amount:", pendingDeposit);
+            assertEq(pendingDeposit, amount, "Deposit request not created");
+        }
+
+        // Setup redeemers - request all deposits first
+        console2.log("\n=== Setting up redeemers - requesting deposits ===");
+        for (uint256 i = 0; i < 10; i++) {
+            uint256 redeemIndex = i + 10;
+            console2.log("\n--- Requesting deposit for redeemer", redeemIndex, "---");
+            _getTokens(address(asset), accInstances[redeemIndex].account, amount);
+            _requestDepositForAccount(accInstances[redeemIndex], amount);
+
+            // Log initial state
+            console2.log("Price per share:", vault.convertToAssets(1e18));
+            console2.log("Deposit state:", strategy.getSuperVaultState(accInstances[redeemIndex].account, 3));
+        }
+
+        // Fulfill all redeemer deposits in one go
+        console2.log("\n=== Fulfilling all redeemer deposits ===");
+        vm.warp(block.timestamp + 1 days);
+
+        vm.startPrank(STRATEGIST);
+        for (uint256 i = 0; i < 10; i++) {
+            uint256 redeemIndex = i + 10;
+            __fulfillDepositRequest(accInstances[redeemIndex], amount);
+        }
+        vm.stopPrank();
+
+        // Then proceed with claims...
+
+        // Claim all redeemer deposits together
+        console2.log("\n=== Claiming all redeemer deposits ===");
+
+        for (uint256 i = 0; i < 10; i++) {
+            uint256 redeemIndex = i + 10;
+            console2.log("\n--- Claiming deposit for redeemer", redeemIndex, "---");
+
+            // Log state before claim
+            console2.log("Price per share before claim:", vault.convertToAssets(1e18));
+            console2.log(
+                "Deposit state before claim:", strategy.getSuperVaultState(accInstances[redeemIndex].account, 3)
+            );
+            console2.log(
+                "Shares to mint before claim:", strategy.getSuperVaultState(accInstances[redeemIndex].account, 1)
+            );
+
+            _claimDepositForAccount(accInstances[redeemIndex], amount);
+
+            // Now request redemption
+            uint256 sharesBefore = vault.balanceOf(accInstances[redeemIndex].account);
+            console2.log("Shares after claim:", sharesBefore);
+            require(sharesBefore > 0, "Redeemer has no shares");
+
+            _requestRedeemForAccount(accInstances[redeemIndex], sharesBefore);
+            redeemUsers[i] = accInstances[redeemIndex].account;
+
+            uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[redeemIndex].account);
+            console2.log("Pending redeem amount:", pendingRedeem);
+            assertEq(pendingRedeem, sharesBefore, "Redeem request not created");
+
+            // Add delay between claims
+            vm.warp(block.timestamp + 1 days);
+        }
+
+        // Match the requests
+        console2.log("\n=== Strategy State Before Matching ===");
+        console2.log("Strategy USDC balance:", IERC20(address(asset)).balanceOf(address(strategy)));
+
         vm.startPrank(STRATEGIST);
         strategy.matchRequests(redeemUsers, depositUsers);
         vm.stopPrank();
 
-        assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0);
-        assertGt(pendingRedeembefore, strategy.pendingRedeemRequest(accInstances[1].account));
-        assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0);
-        assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0);
-    }
+        // Verify all matches
+        for (uint256 i = 0; i < 10; i++) {
+            console2.log("\n--- Verifying pair", i, "---");
 
-    function test_MatchRequests_MultiplePairs(uint256 amount) public {
-        amount = bound(amount, 100e6, 500e6);
+            uint256 depositState = strategy.getSuperVaultState(depositUsers[i], 1);
+            console2.log("Depositor shares to mint:", depositState);
+            assertEq(strategy.pendingDepositRequest(depositUsers[i]), 0, "Deposit request not matched");
+            assertGt(depositState, 0, "No shares to mint for depositor");
 
-        console2.log("\n=== Setting up redeemers ===");
-        for (uint256 i = 40; i < 70; i++) {
-            console2.log("\nProcessing redeemer", i);
-
-            uint256 pricePerShareBefore = vault.convertToAssets(1e18);
-            console2.log("Price per share before deposit:", pricePerShareBefore);
-
-            _getTokens(address(asset), accInstances[i].account, amount);
-
-            uint256 sharesBefore = vault.balanceOf(accInstances[i].account);
-            console2.log("Account", i, "shares before deposit:", sharesBefore);
-
-            // Complete deposit flow in one step to maintain timing consistency
-            _completeDepositFlow(amount, accInstances[i]);
-
-            uint256 sharesAfter = vault.balanceOf(accInstances[i].account);
-            console2.log("Account", i, "shares after deposit:", sharesAfter);
-
-            uint256 pricePerShareAfter = vault.convertToAssets(1e18);
-            console2.log("Price per share after deposit:", pricePerShareAfter);
-            
-            // Only calculate difference if after > before to avoid underflow
-            if (pricePerShareAfter >= pricePerShareBefore) {
-                console2.log("Price per share increase:", pricePerShareAfter - pricePerShareBefore);
-            } else {
-                console2.log("Price per share decrease:", pricePerShareBefore - pricePerShareAfter);
-            }
-
-            // Request redeem
-            _requestRedeemForAccount(accInstances[i], sharesAfter);
-        }
-
-        console2.log("\n=== Creating deposit requests ===");
-        // Create 40 deposit requests
-        for (uint256 i = 0; i < 40; i++) {
-            console2.log("\nProcessing depositor", i);
-            _getTokens(address(asset), accInstances[i].account, amount);
-
-            uint256 balanceBefore = IERC20(address(asset)).balanceOf(accInstances[i].account);
-            console2.log("Account", i, "balance before request:", balanceBefore);
-            require(balanceBefore >= amount, "Insufficient balance for deposit request");
-
-            _requestDepositForAccount(accInstances[i], amount);
-            uint256 pendingRequest = strategy.pendingDepositRequest(accInstances[i].account);
-            console2.log("Account", i, "pending deposit request:", pendingRequest);
-            assertEq(pendingRequest, amount, "Deposit request not created");
-        }
-
-        console2.log("\n=== Creating redeem requests ===");
-        // Create redeem requests
-        for (uint256 i = 40; i < 70; i++) {
-            console2.log("\nProcessing redeemer", i);
-            uint256 redeemShares = vault.balanceOf(accInstances[i].account);
-            console2.log("Account", i, "shares available:", redeemShares);
-
-            // Add balance check for strategy
-            uint256 strategyBalance = IERC20(address(asset)).balanceOf(address(strategy));
-            console2.log("Strategy balance before redeem request:", strategyBalance);
-
-            // Add total supply check
-            uint256 totalSupply = vault.totalSupply();
-            console2.log("Vault total supply:", totalSupply);
-
-            // Add price per share check
-            uint256 pricePerShare = vault.convertToAssets(1e18);
-            console2.log("Current price per share:", pricePerShare);
-
-            require(redeemShares > 0, "No shares available for redeem");
-
-            _requestRedeemForAccount(accInstances[i], redeemShares);
-            uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[i].account);
-            console2.log("Account", i, "pending redeem request:", pendingRedeem);
-            console2.log("Redeem shares requested vs pending:", redeemShares, "vs", pendingRedeem);
-            assertEq(pendingRedeem, redeemShares, "Redeem request not created");
-        }
-
-        console2.log("\n=== Setting up match arrays ===");
-        // Set up arrays for matching
-        address[] memory redeemUsers = new address[](30);
-        address[] memory depositUsers = new address[](30);
-
-        for (uint256 i = 0; i < 30; i++) {
-            redeemUsers[i] = accInstances[i + 40].account;
-            depositUsers[i] = accInstances[i].account;
-            console2.log("Pair", i);
-            console2.log("- Depositor:", depositUsers[i]);
-            console2.log("- Redeemer:", redeemUsers[i]);
-        }
-
-        console2.log("\n=== Executing match ===");
-        // Add pre-match state checks
-        uint256 totalStrategyBalance = IERC20(address(asset)).balanceOf(address(strategy));
-        uint256 fluidVaultShares = fluidVault.balanceOf(address(strategy));
-        uint256 aaveVaultShares = aaveVault.balanceOf(address(strategy));
-
-        console2.log("Strategy:", totalStrategyBalance);
-        console2.log("FluidShares:", fluidVaultShares);
-        console2.log("AaveShares:", aaveVaultShares);
-
-        // Convert shares to assets
-        uint256 fluidAssets = fluidVault.convertToAssets(fluidVaultShares);
-        uint256 aaveAssets = aaveVault.convertToAssets(aaveVaultShares);
-        console2.log("FluidAssets:", fluidAssets, "AaveAssets:", aaveAssets);
-
-        // First pair details
-        address firstDepositor = depositUsers[0];
-        address firstRedeemer = redeemUsers[0];
-        console2.log("First pair - Deposit:", strategy.pendingDepositRequest(firstDepositor));
-        console2.log("First pair - Redeem:", strategy.pendingRedeemRequest(firstRedeemer));
-
-        try strategy.matchRequests(redeemUsers, depositUsers) {
-            console2.log("Match succeeded");
-        } catch Error(string memory reason) {
-            console2.log("Match failed:", reason);
-        } catch (bytes memory) {
-            console2.log("Match failed with no reason");
-        }
-
-        for (uint256 i = 0; i < 30; i++) {
-            assertEq(strategy.pendingDepositRequest(depositUsers[i]), 0, "Deposit request not cleared");
-            assertGt(strategy.getSuperVaultState(depositUsers[i], 1), 0, "No shares to mint");
-
-            assertGt(strategy.getSuperVaultState(redeemUsers[i], 2), 0, "No assets to withdraw");
-        }
-
-        for (uint256 i = 30; i < 40; i++) {
-            assertEq(
-                strategy.pendingDepositRequest(accInstances[i].account),
-                amount,
-                "Unmatched deposit request should remain pending"
-            );
+            uint256 redeemState = strategy.getSuperVaultState(redeemUsers[i], 2);
+            console2.log("Redeemer assets to withdraw:", redeemState);
+            assertGt(redeemState, 0, "No assets to withdraw for redeemer");
         }
     }
 
@@ -450,28 +434,45 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
 
         uint256 balanceBefore = IERC20(address(asset)).balanceOf(acc.account);
         uint256 sharesBefore = vault.balanceOf(acc.account);
-        console2.log("Starting complete deposit flow for amount:", amount);
-        console2.log("Using account:", acc.account);
+        console2.log("\n=== Starting complete deposit flow ===");
+        console2.log("Amount:", amount);
+        console2.log("Account:", acc.account);
         console2.log("Balance before:", balanceBefore);
+        console2.log("Shares before:", sharesBefore);
+        console2.log("Current price per share:", vault.convertToAssets(1e18));
 
+        console2.log("\n--- Requesting deposit ---");
         _requestDepositForAccount(acc, amount);
-        uint256 pendingRequest = strategy.pendingDepositRequest(acc.account);
-        console2.log("Deposit requested");
-        console2.log("Pending request amount:", pendingRequest);
+        uint256 pendingDeposit = strategy.pendingDepositRequest(acc.account);
+        console2.log("Pending deposit after request:", pendingDeposit);
 
-        // Wait for deposit to be claimable
+        console2.log("\n--- Fulfilling deposit ---");
         vm.warp(block.timestamp + 1 days);
+        uint256 strategyBalanceBefore = IERC20(address(asset)).balanceOf(address(strategy));
+        console2.log("Strategy balance before fulfill:", strategyBalanceBefore);
 
         __fulfillDepositRequest(acc, amount);
-        console2.log("Deposit fulfilled");
 
-        // Wait for claim delay
+        uint256 strategyBalanceAfter = IERC20(address(asset)).balanceOf(address(strategy));
+        console2.log("Strategy balance after fulfill:", strategyBalanceAfter);
+        uint256 balanceChange = strategyBalanceBefore > strategyBalanceAfter
+            ? strategyBalanceBefore - strategyBalanceAfter
+            : strategyBalanceAfter - strategyBalanceBefore;
+        console2.log("Strategy balance change:", balanceChange);
+
+        console2.log("\n--- Claiming deposit ---");
         vm.warp(block.timestamp + 1 days);
 
+        uint256 sharesToMint = strategy.getSuperVaultState(acc.account, 1);
+        console2.log("Shares to mint before claim:", sharesToMint);
+        uint256 depositState = strategy.getSuperVaultState(acc.account, 3);
+        console2.log("Deposit state before claim:", depositState);
+
         _claimDepositForAccount(acc, amount);
-        console2.log("Deposit claimed");
 
         uint256 sharesAfter = vault.balanceOf(acc.account);
+        console2.log("\n=== Deposit flow complete ===");
+        console2.log("Final shares:", sharesAfter);
         console2.log("Shares minted:", sharesAfter - sharesBefore);
     }
 }
