@@ -80,7 +80,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         uint256 redeemShares = vault.balanceOf(accountEth);
         _requestRedeem(redeemShares);
-        _fulfillRedeem(redeemShares - 1000);
+        _fulfillRedeem(redeemShares);
 
         uint256 vaultShares = vault.balanceOf(accountEth);
         assertEq(vaultShares, 0, "Vault shares not zero");
