@@ -802,11 +802,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         return IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
     }
 
-    // 1 usdc
-    //  totalSupply 1e6
-    //  totalAsset 1001e6
-    //  pricePerShare 1001
-    // 1001e6  * 1e18 / 1e6
+
+    // First deposit  1 USDC
+     //  . requestDeposit => totalAssets = 1 USDC
+     //  . fulfillDeposit => totalAssets = 1 USDC, totalSupply = 1 USDC
+     //  . pps = 1e18
+
+    // Second deposit 1000 USDC
+     //  . requestDeposit => totalAssets = 1001 USDC
+     //  . pps  1001 * 1e18 / 1 => 1001  ! problem here !
+
+
     function _getSuperVaultAssetInfo() private view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
         uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
@@ -815,6 +821,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         } else {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets(); 
+
+            
+
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
             console2.log("----------------- totalAssetsValue", totalAssetsValue);
             console2.log("----------------- totalSupplyAmount", totalSupplyAmount);

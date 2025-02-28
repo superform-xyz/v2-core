@@ -48,8 +48,10 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         uint256 initialUserAssets = asset.balanceOf(accountEth);
         uint256 initialVaultAssets = asset.balanceOf(address(vault));
 
+        console2.log("----------test_SuperVault_E2E_Flow before _requestDeposit");
         // Step 1: Request Deposit
         _requestDeposit(amount);
+        console2.log("----------test_SuperVault_E2E_Flow after _requestDeposit", amount);
 
         // Verify assets transferred from user to vault
         assertEq(
@@ -65,8 +67,10 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         uint256 expectedUserShares = vault.convertToShares(amount);
 
+        console2.log("----------test_SuperVault_E2E_Flow before _fulfillDeposit", expectedUserShares);
         // Step 2: Fulfill Deposit
         _fulfillDeposit(expectedUserShares);
+        console2.log("----------test_SuperVault_E2E_Flow after _fulfillDeposit");
 
         // Step 3: Claim Deposit
         _claimDeposit(amount);
