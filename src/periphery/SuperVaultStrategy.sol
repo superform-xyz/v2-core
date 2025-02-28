@@ -22,7 +22,6 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 // Periphery Interfaces
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
-import { ISuperRegistry } from "../core/interfaces/ISuperRegistry.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
@@ -39,6 +38,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
+    uint256 private constant PRECISION_DECIMALS = 18;
+    uint256 private constant PRECISION = 1e18;
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -83,7 +84,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Claimed tokens tracking
     mapping(address token => uint256 amount) public claimedTokens;
 
-    ISuperRegistry private superRegistry;
     IPeripheryRegistry private peripheryRegistry;
 
     function _requireVault() internal view {
@@ -103,7 +103,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address manager_,
         address strategist_,
         address emergencyAdmin_,
-        address superRegistry_,
+        address peripheryRegistry_,
         GlobalConfig memory config_
     )
         external
@@ -113,7 +113,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
-        if (superRegistry_ == address(0)) revert INVALID_SUPER_REGISTRY();
+        if (peripheryRegistry_ == address(0)) revert INVALID_PERIPHERY_REGISTRY();
         if (config_.vaultCap == 0) revert INVALID_VAULT_CAP();
         if (config_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
         if (config_.maxAllocationRate == 0 || config_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
@@ -130,8 +130,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[MANAGER_ROLE] = manager_;
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
-        superRegistry = ISuperRegistry(superRegistry_);
-        peripheryRegistry = IPeripheryRegistry(superRegistry.getAddress(keccak256("PERIPHERY_REGISTRY_ID")));
+        peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
         globalConfig = config_;
     }
 
@@ -246,7 +245,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
-            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _vaultDecimals, vars.currentPricePerShare);
+            vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare);
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
@@ -306,7 +305,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 // Calculate historical assets and process fees once for total shares used
                 (vars.finalAssets, vars.lastConsumedIndex) =
                     _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
-
                 // Update share price point cursor
                 if (vars.lastConsumedIndex > redeemState.sharePricePointCursor) {
                     redeemState.sharePricePointCursor = vars.lastConsumedIndex;
@@ -403,7 +401,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.hookType == ISuperHook.HookType.INFLOW) {
                 _resetTokenApproval(address(_asset), vars.executions[0].target);
             }
-
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
 
@@ -808,18 +805,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _getSuperVaultAssetInfo() private view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
         uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
-            // For first deposit, set initial PPS to 1 unit in vault decimals
-            pricePerShare = 10 ** _vaultDecimals;
+            // For first deposit, set initial PPS to 1 unit in price decimals
+            pricePerShare = PRECISION;
         } else {
-            // Calculate current PPS
+            // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            pricePerShare = totalAssetsValue.mulDiv(10 ** _vaultDecimals, totalSupplyAmount, Math.Rounding.Ceil);
+            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
+            // Otherwise rounding issues in other places becomes bigger
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare);
+        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare);
 
         // Calculate new weighted average deposit price
         // maxDeposit (assets) = maxMint * previousPpsValue
@@ -829,11 +828,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (newTotalShares > 0) {
             uint256 existingAssets = 0;
             if (state.maxMint > 0 && state.averageDepositPrice > 0) {
-                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, 1e18, Math.Rounding.Floor);
+                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
             }
 
             uint256 newTotalAssets = existingAssets + vars.requestedAmount;
-            state.averageDepositPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+            state.averageDepositPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
@@ -1210,11 +1209,23 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
-        uint256 vaultAmount = amount.mulDiv(10 ** _vaultDecimals, pricePerShare, Math.Rounding.Ceil);
+
+        uint256 precision = PRECISION;
+        uint256 vaultAmount;
+       
+        vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
+
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), vaultAmount
         );
+        if (pricePerShare < PRECISION) {
+            /// @dev account for rounding errors
+            ///      This can happen 2 times during the whole process currently
+            ///      When pps < PRECISION for operations using PPS, mulDiv will round it 2 times
+            //          resulting in a +2 error 
+            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
+        }
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval
 
@@ -1357,8 +1368,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                 // Transfer fees
                 if (superformFee > 0) {
-                    _safeTokenTransfer(address(_asset), superRegistry.getTreasury(), superformFee);
-                    emit FeePaid(superRegistry.getTreasury(), superformFee, performanceFeeBps);
+                    address treasury = peripheryRegistry.getTreasury();
+                    _safeTokenTransfer(address(_asset), treasury, superformFee);
+                    emit FeePaid(treasury, superformFee, performanceFeeBps);
                 }
 
                 if (recipientFee > 0) {
@@ -1394,7 +1406,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _vaultDecimals);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1412,8 +1424,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
-
+        // @dev we Ceil here because we Floor at shares calculation
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Ceil);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
         // Update average withdraw price using weighted average
@@ -1427,7 +1439,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Calculate existing assets based on current maxWithdraw
             if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
                 // Calculate equivalent shares based on current averageWithdrawPrice
-                existingShares = state.maxWithdraw.mulDiv(1e18, state.averageWithdrawPrice, Math.Rounding.Floor);
+                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
                 existingAssets = state.maxWithdraw;
             }
 
@@ -1435,7 +1447,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 newTotalAssets = existingAssets + finalAssets;
 
             if (newTotalShares > 0) {
-                state.averageWithdrawPrice = newTotalAssets.mulDiv(1e18, newTotalShares, Math.Rounding.Floor);
+                state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
             }
         }
     }

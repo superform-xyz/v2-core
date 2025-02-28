@@ -161,7 +161,9 @@ contract DeployV2 is Script, Configuration {
             PERIPHERY_REGISTRY_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, PERIPHERY_REGISTRY_KEY),
-            abi.encodePacked(type(PeripheryRegistry).creationCode, abi.encode(configuration.owner))
+            abi.encodePacked(
+                type(PeripheryRegistry).creationCode, abi.encode(configuration.owner, configuration.treasury)
+            )
         );
 
         // Deploy SuperOracle
@@ -262,7 +264,6 @@ contract DeployV2 is Script, Configuration {
         superRegistry.setRole(
             _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
         );
-
 
         // -- SuperRegistry
         superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
@@ -489,14 +490,14 @@ contract DeployV2 is Script, Configuration {
     }
 
     function _setupSuperLedgerConfiguration(uint64 chainId) private {
-        SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
+        PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainId, PERIPHERY_REGISTRY_KEY));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
-            feeRecipient: superRegistry.getTreasury(),
+            feeRecipient: peripheryRegistry.getTreasury(),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
 

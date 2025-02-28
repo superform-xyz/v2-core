@@ -429,7 +429,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         vm.stopPrank();
     }
 
-    function _completeDepositFlow(uint256 amount, AccountInstance memory acc) internal override {
+    function _completeDepositFlow(uint256 amount, AccountInstance memory acc) internal {
         _getTokens(address(asset), acc.account, amount);
 
         uint256 balanceBefore = IERC20(address(asset)).balanceOf(acc.account);

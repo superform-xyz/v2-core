@@ -212,6 +212,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
     string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
 
+    bool constant DEBUG = false;
+
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
@@ -219,6 +221,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function setUp() public virtual {
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
+        TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
+        SUPER_BUNDLER = _deployAccount(SUPER_BUNDLER_KEY, "SUPER_BUNDLER");
         ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
 
         // Setup forks
@@ -248,6 +252,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Helper function to select a fork and warp to a specific timestamp
+    /// @param chainId The chain ID to select
+    /// @param timestamp The timestamp to warp to
+    function SELECT_FORK_AND_WARP(uint64 chainId, uint256 timestamp) internal {
+        vm.selectFork(FORKS[chainId]);
+        vm.warp(timestamp);
+    }
 
     function _makeAccount(uint64 chainId, bytes32 accountName) internal returns (AccountInstance memory) {
         AccountInstance memory _accInstance = makeAccountInstance(accountName);
@@ -359,13 +371,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
 
             /// @dev periphery
-            A.peripheryRegistry = new PeripheryRegistry(address(this));
+            A.peripheryRegistry = new PeripheryRegistry(address(this), TREASURY);
             vm.label(address(A.peripheryRegistry), PERIPHERY_REGISTRY_KEY);
             contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A.peripheryRegistry);
         }
     }
 
     function _deployHooks() internal {
+        if (DEBUG) console.log("---------------- DEPLOYING HOOKS ----------------");
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
@@ -421,7 +434,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY]
             );
-            
+            if (DEBUG) console.log("deposit4626VaultHook deployed", address(Addr.deposit4626VaultHook));
             Addr.withdraw4626VaultHook =
                 new Withdraw4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw4626VaultHook), WITHDRAW_4626_VAULT_HOOK_KEY);
@@ -436,6 +449,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY]
             );
+            if (DEBUG) console.log("withdraw4626VaultHook deployed", address(Addr.withdraw4626VaultHook));
 
             Addr.deposit5115VaultHook =
                 new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -451,7 +465,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
             );
-
+            if (DEBUG) console.log("deposit5115VaultHook deployed", address(Addr.deposit5115VaultHook));
             Addr.withdraw5115VaultHook =
                 new Withdraw5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw5115VaultHook), WITHDRAW_5115_VAULT_HOOK_KEY);
@@ -466,7 +480,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY]
             );
-
+            if (DEBUG) console.log("withdraw5115VaultHook deployed", address(Addr.withdraw5115VaultHook));
             Addr.requestDeposit7540VaultHook =
                 new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -481,6 +495,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
             );
+            if (DEBUG) console.log("requestDeposit7540VaultHook deployed", address(Addr.requestDeposit7540VaultHook));
 
             Addr.requestWithdraw7540VaultHook =
                 new RequestWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -497,17 +512,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY]
             );
-            
+            if (DEBUG) console.log("requestWithdraw7540VaultHook deployed", address(Addr.requestWithdraw7540VaultHook));
             Addr.deposit7575_7540VaultHook =
                 new Deposit7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.deposit7575_7540VaultHook), DEPOSIT_7575_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_7575_7540_VAULT_HOOK_KEY] = address(Addr.deposit7575_7540VaultHook);
-            
+            if (DEBUG) console.log("deposit7575_7540VaultHook deployed", address(Addr.deposit7575_7540VaultHook));
             Addr.withdraw7575_7540VaultHook =
                 new Withdraw7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.withdraw7575_7540VaultHook), WITHDRAW_7575_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
-            
+            if (DEBUG) console.log("withdraw7575_7540VaultHook deployed", address(Addr.withdraw7575_7540VaultHook));
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
@@ -811,11 +826,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
             );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), address(0x11111));
+            SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), SUPER_BUNDLER);
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
             );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("TREASURY_ID"), address(0x11111));
 
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
@@ -837,28 +851,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             vm.startPrank(MANAGER);
 
-            SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainIds[i], PERIPHERY_REGISTRY_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getTreasury(),
+                feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getTreasury(),
+                feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superRegistry.getTreasury(),
+                feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
@@ -870,6 +884,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
+
     modifier addRole(ISuperRegistry superRegistry, bytes32 role_) {
         superRegistry.setRole(address(this), role_, true);
         _;

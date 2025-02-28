@@ -34,7 +34,7 @@ interface ISuperVaultStrategy {
     error INVALID_CONTROLLER();
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
-    error INVALID_SUPER_REGISTRY();
+    error INVALID_PERIPHERY_REGISTRY();
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
     error INVALID_VAULT_THRESHOLD();

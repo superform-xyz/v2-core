@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol"; 
+import { AccessControlEnumerable } from "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 
 // Superform
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
@@ -14,6 +14,8 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
     mapping(address => bool) public isHookRegistered;
     address[] public registeredHooks;
 
+    address private treasury;
+
     uint256 private feeSplit;
     uint256 private proposedFeeSplit;
     uint256 private feeSplitEffectiveTime;
@@ -22,34 +24,47 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
     uint256 private constant ONE_WEEK = 7 days;
     uint256 private constant MAX_FEE_SPLIT = 10_000;
 
-    constructor(address owner_) {
+    constructor(address owner_, address treasury_) {
         if (owner_ == address(0)) revert INVALID_ACCOUNT();
+        if (treasury_ == address(0)) revert INVALID_ADDRESS();
         _grantRole(DEFAULT_ADMIN_ROLE, owner_);
 
         // Initialize with a default fee split of 20% (2000 basis points)
         feeSplit = 2000;
-    }
 
-    modifier onlyHooksManager() {
-        if (!hasRole(keccak256("HOOKS_MANAGER_ROLE"), msg.sender)) revert NOT_AUTHORIZED();
-        _;
+        treasury = treasury_;
+        emit TreasuryUpdated(treasury_);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IPeripheryRegistry
-    function registerHook(address hook_) external onlyHooksManager {
+    function registerHook(address hook_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (isHookRegistered[hook_]) revert HOOK_ALREADY_REGISTERED();
+        if (hook_ == address(0)) revert INVALID_ADDRESS();
         isHookRegistered[hook_] = true;
         registeredHooks.push(hook_);
         emit HookRegistered(hook_);
     }
 
     /// @inheritdoc IPeripheryRegistry
-    function unregisterHook(address hook_) external onlyHooksManager {
+    function unregisterHook(address hook_) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (!isHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
+        if (hook_ == address(0)) revert INVALID_ADDRESS();
         isHookRegistered[hook_] = false;
+
+        // Remove the hook from the registeredHooks array
+        for (uint256 i = 0; i < registeredHooks.length; i++) {
+            if (registeredHooks[i] == hook_) {
+                // Move the last element to the position of the element to delete
+                registeredHooks[i] = registeredHooks[registeredHooks.length - 1];
+                // Remove the last element
+                registeredHooks.pop();
+                break;
+            }
+        }
+
         emit HookUnregistered(hook_);
     }
 
@@ -63,9 +78,6 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
         emit FeeSplitProposed(feeSplit_, feeSplitEffectiveTime);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 PUBLIC METHODS
-    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IPeripheryRegistry
     function executeFeeSplitUpdate() external {
         if (block.timestamp < feeSplitEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
@@ -77,6 +89,12 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
         emit FeeSplitUpdated(feeSplit);
     }
 
+    function setTreasury(address treasury_) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (treasury_ == address(0)) revert INVALID_ADDRESS();
+        treasury = treasury_;
+        emit TreasuryUpdated(treasury_);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -85,10 +103,13 @@ contract PeripheryRegistry is AccessControlEnumerable, IPeripheryRegistry {
         return registeredHooks;
     }
 
-    
     /// @inheritdoc IPeripheryRegistry
     function getSuperformFeeSplit() external view returns (uint256) {
         return feeSplit;
     }
-}
 
+    /// @inheritdoc IPeripheryRegistry
+    function getTreasury() external view returns (address) {
+        return treasury;
+    }
+}
