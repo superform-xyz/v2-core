@@ -1,41 +1,25 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
-import { IMinimalEntryPoint, PackedUserOperation } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
-import { BytesLib } from "../../vendor/BytesLib.sol";
-
+import { IMinimalEntryPoint, PackedUserOperation } from "../../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-// Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-
-import { IDeBridgeGate } from "../../vendor/bridges/debridge/IDeBridgeGate.sol";
+import { IDeBridgeGate } from "../../../src/vendor/bridges/debridge/IDeBridgeGate.sol";
 
 /// @title DeBridgeReceiveFundsAndExecuteGateway
+/// @author Superform Labs
 /// @notice This contract acts as a gateway for receiving funds from the DeBridge Protocol
 /// @notice and executing associated user operations.
-/// @notice  address account = BytesLib.toAddress(BytesLib.slice(message, 0, 20), 0);
-/// @notice  uint256 intentAmount = BytesLib.toUint256(BytesLib.slice(message, 20, 32), 0);
-/// @notice  userOp.sender = BytesLib.toAddress(BytesLib.slice(message, 52, 20), 0);
-/// @notice  userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, 72, 32), 0);
-/// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 104, 32), 0);
-/// @notice  userOp.initCode = BytesLib.slice(message, 104, codeLength);
-/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 136, 32), 0);
-/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 168, 32), 0);
-/// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 168, 32), 0);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 200, 32), 0);
-/// @notice  userOp.paymasterAndData = BytesLib.slice(message, 200, codeLength);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 232, 32), 0);
-/// @notice  userOp.signature = BytesLib.slice(message, 232, codeLength);
-contract DeBridgeReceiveFundsAndExecuteGateway is SuperRegistryImplementer {
+contract DeBridgeReceiveFundsAndExecuteGateway {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
     address public immutable deBridgeGate;
-    address public immutable entryPointAddress; // can be a constant, but better to set it in constructor
+    address public immutable entryPointAddress;
+    address payable public immutable superBundler;
 
     struct DeBridgeClaimData {
         bytes32 debridgeId;
@@ -58,17 +42,12 @@ contract DeBridgeReceiveFundsAndExecuteGateway is SuperRegistryImplementer {
     event GatewayClaimed(bytes32 debridgeId, uint256 amount, uint256 chainIdFrom, address receiver, uint256 nonce);
     event DeBridgeFundsReceivedAndExecuted(PackedUserOperation[] userOps);
 
-    constructor(
-        address registry_,
-        address deBridgeGate_,
-        address entryPointAddress_
-    )
-        SuperRegistryImplementer(registry_)
-    {
+    constructor(address deBridgeGate_, address entryPointAddress_, address superBundler_) {
         if (deBridgeGate_ == address(0)) revert ADDRESS_NOT_VALID();
         if (entryPointAddress_ == address(0)) revert ADDRESS_NOT_VALID();
         deBridgeGate = deBridgeGate_;
         entryPointAddress = entryPointAddress_;
+        superBundler = payable(superBundler_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -96,15 +75,7 @@ contract DeBridgeReceiveFundsAndExecuteGateway is SuperRegistryImplementer {
             }
         }
 
-        IMinimalEntryPoint(entryPointAddress).handleOps(userOps, _getSuperBundler());
+        IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler);
         emit DeBridgeFundsReceivedAndExecuted(userOps);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Get the super bundler
-    function _getSuperBundler() internal view returns (address payable) {
-        return payable(superRegistry.getAddress(keccak256("SUPER_BUNDLER_ID")));
     }
 }

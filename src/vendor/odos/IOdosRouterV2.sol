@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 interface IOdosRouterV2 {
@@ -11,6 +11,7 @@ interface IOdosRouterV2 {
         uint256 outputMin;
         address outputReceiver;
     }
+
     struct permit2Info {
         address contractAddress;
         uint256 nonce;
@@ -18,7 +19,7 @@ interface IOdosRouterV2 {
         bytes signature;
     }
 
-     /// @notice Externally facing interface for swapping two tokens
+    /// @notice Externally facing interface for swapping two tokens
     /// @param tokenInfo All information about the tokens being swapped
     /// @param pathDefinition Encoded path definition for executor
     /// @param executor Address of contract that will execute the path

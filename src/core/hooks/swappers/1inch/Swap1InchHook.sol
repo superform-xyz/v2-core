@@ -7,10 +7,10 @@ import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Swap1InchHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice  Swap1InchHookParams
 /// address dstToken;

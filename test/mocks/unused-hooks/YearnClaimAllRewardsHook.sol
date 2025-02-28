@@ -2,15 +2,15 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { BaseClaimRewardHook } from "../../../src/core/hooks/claim/BaseClaimRewardHook.sol";
 
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { IYearnStakingRewardsMulti } from "../../../../vendor/yearn/IYearnStakingRewardsMulti.sol";
+import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
+import { IYearnStakingRewardsMulti } from "../../../src/vendor/yearn/IYearnStakingRewardsMulti.sol";
 
 //TODO: We might need to add a non-transient option
 //      The following hook claims an array of rewards tokens

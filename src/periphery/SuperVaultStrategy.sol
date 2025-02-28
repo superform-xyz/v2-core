@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -23,12 +23,11 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
-
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
 /// @title SuperVaultStrategy
-/// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
+/// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 contract SuperVaultStrategy is ISuperVaultStrategy {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -1209,9 +1208,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
 
-        uint256 precision = PRECISION;
         uint256 vaultAmount;
-       
+
         vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
 
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
@@ -1222,8 +1220,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             /// @dev account for rounding errors
             ///      This can happen 2 times during the whole process currently
             ///      When pps < PRECISION for operations using PPS, mulDiv will round it 2 times
-            //          resulting in a +2 error 
-            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
+            //          resulting in a +2 error
+            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2;
         }
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval

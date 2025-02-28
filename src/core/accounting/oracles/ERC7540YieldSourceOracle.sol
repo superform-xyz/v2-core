@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
@@ -20,14 +20,34 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         return IERC20Metadata(share).decimals();
     }
 
-    function getShareOutput(address yieldSourceAddress, address, uint256 assetsIn) external view override returns (uint256) {
-        return IERC7540(yieldSourceAddress).convertToShares(assetsIn);  
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getShareOutput(
+        address yieldSourceAddress,
+        address,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
+        return IERC7540(yieldSourceAddress).convertToShares(assetsIn);
     }
 
-    function getAssetOutput(address yieldSourceAddress, address, uint256 sharesIn) external view override returns (uint256) {
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getAssetOutput(
+        address yieldSourceAddress,
+        address,
+        uint256 sharesIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
         return IERC7540(yieldSourceAddress).convertToAssets(sharesIn);
     }
-    
+
     /// @inheritdoc AbstractYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
         address share = IERC7540(yieldSourceAddress).share();

@@ -1,17 +1,20 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+// external
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
-import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
 import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Interface.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { BoringERC20 } from "../../../vendor/BoringSolidity/BoringERC20.sol";
 
+// Superform
+import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
+
 /// @title SuperOracle
 /// @author Superform Labs
 /// @notice Registry for managing oracle providers and getting quotes
-contract SuperOracle is Ownable, ISuperOracle, IOracle {
+contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     using BoringERC20 for IERC20;
 
     /// @notice Mapping of base asset to array of oracle providers
@@ -32,15 +35,17 @@ contract SuperOracle is Ownable, ISuperOracle, IOracle {
     PendingUpdate private pendingUpdate;
 
     constructor(
-        address owner,
+        address owner_,
         address[] memory initialBases,
         uint256[] memory initialProviders,
         address[] memory initialOracleAddresses
     )
-        Ownable(owner)
+        Ownable(owner_)
     {
+        if (owner_ == address(0)) revert ZERO_ADDRESS();
+        uint256 length = initialProviders.length;
         // Set default staleness for initial providers
-        for (uint256 i = 0; i < initialProviders.length;) {
+        for (uint256 i; i < length;) {
             providerMaxStaleness[initialProviders[i]] = 1 days;
             unchecked {
                 ++i;

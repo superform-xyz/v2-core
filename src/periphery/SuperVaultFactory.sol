@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 import { Clones } from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 import { SuperVault } from "./SuperVault.sol";
@@ -8,8 +8,8 @@ import { SuperVaultEscrow } from "./SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 
 /// @title SuperVaultFactory
-/// @notice Factory contract that deploys SuperVault, SuperVaultStrategy, and SuperVaultEscrow
 /// @author SuperForm Labs
+/// @notice Factory contract that deploys SuperVault, SuperVaultStrategy, and SuperVaultEscrow
 contract SuperVaultFactory {
     using Clones for address;
 

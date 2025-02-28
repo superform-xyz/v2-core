@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
@@ -7,12 +7,14 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 // Superform
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
-
 import { SuperLedgerConfiguration } from "./SuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
+/// @title BaseLedger
+/// @author Superform Labs
+/// @notice Base ledger contract for managing user ledger entries
 abstract contract BaseLedger is ISuperLedger {
     using SafeERC20 for IERC20;
 
@@ -60,7 +62,6 @@ abstract contract BaseLedger is ISuperLedger {
         return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
     }
 
-
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -69,8 +70,8 @@ abstract contract BaseLedger is ISuperLedger {
         address yieldSource
     )
         internal
-        virtual
         view
+        virtual
         returns (LedgerEntry[] memory entries, uint256 unconsumedEntries)
     {
         Ledger storage ledger = userLedger[user][yieldSource];
@@ -94,11 +95,12 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 usedShares
     )
         internal
-        onlyExecutor
         virtual
+        onlyExecutor
         returns (uint256 feeAmount)
     {
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config = superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
@@ -202,5 +204,4 @@ abstract contract BaseLedger is ISuperLedger {
             feeAmount = (profit * config.feePercent) / 10_000;
         }
     }
-
 }

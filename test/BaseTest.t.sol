@@ -18,7 +18,6 @@ import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
-import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 
 // hooks
@@ -47,9 +46,6 @@ import { Withdraw7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/W
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { DeBridgeSendFundsAndExecuteOnDstHook } from
-    "../src/core/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
-
 // Swap hooks
 // --- 1inch
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
@@ -69,7 +65,6 @@ import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRe
 import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
 
 // --- Yearn
-import { YearnClaimAllRewardsHook } from "../src/core/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
 // action oracles
@@ -104,7 +99,6 @@ struct Addresses {
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
-    DeBridgeReceiveFundsAndExecuteGateway deBridgeReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
@@ -118,12 +112,10 @@ struct Addresses {
     Deposit7575_7540VaultHook deposit7575_7540VaultHook;
     Withdraw7575_7540VaultHook withdraw7575_7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
-    DeBridgeSendFundsAndExecuteOnDstHook deBridgeSendFundsAndExecuteOnDstHook;
     Swap1InchHook swap1InchHook;
     SwapOdosHook swapOdosHook;
     GearboxStakeHook gearboxStakeHook;
     GearboxUnstakeHook gearboxUnstakeHook;
-    YearnClaimAllRewardsHook yearnClaimAllRewardsHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
@@ -235,7 +227,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _deployHooks();
 
         // Initialize accounts
-        _initializeAccounts(RANDOM_ACCOUNT_COUNT);
+        _initializeAccounts(ACCOUNT_COUNT);
 
         // Register on SuperRegistry
         _setSuperRegistryAddresses();
@@ -336,20 +328,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A.superExecutor);
 
             A.acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
-                address(A.superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR, SUPER_BUNDLER
             );
             vm.label(address(A.acrossReceiveFundsAndExecuteGateway), ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
             contractAddresses[chainIds[i]][ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
                 address(A.acrossReceiveFundsAndExecuteGateway);
 
-            A.deBridgeReceiveFundsAndExecuteGateway = new DeBridgeReceiveFundsAndExecuteGateway(
-                address(A.superRegistry), DEBRIDGE_GATE_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR
-            );
-            vm.label(address(A.deBridgeReceiveFundsAndExecuteGateway), DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
-            contractAddresses[chainIds[i]][DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
-                address(A.deBridgeReceiveFundsAndExecuteGateway);
-
-            A.superMerkleValidator = new SuperMerkleValidator(address(A.superRegistry));
+            A.superMerkleValidator = new SuperMerkleValidator();
             vm.label(address(A.superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A.superMerkleValidator);
 
@@ -524,7 +509,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
             if (DEBUG) console.log("withdraw7575_7540VaultHook deployed", address(Addr.withdraw7575_7540VaultHook));
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY),
+                address(this),
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
+                _getContract(chainIds[i], ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
             );
             vm.label(address(Addr.acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
@@ -538,26 +526,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
                 hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
-            );
-
-            Addr.deBridgeSendFundsAndExecuteOnDstHook = new DeBridgeSendFundsAndExecuteOnDstHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), DEBRIDGE_GATE_ADDRESSES[chainIds[i]]
-            );
-            vm.label(
-                address(Addr.deBridgeSendFundsAndExecuteOnDstHook), DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY
-            );
-            vm.label(DEBRIDGE_GATE_ADDRESSES[chainIds[i]], DEBRIDGE_GATE_ADDRESS_KEY);
-            hookAddresses[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
-                address(Addr.deBridgeSendFundsAndExecuteOnDstHook);
-            hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] = Hook(
-                DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-                HookCategory.Bridges,
-                HookCategory.TokenApprovals,
-                address(Addr.deBridgeSendFundsAndExecuteOnDstHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
-                hooks[chainIds[i]][DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
 
             Addr.deposit7540VaultHook =
@@ -632,19 +600,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
-
-            Addr.yearnClaimAllRewardsHook =
-                new YearnClaimAllRewardsHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.yearnClaimAllRewardsHook), YEARN_CLAIM_ALL_REWARDS_HOOK_KEY);
-            hookAddresses[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY] = address(Addr.yearnClaimAllRewardsHook);
-            hooks[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY] = Hook(
-                YEARN_CLAIM_ALL_REWARDS_HOOK_KEY,
-                HookCategory.Claims,
-                HookCategory.Stakes,
-                address(Addr.yearnClaimAllRewardsHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ALL_REWARDS_HOOK_KEY]);
         }
     }
 
@@ -658,7 +613,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             accountInstances[chainIds[i]] = instance;
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
-                module: _getContract(chainIds[i], "SuperExecutor"),
+                module: _getContract(chainIds[i], SUPER_EXECUTOR_KEY),
                 data: ""
             });
             vm.label(instance.account, accountName);
@@ -813,35 +768,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_LEDGER_ID"), _getContract(chainIds[i], "SuperLedger")
+                keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], "SuperLedgerConfiguration")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"),
-                _getContract(chainIds[i], "AcrossReceiveFundsAndExecuteGateway")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], "SuperExecutor")
-            );
-            SuperRegistry(address(superRegistry)).setAddress(keccak256("SUPER_BUNDLER_ID"), SUPER_BUNDLER);
-            SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("ORACLE_REGISTRY_ID"), _getContract(chainIds[i], SUPER_ORACLE_KEY)
+                keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
             );
 
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
             );
-        }
-    }
-
-    function _setRoles() internal {
-        for (uint256 i = 0; i < chainIds.length; ++i) {
-            vm.selectFork(FORKS[chainIds[i]]);
-            ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
-            superRegistry.setRole(address(this), keccak256("HOOKS_MANAGER"), true);
         }
     }
 
@@ -884,16 +821,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
-
-    modifier addRole(ISuperRegistry superRegistry, bytes32 role_) {
-        superRegistry.setRole(address(this), role_, true);
-        _;
-    }
-
-    modifier addRoleTo(ISuperRegistry superRegistry, bytes32 role_, address addr_) {
-        superRegistry.setRole(addr_, role_, true);
-        _;
-    }
 
     function _getExecOps(
         AccountInstance memory instance,
