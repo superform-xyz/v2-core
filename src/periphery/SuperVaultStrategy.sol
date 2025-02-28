@@ -1461,7 +1461,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 existingAssets = 0;
 
             // Calculate existing assets based on current maxWithdraw
-            if (state.maxWithdraw > REDEEM_THRESHOLD && state.averageWithdrawPrice > 0) {
+            if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
                 // Calculate equivalent shares based on current averageWithdrawPrice
                 existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Ceil);
                 existingAssets = state.maxWithdraw;
