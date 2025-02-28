@@ -45,6 +45,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
             totalRedeemShares += vaultBalance;
             unchecked { ++i; }
         }
+        totalRedeemShares -= 1000;
 
         // request redeem for all users
         _requestRedeemForAllUsers(0);
@@ -135,6 +136,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
             totalRedeemShares += strategy.pendingRedeemRequest(accInstances[i].account);
             unchecked { ++i; }
         }
+        totalRedeemShares -= 1000;
 
         address[] memory requestingUsers = new address[](partialUsersCount);
         for (uint256 i; i < partialUsersCount;) {

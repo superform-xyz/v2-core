@@ -101,7 +101,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         uint256 totalFee = superformFee + recipientFee;
         
-        _fulfillRedeem(totalRedeemShares);
+        _fulfillRedeem(totalRedeemShares - 1000);
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);

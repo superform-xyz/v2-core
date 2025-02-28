@@ -193,6 +193,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // If deposit, check available balance
         if (isDeposit) {
             vars.availableAmount = _getTokenBalance(address(_asset), address(this));
+            console2.log("----------vars.availableAmount", vars.availableAmount);   
+            console2.log("----------vars.totalRequestedAmount", vars.totalRequestedAmount);
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
 
@@ -247,7 +249,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
-            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _vaultDecimals, vars.currentPricePerShare, Math.Rounding.Ceil);
+            vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare, Math.Rounding.Ceil);
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
@@ -515,6 +517,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         _checkVaultCaps(vars.targetedYieldSources);
 
         // Verify all assets were allocated
+        console2.log("----------vars.fulfillmentVars.spentAmount", vars.fulfillmentVars.spentAmount);
+        console2.log("----------vars.assetGained", vars.assetGained);
         if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_AMOUNT();
 
         emit RewardsClaimedAndCompounded(vars.assetGained);
@@ -541,6 +545,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 activeSourceCount;
 
         totalAssets_ = _getTokenBalance(address(_asset), address(this));
+        console2.log("----------------- totalAssets_", totalAssets_);
         for (uint256 i; i < length;) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
@@ -615,7 +620,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 emit YieldSourceReactivated(source);
             } else {
                 if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-
                 if (_getTokenBalance(source, address(this)) > 0) revert INVALID_AMOUNT();
 
                 yieldSource.isActive = false;
@@ -808,15 +812,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
-            pricePerShare = 10 ** _vaultDecimals;
+            pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
             
             uint256 normalizedTotalAssetsValue = _toPriceDecimals(totalAssetsValue - REDEEM_THRESHOLD, _vaultDecimals);
             normalizedTotalAssetsValue += REDEEM_THRESHOLD;
-            //pricePerShare = normalizedTotalAssetsValue.mulDiv(PRECISION, _toPriceDecimals(totalSupplyAmount, _vaultDecimals), Math.Rounding.Floor);
-            pricePerShare = totalAssetsValue.mulDiv(10 ** _vaultDecimals, totalSupplyAmount, Math.Rounding.Floor);
+            //pricePerShare = normalizedTotalAssetsValue.mulDiv(PRECISION, _toPriceDecimals(totalSupplyAmount, _vaultDecimals), Math.Rounding.Ceil);
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
             console2.log("----------------- totalAssetsValue", totalAssetsValue);
             console2.log("----------------- normalizedTotalAssetsValue", normalizedTotalAssetsValue);
             console2.log("----------------- totalSupplyAmount", totalSupplyAmount);
@@ -826,7 +830,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare, Math.Rounding.Floor);
+        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
 
         // Calculate new weighted average deposit price
         // maxDeposit (assets) = maxMint * previousPpsValue
@@ -868,6 +872,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _handleRequestDeposit(address controller, uint256 assets) private returns (uint256) {
         _requireVault();
+        console2.log("----------_handleRequestDeposit", assets);
         if (assets == 0) revert INVALID_AMOUNT();
 
         _safeTokenTransferFrom(address(_asset), msg.sender, address(this), assets);
@@ -879,6 +884,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _handleCancelDeposit(address controller, uint256 assets) private returns (uint256) {
         _requireVault();
+        console2.log("----------_handleCancelDeposit", assets);
         if (assets == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -890,6 +896,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _handleClaimDeposit(address controller, uint256 shares) private returns (uint256) {
         _requireVault();
+        console2.log("----------_handleClaimDeposit", shares);
         if (shares == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -902,6 +909,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _handleRequestRedeem(address controller, uint256 shares) private returns (uint256) {
         _requireVault();
+        console2.log("----------_handleRequestRedeem", shares);
         if (shares == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -918,9 +926,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _handleClaimWithdraw(address controller, uint256 assets) private returns (uint256) {
         _requireVault();
+        console2.log("----------_handleClaimWithdraw", assets);
         if (assets == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
+
+        console2.log("----------state.maxWithdraw", state.maxWithdraw);
+        console2.log("----------assets           ", assets);
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
 
         // Update state
@@ -1070,6 +1082,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 finalBalance = _getTokenBalance(tokens[i], address(this));
 
             if (requireZeroBalance) {
+                console2.log("----------finalBalance", finalBalance);
                 if (finalBalance != 0) revert INVALID_AMOUNT();
             } else {
                 if (finalBalance < initialBalances[i]) revert INVALID_AMOUNT();
@@ -1132,7 +1145,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Verify all amounts were spent
-        if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+        console2.log("----------vars.spentAmount", vars.spentAmount);
+        console2.log("----------vars.totalRequestedAmount", vars.totalRequestedAmount);
+        if (
+            vars.spentAmount + REDEEM_THRESHOLD < vars.totalRequestedAmount || 
+            vars.spentAmount > vars.totalRequestedAmount + REDEEM_THRESHOLD
+        ) {
+            revert INVALID_AMOUNT();
+        }
 
         // Resize array to actual count if needed
         if (locals.targetedSourcesCount < locals.hooksLength) {
@@ -1216,22 +1236,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
-
-        // pps before warp 1000000997000000000
-        // -- warp 50 weeks
-        // pps after warp  1046909671000000000
-        // amount(shares) 500000000 (input for fulfill)
-        // amount(assets) 477596122
-        // amountConvertedToUnderlyingShares 434746936
-        // total underlying available shares 436834975
-
         console2.log("----------amount", amount);
 
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
         console2.log("----------pricePerShare", pricePerShare);
         
-        uint256 amountOfAssets = amount.mulDiv(pricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
+        uint256 amountOfAssets = amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
         console2.log("----------amountOfAssets", amountOfAssets);
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
@@ -1372,11 +1383,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
-            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Ceil);
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
 
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
-                uint256 superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Ceil);
+                uint256 superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees
@@ -1419,7 +1430,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Ceil);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1437,8 +1448,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        // @dev we Ceil here because we Floor at shares calculation
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
+        // @dev Rounding.Ceil is used here because state.maxWithdraw can be less with -1 than the actual amount otherwise
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Ceil);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
         // Update average withdraw price using weighted average
@@ -1452,7 +1463,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Calculate existing assets based on current maxWithdraw
             if (state.maxWithdraw > REDEEM_THRESHOLD && state.averageWithdrawPrice > 0) {
                 // Calculate equivalent shares based on current averageWithdrawPrice
-                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
+                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Ceil);
                 existingAssets = state.maxWithdraw;
             }
 

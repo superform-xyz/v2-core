@@ -150,6 +150,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
 
+        console2.log("----------------- assets", assets);
+        console2.log("----------------- balanceOf(owner)", _asset.balanceOf(owner));
         if (_asset.balanceOf(owner) < assets) revert INVALID_AMOUNT();
 
         // Transfer assets to vault
@@ -188,6 +190,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
 
+        console2.log("----------------- shares", shares);
+        console2.log("----------------- balanceOf(owner)", balanceOf(owner));
         if (balanceOf(owner) < shares) revert INVALID_AMOUNT();
 
         // If msg.sender is operator of owner, the transfer is executed as if
@@ -503,7 +507,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         assets = shares.mulDiv(averageWithdrawPrice, 1e18, Math.Rounding.Floor);
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
-
+        console2.log("----------------- maxWithdrawAmount", maxWithdrawAmount);
+        console2.log("----------------- assets", assets);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Forward to strategy
