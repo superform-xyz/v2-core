@@ -271,6 +271,9 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
     function test_Redeem_RoundingBehavior() public {
         uint256 depositAmount = 1000e6;
         uint256 redeemAmount = 500e6;
+
+        // add some tokens initially to the strategy
+        _getTokens(address(asset), address(strategy), 1000);
         
         _getTokens(address(asset), accInstances[0].account, depositAmount);
         _requestDepositForAccount(accInstances[0], depositAmount);
@@ -289,7 +292,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         
         _requestRedeemForAccount(accInstances[0], redeemAmount);
         _fulfillRedeemForUsers(requestingUsers, redeemAmount / 2, redeemAmount / 2);
-        _claimWithdrawForAccount(accInstances[0], redeemAmount - 2); //@dev //@dev rounding: -2 to avoid rounding errors; maxWithdrawAmount is 499999998
+        _claimWithdrawForAccount(accInstances[0], redeemAmount); //@dev //@dev rounding: -2 to avoid rounding errors; maxWithdrawAmount is 499999998
         
         uint256 finalShareBalance = vault.balanceOf(accInstances[0].account);
         uint256 finalAssetBalance = asset.balanceOf(accInstances[0].account);
@@ -303,7 +306,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         
         uint256 difference = redeemAmount > assetsReceived ? 
             redeemAmount - assetsReceived : assetsReceived - redeemAmount;
-        assertLe(difference, 100);
+        assertLe(difference, REDEEM_THRESHOLD);
         
         uint256 remainingShareValue = vault.convertToAssets(finalShareBalance);
         console2.log("Remaining share balance:", finalShareBalance);

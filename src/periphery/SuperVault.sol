@@ -22,6 +22,9 @@ import {
 import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
+import "forge-std/console2.sol";
+
+
 /// @title SuperVault
 /// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
 /// @author SuperForm Labs
@@ -469,6 +472,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
+        console2.log("----------------- maxWithdrawAmount", maxWithdrawAmount);
+        console2.log("----------------- assets", assets);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price

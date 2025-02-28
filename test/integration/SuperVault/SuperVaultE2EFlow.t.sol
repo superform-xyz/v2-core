@@ -57,14 +57,14 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         );
         assertEq(
             asset.balanceOf(address(strategy)),
-            initialVaultAssets + amount,
+            initialVaultAssets + amount + REDEEM_THRESHOLD,
             "Vault assets not increased after deposit request"
         );
 
         uint256 expectedUserShares = vault.convertToShares(amount);
 
         // Step 2: Fulfill Deposit
-        _fulfillDeposit(amount);
+        _fulfillDeposit(expectedUserShares);
 
         // Step 3: Claim Deposit
         _claimDeposit(amount);
@@ -77,8 +77,18 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
         uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
+
+        (uint256 totalAssets,) = strategy.totalAssets();
+        uint256 totalSupply = vault.totalSupply();
+        uint256 ppsBefore =  totalAssets * 1e18/totalSupply;
+        console2.log("----------ppsBefore", ppsBefore);
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
+
+        (totalAssets,) = strategy.totalAssets();
+        totalSupply = vault.totalSupply();
+        console2.log("----------ppsAfter", totalAssets * 1e18/totalSupply);
+        uint256 totalRedeemShares = vault.balanceOf(accountEth);
 
         // Step 4: Request Redeem
         _requestRedeem(userShares);
@@ -90,9 +100,8 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFees(userShares, _getSuperVaultPricePerShare());
 
         uint256 totalFee = superformFee + recipientFee;
-
-        // Step 5: Fulfill Redeem
-        _fulfillRedeem(userShares);
+        
+        _fulfillRedeem(totalRedeemShares);
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);

@@ -50,6 +50,7 @@ interface ISuperVaultStrategy {
     error INVALID_EMERGENCY_WITHDRAWAL();
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
+    error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS

@@ -26,8 +26,6 @@ import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -42,7 +40,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     uint256 private constant ONE_WEEK = 7 days;
     uint256 private constant PRECISION_DECIMALS = 18;
     uint256 private constant PRECISION = 1e18;
-    uint256 private constant REDEEM_THRESHOLD = 1000;
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -247,7 +244,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
-            vars.sharesNeeded = vars.depositAssets.mulDiv(10 ** _vaultDecimals, vars.currentPricePerShare, Math.Rounding.Ceil);
+            vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare);
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
@@ -381,7 +378,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (!found) revert YIELD_SOURCE_NOT_FOUND();
                 // Check allocation rate using the same totalAssets value
                 if (
-                    (currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Ceil)
+                    (currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_)
                         > globalConfig.maxAllocationRate
                 ) {
                     revert MAX_ALLOCATION_RATE_EXCEEDED();
@@ -721,7 +718,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 freeAssets = _getTokenBalance(address(_asset), address(this));
             if (amount > freeAssets) revert INSUFFICIENT_FUNDS();
 
-            amount = _safeTokenTransfer(address(_asset), recipient, amount);
+            _safeTokenTransfer(address(_asset), recipient, amount);
             emit EmergencyWithdrawal(recipient, amount);
         } else {
             revert ACTION_TYPE_DISALLOWED();
@@ -808,25 +805,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
-            pricePerShare = 10 ** _vaultDecimals;
+            pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            
-            uint256 normalizedTotalAssetsValue = _toPriceDecimals(totalAssetsValue - REDEEM_THRESHOLD, _vaultDecimals);
-            normalizedTotalAssetsValue += REDEEM_THRESHOLD;
-            //pricePerShare = normalizedTotalAssetsValue.mulDiv(PRECISION, _toPriceDecimals(totalSupplyAmount, _vaultDecimals), Math.Rounding.Floor);
-            pricePerShare = totalAssetsValue.mulDiv(10 ** _vaultDecimals, totalSupplyAmount, Math.Rounding.Floor);
-            console2.log("----------------- totalAssetsValue", totalAssetsValue);
-            console2.log("----------------- normalizedTotalAssetsValue", normalizedTotalAssetsValue);
-            console2.log("----------------- totalSupplyAmount", totalSupplyAmount);
-            console2.log("----------------- pricePerShare", pricePerShare);
+            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
+            // Otherwise rounding issues in other places becomes bigger
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(10 ** _vaultDecimals, vars.pricePerShare, Math.Rounding.Floor);
+        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare);
 
         // Calculate new weighted average deposit price
         // maxDeposit (assets) = maxMint * previousPpsValue
@@ -862,7 +853,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.sharePricePointCursor = lastConsumedIndex;
         state.pendingRedeemRequest = 0;
 
-        state.maxWithdraw += finalAssets;
+        // truncate maxWithdraw to totalAssets if finalAssets is greater than totalAssets
+        // this prevents a situation where a user can't exit fully his position if he is the last redeeming from the
+        // vault
+        state.maxWithdraw += finalAssets > vars.totalAssets ? vars.totalAssets : finalAssets;
         _onRedeemClaimable(user, finalAssets, vars.requestedAmount);
     }
 
@@ -884,7 +878,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         SuperVaultState storage state = superVaultState[controller];
         state.pendingDepositRequest = 0;
 
-        assets = _safeTokenTransfer(address(_asset), _vault, assets);
+        _safeTokenTransfer(address(_asset), _vault, assets);
         return assets;
     }
 
@@ -924,21 +918,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
 
         // Update state
-        console2.log("----------state.maxWithdraw", state.maxWithdraw);
-        console2.log("----------assets           ", assets);
-        console2.log("----------balance          ", _getTokenBalance(address(_asset), address(this)));
         state.maxWithdraw -= assets;
 
-        /// @dev mark maxWithdraw as fully withdrawn when it's less than the threshold
-        if (state.maxWithdraw < REDEEM_THRESHOLD) {
-            state.maxWithdraw = 0;
-        }
-        console2.log("----------free Funds", _getTokenBalance(address(_asset), address(this)));
-        console2.log("----------assets", assets);
+        // truncate actual transfer to what's available as freeFundsFrom the vault
+        // TODO: we need a better solution. Essentially when the rounding there is precision
+        // loss. Could we could increase precision of pricePerShare so that we avoid needing to do this?
+        uint256 freeFunds = _getTokenBalance(address(_asset), address(this));
+        uint256 assetsToTransfer = assets > freeFunds ? freeFunds : assets;
 
         // Transfer assets to vault
-        assets = _safeTokenTransfer(address(_asset), _vault, assets);
-        return assets;
+        _safeTokenTransfer(address(_asset), _vault, assetsToTransfer);
+        return assetsToTransfer;
     }
 
     //--Fulfilment and allocation helpers--
@@ -1190,7 +1180,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Check allocation rate using the same totalAssets value
         if (
-            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Ceil)
+            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_)
                 > globalConfig.maxAllocationRate
         ) {
             revert MAX_ALLOCATION_RATE_EXCEEDED();
@@ -1216,29 +1206,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
-
-        // pps before warp 1000000997000000000
-        // -- warp 50 weeks
-        // pps after warp  1046909671000000000
-        // amount(shares) 500000000 (input for fulfill)
-        // amount(assets) 477596122
-        // amountConvertedToUnderlyingShares 434746936
-        // total underlying available shares 436834975
-
-        console2.log("----------amount", amount);
-
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
-        console2.log("----------pricePerShare", pricePerShare);
-        
-        uint256 amountOfAssets = amount.mulDiv(pricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
-        console2.log("----------amountOfAssets", amountOfAssets);
+
+        uint256 precision = PRECISION;
+        uint256 vaultAmount;
+       
+        vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
+
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
-            yieldSource, address(_asset), amountOfAssets
+            yieldSource, address(_asset), vaultAmount
         );
-        console2.log("----------amountConvertedToUnderlyingShares", amountConvertedToUnderlyingShares);
-        console2.log("----------total available shares           ", IERC4626(address(yieldSource)).balanceOf(address(this)));
+        if (pricePerShare < PRECISION) {
+            /// @dev account for rounding errors
+            ///      This can happen 2 times during the whole process currently
+            ///      When pps < PRECISION for operations using PPS, mulDiv will round it 2 times
+            //          resulting in a +2 error 
+            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
+        }
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval
 
@@ -1372,22 +1358,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
-            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Ceil);
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT);
 
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
-                uint256 superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Ceil);
+                uint256 superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees
                 if (superformFee > 0) {
                     address treasury = peripheryRegistry.getTreasury();
-                    superformFee = _safeTokenTransfer(address(_asset), treasury, superformFee);
+                    _safeTokenTransfer(address(_asset), treasury, superformFee);
                     emit FeePaid(treasury, superformFee, performanceFeeBps);
                 }
 
                 if (recipientFee > 0) {
-                    recipientFee = _safeTokenTransfer(address(_asset), feeConfig.recipient, recipientFee);
+                    _safeTokenTransfer(address(_asset), feeConfig.recipient, recipientFee);
                     emit FeePaid(feeConfig.recipient, recipientFee, performanceFeeBps);
                 }
 
@@ -1419,7 +1405,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1438,7 +1424,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Calculate current value and process fees
         // @dev we Ceil here because we Floor at shares calculation
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, 10 ** _vaultDecimals, Math.Rounding.Floor);
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Ceil);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
         // Update average withdraw price using weighted average
@@ -1450,7 +1436,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 existingAssets = 0;
 
             // Calculate existing assets based on current maxWithdraw
-            if (state.maxWithdraw > REDEEM_THRESHOLD && state.averageWithdrawPrice > 0) {
+            if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
                 // Calculate equivalent shares based on current averageWithdrawPrice
                 existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
                 existingAssets = state.maxWithdraw;
@@ -1460,7 +1446,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 newTotalAssets = existingAssets + finalAssets;
 
             if (newTotalShares > 0) {
-                state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Ceil);
+                state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
             }
         }
     }
@@ -1511,29 +1497,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         IERC20(token).forceApprove(spender, 0);
     }
 
-    function _safeTokenTransfer(address token, address recipient, uint256 amount) private returns (uint256) {
+    function _safeTokenTransfer(address token, address recipient, uint256 amount) private {
         if (amount > 0) {
-            uint256 balance = _getTokenBalance(token, address(this));
-            console2.log("--------- balance", balance);
-            console2.log("--------- amount", amount);
-            if (balance - amount < REDEEM_THRESHOLD) {
-                console2.log("--------- substracting threshold");
-                /// @dev always keep the `REDEEM_THRESHOLD` amount in the strategy
-                //      to avoid rounding errors
-                amount = amount - REDEEM_THRESHOLD; 
-                console2.log("--------- amount", amount);
-            }
             IERC20(token).safeTransfer(recipient, amount);
-
-            /// @dev recheck the balance after transfer
-            balance = _getTokenBalance(token, address(this));
-            console2.log("--------- balance", balance);
-            if (balance < REDEEM_THRESHOLD) {
-                revert INSUFFICIENT_BALANCE_AFTER_TRANSFER();
-            }
         }
-
-        return amount;
     }
 
     function _safeTokenTransferFrom(address token, address sender, address recipient, uint256 amount) private {
@@ -1545,10 +1512,4 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _getTokenBalance(address token, address account) private view returns (uint256) {
         return IERC20(token).balanceOf(account);
     }
-
-    function _toPriceDecimals(uint256 _value, uint8 decimals) internal pure returns (uint256) {
-        if (PRECISION_DECIMALS == decimals) return _value;
-        return _value * 10 ** (PRECISION_DECIMALS - decimals);
-    }
-
 }

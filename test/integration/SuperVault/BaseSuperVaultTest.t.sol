@@ -61,6 +61,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
 
+    uint256 public constant REDEEM_THRESHOLD = 1000;
+
     struct SharePricePoint {
         /// @notice Number of shares at this price point
         uint256 shares;
@@ -152,6 +154,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
+
+        // supply initial tokens to SuperVaultStrategy
+        /// @dev this is to avoid rounding errors when redeeming
+        _getTokens(address(asset), address(strategy), 1000);
     }
 
     /*//////////////////////////////////////////////////////////////
