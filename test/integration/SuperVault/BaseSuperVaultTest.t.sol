@@ -28,6 +28,8 @@ import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol"
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
+import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
+
 contract BaseSuperVaultTest is BaseTest, MerkleReader {
     using ModuleKitHelpers for *;
     using Math for uint256;
@@ -62,6 +64,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
 
     uint256 public constant REDEEM_THRESHOLD = 1000;
+
+    uint256 public constant BOOTSTRAP_AMOUNT = 1000;
 
     struct SharePricePoint {
         /// @notice Number of shares at this price point
@@ -112,13 +116,44 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
             vaultCap: VAULT_CAP,
             superVaultCap: SUPER_VAULT_CAP,
-            maxAllocationRate: MAX_ALLOCATION_RATE,
+            maxAllocationRate: ONE_HUNDRED_PERCENT,
             vaultThreshold: VAULT_THRESHOLD
         });
+        bytes32 hookRoot = _getMerkleRoot();
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory bootstrapHooks = new address[](1);
+        bootstrapHooks[0] = depositHookAddress;
+
+        bytes32[][] memory bootstrapHookProofs = new bytes32[][](1);
+        bootstrapHookProofs[0] = _getMerkleProof(depositHookAddress);
+
+        bytes[] memory bootstrapHooksData = new bytes[](1);
+        bootstrapHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), BOOTSTRAP_AMOUNT, false, false
+        );
+        vm.startPrank(SV_MANAGER);
+        deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT);
+        asset.approve(address(factory), BOOTSTRAP_AMOUNT);
 
         // Deploy vault trio
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
-            address(asset), "SuperVault USDC", "svUSDC", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, TREASURY
+            ISuperVaultFactory.VaultCreationParams({
+                asset: address(asset),
+                name: "SuperVault USDC",
+                symbol: "svUSDC",
+                manager: SV_MANAGER,
+                strategist: STRATEGIST,
+                emergencyAdmin: EMERGENCY_ADMIN,
+                feeRecipient: TREASURY,
+                config: config,
+                initYieldSource: address(fluidVault),
+                initHooksRoot: hookRoot,
+                initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                bootstrappingHooks: bootstrapHooks,
+                bootstrappingHookProofs: bootstrapHookProofs,
+                bootstrappingHookCalldata: bootstrapHooksData
+            })
         );
         vm.label(vaultAddr, "SuperVault");
         vm.label(strategyAddr, "SuperVaultStrategy");
@@ -129,14 +164,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy = SuperVaultStrategy(strategyAddr);
         escrow = SuperVaultEscrow(escrowAddr);
 
-        // Add yield sources as manager
-        vm.startPrank(SV_MANAGER);
-        strategy.manageYieldSource(
-            address(fluidVault),
-            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-            0,
-            false // addYieldSource
-        );
+        // Add a new yield source as manager
+
         strategy.manageYieldSource(
             address(aaveVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -147,23 +176,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         _setFeeConfig(100, TREASURY);
 
-        // Set up hook root
-        bytes32 hookRoot = _getMerkleRoot();
+        // Set up hook root (same one as bootstrap, just to test)
         vm.startPrank(SV_MANAGER);
         strategy.proposeOrExecuteHookRoot(hookRoot);
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
-
-        // supply initial tokens to SuperVaultStrategy
-        /// @dev this is to avoid rounding errors when redeeming
-        _getTokens(address(asset), address(strategy), 1000);
     }
 
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-     /*//////////////////////////////////////////////////////////////
+    /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) private {
@@ -197,7 +221,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-    
+
     function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) private {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -216,7 +240,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
         executeOp(redeemUserOpData);
     }
-    
+
     function __claimWithdraw(AccountInstance memory accInst, uint256 assets) internal {
         address[] memory claimHooksAddresses = new address[](1);
         claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -277,6 +301,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _claimDeposit(uint256 depositAmount) internal {
         __claimDeposit(instanceOnEth, depositAmount);
     }
+
     function _claimDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
         __claimDeposit(accInst, depositAmount);
     }
@@ -292,7 +317,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _requestRedeemForAccount_Revert(AccountInstance memory accInst, uint256 redeemShares) internal {
         __requestRedeem(accInst, redeemShares, true);
     }
-
 
     function _fulfillRedeem(uint256 redeemShares) internal {
         address[] memory requestingUsers = new address[](1);
@@ -334,6 +358,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _claimWithdrawForAccount(AccountInstance memory accInst, uint256 assets) internal {
         __claimWithdraw(accInst, assets);
     }
+
     function _claimWithdraw(uint256 assets) internal {
         __claimWithdraw(instanceOnEth, assets);
     }

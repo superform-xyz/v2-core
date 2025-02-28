@@ -77,17 +77,18 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
         uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
-
         (uint256 totalAssets,) = strategy.totalAssets();
         uint256 totalSupply = vault.totalSupply();
-        uint256 ppsBefore =  totalAssets * 1e18/totalSupply;
+        uint256 ppsBefore = totalAssets * 1e18 / totalSupply;
         console2.log("----------ppsBefore", ppsBefore);
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
 
         (totalAssets,) = strategy.totalAssets();
         totalSupply = vault.totalSupply();
-        console2.log("----------ppsAfter", totalAssets * 1e18/totalSupply);
+        console2.log("----------ppsAfter", totalAssets * 1e18 / totalSupply);
+
+        console2.log("----deposit done ---");
         uint256 totalRedeemShares = vault.balanceOf(accountEth);
 
         // Step 4: Request Redeem
@@ -100,7 +101,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFees(userShares, _getSuperVaultPricePerShare());
 
         uint256 totalFee = superformFee + recipientFee;
-        
+
         _fulfillRedeem(totalRedeemShares);
 
         // Calculate expected assets based on shares

@@ -41,7 +41,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
     uint256 private constant PRECISION_DECIMALS = 18;
-    uint256 private constant PRECISION = 1e18;
+    uint256 public constant PRECISION = 1e18;
     uint256 private constant REDEEM_THRESHOLD = 1000;
 
     // Role identifiers
@@ -107,7 +107,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address strategist_,
         address emergencyAdmin_,
         address peripheryRegistry_,
-        GlobalConfig memory config_
+        GlobalConfig memory config_,
+        address initYieldSource_,
+        bytes32 initHooksRoot_,
+        address initYieldSourceOracle_
     )
         external
     {
@@ -135,6 +138,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
         peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
         globalConfig = config_;
+
+        // Initialize first yield source and hook root to bootstrap the vault
+        if (initHooksRoot_ == bytes32(0)) revert INVALID_HOOK_ROOT();
+        hookRoot = initHooksRoot_;
+        emit HookRootUpdated(initHooksRoot_);
+
+        if (initYieldSourceOracle_ == address(0)) revert ZERO_ADDRESS();
+        if (initYieldSource_ == address(0)) revert ZERO_ADDRESS();
+
+        yieldSources[initYieldSource_] = YieldSource({ oracle: initYieldSourceOracle_, isActive: true });
+        yieldSourcesList.push(initYieldSource_);
+        emit YieldSourceAdded(initYieldSource_, initYieldSourceOracle_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -193,7 +208,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // If deposit, check available balance
         if (isDeposit) {
             vars.availableAmount = _getTokenBalance(address(_asset), address(this));
-            console2.log("----------vars.availableAmount", vars.availableAmount);   
+            console2.log("----------vars.availableAmount", vars.availableAmount);
             console2.log("----------vars.totalRequestedAmount", vars.totalRequestedAmount);
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
@@ -383,8 +398,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (!found) revert YIELD_SOURCE_NOT_FOUND();
                 // Check allocation rate using the same totalAssets value
                 if (
-                    (currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Ceil)
-                        > globalConfig.maxAllocationRate
+                    (currentYieldSourceAssets + vars.amount).mulDiv(
+                        ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor
+                    ) > globalConfig.maxAllocationRate
                 ) {
                     revert MAX_ALLOCATION_RATE_EXCEEDED();
                 }
@@ -688,13 +704,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @notice Set an address for a given role
-    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
+    /// @dev Only callable by MANAGER role
     /// @param role The role identifier
     /// @param account The address to set for the role
     function setAddress(bytes32 role, address account) external {
         _requireRole(MANAGER_ROLE);
         if (account == address(0)) revert ZERO_ADDRESS();
-        if (role == MANAGER_ROLE && account != msg.sender) revert ACCESS_DENIED();
 
         addresses[role] = account;
     }
@@ -816,7 +831,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         } else {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            
+
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
             console2.log("----------------- totalAssetsValue", totalAssetsValue);
             console2.log("----------------- totalSupplyAmount", totalSupplyAmount);
@@ -1147,8 +1162,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
         } else {
             if (
-                vars.spentAmount + REDEEM_THRESHOLD < vars.totalRequestedAmount || 
-                vars.spentAmount > vars.totalRequestedAmount + REDEEM_THRESHOLD
+                vars.spentAmount + REDEEM_THRESHOLD < vars.totalRequestedAmount
+                    || vars.spentAmount > vars.totalRequestedAmount + REDEEM_THRESHOLD
             ) {
                 revert INVALID_AMOUNT();
             }
@@ -1210,7 +1225,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Check allocation rate using the same totalAssets value
         if (
-            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Ceil)
+            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor)
                 > globalConfig.maxAllocationRate
         ) {
             revert MAX_ALLOCATION_RATE_EXCEEDED();
@@ -1241,7 +1256,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // convert amount to underlying vault shares
         (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
         console2.log("----------pricePerShare", pricePerShare);
-        
+
         uint256 amountOfAssets = amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
         console2.log("----------amountOfAssets", amountOfAssets);
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
@@ -1249,7 +1264,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             yieldSource, address(_asset), amountOfAssets
         );
         console2.log("----------amountConvertedToUnderlyingShares", amountConvertedToUnderlyingShares);
-        console2.log("----------total available shares           ", IERC4626(address(yieldSource)).balanceOf(address(this)));
+        console2.log(
+            "----------total available shares           ", IERC4626(address(yieldSource)).balanceOf(address(this))
+        );
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
         // Execute hook with vault token approval
 
@@ -1387,7 +1404,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
-                uint256 superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
+                uint256 superformFee =
+                    totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees
@@ -1448,7 +1466,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        // @dev Rounding.Ceil is used here because state.maxWithdraw can be less with -1 than the actual amount otherwise
+        // @dev Rounding.Ceil is used here because state.maxWithdraw can be less with -1 than the actual amount
+        // otherwise
         uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Ceil);
         finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
 
@@ -1531,7 +1550,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 console2.log("--------- substracting threshold");
                 /// @dev always keep the `REDEEM_THRESHOLD` amount in the strategy
                 //      to avoid rounding errors
-                amount = amount - REDEEM_THRESHOLD; 
+                amount = amount - REDEEM_THRESHOLD;
                 console2.log("--------- amount", amount);
             }
             IERC20(token).safeTransfer(recipient, amount);
@@ -1561,5 +1580,4 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (PRECISION_DECIMALS == decimals) return _value;
         return _value * 10 ** (PRECISION_DECIMALS - decimals);
     }
-
 }
