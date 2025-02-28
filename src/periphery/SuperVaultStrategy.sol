@@ -817,12 +817,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
             
-            uint256 normalizedTotalAssetsValue = _toPriceDecimals(totalAssetsValue - REDEEM_THRESHOLD, _vaultDecimals);
-            normalizedTotalAssetsValue += REDEEM_THRESHOLD;
-            //pricePerShare = normalizedTotalAssetsValue.mulDiv(PRECISION, _toPriceDecimals(totalSupplyAmount, _vaultDecimals), Math.Rounding.Ceil);
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
             console2.log("----------------- totalAssetsValue", totalAssetsValue);
-            console2.log("----------------- normalizedTotalAssetsValue", normalizedTotalAssetsValue);
             console2.log("----------------- totalSupplyAmount", totalSupplyAmount);
             console2.log("----------------- pricePerShare", pricePerShare);
         }
