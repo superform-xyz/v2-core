@@ -139,6 +139,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         vars.STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
         // Transfer bootstrap amount from sender to this contract
         vars.assetToken.safeTransferFrom(msg.sender, address(this), BOOTSTRAP_AMOUNT);
+        vars.assetToken.safeTransferFrom(msg.sender, strategy, 100);
 
         // Approve asset for superVault
         vars.assetToken.safeIncreaseAllowance(superVault, BOOTSTRAP_AMOUNT);
@@ -173,7 +174,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         vars.precision = vars.strategyContract.PRECISION();
         vars.pricePerShare = vars.totalAssets.mulDiv(vars.precision, vars.totalSupply, Math.Rounding.Floor);
 
-        console2.log("----------------- pricePerShare", vars.pricePerShare);
+        console2.log("----------------- pricePerShare INIT", vars.pricePerShare);
 
         // prevent bootstrapping vaults where the PPS does not increase
         if (vars.pricePerShare <= vars.precision) {

@@ -133,8 +133,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), BOOTSTRAP_AMOUNT, false, false
         );
         vm.startPrank(SV_MANAGER);
-        deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT);
-        asset.approve(address(factory), BOOTSTRAP_AMOUNT);
+        deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
+        asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
 
         // Deploy vault trio
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
