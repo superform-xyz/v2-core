@@ -58,11 +58,11 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         _sendFundsToSuperVault(amount * 100);
 
         // Do an initial deposit to stabilize price per share
-        console2.log("\n=== Stabilizing price per share ===");
-        _completeDepositFlow(amount * 10);
-        vm.warp(block.timestamp + 1 days);
+        // console2.log("\n=== Stabilizing price per share ===");
+        // _completeDepositFlow(amount * 10);
+        // vm.warp(block.timestamp + 1 days);
 
-        console2.log("Initial price per share:", vault.convertToAssets(1e18));
+        console2.log("Initial price per share:", _getSuperVaultPricePerShare());
 
         // Setup depositors with deposit requests
         console2.log("\n=== Setting up depositors ===");
@@ -101,6 +101,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         for (uint256 i = 0; i < 10; i++) {
             uint256 redeemIndex = i + 10;
             __fulfillDepositRequest(accInstances[redeemIndex], amount);
+            console2.log("Price per share after fulfill:", _getSuperVaultPricePerShare());
         }
         vm.stopPrank();
 
