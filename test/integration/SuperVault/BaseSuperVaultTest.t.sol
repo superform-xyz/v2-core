@@ -59,11 +59,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant VAULT_CAP = 1_000_000e6; // 1M USDC
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
-    uint256 constant MAX_ALLOCATION_RATE = 5000; // 50%
+    uint256 constant MAX_ALLOCATION_RATE = 6000; // 50%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
 
-    uint256 public constant REDEEM_THRESHOLD = 1000;
+    uint256 public constant REDEEM_THRESHOLD = 100;
 
     uint256 public constant BOOTSTRAP_AMOUNT = 1e6;
 
@@ -147,6 +147,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
                 config: config,
+                finalMaxAllocationRate: MAX_ALLOCATION_RATE,
                 initYieldSource: address(fluidVault),
                 initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),

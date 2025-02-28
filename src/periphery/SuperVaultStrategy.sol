@@ -222,8 +222,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (isDeposit) {
             _checkVaultCaps(targetedYieldSources);
         }
-
-        (, vars.totalAssets, vars.totalSupplyAmount) = _getSuperVaultAssetInfo();
+        /// @dev pps here is just used to pass to redeem
+        (vars.pricePerShare, vars.totalAssets, vars.totalSupplyAmount) = _getSuperVaultAssetInfo();
 
         // Process requests
         for (uint256 i; i < usersLength;) {
@@ -231,20 +231,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             SuperVaultState storage state = superVaultState[user];
 
             if (isDeposit) {
-                /*
-                console2.log("\n----PROCESS DEPOSIT END STATE----");
-
-                vars.requestedAmount = state.pendingDepositRequest;
-                vars.pricePerShare = vars.totalSupplyAmount == 0
-                    ? PRECISION
-                    : vars.totalAssets.mulDiv(PRECISION, vars.totalSupplyAmount, Math.Rounding.Floor);
-                vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
-                vars.totalSupplyAmount += vars.shares;
-                console2.log("RequestedAmount", vars.requestedAmount);
-                console2.log("PricePerShare", vars.pricePerShare);
-                console2.log("Shares", vars.shares);
-                console2.log("TotalSupplyAmount accrued with new shares", vars.totalSupplyAmount);
-                */
                 console2.log("\n----PROCESS DEPOSIT END STATE----");
 
                 vars.requestedAmount = state.pendingDepositRequest;
@@ -256,6 +242,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 } else {
                     // Calculate shares based on proportion of new total assets
                     // shares = (deposit * totalSupply) / (totalAssets - deposit)
+                    /// @dev Check if this is valid
                     vars.shares = vars.requestedAmount.mulDiv(
                         vars.totalSupplyAmount, vars.totalAssets - vars.requestedAmount, Math.Rounding.Floor
                     );
@@ -263,8 +250,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                     vars.pricePerShare =
                         vars.totalAssets.mulDiv(PRECISION, vars.totalSupplyAmount + vars.shares, Math.Rounding.Floor);
                 }
-
-                vars.totalSupplyAmount += vars.shares;
 
                 console2.log("RequestedAmount", vars.requestedAmount);
                 console2.log("TotalAssets", vars.totalAssets);
@@ -686,8 +671,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
     }
 
-    /// @notice Update global configuration
-    /// @param config New global configuration
+    /// @inheritdoc ISuperVaultStrategy
     function updateGlobalConfig(GlobalConfig calldata config) external {
         _requireRole(MANAGER_ROLE);
         if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
@@ -863,22 +847,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         return IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
     }
 
-    // First deposit  1 USDC
-    //  . requestDeposit => totalAssets = 1 USDC
-    //  . fulfillDeposit => totalAssets = 1 USDC, totalSupply = 1 USDC
-    //  . pps = 1e18
-
-    // Second deposit 1000 USDC
-    //  . requestDeposit => totalAssets = 1001 USDC
-    //  . pps  1001 * 1e18 / 1 => 1001  ! problem here !
-
     function _getSuperVaultAssetInfo()
         private
         view
         returns (uint256 pricePerShare, uint256 totalAssetsValue, uint256 totalSupplyAmount)
     {
         console2.log("\n----GET PPS ----");
-        //uint256 totalSupplyAmount = IERC4626(_vault).totalSupply() + 10 ** ISuperVault(_vault).decimalsOffset();
         totalSupplyAmount = IERC4626(_vault).totalSupply();
         console2.log("TotalSupplyAmount", totalSupplyAmount);
         if (totalSupplyAmount == 0) {
@@ -887,7 +861,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         } else {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            //totalAssetsValue += 1;
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
             console2.log("TotalAssetsValue", totalAssetsValue);
             console2.log("PricePerShare", pricePerShare);
@@ -1264,6 +1237,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
         if (!found) revert YIELD_SOURCE_NOT_FOUND();
 
+        console2.log(
+            "ALLO RATE",
+            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor)
+        );
+        console2.log("MAX ALLOCATION RATE", globalConfig.maxAllocationRate);
         // Check allocation rate using the same totalAssets value
         if (
             (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor)

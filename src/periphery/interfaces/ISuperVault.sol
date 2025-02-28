@@ -52,8 +52,4 @@ interface ISuperVault {
     /// @param assets The amount of assets to be received
     /// @param shares The amount of shares redeemed
     function onRedeemClaimable(address user, uint256 assets, uint256 shares) external;
-
-    /// @notice Get the decimals offset
-    /// @return The decimals offset
-    function decimalsOffset() external view returns (uint8);
 }

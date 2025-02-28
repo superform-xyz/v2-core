@@ -345,17 +345,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         return _underlyingDecimals;
     }
 
-    /*
-    /// @inheritdoc IERC20Metadata
-    function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
-        return _underlyingDecimals + decimalsOffset();
-    }
-    */
-
-    function decimalsOffset() public view virtual returns (uint8) {
-        return 2;
-    }
-
     /// @inheritdoc IERC4626
     function asset() public view virtual override returns (address) {
         return address(_asset);
@@ -378,23 +367,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         uint256 supply = totalSupply();
         return supply == 0 ? shares : Math.mulDiv(shares, totalAssets(), supply, Math.Rounding.Floor);
     }
-
-    /*
-
-    /// @inheritdoc IERC4626
-    function convertToShares(uint256 assets) public view override returns (uint256) {
-        uint256 supply = totalSupply() + 10 ** decimalsOffset();
-        /// @dev TODO: add +1 in totalAssets() just like OZ recommended?
-        return Math.mulDiv(assets, supply, totalAssets(), Math.Rounding.Floor);
-    }
-
-    /// @inheritdoc IERC4626
-    function convertToAssets(uint256 shares) public view override returns (uint256) {
-        uint256 supply = totalSupply() + 10 ** decimalsOffset();
-        /// @dev TODO: add +1 in totalAssets() just like OZ recommended?
-        return Math.mulDiv(shares, totalAssets(), supply, Math.Rounding.Floor);
-    }
-    */
 
     /// @inheritdoc IERC4626
     function maxMint(address owner) public view override returns (uint256) {

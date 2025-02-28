@@ -288,6 +288,11 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Update global configuration
+    /// @param config New global configuration
+    function updateGlobalConfig(GlobalConfig calldata config) external;
+
     /// @notice Manage yield sources: add, update oracle, and toggle activation.
     /// @param source Address of the yield source.
     /// @param oracle Address of the oracle (used for adding/updating).
