@@ -163,7 +163,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-     /*//////////////////////////////////////////////////////////////
+    /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) private {
@@ -219,13 +219,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function __fulfillDepositRequest(AccountInstance memory accInst, uint256 depositAmount) internal {
         console2.log("Starting fulfill deposit request for amount:", depositAmount);
-        
+
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         console2.log("Using deposit hook:", depositHookAddress);
 
         // Split the deposit between two hooks
         uint256 halfAmount = depositAmount / 2;
-        
+
         address[] memory hooks = new address[](2);
         hooks[0] = depositHookAddress;
         hooks[1] = depositHookAddress;
@@ -237,18 +237,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory hookCalldata = new bytes[](2);
         // First half to fluid vault
         hookCalldata[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(fluidVault), 
-            halfAmount,  // Use half amount
-            false, 
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            halfAmount, // Use half amount
+            false,
             false
         );
         // Second half to aave vault
         hookCalldata[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(aaveVault), 
-            depositAmount - halfAmount,  // Use remaining amount to handle odd numbers
-            false, 
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            depositAmount - halfAmount, // Use remaining amount to handle odd numbers
+            false,
             false
         );
 
@@ -256,14 +256,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         users[0] = accInst.account;
 
         console2.log("Strategy balance before fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
-        
+
         vm.startPrank(STRATEGIST);
         strategy.fulfillRequests(users, hooks, proofs, hookCalldata, true);
         vm.stopPrank();
-        
+
         console2.log("Strategy balance after fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
     }
-    
+
     function __claimWithdraw(AccountInstance memory accInst, uint256 assets) internal {
         address[] memory claimHooksAddresses = new address[](1);
         claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -381,6 +381,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _claimWithdrawForAccount(AccountInstance memory accInst, uint256 assets) internal {
         __claimWithdraw(accInst, assets);
     }
+
     function _claimWithdraw(uint256 assets) internal {
         __claimWithdraw(instanceOnEth, assets);
     }
