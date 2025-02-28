@@ -540,33 +540,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @inheritdoc ISuperVaultStrategy
     function totalAssets() public view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
-        uint256 length = yieldSourcesList.length;
-        sourceTVLs = new YieldSourceTVL[](length);
-        uint256 activeSourceCount;
-
-        totalAssets_ = _getTokenBalance(address(_asset), address(this));
-        console2.log("----------------- totalAssets_", totalAssets_);
-        for (uint256 i; i < length;) {
-            address source = yieldSourcesList[i];
-            if (yieldSources[source].isActive) {
-                uint256 tvl = _getTvlByOwnerOfShares(source);
-                totalAssets_ += tvl;
-                sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        if (activeSourceCount < length) {
-            assembly {
-                mstore(sourceTVLs, activeSourceCount)
-            }
-        }
+        (totalAssets_, sourceTVLs) = _totalAssets(_getTokenBalance(address(_asset), address(this)));
     }
 
-   
-
+    
     /// @inheritdoc ISuperVaultStrategy
     function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256) {
         SuperVaultState storage state = superVaultState[owner];
@@ -822,7 +799,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
-            (totalAssetsValue,) = totalAssets();
+            (totalAssetsValue,) = totalAssets(); 
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
             console2.log("----------------- totalAssetsValue", totalAssetsValue);
             console2.log("----------------- totalSupplyAmount", totalSupplyAmount);
@@ -1242,9 +1219,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         console2.log("----------amount", amount);
 
         // convert amount to underlying vault shares
-        console2.log("----------pricePerShare", vars.pricePerShare);
+        (uint256 pricePerShare, ) = _getSuperVaultAssetInfo();
+        console2.log("----------pricePerShare", pricePerShare);
         
-        uint256 amountOfAssets = amount.mulDiv(vars.pricePerShare, PRECISION, Math.Rounding.Floor);
+        uint256 amountOfAssets = amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
         console2.log("----------amountOfAssets", amountOfAssets);
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
@@ -1545,4 +1523,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         return _value * 10 ** (PRECISION_DECIMALS - decimals);
     }
 
+    function _totalAssets(uint256 balance) public view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
+        uint256 length = yieldSourcesList.length;
+        sourceTVLs = new YieldSourceTVL[](length);
+        uint256 activeSourceCount;
+
+        totalAssets_ = balance;
+        console2.log("----------------- totalAssets_", totalAssets_);
+        for (uint256 i; i < length;) {
+            address source = yieldSourcesList[i];
+            if (yieldSources[source].isActive) {
+                uint256 tvl = _getTvlByOwnerOfShares(source);
+                totalAssets_ += tvl;
+                sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        if (activeSourceCount < length) {
+            assembly {
+                mstore(sourceTVLs, activeSourceCount)
+            }
+        }
+    }
 }
