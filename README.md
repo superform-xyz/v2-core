@@ -133,6 +133,13 @@ Key Points for Auditors:
     ultimately it is up to the SuperBundler to provide the correct suggestions for users in the majority of the cases.
     More considerations on this in the SuperBundler section.
 
+Untested Areas:
+- No unit tests for hooks (only integration tests)
+- The only swap hook that is tested is SwapOdosHook.sol
+  - `SwapOdosHook.sol` has only been tested using a simple mock `MockOdosRouterV2.sol` which transfers amount with slippage. This still needs to be tested with actual router implementations.
+  - No tests for other hooks that do swaps yet due to api requirements, these will be tested using `surl` in the future.
+- No tests for any of the hooks for staking and claiming staked tokens yet. 
+
 #### SuperExecutor
 
 The SuperExecutor is responsible for executing the provided hooks, invoking pre- and post-execute functions to handle
@@ -323,8 +330,9 @@ Key Points for Auditors:
   - Emergency controls
   - Hook validation
 - Important cases to watch for:
-  - Fee calculation accuracy
   - Rebalance accuracy
+  - Fee calculation accuracy
+  - Sufficient mitigation of rounding issues
   - Guardrails to protect users/strategists against bad underlying vaults. Are they enough?
   - Unique logic around matchRequests functionality, which will have high importance to reduce gas costs to fulfill requests in Coindidence of Wants format.
   - Ensure all the above is secure in light of the existence of the escrow contract
@@ -334,6 +342,14 @@ Factory Implementation:
 - Proxy pattern for gas efficiency
 - Configurable parameters for new vaults
 - Security measures for initialization
+- Important case to watch for:
+  - The factory performs an initial deposit into the vault during the `createVault` function. This is done to mitigate the discrepancy between shares received by the first depositor and subsequent depositors due to changes in the price per share. Is this the best approach to mitigate this issue?
+
+Untested Areas:
+
+- The `claim` function and the `compoudClaimedTokens` functions have not yet been tested.
+- `allocate()` has not yet been tested.
+- `manageEmergencyWithdrawal()` has only been partially tested.
 
 ## SuperBundler & Account Abstraction
 
