@@ -421,6 +421,14 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         assertEq(userShares, expectedShares, "user should receive expected shares");
         
         uint256 userShareValue = vault.convertToAssets(userShares);
+        console2.log("userShares                  ", userShares);
+        console2.log("userShare in asset          ", userShareValue);
+        console2.log("depositAmount               ", depositAmount);
+
+
+        uint256 initialBootstrapperShares = vault.balanceOf(address(this));
+        console2.log("boostrapper shares          ", initialBootstrapperShares);
+        console2.log("bootstrapper shares in asset", initialBootstrapperShares);
         assertEq(userShareValue, expectedAssetValue, "share value should match expected");
         assertGt(userShareValue, depositAmount, "share value should be greater than deposit due to yield");
     }

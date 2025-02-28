@@ -421,15 +421,21 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Convert maxMint to assets using average deposit price
         /// @dev we use `Ceil` rounding here because `Floor` is used for shares
         uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, 1e18, Math.Rounding.Ceil);
+        console2.log("---------------------------- maxAssets", maxAssets);
+        console2.log("---------------------------- assets", assets);
         if (assets > maxAssets) revert INVALID_DEPOSIT_CLAIM();
 
         // Calculate shares based on assets and average price
         shares = assets.mulDiv(1e18, averageDepositPrice, Math.Rounding.Floor);
+        console2.log("---------------------------- shares", shares);
+        console2.log("---------------------------- averageDepositPrice", averageDepositPrice);
 
         // Forward to strategy
         strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
 
         // Transfer shares to receiver
+        console2.log("----------------- shares", shares);   
+        console2.log("----------------- receiver", receiver);   
         ISuperVaultEscrow(escrow).transferShares(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);

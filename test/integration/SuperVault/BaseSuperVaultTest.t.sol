@@ -182,6 +182,25 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
+
+        /*
+        // supply initial tokens to SuperVaultStrategy
+        /// @dev this is to avoid rounding errors when redeeming
+        uint256 initialDepositAmount = 1e6; // 1 USDC
+        _getTokens(address(asset), address(this), initialDepositAmount);
+        vm.startPrank(address(this));
+        asset.approve(address(vault), initialDepositAmount);
+        vault.requestDeposit(initialDepositAmount, address(this), address(this));
+        vm.stopPrank();
+        _fulfillDepositForInitialDeposit(initialDepositAmount);
+
+        vm.startPrank(address(this));
+        vault.deposit(initialDepositAmount, address(this), address(this));
+        vm.stopPrank();
+
+        uint256 initialBootstrapperShares = vault.balanceOf(address(this));
+        console2.log("boostrapper shares          ", initialBootstrapperShares);
+        */
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -296,6 +315,37 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
         uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
         userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
+    }
+
+    function _fulfillDepositForInitialDeposit(uint256 depositAmount) internal {
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = address(this);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = _getMerkleProof(depositHookAddress);
+        proofs[1] = proofs[0];
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        vm.stopPrank();
+
+        (uint256 pricePerShare) = _getSuperVaultPricePerShare();
+        uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
+        userSharePricePoints[address(this)].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
     }
 
     function _claimDeposit(uint256 depositAmount) internal {
