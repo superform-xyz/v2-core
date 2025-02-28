@@ -57,10 +57,10 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         _sendFundsToStrategy(amount * 100);
         _sendFundsToSuperVault(amount * 100);
 
-        // Do an initial deposit to stabilize price per share
-        // console2.log("\n=== Stabilizing price per share ===");
-        // _completeDepositFlow(amount * 10);
-        // vm.warp(block.timestamp + 1 days);
+        //Do an initial deposit to stabilize price per share
+        console2.log("\n=== Stabilizing price per share ===");
+        _completeDepositFlow(amount * 10);
+        vm.warp(block.timestamp + 1 days);
 
         console2.log("Initial price per share:", _getSuperVaultPricePerShare());
 
@@ -68,14 +68,14 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         console2.log("\n=== Setting up depositors ===");
         address[] memory redeemUsers = new address[](10);
         address[] memory depositUsers = new address[](10);
-
+        uint256 pendingDeposit;
         for (uint256 i = 0; i < 10; i++) {
             console2.log("\n--- Setting up depositor", i, "---");
             _getTokens(address(asset), accInstances[i].account, amount);
             _requestDepositForAccount(accInstances[i], amount);
             depositUsers[i] = accInstances[i].account;
 
-            uint256 pendingDeposit = strategy.pendingDepositRequest(accInstances[i].account);
+            pendingDeposit = strategy.pendingDepositRequest(accInstances[i].account);
             console2.log("Pending deposit amount:", pendingDeposit);
             assertEq(pendingDeposit, amount, "Deposit request not created");
         }
@@ -88,9 +88,9 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             _getTokens(address(asset), accInstances[redeemIndex].account, amount);
             _requestDepositForAccount(accInstances[redeemIndex], amount);
 
-            // Log initial state
-            console2.log("Price per share:", vault.convertToAssets(1e18));
-            console2.log("Deposit state:", strategy.getSuperVaultState(accInstances[redeemIndex].account, 3));
+            pendingDeposit = strategy.pendingDepositRequest(accInstances[redeemIndex].account);
+            console2.log("Pending deposit amount:", pendingDeposit);
+            assertEq(pendingDeposit, amount, "Deposit request not created");
         }
 
         // Fulfill all redeemer deposits in one go

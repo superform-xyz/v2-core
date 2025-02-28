@@ -218,6 +218,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function __fulfillDepositRequest(AccountInstance memory accInst, uint256 depositAmount) internal {
+        console2.log("\n::::");
+
         console2.log("Starting fulfill deposit request for amount:", depositAmount);
 
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -226,9 +228,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Split the deposit between two hooks
         uint256 halfAmount = depositAmount / 2;
 
-        address[] memory hooks = new address[](2);
-        hooks[0] = depositHookAddress;
-        hooks[1] = depositHookAddress;
+        address[] memory hooks_ = new address[](2);
+        hooks_[0] = depositHookAddress;
+        hooks_[1] = depositHookAddress;
 
         bytes32[][] memory proofs = new bytes32[][](2);
         proofs[0] = _getMerkleProof(depositHookAddress);
@@ -254,11 +256,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         address[] memory users = new address[](1);
         users[0] = accInst.account;
+        console2.log("\n---");
 
         console2.log("Strategy balance before fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(users, hooks, proofs, hookCalldata, true);
+        strategy.fulfillRequests(users, hooks_, proofs, hookCalldata, true);
         vm.stopPrank();
 
         console2.log("Strategy balance after fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
