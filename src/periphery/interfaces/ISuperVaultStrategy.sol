@@ -121,6 +121,7 @@ interface ISuperVaultStrategy {
     struct FulfillmentVars {
         // Common variables used in both deposit and redeem flows
         uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
+        uint256 totalSupplyAmount; // Base total amount of shares in the vault
         uint256 spentAmount; // Running total of assets/shares spent in hooks
         uint256 pricePerShare; // Current price per share, used for calculations
         uint256 requestedAmount; // Individual user's requested amount
@@ -145,6 +146,7 @@ interface ISuperVaultStrategy {
         uint256 finalAssets; // Final assets after fee calculation
         // Price tracking
         uint256 currentPricePerShare; // Current price per share for calculations
+        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct AllocationVars {

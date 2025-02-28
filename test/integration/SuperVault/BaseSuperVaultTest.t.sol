@@ -65,7 +65,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     uint256 public constant REDEEM_THRESHOLD = 1000;
 
-    uint256 public constant BOOTSTRAP_AMOUNT = 1000;
+    uint256 public constant BOOTSTRAP_AMOUNT = 1e6;
 
     struct SharePricePoint {
         /// @notice Number of shares at this price point
@@ -304,6 +304,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksData[0] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
         );
+
         fulfillHooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
         );
@@ -369,6 +370,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _fulfillRedeem(uint256 redeemShares) internal {
+        /// @dev with preserve percentages based on USD value allocation
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
@@ -381,21 +383,43 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         proofs[0] = _getMerkleProof(withdrawHookAddress);
         proofs[1] = proofs[0];
 
+        // Get current shares in each vault
+        uint256 fluidShares = fluidVault.balanceOf(address(strategy));
+        uint256 aaveShares = aaveVault.balanceOf(address(strategy));
+
+        uint256 fluidUsdcValue = fluidVault.convertToAssets(fluidShares);
+        uint256 aaveUsdcValue = aaveVault.convertToAssets(aaveShares);
+        console2.log("fluidUsdcValue", fluidUsdcValue);
+        console2.log("aaveUsdcValue", aaveUsdcValue);
+        // Calculate proportional split based on USD values
+        uint256 totalUsdValue = fluidUsdcValue + aaveUsdcValue;
+        uint256 fluidSharesOut;
+        uint256 aaveSharesOut;
+
+        if (totalUsdValue > 0) {
+            fluidSharesOut = (redeemShares * fluidUsdcValue) / totalUsdValue;
+            aaveSharesOut = redeemShares - fluidSharesOut; // Use subtraction to avoid rounding errors
+
+            console2.log("fluidSharesOut", fluidSharesOut);
+            console2.log("aaveSharesOut", aaveSharesOut);
+        }
+
         bytes[] memory fulfillHooksData = new bytes[](2);
-        // Withdraw proportionally from both vaults
+        // Withdraw proportionally from both vaults based on USD value allocation
         fulfillHooksData[0] = _createWithdraw4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
-            redeemShares / 2,
+            fluidSharesOut,
             false,
             false
         );
+
         fulfillHooksData[1] = _createWithdraw4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(strategy),
-            redeemShares / 2,
+            aaveSharesOut,
             false,
             false
         );

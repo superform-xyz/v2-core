@@ -24,7 +24,6 @@ import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
 import "forge-std/console2.sol";
 
-
 /// @title SuperVault
 /// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
 /// @author SuperForm Labs
@@ -150,8 +149,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
 
-        console2.log("----------------- assets", assets);
-        console2.log("----------------- balanceOf(owner)", _asset.balanceOf(owner));
+        console2.log("----REQUEST DEPOSIT----");
+        console2.log("assets in", assets);
         if (_asset.balanceOf(owner) < assets) revert INVALID_AMOUNT();
 
         // Transfer assets to vault
@@ -342,9 +341,19 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
                             ERC4626 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IERC20Metadata
     function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
         return _underlyingDecimals;
+    }
+
+    /*
+    /// @inheritdoc IERC20Metadata
+    function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
+        return _underlyingDecimals + decimalsOffset();
+    }
+    */
+
+    function decimalsOffset() public view virtual returns (uint8) {
+        return 2;
     }
 
     /// @inheritdoc IERC4626
@@ -369,6 +378,23 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         uint256 supply = totalSupply();
         return supply == 0 ? shares : Math.mulDiv(shares, totalAssets(), supply, Math.Rounding.Floor);
     }
+
+    /*
+
+    /// @inheritdoc IERC4626
+    function convertToShares(uint256 assets) public view override returns (uint256) {
+        uint256 supply = totalSupply() + 10 ** decimalsOffset();
+        /// @dev TODO: add +1 in totalAssets() just like OZ recommended?
+        return Math.mulDiv(assets, supply, totalAssets(), Math.Rounding.Floor);
+    }
+
+    /// @inheritdoc IERC4626
+    function convertToAssets(uint256 shares) public view override returns (uint256) {
+        uint256 supply = totalSupply() + 10 ** decimalsOffset();
+        /// @dev TODO: add +1 in totalAssets() just like OZ recommended?
+        return Math.mulDiv(shares, totalAssets(), supply, Math.Rounding.Floor);
+    }
+    */
 
     /// @inheritdoc IERC4626
     function maxMint(address owner) public view override returns (uint256) {
@@ -421,21 +447,15 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Convert maxMint to assets using average deposit price
         /// @dev we use `Ceil` rounding here because `Floor` is used for shares
         uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, 1e18, Math.Rounding.Ceil);
-        console2.log("---------------------------- maxAssets", maxAssets);
-        console2.log("---------------------------- assets", assets);
         if (assets > maxAssets) revert INVALID_DEPOSIT_CLAIM();
 
         // Calculate shares based on assets and average price
         shares = assets.mulDiv(1e18, averageDepositPrice, Math.Rounding.Floor);
-        console2.log("---------------------------- shares", shares);
-        console2.log("---------------------------- averageDepositPrice", averageDepositPrice);
 
         // Forward to strategy
         strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
 
         // Transfer shares to receiver
-        console2.log("----------------- shares", shares);   
-        console2.log("----------------- receiver", receiver);   
         ISuperVaultEscrow(escrow).transferShares(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -482,8 +502,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
-        console2.log("----------------- maxWithdrawAmount", maxWithdrawAmount);
-        console2.log("----------------- assets", assets);
+
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price
