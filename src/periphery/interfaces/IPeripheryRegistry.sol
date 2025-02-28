@@ -35,6 +35,12 @@ interface IPeripheryRegistry {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Check if a hook is registered
+    /// @param hook_ The hook to check
+    /// @return True if the hook is registered, false otherwise
+    function isHookRegistered(address hook_) external view returns (bool);
+
     /// @notice Register a hook
     /// @param hook_ The hook to register
     function registerHook(address hook_) external;
