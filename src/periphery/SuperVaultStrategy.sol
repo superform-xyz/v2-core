@@ -1143,11 +1143,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Verify all amounts were spent
         console2.log("----------vars.spentAmount", vars.spentAmount);
         console2.log("----------vars.totalRequestedAmount", vars.totalRequestedAmount);
-        if (
-            vars.spentAmount + REDEEM_THRESHOLD < vars.totalRequestedAmount || 
-            vars.spentAmount > vars.totalRequestedAmount + REDEEM_THRESHOLD
-        ) {
-            revert INVALID_AMOUNT();
+        if (isDeposit) {
+            if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+        } else {
+            if (
+                vars.spentAmount + REDEEM_THRESHOLD < vars.totalRequestedAmount || 
+                vars.spentAmount > vars.totalRequestedAmount + REDEEM_THRESHOLD
+            ) {
+                revert INVALID_AMOUNT();
+            }
         }
 
         // Resize array to actual count if needed
