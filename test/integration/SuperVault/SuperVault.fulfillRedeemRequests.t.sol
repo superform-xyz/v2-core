@@ -271,7 +271,7 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = redeemAmount / 2;
         uint256 allocationAmountVault2 = redeemAmount - allocationAmountVault1;
         _fulfillRedeemForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
-        console2.log("fulfilled redeem");
+        console2.log("------fulfilled redeem");
         uint256 initialAssetBalance = asset.balanceOf(accInstances[0].account);
 
         // increase price of assets
@@ -284,7 +284,9 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
 
         uint256 strategyAssetBalanceBefore = asset.balanceOf(address(strategy));
         uint256 maxWithdraw = vault.maxWithdraw(accInstances[0].account);
+        console2.log("maxWithdraw", maxWithdraw);
         _claimWithdrawForAccount(accInstances[0], maxWithdraw);
+        console2.log("------claimed withdraw");
         uint256 assetsReceived = asset.balanceOf(accInstances[0].account) - initialAssetBalance;
         assertApproxEqRel(
             assetsReceived,
@@ -316,9 +318,8 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         assertEq(strategy.getSuperVaultState(accInstances[0].account, 2), 0);
     }
 
-    function test_Redeem_RoundingBehavior() public {
-        uint256 depositAmount = 1000e6;
-
+    // Helper function to handle deposit setup
+    function _setupInitialDeposit(uint256 depositAmount) internal returns (uint256 initialShareBalance) {
         // add some tokens initially to the strategy
         _getTokens(address(asset), address(strategy), 1000);
 
@@ -327,41 +328,106 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
 
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accInstances[0].account;
+        
+        // Fulfill deposit and verify it worked
         _fulfillDepositForUsers(requestingUsers, depositAmount / 2, depositAmount / 2);
+        
+        // Verify deposit state before claiming
+        uint256 pricePerShare = strategy.getSuperVaultState(accInstances[0].account, 3); // deposit price
+        console2.log("Deposit price per share:", pricePerShare);
+        console2.log("Max mint before claim:", vault.maxMint(accInstances[0].account));
+        
         _claimDepositForAccount(accInstances[0], depositAmount);
 
-        uint256 initialShareBalance = vault.balanceOf(accInstances[0].account);
-        uint256 initialAssetBalance = asset.balanceOf(accInstances[0].account);
+        // Verify deposit was successful
+        initialShareBalance = vault.balanceOf(accInstances[0].account);
+        console2.log("Initial share balance after deposit:", initialShareBalance);
+        console2.log("Initial asset value:", vault.convertToAssets(initialShareBalance));
+        
+        require(initialShareBalance > 0, "Deposit failed - no shares minted");
+        return initialShareBalance;
+    }
 
-        console2.log("Initial share balance:", initialShareBalance);
-        console2.log("Initial asset balance:", initialAssetBalance);
-        console2.log("Share value in assets:", vault.convertToAssets(initialShareBalance));
-        uint256 redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+    // Helper function to calculate redeem amounts
+    function _calculateRedeemAmounts(
+        uint256 redeemAmount
+    ) internal view returns (uint256 firstHalf, uint256 secondHalf) {
+        // Calculate total assets using vault's conversion
+        uint256 totalAssets = vault.convertToAssets(redeemAmount);
+        
+        console2.log("Total assets to redeem:", totalAssets);
+        
+        // Split evenly, rounding down first half
+        firstHalf = totalAssets / 2;
+        secondHalf = totalAssets - firstHalf;
+        
+        console2.log("First half:", firstHalf);
+        console2.log("Second half:", secondHalf);
+    }
 
-        _requestRedeemForAccount(accInstances[0], redeemAmount);
-        _fulfillRedeemForUsers(requestingUsers, redeemAmount / 2, redeemAmount / 2);
-        uint256 maxWithdraw = vault.maxWithdraw(accInstances[0].account);
-        _claimWithdrawForAccount(accInstances[0], maxWithdraw);
+    struct RoundingTestVars {
+        uint256 depositAmount;
+        uint256 initialShareBalance;
+        uint256 initialAssetBalance;
+        uint256 initialStrategyBalance;
+        uint256 redeemAmount;
+        uint256 firstHalf;
+        uint256 secondHalf;
+        uint256 maxWithdraw;
+        uint256 finalShareBalance;
+        uint256 finalAssetBalance;
+        uint256 finalStrategyBalance;
+        uint256 assetsReceived;
+        uint256 remainingShareValue;
+    }
 
-        uint256 finalShareBalance = vault.balanceOf(accInstances[0].account);
-        uint256 finalAssetBalance = asset.balanceOf(accInstances[0].account);
-        uint256 sharesBurned = initialShareBalance - finalShareBalance;
-        uint256 assetsReceived = finalAssetBalance - initialAssetBalance;
-        console2.log("Shares burned:", sharesBurned);
-        console2.log("Assets received:", assetsReceived);
+    function test_Redeem_RoundingBehavior() public {
+        RoundingTestVars memory vars;
+        vars.depositAmount = 1000e6;
+        
+        _completeDepositFlow(vars.depositAmount);
+        
+        vars.initialShareBalance = vault.balanceOf(accInstances[0].account);
+        vars.initialAssetBalance = asset.balanceOf(accInstances[0].account);
 
-        console2.log(
-            "Difference:", maxWithdraw > assetsReceived ? maxWithdraw - assetsReceived : assetsReceived - maxWithdraw
+        console2.log("Initial shares:", vars.initialShareBalance);
+        console2.log("Initial price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
+        // Calculate redeem amount
+        vars.redeemAmount = vars.initialShareBalance / 2;
+        console2.log("Redeem amount (in shares):", vars.redeemAmount);
+        
+        _requestRedeemForAccount(accInstances[0], vars.redeemAmount);
+
+        // Split redeem amount directly (don't convert to assets first)
+        vars.firstHalf = vars.redeemAmount / 2;
+        vars.secondHalf = vars.redeemAmount - vars.firstHalf;
+
+        console2.log("First vault amount:", vars.firstHalf);
+        console2.log("Second vault amount:", vars.secondHalf);
+
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accInstances[0].account;
+        _fulfillRedeemForUsers(requestingUsers, vars.firstHalf, vars.secondHalf);
+
+        vars.maxWithdraw = vault.maxWithdraw(accInstances[0].account);
+        console2.log("maxWithdraw after fulfill:", vars.maxWithdraw);
+        
+        _claimWithdrawForAccount(accInstances[0], vars.maxWithdraw);
+
+        vars.finalShareBalance = vault.balanceOf(accInstances[0].account);
+        vars.finalAssetBalance = asset.balanceOf(accInstances[0].account);
+        vars.assetsReceived = vars.finalAssetBalance - vars.initialAssetBalance;
+
+        console2.log("Final shares:", vars.finalShareBalance);
+        console2.log("Assets received:", vars.assetsReceived);
+
+        assertEq(vars.assetsReceived, vars.maxWithdraw, "Assets received should match maxWithdraw");
+        assertApproxEqRel(
+            vault.convertToAssets(vars.finalShareBalance),
+            vars.depositAmount - vars.assetsReceived,
+            0.002e18
         );
-
-        uint256 difference = maxWithdraw > assetsReceived ? maxWithdraw - assetsReceived : assetsReceived - maxWithdraw;
-        assertEq(difference, 0);
-
-        uint256 remainingShareValue = vault.convertToAssets(finalShareBalance);
-        console2.log("Remaining share balance:", finalShareBalance);
-        console2.log("Remaining share value:", remainingShareValue);
-
-        console2.log("Expected remaining value:", depositAmount - maxWithdraw);
     }
 
     function externalClaimWithdraw(AccountInstance memory accInst, uint256 assets) external {

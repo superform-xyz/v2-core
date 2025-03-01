@@ -153,6 +153,8 @@ interface ISuperVaultStrategy {
         // Hook execution variables
         address prevHook;
         uint256 amount;
+        uint256 balanceAssetBefore;
+        uint256 balanceAssetAfter;
         // Current yield source state
         uint256 currentYieldSourceAssets;
         // Hook type and execution
