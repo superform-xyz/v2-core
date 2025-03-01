@@ -1297,7 +1297,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             balanceAssetBefore - balanceAssetAfter;
 
         // Update _lastTotalAssets to account for assets being moved out
-        _updateLastTotalAssets(_lastTotalAssets + (balanceAssetAfter - balanceAssetBefore));
+        _updateLastTotalAssets(_lastTotalAssets + assetDiff);
     }
 
     /// @notice Process claim hook execution
