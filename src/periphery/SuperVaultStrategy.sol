@@ -1292,12 +1292,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         );
 
         uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
-        uint256 assetDiff = balanceAssetAfter > balanceAssetBefore ? 
-            balanceAssetAfter - balanceAssetBefore : 
-            balanceAssetBefore - balanceAssetAfter;
 
         // Update _lastTotalAssets to account for assets being moved out
-        _updateLastTotalAssets(_lastTotalAssets + assetDiff);
+        _updateLastTotalAssets(_lastTotalAssets + (balanceAssetAfter - balanceAssetBefore));
     }
 
     /// @notice Process claim hook execution
