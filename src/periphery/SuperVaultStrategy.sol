@@ -38,7 +38,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
     uint256 private constant PRECISION_DECIMALS = 18;
-    uint256 public constant PRECISION = 1e18;
+    uint256 private constant PRECISION = 1e18;
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");

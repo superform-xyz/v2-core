@@ -335,10 +335,6 @@ interface ISuperVaultStrategy {
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Get the precision of the PPS
-    /// @return The precision of the PPS
-    function PRECISION() external view returns (uint256);
-
     /// @notice Check if the strategy is initialized
     /// @return True if the strategy is initialized, false otherwise
     function isInitialized() external view returns (bool);
