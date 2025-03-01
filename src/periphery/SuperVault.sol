@@ -22,7 +22,6 @@ import {
 import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
-
 /// @title SuperVault
 /// @author SuperForm Labs
 /// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
@@ -477,15 +476,14 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         shares = assets.mulDiv(PRECISION, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Forward to strategy
-        // true assets transferred are returned here
-        assets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
+        uint256 actualAssets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
 
         // Transfer shares back to vault and burn them
         ISuperVaultEscrow(escrow).transferShares(address(this), shares);
         _burn(address(this), shares);
-        _asset.safeTransfer(receiver, assets);
+        _asset.safeTransfer(receiver, actualAssets);
 
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(msg.sender, receiver, owner, actualAssets, shares);
     }
 
     /// @inheritdoc IERC4626
