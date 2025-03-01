@@ -528,8 +528,6 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         uint256[] memory assetPerShare = new uint256[](RANDOM_ACCOUNT_COUNT);
 
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
-            uint256 shareBalanceBeforeClaim = vault.balanceOf(accInstances[i].account);
-
             uint256 maxWithdraw = vault.maxWithdraw(accInstances[i].account);
             _claimWithdrawForAccount(accInstances[i], maxWithdraw);
 

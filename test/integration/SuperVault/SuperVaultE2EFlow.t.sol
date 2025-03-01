@@ -46,7 +46,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Record initial balances
         uint256 initialUserAssets = asset.balanceOf(accountEth);
-        uint256 initialVaultAssets = asset.balanceOf(address(vault));
 
         // Step 1: Request Deposit
         _requestDeposit(amount);
@@ -56,30 +55,21 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
             asset.balanceOf(accountEth), initialUserAssets - amount, "User assets not reduced after deposit request"
         );
 
-        uint256 expectedUserShares = vault.convertToShares(amount);
-
         // Step 2: Fulfill Deposit
         _fulfillDeposit(amount);
 
         // Step 3: Claim Deposit
         _claimDeposit(amount);
 
-        // Verify shares minted to user
+        // Get shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
-        //assertEq(userShares, expectedUserShares, "User shares not minted correctly");
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
         uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
-        (uint256 totalAssets,) = strategy.totalAssets();
-        uint256 totalSupply = vault.totalSupply();
-        uint256 ppsBefore = totalAssets * 1e18 / totalSupply;
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
-
-        (totalAssets,) = strategy.totalAssets();
-        totalSupply = vault.totalSupply();
 
         console2.log("----deposit done ---");
         uint256 totalRedeemShares = vault.balanceOf(accountEth);
