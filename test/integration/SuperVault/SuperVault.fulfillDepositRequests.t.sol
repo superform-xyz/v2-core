@@ -323,7 +323,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         // rounding errors accounted for
         assertApproxEqRel(vars.totalAssetsAllocated, vars.totalAmount, 0.01e18);
         assertApproxEqRel(vars.strategyAssetBalanceDecrease, vars.totalAmount, 0.01e18);
-
         _verifySharesAndAssets(vars);
     }
 
