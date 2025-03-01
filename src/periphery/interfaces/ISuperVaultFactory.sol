@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC7540 } from "../../vendor/vaults/7540/IERC7540.sol";
 import { ISuperVaultStrategy } from "./ISuperVaultStrategy.sol";
 
 /// @title ISuperVaultFactory
@@ -42,6 +44,7 @@ interface ISuperVaultFactory {
         address feeRecipient;
         // Strategy configuration
         ISuperVaultStrategy.GlobalConfig config;
+        uint256 finalMaxAllocationRate;
         // Initialization parameters
         address initYieldSource;
         bytes32 initHooksRoot;
@@ -52,6 +55,35 @@ interface ISuperVaultFactory {
         bytes[] bootstrappingHookCalldata;
     }
 
+    /// @notice Parameters for bootstrapping a vault
+    struct BootstrapParams {
+        address superVault;
+        address strategy;
+        address asset;
+        address manager;
+        address strategist;
+        address recipient;
+        address[] bootstrappingHooks;
+        bytes32[][] bootstrappingHookProofs;
+        bytes[] bootstrappingHookCalldata;
+        ISuperVaultStrategy.GlobalConfig config;
+        uint256 finalMaxAllocationRate;
+    }
+
+    // Local variables struct to improve readability and organization
+    struct LocalVars {
+        IERC20 assetToken;
+        ISuperVaultStrategy strategyContract;
+        IERC7540 superVaultContract;
+        address[] users;
+        uint256 hookCount;
+        bytes32 MANAGER_ROLE;
+        bytes32 STRATEGIST_ROLE;
+        uint256 totalAssets;
+        uint256 totalSupply;
+        uint256 precision;
+        uint256 pricePerShare;
+    }
     /*//////////////////////////////////////////////////////////////
                             FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -60,6 +92,7 @@ interface ISuperVaultFactory {
     /// @return superVault The deployed vault address
     /// @return strategy The deployed strategy address
     /// @return escrow The deployed escrow address
+
     function createVault(VaultCreationParams calldata params)
         external
         returns (address superVault, address strategy, address escrow);

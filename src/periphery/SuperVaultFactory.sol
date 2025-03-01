@@ -14,6 +14,7 @@ import { SuperVaultEscrow } from "./SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVaultFactory } from "./interfaces/ISuperVaultFactory.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
+import { IERC7540 } from "../vendor/vaults/7540/IERC7540.sol";
 import { console2 } from "forge-std/console2.sol";
 
 /// @title SuperVaultFactory
@@ -31,7 +32,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
     address public immutable strategyImplementation;
     address public immutable escrowImplementation;
     address public immutable peripheryRegistry;
-    uint256 private constant BOOTSTRAP_AMOUNT = 1000;
+    uint256 private constant BOOTSTRAP_AMOUNT = 1e6;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -53,6 +54,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         external
         returns (address superVault, address strategy, address escrow)
     {
+        console2.log("\n----CREATE VAULT----");
         // Input validation
         if (
             params.asset == address(0) || params.manager == address(0) || params.strategist == address(0)
@@ -87,15 +89,19 @@ contract SuperVaultFactory is ISuperVaultFactory {
         );
 
         _bootstrapVault(
-            superVault,
-            strategy,
-            params.asset,
-            params.manager,
-            params.strategist,
-            params.feeRecipient,
-            params.bootstrappingHooks,
-            params.bootstrappingHookProofs,
-            params.bootstrappingHookCalldata
+            BootstrapParams({
+                superVault: superVault,
+                strategy: strategy,
+                asset: params.asset,
+                manager: params.manager,
+                strategist: params.strategist,
+                recipient: params.feeRecipient,
+                bootstrappingHooks: params.bootstrappingHooks,
+                bootstrappingHookProofs: params.bootstrappingHookProofs,
+                bootstrappingHookCalldata: params.bootstrappingHookCalldata,
+                config: params.config,
+                finalMaxAllocationRate: params.finalMaxAllocationRate
+            })
         );
 
         emit VaultDeployed(superVault, strategy, escrow, params.asset, params.name, params.symbol);
@@ -103,58 +109,34 @@ contract SuperVaultFactory is ISuperVaultFactory {
         return (superVault, strategy, escrow);
     }
 
-    // Local variables struct to improve readability and organization
-    struct LocalVars {
-        IERC20 assetToken;
-        ISuperVaultStrategy strategyContract;
-        address[] users;
-        uint256 hookCount;
-        bytes32 MANAGER_ROLE;
-        bytes32 STRATEGIST_ROLE;
-        uint256 totalAssets;
-        uint256 totalSupply;
-        uint256 precision;
-        uint256 pricePerShare;
-    }
-
     /// @notice Internal function to bootstrap a vault with an initial deposit
-    function _bootstrapVault(
-        address superVault,
-        address strategy,
-        address asset,
-        address manager,
-        address strategist,
-        address recipient,
-        address[] calldata bootstrappingHooks,
-        bytes32[][] calldata bootstrappingHookProofs,
-        bytes[] calldata bootstrappingHookCalldata
-    )
-        internal
-    {
+    function _bootstrapVault(BootstrapParams memory params) internal {
         LocalVars memory vars;
 
-        vars.assetToken = IERC20(asset);
-        vars.strategyContract = ISuperVaultStrategy(strategy);
+        vars.assetToken = IERC20(params.asset);
+        vars.strategyContract = ISuperVaultStrategy(params.strategy);
         vars.MANAGER_ROLE = keccak256("MANAGER_ROLE");
         vars.STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
         // Transfer bootstrap amount from sender to this contract
         vars.assetToken.safeTransferFrom(msg.sender, address(this), BOOTSTRAP_AMOUNT);
-        vars.assetToken.safeTransferFrom(msg.sender, strategy, 100);
+        vars.assetToken.safeTransferFrom(msg.sender, params.strategy, 100);
 
         // Approve asset for superVault
-        vars.assetToken.safeIncreaseAllowance(superVault, BOOTSTRAP_AMOUNT);
+        vars.assetToken.safeIncreaseAllowance(params.superVault, BOOTSTRAP_AMOUNT);
 
         // 1. Request deposit
-        SuperVault(superVault).requestDeposit(BOOTSTRAP_AMOUNT, address(this), address(this));
+        vars.superVaultContract = IERC7540(params.superVault);
+
+        vars.superVaultContract.requestDeposit(BOOTSTRAP_AMOUNT, address(this), address(this));
 
         // 2. Fulfill deposit request
         vars.users = new address[](1);
         vars.users[0] = address(this);
-        vars.hookCount = bootstrappingHooks.length;
+        vars.hookCount = params.bootstrappingHooks.length;
 
         // Only core hooks are allowed to be used for bootstrapping
         for (uint256 i; i < vars.hookCount;) {
-            if (!IPeripheryRegistry(peripheryRegistry).isHookRegistered(bootstrappingHooks[i])) {
+            if (!IPeripheryRegistry(peripheryRegistry).isHookRegistered(params.bootstrappingHooks[i])) {
                 revert HOOK_NOT_REGISTERED();
             }
             unchecked {
@@ -163,31 +145,42 @@ contract SuperVaultFactory is ISuperVaultFactory {
         }
 
         vars.strategyContract.fulfillRequests(
-            vars.users, bootstrappingHooks, bootstrappingHookProofs, bootstrappingHookCalldata, true
+            vars.users,
+            params.bootstrappingHooks,
+            params.bootstrappingHookProofs,
+            params.bootstrappingHookCalldata,
+            true
         );
-        vars.strategyContract.setAddress(vars.STRATEGIST_ROLE, strategist);
-        vars.strategyContract.setAddress(vars.MANAGER_ROLE, manager);
+
+        /// @dev Note: Theoretically this could go to an insurance fund
+        vars.superVaultContract.deposit(BOOTSTRAP_AMOUNT, params.recipient, address(this));
+
+        vars.strategyContract.updateGlobalConfig(
+            ISuperVaultStrategy.GlobalConfig({
+                vaultCap: params.config.vaultCap,
+                superVaultCap: params.config.superVaultCap,
+                maxAllocationRate: params.finalMaxAllocationRate,
+                vaultThreshold: params.config.vaultThreshold
+            })
+        );
+        vars.strategyContract.setAddress(vars.STRATEGIST_ROLE, params.strategist);
+        vars.strategyContract.setAddress(vars.MANAGER_ROLE, params.manager);
 
         // 3. Verify price per share has increased
+        /// @dev TODO: can probably delete this
         (vars.totalAssets,) = vars.strategyContract.totalAssets();
-        vars.totalSupply = SuperVault(superVault).totalSupply();
+        vars.totalSupply = SuperVault(params.superVault).totalSupply();
         vars.precision = vars.strategyContract.PRECISION();
         vars.pricePerShare = vars.totalAssets.mulDiv(vars.precision, vars.totalSupply, Math.Rounding.Floor);
 
-        console2.log("----------------- pricePerShare INIT", vars.pricePerShare);
-
+        console2.log("\n--PricePerShare VAULT DEPLOYMENT", vars.pricePerShare);
+        /*
         // prevent bootstrapping vaults where the PPS does not increase
         if (vars.pricePerShare <= vars.precision) {
             revert BOOTSTRAP_FAILED();
         }
-
-        /*
-        // 3. Claim deposit
-        try SuperVault(superVault).deposit(BOOTSTRAP_AMOUNT, recipient, address(this)) {
-            emit VaultBootstrapped(superVault, strategy, BOOTSTRAP_AMOUNT);
-        } catch {
-            revert BOOTSTRAP_FAILED();
-        }
         */
+
+        console2.log("\n------------------------------------");
     }
 }
