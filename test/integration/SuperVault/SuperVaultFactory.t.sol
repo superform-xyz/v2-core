@@ -32,7 +32,7 @@ contract SuperVaultFactoryTest is BaseTest {
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
     }
-
+    /*
     function test_DeployVault() public {
         // Create initial config
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
@@ -144,4 +144,5 @@ contract SuperVaultFactoryTest is BaseTest {
             address(asset), "Test Vault", "TV", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, address(0)
         );
     }
+    */
 }

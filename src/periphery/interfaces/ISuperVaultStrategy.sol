@@ -50,6 +50,7 @@ interface ISuperVaultStrategy {
     error INVALID_EMERGENCY_WITHDRAWAL();
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
+    error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -120,6 +121,7 @@ interface ISuperVaultStrategy {
     struct FulfillmentVars {
         // Common variables used in both deposit and redeem flows
         uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
+        uint256 totalSupplyAmount; // Base total amount of shares in the vault
         uint256 spentAmount; // Running total of assets/shares spent in hooks
         uint256 pricePerShare; // Current price per share, used for calculations
         uint256 requestedAmount; // Individual user's requested amount
@@ -144,6 +146,7 @@ interface ISuperVaultStrategy {
         uint256 finalAssets; // Final assets after fee calculation
         // Price tracking
         uint256 currentPricePerShare; // Current price per share for calculations
+        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct AllocationVars {
@@ -285,6 +288,11 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Update global configuration
+    /// @param config New global configuration
+    function updateGlobalConfig(GlobalConfig calldata config) external;
+
     /// @notice Manage yield sources: add, update oracle, and toggle activation.
     /// @param source Address of the yield source.
     /// @param oracle Address of the oracle (used for adding/updating).
@@ -326,6 +334,7 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @notice Check if the strategy is initialized
     /// @return True if the strategy is initialized, false otherwise
     function isInitialized() external view returns (bool);
