@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -23,12 +23,11 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
-
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
 /// @title SuperVaultStrategy
-/// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
+/// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 contract SuperVaultStrategy is ISuperVaultStrategy {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -1232,6 +1231,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), amountOfAssets
         );
+
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
 
         // Execute hook with vault token approval

@@ -4,15 +4,15 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IYearnStakingRewardsMulti } from "../../../../vendor/yearn/IYearnStakingRewardsMulti.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
-
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { IYearnStakingRewardsMulti } from "../../../../vendor/yearn/IYearnStakingRewardsMulti.sol";
 
 /// @title YearnClaimOneRewardHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);

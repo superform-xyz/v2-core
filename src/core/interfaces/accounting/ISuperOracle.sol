@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
 /// @title ISuperOracle
@@ -8,6 +8,8 @@ interface ISuperOracle {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Error when address is zero
+    error ZERO_ADDRESS();
 
     /// @notice Error when oracle provider index is invalid
     error INVALID_ORACLE_PROVIDER();

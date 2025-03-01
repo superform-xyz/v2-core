@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 
 /// @title ISuperVaultStrategy
-/// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 /// @author SuperForm Labs
+/// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS

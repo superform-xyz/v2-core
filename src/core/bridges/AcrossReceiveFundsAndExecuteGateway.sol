@@ -1,18 +1,15 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
 import { IMinimalEntryPoint, PackedUserOperation } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { BytesLib } from "../../vendor/BytesLib.sol";
-
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-// Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 
 /// @title AcrossReceiveFundsAndExecuteGateway
+/// @author Superform Labs
 /// @notice This contract acts as a gateway for receiving funds from the Across Protocol
 /// @notice and executing associated user operations.
 /// @dev Example Scenario:
@@ -39,43 +36,24 @@ import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver
 ///     3. Chain B: This contract receives funds + message
 ///     4. Chain B: Contract transfers tokens to user's account
 ///     5. Chain B: Executes deposit into new Superform
-/// @notice  address account = BytesLib.toAddress(BytesLib.slice(message, 0, 20), 0);
-/// @notice  uint256 intentAmount = BytesLib.toUint256(BytesLib.slice(message, 20, 32), 0);
-/// @notice  userOp.sender = BytesLib.toAddress(BytesLib.slice(message, 52, 20), 0);
-/// @notice  userOp.nonce = BytesLib.toUint256(BytesLib.slice(message, 72, 32), 0);
-/// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 104, 32), 0);
-/// @notice  userOp.initCode = BytesLib.slice(message, 104, codeLength);
-/// @notice  uint256 codeLength = BytesLib.toUint256(BytesLib.slice(message, 163, 32), 0);
-/// @notice  userOp.callData = BytesLib.slice(message, 163 + codeLength, codeLength);
-/// @notice  userOp.accountGasLimits = BytesLib.toBytes32(BytesLib.slice(message, 222, 32), 0);
-/// @notice  userOp.preVerificationGas = BytesLib.toUint256(BytesLib.slice(message, 254, 32), 0);
-/// @notice  userOp.gasFees = BytesLib.toBytes32(BytesLib.slice(message, 286, 32), 0);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 318, 32), 0);
-/// @notice  userOp.paymasterAndData = BytesLib.slice(message, 318, codeLength);
-/// @notice  codeLength = BytesLib.toUint256(BytesLib.slice(message, 318, 32), 0);
-/// @notice  userOp.signature = BytesLib.slice(message, 318 + codeLength, codeLength);
-contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistryImplementer {
+contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
     using SafeERC20 for IERC20;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
 
     address public immutable acrossSpokePool;
-    address public immutable entryPointAddress; // can be a constant, but better to set it in constructor
+    address public immutable entryPointAddress;
+    address payable public immutable superBundler;
 
     error ADDRESS_NOT_VALID();
 
-    constructor(
-        address registry_,
-        address acrossSpokePool_,
-        address entryPointAddress_
-    )
-        SuperRegistryImplementer(registry_)
-    {
+    constructor(address acrossSpokePool_, address entryPointAddress_, address superBundler_) {
         if (acrossSpokePool_ == address(0)) revert ADDRESS_NOT_VALID();
         if (entryPointAddress_ == address(0)) revert ADDRESS_NOT_VALID();
         acrossSpokePool = acrossSpokePool_;
         entryPointAddress = entryPointAddress_;
+        superBundler = payable(superBundler_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -148,16 +126,8 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
         // Execute the userOp through EntryPoint
-        IMinimalEntryPoint(entryPointAddress).handleOps(userOps, _getSuperBundler());
+        IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler);
 
         emit AcrossFundsReceivedAndExecuted(account);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Get the super bundler
-    function _getSuperBundler() internal view returns (address payable) {
-        return payable(superRegistry.getAddress(keccak256("SUPER_BUNDLER_ID")));
     }
 }

@@ -20,7 +20,7 @@ import { IOdosRouterV2 } from "../../src/vendor/odos/IOdosRouterV2.sol";
 
 // Two briding actions to the same chain, Across gateway waits for both to arrive
 // Two target vaults where one requires a swap due to underlying mismatch which incurs slippage
-contract CrossChainDepositWithSlippage is BaseTest {
+contract CrossChainDepositWithSwapSlippage is BaseTest {
     IERC4626 public vaultInstance4626Base_USDC;
     IERC4626 public vaultInstance4626Base_WETH;
 

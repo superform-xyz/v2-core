@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
@@ -19,12 +19,30 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn) external view override returns (uint256) {
+    function getShareOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 assetsIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
         return IStandardizedYield(yieldSourceAddress).previewDeposit(assetIn, assetsIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn) external view override returns (uint256) {
+    function getAssetOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 sharesIn
+    )
+        external
+        view
+        override
+        returns (uint256)
+    {
         return IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, sharesIn);
     }
 

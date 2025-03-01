@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
@@ -17,8 +17,8 @@ import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { IERC7540 } from "../vendor/vaults/7540/IERC7540.sol";
 
 /// @title SuperVaultFactory
-/// @notice Factory contract that deploys SuperVault, SuperVaultStrategy, and SuperVaultEscrow
 /// @author SuperForm Labs
+/// @notice Factory contract that deploys SuperVault, SuperVaultStrategy, and SuperVaultEscrow
 contract SuperVaultFactory is ISuperVaultFactory {
     using Clones for address;
     using SafeERC20 for IERC20;

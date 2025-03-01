@@ -14,6 +14,7 @@ import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingP
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title GearboxStakeHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);

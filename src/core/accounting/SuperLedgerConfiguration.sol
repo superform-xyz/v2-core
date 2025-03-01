@@ -2,10 +2,12 @@
 pragma solidity >=0.8.28;
 
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImplementer {
+/// @title SuperLedgerConfiguration
+/// @author Superform Labs
+/// @notice Configuration for SuperLedger
+contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfiguration {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -25,7 +27,11 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
         for (uint256 i; i < length;) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
             _setYieldSourceOracleConfig(
-                config.yieldSourceOracleId, config.yieldSourceOracle, config.feePercent, config.feeRecipient, config.ledger
+                config.yieldSourceOracleId,
+                config.yieldSourceOracle,
+                config.feePercent,
+                config.feeRecipient,
+                config.ledger
             );
             unchecked {
                 ++i;
@@ -39,8 +45,8 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
     /// @inheritdoc ISuperLedgerConfiguration
     function getYieldSourceOracleConfig(bytes4 yieldSourceOracleId)
         external
-        virtual
         view
+        virtual
         returns (YieldSourceOracleConfig memory)
     {
         return yieldSourceOracleConfig[yieldSourceOracleId];
@@ -49,8 +55,8 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
     /// @inheritdoc ISuperLedgerConfiguration
     function getYieldSourceOracleConfigs(bytes4[] calldata yieldSourceOracleIds)
         external
-        virtual
         view
+        virtual
         returns (YieldSourceOracleConfig[] memory configs)
     {
         uint256 length = yieldSourceOracleIds.length;
@@ -74,7 +80,8 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
         address feeRecipient,
         address ledgerContract
     )
-        internal virtual
+        internal
+        virtual
     {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
@@ -94,6 +101,8 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration, SuperRegistryImp
             ledger: ledgerContract
         });
 
-        emit YieldSourceOracleConfigSet(yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledgerContract);
+        emit YieldSourceOracleConfigSet(
+            yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledgerContract
+        );
     }
 }

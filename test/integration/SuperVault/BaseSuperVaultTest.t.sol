@@ -85,7 +85,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         vm.selectFork(FORKS[ETH]);
         accInstances = randomAccountInstances[ETH];
-        assertEq(accInstances.length, RANDOM_ACCOUNT_COUNT);
+        assertEq(accInstances.length, ACCOUNT_COUNT);
         peripheryRegistry = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
         // Set up accounts
@@ -424,7 +424,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     // Define a struct to hold test variables to avoid stack too deep errors
 
     function _requestDepositForAllUsers(uint256 depositAmount) internal {
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             _getTokens(address(asset), accInstances[i].account, depositAmount);
             _requestDepositForAccount(accInstances[i], depositAmount);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
@@ -511,11 +511,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         _requestDepositForAllUsers(depositAmount);
 
         // create fullfillment data
-        uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
+        uint256 totalAmount = depositAmount * ACCOUNT_COUNT;
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
-        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             requestingUsers[i] = accInstances[i].account;
             unchecked {
                 ++i;
@@ -525,7 +525,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
 
         // claim deposits
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             _claimDepositForAccount(accInstances[i], depositAmount);
             unchecked {
                 ++i;
@@ -534,7 +534,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _requestRedeemForAllUsers(uint256 redeemAmount) internal {
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             uint256 redeemShares = redeemAmount > 0 ? redeemAmount : vault.balanceOf(accInstances[i].account);
             _requestRedeemForAccount(accInstances[i], redeemShares);
             unchecked {
@@ -611,9 +611,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _verifySharesAndAssets(DepositVerificationVars memory vars) internal {
-        uint256[] memory initialUserShareBalances = new uint256[](RANDOM_ACCOUNT_COUNT);
-        uint256[] memory maxDepositAmounts = new uint256[](RANDOM_ACCOUNT_COUNT);
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        uint256[] memory initialUserShareBalances = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory maxDepositAmounts = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             initialUserShareBalances[i] = vault.balanceOf(accInstances[i].account);
             maxDepositAmounts[i] = vault.maxDeposit(accInstances[i].account);
             _claimDepositForAccount(accInstances[i], maxDepositAmounts[i]);
@@ -623,7 +623,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
 
         vars.totalSharesMinted = 0;
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT;) {
             console2.log("initialUserShareBalances", initialUserShareBalances[i]);
             console2.log("i", i);
             uint256 userSharesReceived = vault.balanceOf(accInstances[i].account) - initialUserShareBalances[i];
@@ -670,14 +670,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _verifyRedeemSharesAndAssets(RedeemVerificationVars memory vars) internal {
-        uint256[] memory initialAssetBalances = new uint256[](RANDOM_ACCOUNT_COUNT);
+        uint256[] memory initialAssetBalances = new uint256[](ACCOUNT_COUNT);
         vars.totalSharesBurned = 0;
 
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
             initialAssetBalances[i] = asset.balanceOf(accInstances[i].account);
         }
         uint256 totalAssetsReceived = 0;
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
             uint256 claimableWithdraw = vault.maxWithdraw(accInstances[i].account);
             console2.log("claimable withdraw:", claimableWithdraw);
             _claimWithdrawForAccount(accInstances[i], claimableWithdraw);
