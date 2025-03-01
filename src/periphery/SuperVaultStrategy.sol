@@ -85,6 +85,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     IPeripheryRegistry private peripheryRegistry;
 
+    // Track the last known total assets (free assets available)
+    uint256 private _lastTotalAssets;
+
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
     }
@@ -146,6 +149,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         yieldSources[initYieldSource_] = YieldSource({ oracle: initYieldSourceOracle_, isActive: true });
         yieldSourcesList.push(initYieldSource_);
         emit YieldSourceAdded(initYieldSource_, initYieldSourceOracle_);
+
+        // Initialize _lastTotalAssets to 0
+        _lastTotalAssets = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -563,7 +569,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         sourceTVLs = new YieldSourceTVL[](length);
         uint256 activeSourceCount;
 
-        totalAssets_ = _getTokenBalance(address(_asset), address(this));
+        totalAssets_ = _lastTotalAssets;
         for (uint256 i; i < length;) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
@@ -741,6 +747,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 freeAssets = _getTokenBalance(address(_asset), address(this));
             if (amount > freeAssets) revert INSUFFICIENT_FUNDS();
 
+            // Update _lastTotalAssets
+            _updateLastTotalAssets(_lastTotalAssets - amount);
+
             _safeTokenTransfer(address(_asset), recipient, amount);
             emit EmergencyWithdrawal(recipient, amount);
         } else {
@@ -890,6 +899,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         SuperVaultState storage state = superVaultState[controller];
         state.pendingDepositRequest = state.pendingDepositRequest + assets;
+
+        // Update _lastTotalAssets
+        _updateLastTotalAssets(_lastTotalAssets + assets);
+
         return assets;
     }
 
@@ -899,6 +912,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         SuperVaultState storage state = superVaultState[controller];
         state.pendingDepositRequest = 0;
+
+        // Update _lastTotalAssets
+        _updateLastTotalAssets(_lastTotalAssets - assets);
 
         _safeTokenTransfer(address(_asset), _vault, assets);
         return assets;
@@ -943,9 +959,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Update state
         state.maxWithdraw -= assets;
 
+        // Update _lastTotalAssets
+        _updateLastTotalAssets(_lastTotalAssets - assets);
+
         // Transfer assets to vault
         _safeTokenTransfer(address(_asset), _vault, assets);
         return assets;
+    }
+
+    /// @notice Update the last total assets value
+    /// @param updatedTotalAssets The new total assets value
+    function _updateLastTotalAssets(uint256 updatedTotalAssets) internal {
+        _lastTotalAssets = updatedTotalAssets;
     }
 
     //--Fulfilment and allocation helpers--
