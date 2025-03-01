@@ -65,6 +65,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     ISuperVaultStrategy public strategy;
     address public escrow;
 
+    uint256 private constant PRECISION = 1e18;
+
     /// @inheritdoc IERC7540Operator
     mapping(address owner => mapping(address operator => bool)) public isOperator;
 
@@ -418,12 +420,15 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
         // Convert maxMint to assets using average deposit price
         /// @dev we use `Ceil` rounding here because `Floor` is used for shares
-        uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, 1e18, Math.Rounding.Ceil);
+        uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, PRECISION, Math.Rounding.Ceil);
         if (assets > maxAssets) revert INVALID_DEPOSIT_CLAIM();
 
+        console2.log("assets", assets);
+        console2.log("averageDepositPrice", averageDepositPrice);
+        console2.log("PRECISION", PRECISION);
         // Calculate shares based on assets and average price
-        shares = assets.mulDiv(1e18, averageDepositPrice, Math.Rounding.Floor);
-
+        shares = assets.mulDiv(PRECISION, averageDepositPrice, Math.Rounding.Floor);
+        console2.log("shares", shares);
         // Forward to strategy
         strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
 
@@ -449,7 +454,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (shares > maxMintAmount) revert INVALID_DEPOSIT_CLAIM();
         uint256 averageDepositPrice = strategy.getSuperVaultState(controller, 3);
         if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
-        assets = shares.mulDiv(averageDepositPrice, 1e18, Math.Rounding.Floor);
+        assets = shares.mulDiv(averageDepositPrice, PRECISION, Math.Rounding.Floor);
 
         // Forward to strategy
         strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
@@ -478,7 +483,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price
-        shares = assets.mulDiv(1e18, averageWithdrawPrice, Math.Rounding.Floor);
+        shares = assets.mulDiv(PRECISION, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Forward to strategy
         // true assets transferred are returned here
@@ -501,7 +506,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         // Calculate assets based on shares and average withdraw price
-        assets = shares.mulDiv(averageWithdrawPrice, 1e18, Math.Rounding.Floor);
+        assets = shares.mulDiv(averageWithdrawPrice, PRECISION, Math.Rounding.Floor);
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
         console2.log("----------------- maxWithdrawAmount", maxWithdrawAmount);

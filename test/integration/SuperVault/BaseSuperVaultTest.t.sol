@@ -36,6 +36,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     address public accountEth;
     AccountInstance public instanceOnEth;
+    AccountInstance[] accInstances;
+
     ISuperExecutor public superExecutorOnEth;
 
     // Core contracts
@@ -82,7 +84,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         super.setUp();
 
         vm.selectFork(FORKS[ETH]);
-
+        accInstances = randomAccountInstances[ETH];
+        assertEq(accInstances.length, RANDOM_ACCOUNT_COUNT);
         peripheryRegistry = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
         // Set up accounts
@@ -384,26 +387,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         proofs[0] = _getMerkleProof(withdrawHookAddress);
         proofs[1] = proofs[0];
 
-        // Get current shares in each vault
-        uint256 fluidShares = fluidVault.balanceOf(address(strategy));
-        uint256 aaveShares = aaveVault.balanceOf(address(strategy));
-
-        uint256 fluidUsdcValue = fluidVault.convertToAssets(fluidShares);
-        uint256 aaveUsdcValue = aaveVault.convertToAssets(aaveShares);
-        console2.log("fluidUsdcValue", fluidUsdcValue);
-        console2.log("aaveUsdcValue", aaveUsdcValue);
-        // Calculate proportional split based on USD values
-        uint256 totalUsdValue = fluidUsdcValue + aaveUsdcValue;
-        uint256 fluidSharesOut;
-        uint256 aaveSharesOut;
-
-        if (totalUsdValue > 0) {
-            fluidSharesOut = (redeemShares * fluidUsdcValue) / totalUsdValue;
-            aaveSharesOut = redeemShares - fluidSharesOut; // Use subtraction to avoid rounding errors
-
-            console2.log("fluidSharesOut", fluidSharesOut);
-            console2.log("aaveSharesOut", aaveSharesOut);
-        }
+        (uint256 fluidSharesOut, uint256 aaveSharesOut) = _calculateVaultShares(redeemShares);
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults based on USD value allocation
@@ -436,6 +420,281 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function _claimWithdraw(uint256 assets) internal {
         __claimWithdraw(instanceOnEth, assets);
+    }
+    // Define a struct to hold test variables to avoid stack too deep errors
+
+    function _requestDepositForAllUsers(uint256 depositAmount) internal {
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+            _getTokens(address(asset), accInstances[i].account, depositAmount);
+            _requestDepositForAccount(accInstances[i], depositAmount);
+            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _fulfillDepositForUsers(
+        address[] memory requestingUsers,
+        uint256 allocationAmountVault1,
+        uint256 allocationAmountVault2
+    )
+        internal
+    {
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = _getMerkleProof(depositHookAddress);
+        proofs[1] = proofs[0];
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), allocationAmountVault1, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), allocationAmountVault2, false, false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        vm.stopPrank();
+    }
+
+    function _fulfillRedeemForUsers(
+        address[] memory requestingUsers,
+        uint256 redeemSharesVault1,
+        uint256 redeemSharesVault2
+    )
+        internal
+    {
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = withdrawHookAddress;
+        fulfillHooksAddresses[1] = withdrawHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = _getMerkleProof(withdrawHookAddress);
+        proofs[1] = proofs[0];
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // Withdraw proportionally from both vaults
+        fulfillHooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            redeemSharesVault1,
+            false,
+            false
+        );
+        fulfillHooksData[1] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            redeemSharesVault2,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
+        vm.stopPrank();
+    }
+
+    function _completeDepositFlow(uint256 depositAmount) internal {
+        // create deposit requests for all users
+        _requestDepositForAllUsers(depositAmount);
+
+        // create fullfillment data
+        uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
+        uint256 allocationAmountVault1 = totalAmount / 2;
+        uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
+        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+            requestingUsers[i] = accInstances[i].account;
+            unchecked {
+                ++i;
+            }
+        }
+        // fulfill deposits
+        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+
+        // claim deposits
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+            _claimDepositForAccount(accInstances[i], depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _requestRedeemForAllUsers(uint256 redeemAmount) internal {
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+            uint256 redeemShares = redeemAmount > 0 ? redeemAmount : vault.balanceOf(accInstances[i].account);
+            _requestRedeemForAccount(accInstances[i], redeemShares);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    struct DepositVerificationVars {
+        uint256 depositAmount;
+        uint256 totalAmount;
+        uint256 allocationAmountVault1;
+        uint256 allocationAmountVault2;
+        uint256 initialFluidVaultBalance;
+        uint256 initialAaveVaultBalance;
+        uint256 initialStrategyAssetBalance;
+        uint256 fluidVaultSharesIncrease;
+        uint256 aaveVaultSharesIncrease;
+        uint256 strategyAssetBalanceDecrease;
+        uint256 fluidVaultAssetsValue;
+        uint256 aaveVaultAssetsValue;
+        uint256 totalAssetsAllocated;
+        uint256 totalSharesMinted;
+        uint256 totalAssetsFromShares;
+    }
+
+    struct ChangingAllocationVars {
+        uint256 firstDepositAmount;
+        uint256 secondDepositAmount;
+        uint256 firstAllocationVault1;
+        uint256 firstAllocationVault2;
+        uint256 secondAllocationVault1;
+        uint256 secondAllocationVault2;
+        uint256 initialShareBalance;
+        uint256 firstDepositShares;
+        uint256 firstDepositSharePrice;
+        uint256 shareBalanceAfterFirstDeposit;
+        uint256 secondDepositShares;
+        uint256 secondDepositSharePrice;
+        uint256 totalShares;
+        uint256 totalShareValue;
+    }
+
+    function _verifyAndLogChangingAllocation(ChangingAllocationVars memory vars) internal view {
+        vars.totalShares = vault.balanceOf(accInstances[0].account) - vars.initialShareBalance;
+        assertEq(vars.totalShares, vars.firstDepositShares + vars.secondDepositShares);
+
+        vars.totalShareValue = vault.convertToAssets(vars.totalShares);
+        assertApproxEqRel(vars.totalShareValue, vars.firstDepositAmount + vars.secondDepositAmount, 0.01e18); // 1%
+            // tolerance
+
+        console2.log(
+            "first deposit - vault1 allocation:", vars.firstAllocationVault1 * 100 / vars.firstDepositAmount, "%"
+        );
+        console2.log(
+            "first deposit - vault2 allocation:", vars.firstAllocationVault2 * 100 / vars.firstDepositAmount, "%"
+        );
+        console2.log("first deposit share price:", vars.firstDepositSharePrice);
+
+        console2.log(
+            "second deposit - vault1 allocation:", vars.secondAllocationVault1 * 100 / vars.secondDepositAmount, "%"
+        );
+        console2.log(
+            "second deposit - vault2 allocation:", vars.secondAllocationVault2 * 100 / vars.secondDepositAmount, "%"
+        );
+        console2.log("second deposit share price:", vars.secondDepositSharePrice);
+
+        console2.log(
+            "share price difference percentage:",
+            (vars.firstDepositSharePrice > vars.secondDepositSharePrice)
+                ? ((vars.firstDepositSharePrice - vars.secondDepositSharePrice) * 100 / vars.firstDepositSharePrice)
+                : ((vars.secondDepositSharePrice - vars.firstDepositSharePrice) * 100 / vars.firstDepositSharePrice)
+        );
+    }
+
+    function _verifySharesAndAssets(DepositVerificationVars memory vars) internal {
+        uint256[] memory initialUserShareBalances = new uint256[](RANDOM_ACCOUNT_COUNT);
+        uint256[] memory maxDepositAmounts = new uint256[](RANDOM_ACCOUNT_COUNT);
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+            initialUserShareBalances[i] = vault.balanceOf(accInstances[i].account);
+            maxDepositAmounts[i] = vault.maxDeposit(accInstances[i].account);
+            _claimDepositForAccount(accInstances[i], maxDepositAmounts[i]);
+            unchecked {
+                ++i;
+            }
+        }
+
+        vars.totalSharesMinted = 0;
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
+            console2.log("initialUserShareBalances", initialUserShareBalances[i]);
+            console2.log("i", i);
+            uint256 userSharesReceived = vault.balanceOf(accInstances[i].account) - initialUserShareBalances[i];
+            vars.totalSharesMinted += userSharesReceived;
+
+            // Verify user can convert shares back to approximately the original deposit amount
+            uint256 assetsFromShares = vault.convertToAssets(userSharesReceived);
+            console2.log("totalSupply test", vault.totalSupply());
+            console2.log("totalAssets test", vault.totalAssets());
+            console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+            console2.log("userSharesReceived", userSharesReceived);
+            console2.log("assetsFromShares", assetsFromShares);
+            console2.log("maxDepositAmounts", maxDepositAmounts[i]);
+            assertApproxEqRel(assetsFromShares, maxDepositAmounts[i], 0.01e18); // Allow 1% deviation
+            console2.log("--------------------------------");
+            unchecked {
+                ++i;
+            }
+        }
+
+        vars.totalAssetsFromShares = vault.convertToAssets(vars.totalSharesMinted);
+        assertApproxEqRel(vars.totalAssetsFromShares, vars.totalAmount, 0.01e18); // Allow 1% deviation
+    }
+
+    struct RedeemVerificationVars {
+        uint256 depositAmount;
+        uint256 redeemAmount;
+        uint256 totalDepositAmount;
+        uint256 totalRedeemAmount;
+        uint256 totalRedeemedAssets;
+        uint256 allocationAmountVault1;
+        uint256 allocationAmountVault2;
+        uint256 initialFluidVaultBalance;
+        uint256 initialAaveVaultBalance;
+        uint256 initialStrategyAssetBalance;
+        uint256 fluidVaultSharesDecrease;
+        uint256 aaveVaultSharesDecrease;
+        uint256 strategyAssetBalanceIncrease;
+        uint256 fluidVaultAssetsValue;
+        uint256 aaveVaultAssetsValue;
+        uint256 totalAssetsRedeemed;
+        uint256 totalSharesBurned;
+        uint256[] userShareBalances;
+    }
+
+    function _verifyRedeemSharesAndAssets(RedeemVerificationVars memory vars) internal {
+        uint256[] memory initialAssetBalances = new uint256[](RANDOM_ACCOUNT_COUNT);
+        vars.totalSharesBurned = 0;
+
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+            initialAssetBalances[i] = asset.balanceOf(accInstances[i].account);
+        }
+        uint256 totalAssetsReceived = 0;
+        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
+            uint256 claimableWithdraw = vault.maxWithdraw(accInstances[i].account);
+            console2.log("claimable withdraw:", claimableWithdraw);
+            _claimWithdrawForAccount(accInstances[i], claimableWithdraw);
+
+            uint256 sharesBurned = vars.userShareBalances[i] - vault.balanceOf(accInstances[i].account);
+            vars.totalSharesBurned += sharesBurned;
+
+            uint256 assetsReceived = asset.balanceOf(accInstances[i].account) - initialAssetBalances[i];
+            totalAssetsReceived += assetsReceived;
+            console2.log("\n---");
+            console2.log("assets received:", assetsReceived);
+            /// @dev a deviation exists here because of the averageWithdrawPrice
+            assertApproxEqRel(assetsReceived, claimableWithdraw, 0.001e18);
+        }
+
+        uint256 assetsFromTotalSharesBurned = vault.convertToAssets(vars.totalSharesBurned);
+        assertApproxEqRel(assetsFromTotalSharesBurned, totalAssetsReceived, 0.01e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -554,5 +813,35 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             // Otherwise rounding issues in other places becomes bigger
             pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
         }
+    }
+
+    function _calculateVaultShares(uint256 redeemShares)
+        internal
+        view
+        returns (uint256 fluidSharesOut, uint256 aaveSharesOut)
+    {
+        // Get current shares in each vault
+        uint256 fluidShares = fluidVault.balanceOf(address(strategy));
+        uint256 aaveShares = aaveVault.balanceOf(address(strategy));
+
+        // Convert shares to underlying asset values
+        uint256 fluidUsdcValue = fluidVault.convertToAssets(fluidShares);
+        uint256 aaveUsdcValue = aaveVault.convertToAssets(aaveShares);
+
+        console2.log("fluidUsdcValue", fluidUsdcValue);
+        console2.log("aaveUsdcValue", aaveUsdcValue);
+
+        // Calculate proportional split based on USD values
+        uint256 totalUsdValue = fluidUsdcValue + aaveUsdcValue;
+
+        if (totalUsdValue > 0) {
+            fluidSharesOut = (redeemShares * fluidUsdcValue) / totalUsdValue;
+            aaveSharesOut = redeemShares - fluidSharesOut; // Use subtraction to avoid rounding errors
+
+            console2.log("fluidSharesOut", fluidSharesOut);
+            console2.log("aaveSharesOut", aaveSharesOut);
+        }
+
+        return (fluidSharesOut, aaveSharesOut);
     }
 }

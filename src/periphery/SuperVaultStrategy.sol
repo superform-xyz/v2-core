@@ -897,6 +897,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         ISuperVault(_vault).mintShares(vars.shares);
         console2.log("SHARES MINTED", vars.shares);
+        (uint256 pps,,) = _getSuperVaultAssetInfo();
+        console2.log("PPS", pps);
         _onDepositClaimable(user, vars.requestedAmount, vars.shares);
     }
 

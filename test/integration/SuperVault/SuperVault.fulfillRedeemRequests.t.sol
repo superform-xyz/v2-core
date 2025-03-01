@@ -10,15 +10,17 @@ import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol"
 
 // superform
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
-import { SuperVault } from "../../../src/periphery/SuperVault.sol";
-import { SuperVaultFulfillDepositRequestsTest } from "./SuperVault.fulfillDepositRequests.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequestsTest {
+import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
+
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+
+contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
+    using Math for uint256;
 
     function test_RequestRedeem_MultipleUsers(uint256 depositAmount) public {
         // bound amount
@@ -46,7 +48,6 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
                 ++i;
             }
         }
-        totalRedeemShares -= 1000;
 
         // request redeem for all users
         _requestRedeemForAllUsers(0);
@@ -143,7 +144,6 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
                 ++i;
             }
         }
-        totalRedeemShares -= 1000;
 
         address[] memory requestingUsers = new address[](partialUsersCount);
         for (uint256 i; i < partialUsersCount;) {
@@ -153,8 +153,7 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
             }
         }
 
-        uint256 allocationAmountVault1 = totalRedeemShares / 2;
-        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+        (uint256 allocationAmountVault1, uint256 allocationAmountVault2) = _calculateVaultShares(totalRedeemShares);
 
         // fulfill redeem for half the users
         _fulfillRedeemForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
@@ -352,27 +351,6 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         _claimWithdrawForAccount(accInst, assets);
     }
 
-    struct RedeemVerificationVars {
-        uint256 depositAmount;
-        uint256 redeemAmount;
-        uint256 totalDepositAmount;
-        uint256 totalRedeemAmount;
-        uint256 totalRedeemedAssets;
-        uint256 allocationAmountVault1;
-        uint256 allocationAmountVault2;
-        uint256 initialFluidVaultBalance;
-        uint256 initialAaveVaultBalance;
-        uint256 initialStrategyAssetBalance;
-        uint256 fluidVaultSharesDecrease;
-        uint256 aaveVaultSharesDecrease;
-        uint256 strategyAssetBalanceIncrease;
-        uint256 fluidVaultAssetsValue;
-        uint256 aaveVaultAssetsValue;
-        uint256 totalAssetsRedeemed;
-        uint256 totalSharesBurned;
-        uint256[] userShareBalances;
-    }
-
     function test_RequestRedeem_VerifyAmounts() public {
         RedeemVerificationVars memory vars;
         vars.depositAmount = 1000e6;
@@ -383,6 +361,8 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
             vars.userShareBalances[i] = vault.balanceOf(accInstances[i].account);
         }
+        console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
         console2.log("deposits done");
         /// redeem half of the shares
         vars.redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
@@ -585,117 +565,5 @@ contract SuperVaultFulfillRedeemRequestsTest is SuperVaultFulfillDepositRequests
         assertApproxEqRel(
             totalAssetsReceived, totalRedeemAmount, 0.01e18, "Total assets received should match total redeem amount"
         );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    function _fulfillRedeemForUsers(
-        address[] memory requestingUsers,
-        uint256 redeemSharesVault1,
-        uint256 redeemSharesVault2
-    )
-        internal
-    {
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-
-        address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = withdrawHookAddress;
-        fulfillHooksAddresses[1] = withdrawHookAddress;
-
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = proofs[0];
-
-        bytes[] memory fulfillHooksData = new bytes[](2);
-        // Withdraw proportionally from both vaults
-        fulfillHooksData[0] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(fluidVault),
-            address(strategy),
-            redeemSharesVault1,
-            false,
-            false
-        );
-        fulfillHooksData[1] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(aaveVault),
-            address(strategy),
-            redeemSharesVault2,
-            false,
-            false
-        );
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
-        vm.stopPrank();
-    }
-
-    function _verifyRedeemSharesAndAssets(RedeemVerificationVars memory vars) internal {
-        uint256[] memory initialAssetBalances = new uint256[](RANDOM_ACCOUNT_COUNT);
-        vars.totalSharesBurned = 0;
-
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
-            initialAssetBalances[i] = asset.balanceOf(accInstances[i].account);
-        }
-
-        uint256 totalClaimableWithdraw = 0;
-        uint256 totalAssetsReceived = 0;
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT; i++) {
-            uint256 claimableWithdraw = vault.maxWithdraw(accInstances[i].account);
-            totalClaimableWithdraw += claimableWithdraw;
-            console2.log("claimable withdraw:", claimableWithdraw);
-            _claimWithdrawForAccount(accInstances[i], claimableWithdraw);
-
-            uint256 sharesBurned = vars.userShareBalances[i] - vault.balanceOf(accInstances[i].account);
-            vars.totalSharesBurned += sharesBurned;
-
-            uint256 assetsReceived = asset.balanceOf(accInstances[i].account) - initialAssetBalances[i];
-            totalAssetsReceived += assetsReceived;
-            console2.log("\n---");
-            console2.log("assets received:", assetsReceived);
-            /// @dev a deviation exists here because of the averageWithdrawPrice
-            assertApproxEqRel(assetsReceived, claimableWithdraw, 0.001e18);
-        }
-
-        uint256 assetsFromTotalSharesBurned = vault.convertToAssets(vars.totalSharesBurned);
-        assertApproxEqRel(assetsFromTotalSharesBurned, totalAssetsReceived, 0.01e18);
-    }
-
-    function _completeDepositFlow(uint256 depositAmount) internal {
-        // create deposit requests for all users
-        _requestDepositForAllUsers(depositAmount);
-
-        // create fullfillment data
-        uint256 totalAmount = depositAmount * RANDOM_ACCOUNT_COUNT;
-        uint256 allocationAmountVault1 = totalAmount / 2;
-        uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
-        address[] memory requestingUsers = new address[](RANDOM_ACCOUNT_COUNT);
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
-            requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
-        }
-        // fulfill deposits
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
-
-        // claim deposits
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
-            _claimDepositForAccount(accInstances[i], depositAmount);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _requestRedeemForAllUsers(uint256 redeemAmount) internal {
-        for (uint256 i; i < RANDOM_ACCOUNT_COUNT;) {
-            uint256 redeemShares = redeemAmount > 0 ? redeemAmount : vault.balanceOf(accInstances[i].account);
-            _requestRedeemForAccount(accInstances[i], redeemShares);
-            unchecked {
-                ++i;
-            }
-        }
     }
 }
