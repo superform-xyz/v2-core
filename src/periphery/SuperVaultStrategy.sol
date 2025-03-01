@@ -372,6 +372,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get all TVLs in one call at the start
         (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
 
+        vars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Process each hook in sequence
         for (uint256 i; i < hooksLength;) {
             // Validate hook via merkle proof
@@ -438,6 +439,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             unchecked {
                 ++i;
             }
+        }
+        vars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
+        // inflows increase totalAssets, outflows decrease totalAssets
+        if (vars.balanceAssetAfter > vars.balanceAssetBefore) {
+            _updateLastTotalAssets(_lastTotalAssets + (vars.balanceAssetAfter - vars.balanceAssetBefore));
+        } else {
+            _updateLastTotalAssets(_lastTotalAssets - (vars.balanceAssetBefore - vars.balanceAssetAfter));
         }
 
         // Resize array to actual count if needed
@@ -839,6 +847,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         returns (uint256 pricePerShare, uint256 totalAssetsValue, uint256 totalSupplyAmount)
     {
         totalSupplyAmount = IERC4626(_vault).totalSupply();
+        totalAssetsValue = _lastTotalAssets;
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
             pricePerShare = PRECISION;
@@ -1205,6 +1214,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             hook, prevHook, hookCalldata, hookProof, ISuperHook.HookType.INFLOW, true, address(_asset), amount
         );
 
+        // Update _lastTotalAssets to account for assets being moved in
+        // TODO: this should be done via balance difference
+        _updateLastTotalAssets(_lastTotalAssets - amount);
+
         // Find TVL for target yield source
         uint256 currentYieldSourceAssets;
         bool found;
@@ -1258,6 +1271,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         );
 
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
+        // balance 4000
+        // total assets 2000
+        uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
         // Execute hook with vault token approval
         target = _executeHook(
@@ -1269,6 +1285,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             true,
             address(0), // target is the vault token
             amount
+        );
+
+        // Update _lastTotalAssets to account for assets being moved out
+        _updateLastTotalAssets(
+            _lastTotalAssets + (_getTokenBalance(address(_asset), address(this)) - balanceAssetBefore)
         );
     }
 
