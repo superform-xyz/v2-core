@@ -14,7 +14,6 @@ import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-import "forge-std/console.sol";
 
 /// @title Deposit4626VaultHook
 /// @dev data has the following structure

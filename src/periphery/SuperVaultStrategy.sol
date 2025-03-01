@@ -26,8 +26,6 @@ import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 /// @title SuperVaultStrategy
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
@@ -192,7 +190,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         external
     {
-        console2.log("\n----FULFILL REQUESTS----");
         _requireRole(STRATEGIST_ROLE);
         uint256 usersLength = users.length;
         if (usersLength == 0) revert ZERO_LENGTH();
@@ -207,10 +204,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // If deposit, check available balance
         if (isDeposit) {
-            console2.log("--DEPOSIT REQUEST FULFILL--");
             vars.availableAmount = _getTokenBalance(address(_asset), address(this));
-            console2.log("AvailableAmount", vars.availableAmount);
-            console2.log("TotalRequestedAmount", vars.totalRequestedAmount);
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
 
@@ -231,11 +225,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 totalSupplyIncrease = vars.totalRequestedAmount.mulDiv(
                 vars.totalSupplyAmount, vars.totalAssets - vars.totalRequestedAmount, Math.Rounding.Floor
             );
-            console2.log("totalSupplyIncrease", totalSupplyIncrease);
             /// @dev determine the global new PPS for all depositors being fulfilled with the total supply increase
             vars.pricePerShare =
                 vars.totalAssets.mulDiv(PRECISION, vars.totalSupplyAmount + totalSupplyIncrease, Math.Rounding.Floor);
-            console2.log("pps", vars.pricePerShare);
         }
 
         // Process requests
@@ -573,14 +565,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 activeSourceCount;
 
         totalAssets_ = _getTokenBalance(address(_asset), address(this));
-        console2.log("TotalAssets in balance", totalAssets_);
         for (uint256 i; i < length;) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
                 uint256 tvl = _getTvlByOwnerOfShares(source);
                 totalAssets_ += tvl;
                 sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
-                console2.log("TotalAssets in yield source", tvl);
             }
             unchecked {
                 ++i;
@@ -840,9 +830,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         view
         returns (uint256 pricePerShare, uint256 totalAssetsValue, uint256 totalSupplyAmount)
     {
-        console2.log("\n----GET PPS ----");
         totalSupplyAmount = IERC4626(_vault).totalSupply();
-        console2.log("TotalSupplyAmount", totalSupplyAmount);
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
             pricePerShare = PRECISION;
@@ -850,23 +838,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
-            console2.log("TotalAssetsValue", totalAssetsValue);
-            console2.log("PricePerShare", pricePerShare);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
-        console2.log("\n----PROCESS DEPOSIT END STATE----");
-
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.totalSupplyAmount == 0
             ? vars.requestedAmount
             : vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
-        console2.log("RequestedAmount", vars.requestedAmount);
-        console2.log("TotalAssets", vars.totalAssets);
-        console2.log("PricePerShare", vars.pricePerShare);
-        console2.log("Shares", vars.shares);
-        console2.log("NewTotalSupply", vars.totalSupplyAmount);
+
         uint256 newTotalUserShares = state.maxMint + vars.shares;
 
         if (newTotalUserShares > 0) {
@@ -876,9 +856,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
 
             uint256 newTotalUserAssets = existingUserAssets + vars.requestedAmount;
-            console2.log("newTotalUserAssets", newTotalUserAssets);
             state.averageDepositPrice = newTotalUserAssets.mulDiv(PRECISION, newTotalUserShares, Math.Rounding.Floor);
-            console2.log("AverageDepositPrice", state.averageDepositPrice);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
@@ -886,9 +864,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
-        console2.log("SHARES MINTED", vars.shares);
-        (uint256 pps,,) = _getSuperVaultAssetInfo();
-        console2.log("PPS", pps);
+
         _onDepositClaimable(user, vars.requestedAmount, vars.shares);
     }
 
@@ -958,7 +934,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     function _handleClaimWithdraw(address controller, uint256 assets) private returns (uint256) {
-        console2.log("\n----HANDLE CLAIM WITHDRAW----");
         _requireVault();
         if (assets == 0) revert INVALID_AMOUNT();
 
@@ -966,11 +941,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
 
-        console2.log("Assets", assets);
-        uint256 balance = _getTokenBalance(address(_asset), address(this));
-        console2.log("Balance", balance);
         // Update state
-
         state.maxWithdraw -= assets;
 
         // Transfer assets to vault
@@ -1107,7 +1078,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 finalBalance = _getTokenBalance(tokens[i], address(this));
 
             if (requireZeroBalance) {
-                console2.log("----------finalBalance", finalBalance);
                 if (finalBalance != 0) revert INVALID_AMOUNT();
             } else {
                 if (finalBalance < initialBalances[i]) revert INVALID_AMOUNT();
@@ -1169,10 +1139,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
         }
 
-        console2.log("\n----AFTER FULFILL HOOKS EXEC----");
         // Verify all amounts were spent
-        console2.log("SpentAmount", vars.spentAmount);
-        console2.log("TotalRequestedAmount", vars.totalRequestedAmount);
         if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
         // Resize array to actual count if needed
@@ -1229,11 +1196,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
         if (!found) revert YIELD_SOURCE_NOT_FOUND();
 
-        console2.log(
-            "ALLO RATE",
-            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor)
-        );
-        console2.log("MAX ALLOCATION RATE", globalConfig.maxAllocationRate);
         // Check allocation rate using the same totalAssets value
         if (
             (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor)
@@ -1259,24 +1221,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         private
         returns (uint256 amount, address target)
     {
-        console2.log("\n----PROCESS OUTFLOW HOOK EXECUTION----");
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
-        console2.log("Amount", amount);
-
         // convert amount to underlying vault shares
         (uint256 pricePerShare,,) = _getSuperVaultAssetInfo();
-        console2.log("PricePerShare", pricePerShare);
 
         uint256 amountOfAssets = amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
-        console2.log("AmountOfAssets", amountOfAssets);
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
             yieldSource, address(_asset), amountOfAssets
         );
-        console2.log("AmountConvertedToUnderlyingShares", amountConvertedToUnderlyingShares);
-        console2.log("Total available shares", IERC4626(address(yieldSource)).balanceOf(address(this)));
         hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
 
         // Execute hook with vault token approval
@@ -1407,13 +1362,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param historicalAssets Historical value of shares in assets
     /// @return uint256 Assets after fee deduction
     function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) private returns (uint256) {
-        console2.log("CurrentAssets", currentAssets);
-        console2.log("HistoricalAssets", historicalAssets);
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
-            console2.log("TotalFee", totalFee);
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
                 uint256 superformFee =
@@ -1450,25 +1402,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         private
         returns (uint256 finalAssets, uint256 lastConsumedIndex)
     {
-        console2.log("\n----CALCULATE HISTORICAL ASSETS AND PROCESS FEES----");
         uint256 historicalAssets = 0;
         uint256 sharePricePointsLength = state.sharePricePoints.length;
         uint256 remainingShares = requestedShares;
         uint256 currentIndex = state.sharePricePointCursor;
         lastConsumedIndex = currentIndex;
-        console2.log("\n----");
 
         // Calculate historicalAssets for each share price point
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
             historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
-            console2.log("point.shares", point.shares);
-            console2.log("remainingShares", remainingShares);
-            console2.log("\n----");
-            console2.log("sharesFromPoint", sharesFromPoint);
-            console2.log("point.pricePerShare", point.pricePerShare);
-            console2.log("historicalAssets", historicalAssets);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -1486,18 +1430,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        console2.log("requestedShares", requestedShares);
-        console2.log("currentPricePerShare", currentPricePerShare);
         finalAssets = _calculateAndTransferFee(
             requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor), historicalAssets
         );
-        console2.log("FinalAssets", finalAssets);
 
         uint256 balanceOfStrategy = _getTokenBalance(address(_asset), address(this));
 
         /// @dev we require truncation because this vault needs to set a state variable on the maxWithdraw
         finalAssets = finalAssets > balanceOfStrategy ? balanceOfStrategy : finalAssets;
-        console2.log("FinalAssets after balance check and truncation", finalAssets);
+
         // Update average withdraw price using weighted average
         // Calculate new weighted average redeem price
         // maxWithdraw (assets) = maxRedeem * previousPpsValue

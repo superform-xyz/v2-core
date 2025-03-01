@@ -15,7 +15,6 @@ import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVaultFactory } from "./interfaces/ISuperVaultFactory.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { IERC7540 } from "../vendor/vaults/7540/IERC7540.sol";
-import { console2 } from "forge-std/console2.sol";
 
 /// @title SuperVaultFactory
 /// @notice Factory contract that deploys SuperVault, SuperVaultStrategy, and SuperVaultEscrow
@@ -54,7 +53,6 @@ contract SuperVaultFactory is ISuperVaultFactory {
         external
         returns (address superVault, address strategy, address escrow)
     {
-        console2.log("\n----CREATE VAULT----");
         // Input validation
         if (
             params.asset == address(0) || params.manager == address(0) || params.strategist == address(0)
@@ -165,22 +163,5 @@ contract SuperVaultFactory is ISuperVaultFactory {
         );
         vars.strategyContract.setAddress(vars.STRATEGIST_ROLE, params.strategist);
         vars.strategyContract.setAddress(vars.MANAGER_ROLE, params.manager);
-
-        // 3. Verify price per share has increased
-        /// @dev TODO: can probably delete this
-        (vars.totalAssets,) = vars.strategyContract.totalAssets();
-        vars.totalSupply = SuperVault(params.superVault).totalSupply();
-        vars.precision = vars.strategyContract.PRECISION();
-        vars.pricePerShare = vars.totalAssets.mulDiv(vars.precision, vars.totalSupply, Math.Rounding.Floor);
-
-        console2.log("\n--PricePerShare VAULT DEPLOYMENT", vars.pricePerShare);
-        /*
-        // prevent bootstrapping vaults where the PPS does not increase
-        if (vars.pricePerShare <= vars.precision) {
-            revert BOOTSTRAP_FAILED();
-        }
-        */
-
-        console2.log("\n------------------------------------");
     }
 }
