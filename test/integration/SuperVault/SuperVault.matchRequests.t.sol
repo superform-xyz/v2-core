@@ -10,6 +10,7 @@ import { SuperVaultFulfillRedeemRequestsTest } from "./SuperVault.fulfillRedeemR
 import "forge-std/console2.sol";
 import { AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
     function test_MatchRequests_SinglePair(uint256 amount) public {
@@ -98,17 +99,20 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         vm.warp(block.timestamp + 1 days);
 
         vm.startPrank(STRATEGIST);
+        // Fulfill each deposit request individually
         for (uint256 i = 0; i < 10; i++) {
-            uint256 redeemIndex = i + 10;
-            __fulfillDepositRequest(accInstances[redeemIndex], amount);
+            __fulfillDepositRequest(accInstances[i + 10], amount);
             console2.log("Price per share after fulfill:", _getSuperVaultPricePerShare());
         }
         vm.stopPrank();
 
         // Then proceed with claims...
-
-        // Claim all redeemer deposits together
         console2.log("\n=== Claiming all redeemer deposits ===");
+
+        // Get price per share once for all calculations
+        uint256 currentPricePerShare = vault.convertToAssets(1e18);
+        uint256 sharesToRedeem = Math.mulDiv(amount, 1e18, currentPricePerShare, Math.Rounding.Floor);
+        console2.log("Calculated shares to redeem for all:", sharesToRedeem);
 
         for (uint256 i = 0; i < 10; i++) {
             uint256 redeemIndex = i + 10;
@@ -125,17 +129,17 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
 
             _claimDepositForAccount(accInstances[redeemIndex], amount);
 
-            // Now request redemption
+            // Now request redemption - use pre-calculated shares
             uint256 sharesBefore = vault.balanceOf(accInstances[redeemIndex].account);
-            console2.log("Shares after claim:", sharesBefore);
-            require(sharesBefore > 0, "Redeemer has no shares");
-
-            _requestRedeemForAccount(accInstances[redeemIndex], sharesBefore);
+            console2.log("Total shares before:", sharesBefore);
+            
+            require(sharesBefore >= sharesToRedeem, "Not enough shares to redeem");
+            _requestRedeemForAccount(accInstances[redeemIndex], sharesToRedeem);
             redeemUsers[i] = accInstances[redeemIndex].account;
 
             uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[redeemIndex].account);
             console2.log("Pending redeem amount:", pendingRedeem);
-            assertEq(pendingRedeem, sharesBefore, "Redeem request not created");
+            assertEq(pendingRedeem, sharesToRedeem, "Redeem request not created");
 
             // Add delay between claims
             vm.warp(block.timestamp + 1 days);
@@ -153,14 +157,20 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         for (uint256 i = 0; i < 10; i++) {
             console2.log("\n--- Verifying pair", i, "---");
 
+            // Verify depositor state
             uint256 depositState = strategy.getSuperVaultState(depositUsers[i], 1);
             console2.log("Depositor shares to mint:", depositState);
             assertEq(strategy.pendingDepositRequest(depositUsers[i]), 0, "Deposit request not matched");
             assertGt(depositState, 0, "No shares to mint for depositor");
 
+            // Verify redeemer state
             uint256 redeemState = strategy.getSuperVaultState(redeemUsers[i], 2);
             console2.log("Redeemer assets to withdraw:", redeemState);
             assertGt(redeemState, 0, "No assets to withdraw for redeemer");
+
+            // Add additional verification
+            uint256 pendingRedeem = strategy.pendingRedeemRequest(redeemUsers[i]);
+            assertEq(pendingRedeem, 0, "Redeem request not matched");
         }
     }
 
