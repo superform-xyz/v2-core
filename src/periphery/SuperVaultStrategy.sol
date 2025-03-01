@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -23,12 +23,11 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
-
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
 /// @title SuperVaultStrategy
-/// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 /// @author SuperForm Labs
+/// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
 contract SuperVaultStrategy is ISuperVaultStrategy {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -104,7 +103,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address strategist_,
         address emergencyAdmin_,
         address peripheryRegistry_,
-        GlobalConfig memory config_
+        GlobalConfig memory config_,
+        address initYieldSource_,
+        bytes32 initHooksRoot_,
+        address initYieldSourceOracle_
     )
         external
     {
@@ -132,6 +134,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
         peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
         globalConfig = config_;
+
+        // Initialize first yield source and hook root to bootstrap the vault
+        if (initHooksRoot_ == bytes32(0)) revert INVALID_HOOK_ROOT();
+        hookRoot = initHooksRoot_;
+        emit HookRootUpdated(initHooksRoot_);
+
+        if (initYieldSourceOracle_ == address(0)) revert ZERO_ADDRESS();
+        if (initYieldSource_ == address(0)) revert ZERO_ADDRESS();
+
+        yieldSources[initYieldSource_] = YieldSource({ oracle: initYieldSourceOracle_, isActive: true });
+        yieldSourcesList.push(initYieldSource_);
+        emit YieldSourceAdded(initYieldSource_, initYieldSourceOracle_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -202,7 +216,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             _checkVaultCaps(targetedYieldSources);
         }
 
-        (vars.pricePerShare, vars.totalAssets) = _getSuperVaultAssetInfo();
+        /// @dev pps obtained here is just to forward to _processRedeem, not used in deposits
+        (vars.pricePerShare, vars.totalAssets, vars.totalSupplyAmount) = _getSuperVaultAssetInfo();
+
+        if (vars.totalSupplyAmount > 0 && isDeposit) {
+            /// @dev calculate total supply increase based on total requested amount variation
+            uint256 totalSupplyIncrease = vars.totalRequestedAmount.mulDiv(
+                vars.totalSupplyAmount, vars.totalAssets - vars.totalRequestedAmount, Math.Rounding.Floor
+            );
+            /// @dev determine the global new PPS for all depositors being fulfilled with the total supply increase
+            vars.pricePerShare =
+                vars.totalAssets.mulDiv(PRECISION, vars.totalSupplyAmount + totalSupplyIncrease, Math.Rounding.Floor);
+        }
 
         // Process requests
         for (uint256 i; i < usersLength;) {
@@ -231,7 +256,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (redeemLength != depositLength) revert LENGTH_MISMATCH();
 
         MatchVars memory vars;
-        (vars.currentPricePerShare,) = _getSuperVaultAssetInfo();
+        (vars.currentPricePerShare,,) = _getSuperVaultAssetInfo();
 
         // Track shares used from each redeemer in memory
         uint256[] memory sharesUsedByRedeemer = new uint256[](redeemLength);
@@ -245,7 +270,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
-            vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare);
+            vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare, Math.Rounding.Floor);
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
@@ -379,8 +404,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (!found) revert YIELD_SOURCE_NOT_FOUND();
                 // Check allocation rate using the same totalAssets value
                 if (
-                    (currentYieldSourceAssets + vars.amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_)
-                        > globalConfig.maxAllocationRate
+                    (currentYieldSourceAssets + vars.amount).mulDiv(
+                        ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor
+                    ) > globalConfig.maxAllocationRate
                 ) {
                     revert MAX_ALLOCATION_RATE_EXCEEDED();
                 }
@@ -613,7 +639,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 emit YieldSourceReactivated(source);
             } else {
                 if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-
                 if (_getTokenBalance(source, address(this)) > 0) revert INVALID_AMOUNT();
 
                 yieldSource.isActive = false;
@@ -624,8 +649,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
     }
 
-    /// @notice Update global configuration
-    /// @param config New global configuration
+    /// @inheritdoc ISuperVaultStrategy
     function updateGlobalConfig(GlobalConfig calldata config) external {
         _requireRole(MANAGER_ROLE);
         if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
@@ -682,13 +706,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @notice Set an address for a given role
-    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
+    /// @dev Only callable by MANAGER role
     /// @param role The role identifier
     /// @param account The address to set for the role
     function setAddress(bytes32 role, address account) external {
         _requireRole(MANAGER_ROLE);
         if (account == address(0)) revert ZERO_ADDRESS();
-        if (role == MANAGER_ROLE && account != msg.sender) revert ACCESS_DENIED();
 
         addresses[role] = account;
     }
@@ -802,37 +825,38 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         return IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
     }
 
-    function _getSuperVaultAssetInfo() private view returns (uint256 pricePerShare, uint256 totalAssetsValue) {
-        uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
+    function _getSuperVaultAssetInfo()
+        private
+        view
+        returns (uint256 pricePerShare, uint256 totalAssetsValue, uint256 totalSupplyAmount)
+    {
+        totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
             pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
             (totalAssetsValue,) = totalAssets();
-            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
-            // Otherwise rounding issues in other places becomes bigger
-            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare);
+        vars.shares = vars.totalSupplyAmount == 0
+            ? vars.requestedAmount
+            : vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
 
-        // Calculate new weighted average deposit price
-        // maxDeposit (assets) = maxMint * previousPpsValue
-        // newDepositPrice = (maxDeposit(assets) + assets))/ (maxMint + shares)
-        uint256 newTotalShares = state.maxMint + vars.shares;
+        uint256 newTotalUserShares = state.maxMint + vars.shares;
 
-        if (newTotalShares > 0) {
-            uint256 existingAssets = 0;
+        if (newTotalUserShares > 0) {
+            uint256 existingUserAssets = 0;
             if (state.maxMint > 0 && state.averageDepositPrice > 0) {
-                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
+                existingUserAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
             }
 
-            uint256 newTotalAssets = existingAssets + vars.requestedAmount;
-            state.averageDepositPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+            uint256 newTotalUserAssets = existingUserAssets + vars.requestedAmount;
+            state.averageDepositPrice = newTotalUserAssets.mulDiv(PRECISION, newTotalUserShares, Math.Rounding.Floor);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
@@ -840,6 +864,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
+
         _onDepositClaimable(user, vars.requestedAmount, vars.shares);
     }
 
@@ -854,10 +879,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.sharePricePointCursor = lastConsumedIndex;
         state.pendingRedeemRequest = 0;
 
-        // truncate maxWithdraw to totalAssets if finalAssets is greater than totalAssets
-        // this prevents a situation where a user can't exit fully his position if he is the last redeeming from the
-        // vault
-        state.maxWithdraw += finalAssets > vars.totalAssets ? vars.totalAssets : finalAssets;
+        state.maxWithdraw += finalAssets;
         _onRedeemClaimable(user, finalAssets, vars.requestedAmount);
     }
 
@@ -916,20 +938,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (assets == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
+
         if (state.maxWithdraw < assets) revert INVALID_AMOUNT();
 
         // Update state
         state.maxWithdraw -= assets;
 
-        // truncate actual transfer to what's available as freeFundsFrom the vault
-        // TODO: we need a better solution. Essentially when the rounding there is precision
-        // loss. Could we could increase precision of pricePerShare so that we avoid needing to do this?
-        uint256 freeFunds = _getTokenBalance(address(_asset), address(this));
-        uint256 assetsToTransfer = assets > freeFunds ? freeFunds : assets;
-
         // Transfer assets to vault
-        _safeTokenTransfer(address(_asset), _vault, assetsToTransfer);
-        return assetsToTransfer;
+        _safeTokenTransfer(address(_asset), _vault, assets);
+        return assets;
     }
 
     //--Fulfilment and allocation helpers--
@@ -1181,7 +1198,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Check allocation rate using the same totalAssets value
         if (
-            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_)
+            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor)
                 > globalConfig.maxAllocationRate
         ) {
             revert MAX_ALLOCATION_RATE_EXCEEDED();
@@ -1208,27 +1225,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         amount = _decodeHookAmount(hook, hookCalldata);
 
         // convert amount to underlying vault shares
-        (uint256 pricePerShare,) = _getSuperVaultAssetInfo();
+        (uint256 pricePerShare,,) = _getSuperVaultAssetInfo();
 
-        uint256 precision = PRECISION;
-        uint256 vaultAmount;
-       
-        vaultAmount = amount.mulDiv(PRECISION, pricePerShare, Math.Rounding.Floor);
-
+        uint256 amountOfAssets = amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
         address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
         uint256 amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(
-            yieldSource, address(_asset), vaultAmount
+            yieldSource, address(_asset), amountOfAssets
         );
-        if (pricePerShare < PRECISION) {
-            /// @dev account for rounding errors
-            ///      This can happen 2 times during the whole process currently
-            ///      When pps < PRECISION for operations using PPS, mulDiv will round it 2 times
-            //          resulting in a +2 error 
-            amountConvertedToUnderlyingShares = amountConvertedToUnderlyingShares - 2; 
-        }
-        hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
-        // Execute hook with vault token approval
 
+        hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, amountConvertedToUnderlyingShares);
+
+        // Execute hook with vault token approval
         target = _executeHook(
             hook,
             prevHook,
@@ -1359,11 +1366,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
-            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT);
-
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
-                uint256 superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
+                uint256 superformFee =
+                    totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees
@@ -1424,9 +1431,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         // Calculate current value and process fees
-        // @dev we Ceil here because we Floor at shares calculation
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Ceil);
-        finalAssets = _calculateAndTransferFee(currentAssets, historicalAssets);
+        finalAssets = _calculateAndTransferFee(
+            requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor), historicalAssets
+        );
+
+        uint256 balanceOfStrategy = _getTokenBalance(address(_asset), address(this));
+
+        /// @dev we require truncation because this vault needs to set a state variable on the maxWithdraw
+        finalAssets = finalAssets > balanceOfStrategy ? balanceOfStrategy : finalAssets;
 
         // Update average withdraw price using weighted average
         // Calculate new weighted average redeem price

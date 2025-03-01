@@ -1,6 +1,9 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+/// @title ISuperExecutor
+/// @author Superform Labs
+/// @notice Interface for the SuperExecutor contract that executes hooks
 interface ISuperExecutor {
     struct ExecutorEntry {
         address[] hooksAddresses;
@@ -21,7 +24,7 @@ interface ISuperExecutor {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount);
-    
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -30,4 +33,3 @@ interface ISuperExecutor {
 
     function execute(bytes memory data) external;
 }
-

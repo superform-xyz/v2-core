@@ -1,22 +1,24 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-
-import { ISuperHook, ISuperHookResultOutflow, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
-import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
-
+import {
+    ISuperHook,
+    ISuperHookResultOutflow,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
+} from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title Withdraw7540VaultHook
+/// @title Withdraw7575_7540VaultHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);

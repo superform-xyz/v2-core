@@ -133,6 +133,13 @@ Key Points for Auditors:
     ultimately it is up to the SuperBundler to provide the correct suggestions for users in the majority of the cases.
     More considerations on this in the SuperBundler section.
 
+Untested Areas:
+- No unit tests for hooks (only integration tests)
+- The only swap hook that is tested is SwapOdosHook.sol
+  - `SwapOdosHook.sol` has only been tested using a simple mock `MockOdosRouterV2.sol` which transfers amount with slippage. This still needs to be tested with actual router implementations.
+  - No tests for other hooks that do swaps yet due to api requirements, these will be tested using `surl` in the future.
+- No tests for any of the hooks for staking and claiming staked tokens yet. 
+
 #### SuperExecutor
 
 The SuperExecutor is responsible for executing the provided hooks, invoking pre- and post-execute functions to handle
@@ -323,8 +330,9 @@ Key Points for Auditors:
   - Emergency controls
   - Hook validation
 - Important cases to watch for:
-  - Fee calculation accuracy
   - Rebalance accuracy
+  - Fee calculation accuracy
+  - Sufficient mitigation of rounding issues
   - Guardrails to protect users/strategists against bad underlying vaults. Are they enough?
   - Unique logic around matchRequests functionality, which will have high importance to reduce gas costs to fulfill requests in Coindidence of Wants format.
   - Ensure all the above is secure in light of the existence of the escrow contract
@@ -334,6 +342,14 @@ Factory Implementation:
 - Proxy pattern for gas efficiency
 - Configurable parameters for new vaults
 - Security measures for initialization
+- Important case to watch for:
+  - The factory performs an initial deposit into the vault during the `createVault` function. This is done to mitigate the discrepancy between shares received by the first depositor and subsequent depositors due to changes in the price per share. Is this the best approach to mitigate this issue?
+
+Untested Areas:
+
+- The `claim` function and the `compoudClaimedTokens` functions have not yet been tested.
+- `allocate()` has not yet been tested.
+- `manageEmergencyWithdrawal()` has only been partially tested.
 
 ## SuperBundler & Account Abstraction
 
@@ -394,6 +410,12 @@ Inter-Hook Dependencies:
   - The SuperExecutor's design ensures that hooks update and pass transient data in a controlled manner, with reversion on
   error to preserve state integrity.
 
+SuperLedger Funds Separation: 
+- Risk:
+  - Right now assets obtained to fulfill redeem requests remain in the SuperVaultStrategy and contribute temporarily to the PPS/totalAssets. However they must not be used for fulfillDepositRequests as they are meant to be given to users who have already claimed
+- Mitigation:
+  - Separate these assets into a new Escrow Assets contract for users to claim?
+
 SuperLedger Accounting: 
 - Risk:
   - Any edge cases where users could be locked into a position?
@@ -408,3 +430,119 @@ SuperExecutor module:
   - Users could execute hooks by their own, without go through the SuperBundler. This could lead to an avoidance of the validator module. However, this would affect only the user and not the protocol as each action is executed in the context of the user's account. 
 - Mitigation:
   - For extra safety, should we deny `target` as SuperExecutor for each hook?
+
+
+---
+
+# **Role-Gated Functions in Superform V2 Contracts**
+
+## **Core Contracts**
+
+### **SuperRegistry.sol**
+
+**Function**: setAddress(bytes32 id_, address address_)
+
+**Role**: onlyOwner
+
+**Purpose**: Updates contract addresses in the registry
+
+**Justification**: Owner control is needed to manage the system's core contract addresses, ensuring only authorized changes to critical infrastructure components
+
+---
+
+### **SuperOracle.sol**
+
+**Function**: setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness)
+
+**Role**: onlyOwner
+
+**Purpose**: Sets the maximum staleness period for a price provider
+
+**Justification**: Owner control ensures price feed reliability by allowing only authorized updates to staleness parameters, preventing manipulation of price validity windows 
+
+<br>
+
+**Function**: queueOracleUpdate(address[] calldata bases, uint256[] calldata providers, address[] calldata oracleAddresses)
+
+**Role**: onlyOwner
+
+**Purpose**: Queues an update to oracle addresses with a timelock
+
+**Justification**: Owner control with timelock protection prevents immediate changes to price oracles, reducing risk of malicious oracle manipulation while allowing for necessary updates
+
+
+---
+
+## **Periphery Contracts**
+
+### **PeripheryRegistry.sol**
+
+**Function**: registerHook(address hook_)
+
+**Role**: onlyOwner
+
+**Purpose**: Registers a new hook in the system
+
+**Justification**: Owner control ensures only core verified and audited hooks can be added to the system, preventing malicious hooks from being registered
+
+<br>
+
+**Function**: unregisterHook(address hook_)
+
+**Role**: onlyOwner
+
+**Purpose**: Removes a hook from the system
+
+**Justification**: Owner control allows disabling compromised or deprecated hooks, protecting users from potential vulnerabilities
+
+<br>
+
+**Function**: proposeFeeSplit(uint256 feeSplit_)
+
+**Role**: onlyOwner
+
+**Purpose**: Proposes a new fee split with a timelock
+
+**Justification**: Owner control with timelock ensures transparent and gradual changes to fee structures, preventing sudden changes that could harm users
+
+<br>
+
+**Function**: setTreasury(address treasury_)
+
+**Role**: onlyOwner
+
+**Purpose**: Updates the treasury address
+
+**Justification**: Owner control protects the destination of collected fees, ensuring they go to the legitimate project treasury
+
+---
+
+### **SuperVaultStrategy.sol (roles are set by creators of SuperVaults)**
+
+**Function**: Various strategy management functions
+
+**Role**: STRATEGIST_ROLE
+
+**Purpose**: Manages yield sources and strategy execution
+
+**Justification**: Specialized role for optimizing yield strategies, requiring deep DeFi expertise and quick response to market conditions
+
+<br>
+
+**Function**: Various configuration functions
+
+**Role**: MANAGER_ROLE
+
+**Purpose**: Manages global configuration and fee settings
+
+**Justification**: Administrative role for overall vault management, separate from strategy execution for better separation of concerns
+
+<br>
+
+**Function**: Emergency functions
+
+**Role**: EMERGENCY_ADMIN_ROLE
+
+**Purpose**: Handles emergency situations
+
+**Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during critical situations without full admin privileges

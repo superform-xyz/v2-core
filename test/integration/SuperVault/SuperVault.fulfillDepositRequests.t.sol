@@ -11,7 +11,6 @@ import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
-import { AccountInstance } from "modulekit/ModuleKit.sol";
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
 import { console2 } from "forge-std/console2.sol";
@@ -19,11 +18,6 @@ import { console2 } from "forge-std/console2.sol";
 contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
-
-    function setUp() public virtual override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-    }
 
     function test_RequestDeposit_MultipleUsers(uint256 depositAmount) public {
         // bound amount
@@ -295,25 +289,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         _fulfillDepositForUsers(requestingUsers, totalAmount, 0);
     }
 
-    // Define a struct to hold test variables to avoid stack too deep errors
-    struct DepositVerificationVars {
-        uint256 depositAmount;
-        uint256 totalAmount;
-        uint256 allocationAmountVault1;
-        uint256 allocationAmountVault2;
-        uint256 initialFluidVaultBalance;
-        uint256 initialAaveVaultBalance;
-        uint256 initialStrategyAssetBalance;
-        uint256 fluidVaultSharesIncrease;
-        uint256 aaveVaultSharesIncrease;
-        uint256 strategyAssetBalanceDecrease;
-        uint256 fluidVaultAssetsValue;
-        uint256 aaveVaultAssetsValue;
-        uint256 totalAssetsAllocated;
-        uint256 totalSharesMinted;
-        uint256 totalAssetsFromShares;
-    }
-
     function test_RequestDeposit_VerifyAmounts() public {
         DepositVerificationVars memory vars;
         vars.depositAmount = 1000e6;
@@ -428,6 +403,13 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         assertEq(userShares, expectedShares, "user should receive expected shares");
 
         uint256 userShareValue = vault.convertToAssets(userShares);
+        console2.log("userShares                  ", userShares);
+        console2.log("userShare in asset          ", userShareValue);
+        console2.log("depositAmount               ", depositAmount);
+
+        uint256 initialBootstrapperShares = vault.balanceOf(address(this));
+        console2.log("boostrapper shares          ", initialBootstrapperShares);
+        console2.log("bootstrapper shares in asset", initialBootstrapperShares);
         assertEq(userShareValue, expectedAssetValue, "share value should match expected");
         assertGt(userShareValue, depositAmount, "share value should be greater than deposit due to yield");
     }
@@ -468,10 +450,10 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 firstUserShares = vault.balanceOf(accInstances[0].account) - initialShareBalances[0];
         uint256 sharesPerAsset = firstUserShares * 1e18 / depositAmount;
 
+        /// this test compares the shares of the first user
         for (uint256 i = 1; i < ACCOUNT_COUNT;) {
             uint256 userShares = vault.balanceOf(accInstances[i].account) - initialShareBalances[i];
             uint256 userSharesPerAsset = userShares * 1e18 / depositAmount;
-
             assertEq(userSharesPerAsset, sharesPerAsset);
             assertEq(userShares, firstUserShares);
 
@@ -520,23 +502,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
                 ? ((firstDepositSharePrice - secondDepositSharePrice) * 100 / firstDepositSharePrice)
                 : ((secondDepositSharePrice - firstDepositSharePrice) * 100 / firstDepositSharePrice)
         );
-    }
-
-    struct ChangingAllocationVars {
-        uint256 firstDepositAmount;
-        uint256 secondDepositAmount;
-        uint256 firstAllocationVault1;
-        uint256 firstAllocationVault2;
-        uint256 secondAllocationVault1;
-        uint256 secondAllocationVault2;
-        uint256 initialShareBalance;
-        uint256 firstDepositShares;
-        uint256 firstDepositSharePrice;
-        uint256 shareBalanceAfterFirstDeposit;
-        uint256 secondDepositShares;
-        uint256 secondDepositSharePrice;
-        uint256 totalShares;
-        uint256 totalShareValue;
     }
 
     function test_SingleUser_ChangingAllocation() public {
@@ -598,110 +563,5 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
 
         vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
         _fulfillDepositForUsers(requestingUsers, highAllocationAmount, lowAllocationAmount);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        INTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    function _verifyAndLogChangingAllocation(ChangingAllocationVars memory vars) internal view {
-        vars.totalShares = vault.balanceOf(accInstances[0].account) - vars.initialShareBalance;
-        assertEq(vars.totalShares, vars.firstDepositShares + vars.secondDepositShares);
-
-        vars.totalShareValue = vault.convertToAssets(vars.totalShares);
-        assertApproxEqRel(vars.totalShareValue, vars.firstDepositAmount + vars.secondDepositAmount, 0.01e18); // 1%
-            // tolerance
-
-        console2.log(
-            "first deposit - vault1 allocation:", vars.firstAllocationVault1 * 100 / vars.firstDepositAmount, "%"
-        );
-        console2.log(
-            "first deposit - vault2 allocation:", vars.firstAllocationVault2 * 100 / vars.firstDepositAmount, "%"
-        );
-        console2.log("first deposit share price:", vars.firstDepositSharePrice);
-
-        console2.log(
-            "second deposit - vault1 allocation:", vars.secondAllocationVault1 * 100 / vars.secondDepositAmount, "%"
-        );
-        console2.log(
-            "second deposit - vault2 allocation:", vars.secondAllocationVault2 * 100 / vars.secondDepositAmount, "%"
-        );
-        console2.log("second deposit share price:", vars.secondDepositSharePrice);
-
-        console2.log(
-            "share price difference percentage:",
-            (vars.firstDepositSharePrice > vars.secondDepositSharePrice)
-                ? ((vars.firstDepositSharePrice - vars.secondDepositSharePrice) * 100 / vars.firstDepositSharePrice)
-                : ((vars.secondDepositSharePrice - vars.firstDepositSharePrice) * 100 / vars.firstDepositSharePrice)
-        );
-    }
-
-    function _verifySharesAndAssets(DepositVerificationVars memory vars) internal {
-        uint256[] memory initialUserShareBalances = new uint256[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
-            initialUserShareBalances[i] = vault.balanceOf(accInstances[i].account);
-            _claimDepositForAccount(accInstances[i], vars.depositAmount);
-            unchecked {
-                ++i;
-            }
-        }
-
-        vars.totalSharesMinted = 0;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
-            uint256 userSharesReceived = vault.balanceOf(accInstances[i].account) - initialUserShareBalances[i];
-            vars.totalSharesMinted += userSharesReceived;
-
-            // Verify user can convert shares back to approximately the original deposit amount
-            uint256 assetsFromShares = vault.convertToAssets(userSharesReceived);
-            assertApproxEqRel(assetsFromShares, vars.depositAmount, 0.01e18); // Allow 1% deviation
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        vars.totalAssetsFromShares = vault.convertToAssets(vars.totalSharesMinted);
-        assertApproxEqRel(vars.totalAssetsFromShares, vars.totalAmount, 0.01e18); // Allow 1% deviation
-    }
-
-    function _requestDepositForAllUsers(uint256 depositAmount) internal {
-        for (uint256 i; i < ACCOUNT_COUNT;) {
-            _getTokens(address(asset), accInstances[i].account, depositAmount);
-            _requestDepositForAccount(accInstances[i], depositAmount);
-            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    function _fulfillDepositForUsers(
-        address[] memory requestingUsers,
-        uint256 allocationAmountVault1,
-        uint256 allocationAmountVault2
-    )
-        internal
-    {
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = depositHookAddress;
-        fulfillHooksAddresses[1] = depositHookAddress;
-
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(depositHookAddress);
-        proofs[1] = proofs[0];
-
-        bytes[] memory fulfillHooksData = new bytes[](2);
-        // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), allocationAmountVault1, false, false
-        );
-        fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), allocationAmountVault2, false, false
-        );
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
-        vm.stopPrank();
     }
 }

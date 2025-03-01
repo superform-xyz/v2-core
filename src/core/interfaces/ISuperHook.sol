@@ -1,9 +1,12 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+/// @title ISuperHookResult
+/// @author Superform Labs
+/// @notice Interface for the SuperHookResult contract that manages hook results
 interface ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -21,10 +24,16 @@ interface ISuperHookResult {
     function asset() external view returns (address);
 }
 
+/// @title ISuperHookInflowOutflow
+/// @author Superform Labs
+/// @notice Interface for the SuperHookInflowOutflow contract that manages inflow and outflow hooks
 interface ISuperHookInflowOutflow {
     function decodeAmount(bytes memory data) external pure returns (uint256);
 }
 
+/// @title ISuperHookOutflow
+/// @author Superform Labs
+/// @notice Interface for the SuperHookOutflow contract that manages outflow hooks
 interface ISuperHookOutflow {
     /// @notice Replace the amount in the calldata
     /// @param data The data to replace the amount in
@@ -33,13 +42,17 @@ interface ISuperHookOutflow {
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory);
 }
 
+/// @title ISuperHookResultOutflow
+/// @author Superform Labs
+/// @notice Interface for the SuperHookResultOutflow contract that manages outflow hook results
 interface ISuperHookResultOutflow is ISuperHookResult {
     /// @notice The amount of shares processed by the hook
     function usedShares() external view returns (uint256);
 }
 
-
-
+/// @title ISuperHook
+/// @author Superform Labs
+/// @notice Interface for the SuperHook contract that manages hooks
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
 

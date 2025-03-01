@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+/// @title ISuperLedgerConfiguration
+/// @author Superform Labs
+/// @notice Interface for the SuperLedgerConfiguration contract that manages yield source oracles
 interface ISuperLedgerConfiguration {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS

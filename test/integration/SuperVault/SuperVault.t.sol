@@ -32,7 +32,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Verify state
         assertEq(strategy.pendingDepositRequest(accountEth), depositAmount, "Wrong pending deposit amount");
-        assertEq(asset.balanceOf(address(strategy)), depositAmount, "Wrong strategy balance");
+        assertEq(asset.balanceOf(address(strategy)), depositAmount + REDEEM_THRESHOLD, "Wrong strategy balance");
     }
 
     function test_FulfillDeposit() public {
@@ -70,7 +70,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertGt(strategy.getSuperVaultState(accountEth, 2), 0, "No assets available to withdraw");
     }
 
-    function test_FulfillRedeem_FullAmount() public {
+    function test_FulfillRedeem_FullAmountX() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
         // First setup a deposit and claim it

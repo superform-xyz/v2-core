@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 // With thanks to @BoringCrypto
 pragma solidity >=0.8.19;
 

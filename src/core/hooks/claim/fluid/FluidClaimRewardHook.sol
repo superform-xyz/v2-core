@@ -4,15 +4,15 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
-
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 /// @title FluidClaimRewardHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
