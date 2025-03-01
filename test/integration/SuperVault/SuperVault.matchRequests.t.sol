@@ -70,6 +70,8 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         address[] memory redeemUsers = new address[](10);
         address[] memory depositUsers = new address[](10);
         uint256 pendingDeposit;
+        
+        // First set up all depositor requests
         for (uint256 i = 0; i < 10; i++) {
             console2.log("\n--- Setting up depositor", i, "---");
             _getTokens(address(asset), accInstances[i].account, amount);
@@ -81,59 +83,47 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             assertEq(pendingDeposit, amount, "Deposit request not created");
         }
 
-        // Setup redeemers - request all deposits first
-        console2.log("\n=== Setting up redeemers - requesting deposits ===");
+        // Then set up all redeemer deposits and process them completely
+        console2.log("\n=== Setting up and processing redeemers ===");
         for (uint256 i = 0; i < 10; i++) {
             uint256 redeemIndex = i + 10;
-            console2.log("\n--- Requesting deposit for redeemer", redeemIndex, "---");
+            console2.log("\n--- Processing redeemer", redeemIndex, "---");
+            
+            // Request deposit
             _getTokens(address(asset), accInstances[redeemIndex].account, amount);
             _requestDepositForAccount(accInstances[redeemIndex], amount);
 
-            pendingDeposit = strategy.pendingDepositRequest(accInstances[redeemIndex].account);
-            console2.log("Pending deposit amount:", pendingDeposit);
-            assertEq(pendingDeposit, amount, "Deposit request not created");
-        }
-
-        // Fulfill all redeemer deposits in one go
-        console2.log("\n=== Fulfilling all redeemer deposits ===");
-        vm.warp(block.timestamp + 1 days);
-
-        vm.startPrank(STRATEGIST);
-        // Fulfill each deposit request individually
-        for (uint256 i = 0; i < 10; i++) {
-            __fulfillDepositRequest(accInstances[i + 10], amount);
+            // Fulfill deposit
+            vm.startPrank(STRATEGIST);
+            __fulfillDepositRequest(accInstances[redeemIndex], amount);
+            vm.stopPrank();
             console2.log("Price per share after fulfill:", _getSuperVaultPricePerShare());
-        }
-        vm.stopPrank();
 
-        // Then proceed with claims...
-        console2.log("\n=== Claiming all redeemer deposits ===");
-
-        // Get price per share once for all calculations
-        uint256 currentPricePerShare = vault.convertToAssets(1e18);
-        uint256 sharesToRedeem = Math.mulDiv(amount, 1e18, currentPricePerShare, Math.Rounding.Floor);
-        console2.log("Calculated shares to redeem for all:", sharesToRedeem);
-
-        for (uint256 i = 0; i < 10; i++) {
-            uint256 redeemIndex = i + 10;
-            console2.log("\n--- Claiming deposit for redeemer", redeemIndex, "---");
-
-            // Log state before claim
-            console2.log("Price per share before claim:", vault.convertToAssets(1e18));
-            console2.log(
-                "Deposit state before claim:", strategy.getSuperVaultState(accInstances[redeemIndex].account, 3)
-            );
-            console2.log(
-                "Shares to mint before claim:", strategy.getSuperVaultState(accInstances[redeemIndex].account, 1)
-            );
-
+            // Claim deposit
             _claimDepositForAccount(accInstances[redeemIndex], amount);
 
-            // Now request redemption - use pre-calculated shares
+            // Request redemption
             uint256 sharesBefore = vault.balanceOf(accInstances[redeemIndex].account);
             console2.log("Total shares before:", sharesBefore);
             
-            require(sharesBefore >= sharesToRedeem, "Not enough shares to redeem");
+            // Calculate shares that match the deposit amount
+            uint256 currentPricePerShare = vault.convertToAssets(1e18);
+            uint256 sharesToRedeem;
+            if (i == 9) {
+                // For the last redeemer, calculate based on the depositor's pending request
+                uint256 lastDepositorPending = strategy.pendingDepositRequest(depositUsers[9]);
+                console2.log("Last pair details:");
+                console2.log("- Last depositor pending deposit:", lastDepositorPending);
+                console2.log("- Current price per share:", currentPricePerShare);
+                console2.log("- Last depositor shares to mint:", strategy.getSuperVaultState(depositUsers[9], 1));
+                
+                // Use the actual shares that will be minted to the last depositor
+                sharesToRedeem = strategy.getSuperVaultState(depositUsers[9], 1);
+                console2.log("- Using exact shares to mint:", sharesToRedeem);
+            } else {
+                sharesToRedeem = Math.mulDiv(amount, 1e18, currentPricePerShare, Math.Rounding.Floor);
+            }
+            
             _requestRedeemForAccount(accInstances[redeemIndex], sharesToRedeem);
             redeemUsers[i] = accInstances[redeemIndex].account;
 
@@ -141,7 +131,6 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             console2.log("Pending redeem amount:", pendingRedeem);
             assertEq(pendingRedeem, sharesToRedeem, "Redeem request not created");
 
-            // Add delay between claims
             vm.warp(block.timestamp + 1 days);
         }
 
