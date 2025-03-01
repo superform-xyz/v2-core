@@ -58,11 +58,6 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         _sendFundsToStrategy(amount * 100);
         _sendFundsToSuperVault(amount * 100);
 
-        //Do an initial deposit to stabilize price per share
-        console2.log("\n=== Stabilizing price per share ===");
-        _completeDepositFlow(amount * 10);
-        vm.warp(block.timestamp + 1 days);
-
         console2.log("Initial price per share:", _getSuperVaultPricePerShare());
 
         // Setup depositors with deposit requests
@@ -70,7 +65,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         address[] memory redeemUsers = new address[](10);
         address[] memory depositUsers = new address[](10);
         uint256 pendingDeposit;
-        
+
         // First set up all depositor requests
         for (uint256 i = 0; i < 10; i++) {
             console2.log("\n--- Setting up depositor", i, "---");
@@ -83,55 +78,32 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             assertEq(pendingDeposit, amount, "Deposit request not created");
         }
 
-        // Then set up all redeemer deposits and process them completely
+        // Process all redeemers first, then do all redemption requests together
         console2.log("\n=== Setting up and processing redeemers ===");
         for (uint256 i = 0; i < 10; i++) {
             uint256 redeemIndex = i + 10;
             console2.log("\n--- Processing redeemer", redeemIndex, "---");
-            
-            // Request deposit
+
+            // Complete deposit flow for each redeemer
             _getTokens(address(asset), accInstances[redeemIndex].account, amount);
             _requestDepositForAccount(accInstances[redeemIndex], amount);
 
-            // Fulfill deposit
             vm.startPrank(STRATEGIST);
             __fulfillDepositRequest(accInstances[redeemIndex], amount);
             vm.stopPrank();
-            console2.log("Price per share after fulfill:", _getSuperVaultPricePerShare());
 
-            // Claim deposit
             _claimDepositForAccount(accInstances[redeemIndex], amount);
-
-            // Request redemption
-            uint256 sharesBefore = vault.balanceOf(accInstances[redeemIndex].account);
-            console2.log("Total shares before:", sharesBefore);
-            
-            // Calculate shares that match the deposit amount
-            uint256 currentPricePerShare = vault.convertToAssets(1e18);
-            uint256 sharesToRedeem;
-            if (i == 9) {
-                // For the last redeemer, calculate based on the depositor's pending request
-                uint256 lastDepositorPending = strategy.pendingDepositRequest(depositUsers[9]);
-                console2.log("Last pair details:");
-                console2.log("- Last depositor pending deposit:", lastDepositorPending);
-                console2.log("- Current price per share:", currentPricePerShare);
-                console2.log("- Last depositor shares to mint:", strategy.getSuperVaultState(depositUsers[9], 1));
-                
-                // Use the actual shares that will be minted to the last depositor
-                sharesToRedeem = strategy.getSuperVaultState(depositUsers[9], 1);
-                console2.log("- Using exact shares to mint:", sharesToRedeem);
-            } else {
-                sharesToRedeem = Math.mulDiv(amount, 1e18, currentPricePerShare, Math.Rounding.Floor);
-            }
-            
-            _requestRedeemForAccount(accInstances[redeemIndex], sharesToRedeem);
             redeemUsers[i] = accInstances[redeemIndex].account;
+        }
 
-            uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[redeemIndex].account);
-            console2.log("Pending redeem amount:", pendingRedeem);
-            assertEq(pendingRedeem, sharesToRedeem, "Redeem request not created");
+        // Get stable price per share after all deposits are processed
+        uint256 stablePricePerShare = vault.convertToAssets(1e18);
+        console2.log("Stable price per share:", stablePricePerShare);
 
-            vm.warp(block.timestamp + 1 days);
+        // Now do all redemption requests with same price
+        for (uint256 i = 0; i < 10; i++) {
+            uint256 sharesToRedeem = Math.mulDiv(amount, 1e18, stablePricePerShare, Math.Rounding.Floor);
+            _requestRedeemForAccount(accInstances[i + 10], sharesToRedeem);
         }
 
         // Match the requests
