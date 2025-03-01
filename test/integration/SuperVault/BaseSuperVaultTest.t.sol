@@ -691,6 +691,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             console2.log("assets received:", assetsReceived);
             /// @dev a deviation exists here because of the averageWithdrawPrice
             assertApproxEqRel(assetsReceived, claimableWithdraw, 0.001e18);
+
+            uint256 remainingShares = vault.balanceOf(accInstances[i].account);
+            uint256 remainingSharesValue = vault.convertToAssets(remainingShares);
+            assertApproxEqRel(remainingSharesValue, vars.depositAmount - claimableWithdraw, 0.01e18);
         }
 
         uint256 assetsFromTotalSharesBurned = vault.convertToAssets(vars.totalSharesBurned);

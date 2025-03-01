@@ -222,8 +222,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (isDeposit) {
             _checkVaultCaps(targetedYieldSources);
         }
-        /// @dev pps here is just used to pass to redeem
+
+        /// @dev pps obtained here is just to forward to _processRedeem, not used in deposits
         (vars.pricePerShare, vars.totalAssets, vars.totalSupplyAmount) = _getSuperVaultAssetInfo();
+
+        if (vars.totalSupplyAmount > 0 && isDeposit) {
+            /// @dev calculate total supply increase based on total requested amount variation
+            uint256 totalSupplyIncrease = vars.totalRequestedAmount.mulDiv(
+                vars.totalSupplyAmount, vars.totalAssets - vars.totalRequestedAmount, Math.Rounding.Floor
+            );
+            console2.log("totalSupplyIncrease", totalSupplyIncrease);
+            /// @dev determine the global new PPS for all depositors being fulfilled with the total supply increase
+            vars.pricePerShare =
+                vars.totalAssets.mulDiv(PRECISION, vars.totalSupplyAmount + totalSupplyIncrease, Math.Rounding.Floor);
+            console2.log("pps", vars.pricePerShare);
+        }
 
         // Process requests
         for (uint256 i; i < usersLength;) {
@@ -231,31 +244,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             SuperVaultState storage state = superVaultState[user];
 
             if (isDeposit) {
-                console2.log("\n----PROCESS DEPOSIT END STATE----");
-
-                vars.requestedAmount = state.pendingDepositRequest;
-
-                // If this is the first deposit
-                if (vars.totalSupplyAmount == 0) {
-                    vars.shares = vars.requestedAmount;
-                    vars.pricePerShare = PRECISION;
-                } else {
-                    // Calculate shares based on proportion of new total assets
-                    // shares = (deposit * totalSupply) / (totalAssets - deposit)
-                    /// @dev Check if this is valid
-                    vars.shares = vars.requestedAmount.mulDiv(
-                        vars.totalSupplyAmount, vars.totalAssets - vars.requestedAmount, Math.Rounding.Floor
-                    );
-                    // Calculate the actual PPS after share mint
-                    vars.pricePerShare =
-                        vars.totalAssets.mulDiv(PRECISION, vars.totalSupplyAmount + vars.shares, Math.Rounding.Floor);
-                }
-
-                console2.log("RequestedAmount", vars.requestedAmount);
-                console2.log("TotalAssets", vars.totalAssets);
-                console2.log("PricePerShare", vars.pricePerShare);
-                console2.log("Shares", vars.shares);
-                console2.log("NewTotalSupply", vars.totalSupplyAmount);
                 _processDeposit(user, state, vars);
             } else {
                 _processRedeem(user, state, vars);
@@ -868,26 +856,28 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
-        //vars.requestedAmount = state.pendingDepositRequest;
-        // console2.log("RequestedAmount", vars.requestedAmount);
-        //vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
-        // console2.log("Shares", vars.shares);
-        // console2.log("PricePerShare", vars.pricePerShare);
+        console2.log("\n----PROCESS DEPOSIT END STATE----");
 
-        // Calculate new weighted average deposit price
-        // maxDeposit (assets) = maxMint * previousPpsValue
-        // newDepositPrice = (maxDeposit(assets) + assets))/ (maxMint + shares)
-        uint256 newTotalShares = state.maxMint + vars.shares;
+        vars.requestedAmount = state.pendingDepositRequest;
+        vars.shares = vars.totalSupplyAmount == 0
+            ? vars.requestedAmount
+            : vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
+        console2.log("RequestedAmount", vars.requestedAmount);
+        console2.log("TotalAssets", vars.totalAssets);
+        console2.log("PricePerShare", vars.pricePerShare);
+        console2.log("Shares", vars.shares);
+        console2.log("NewTotalSupply", vars.totalSupplyAmount);
+        uint256 newTotalUserShares = state.maxMint + vars.shares;
 
-        if (newTotalShares > 0) {
-            uint256 existingAssets = 0;
+        if (newTotalUserShares > 0) {
+            uint256 existingUserAssets = 0;
             if (state.maxMint > 0 && state.averageDepositPrice > 0) {
-                existingAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
+                existingUserAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
             }
 
-            uint256 newTotalAssets = existingAssets + vars.requestedAmount;
-            console2.log("NewTotalAssets", newTotalAssets);
-            state.averageDepositPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+            uint256 newTotalUserAssets = existingUserAssets + vars.requestedAmount;
+            console2.log("newTotalUserAssets", newTotalUserAssets);
+            state.averageDepositPrice = newTotalUserAssets.mulDiv(PRECISION, newTotalUserShares, Math.Rounding.Floor);
             console2.log("AverageDepositPrice", state.averageDepositPrice);
         }
 
