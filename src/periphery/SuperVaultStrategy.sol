@@ -1213,6 +1213,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
+        uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
+
         // Get all TVLs in one call
         (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
         // Execute hook with asset approval
@@ -1220,9 +1222,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             hook, prevHook, hookCalldata, hookProof, ISuperHook.HookType.INFLOW, true, address(_asset), amount
         );
 
+        uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
+
+
         // Update _lastTotalAssets to account for assets being moved in
-        // TODO: this should be done via balance difference
-        _updateLastTotalAssets(_lastTotalAssets - amount);
+        _updateLastTotalAssets(_lastTotalAssets - (balanceAssetBefore - balanceAssetAfter));
 
         // Find TVL for target yield source
         uint256 currentYieldSourceAssets;
