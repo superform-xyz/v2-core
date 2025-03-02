@@ -21,8 +21,11 @@ ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_YearnIntegration_getPricePerShare -vvv
-test-integration :; forge test --match-test  test_SuperVault_E2E_Flow -vvv
+
+test-vvv :; forge test --match-test test_MatchRequests_MultiplePairs -vv
+
+test-integration :; forge test --match-test test_MatchRequests_MultiplePairs -vv
+
 
 .PHONY: generate
 generate:
@@ -32,4 +35,4 @@ generate:
 	abigen --abi out/AcrossReceiveFundsAndExecuteGateway.sol/AcrossReceiveFundsAndExecuteGateway.abi --pkg contracts --type AcrossReceiveFundsAndExecuteGateway --out contract_bindings/AcrossReceiveFundsAndExecuteGateway.go
 	abigen --abi out/IAcrossV3Receiver.sol/IAcrossV3Receiver.abi --pkg contracts --type IAcrossV3Receiver --out contract_bindings/IAcrossV3Receiver.go
 	abigen --abi out/SuperRegistry.sol/SuperRegistry.abi --pkg contracts --type SuperRegistry --out contract_bindings/SuperRegistry.go
-	abigen --abi out/HooksRegistry.sol/HooksRegistry.abi --pkg contracts --type HooksRegistry --out contract_bindings/HooksRegistry.go
+	abigen --abi out/PeripheryRegistry.sol/PeripheryRegistry.abi --pkg contracts --type PeripheryRegistry --out contract_bindings/PeripheryRegistry.go

@@ -32,7 +32,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Verify state
         assertEq(strategy.pendingDepositRequest(accountEth), depositAmount, "Wrong pending deposit amount");
-        assertEq(asset.balanceOf(address(strategy)), depositAmount + REDEEM_THRESHOLD, "Wrong strategy balance");
+        assertEq(asset.balanceOf(address(strategy)), depositAmount, "Wrong strategy balance");
     }
 
     function test_FulfillDeposit() public {

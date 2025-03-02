@@ -260,6 +260,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
         if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
+        if (redeemLength != depositLength) revert LENGTH_MISMATCH();
 
         MatchVars memory vars;
         (vars.currentPricePerShare,,) = _getSuperVaultAssetInfo();
@@ -1005,7 +1006,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Validate array lengths match
         if (hooksLength != hookProofsLength || hooksLength != hookCalldataLength) {
-            revert MISMATCH();
+            revert LENGTH_MISMATCH();
         }
     }
 
@@ -1553,7 +1554,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         pure
     {
         if (hooks.length != expectedLength || hookCalldata.length != expectedLength) {
-            revert MISMATCH();
+            revert LENGTH_MISMATCH();
         }
     }
 
@@ -1572,7 +1573,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 hooksLength = hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
-            revert MISMATCH();
+            revert LENGTH_MISMATCH();
         }
     }
 

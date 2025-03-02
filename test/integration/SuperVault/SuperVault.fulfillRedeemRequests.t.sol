@@ -8,6 +8,8 @@ import {
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+
 // superform
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
@@ -449,6 +451,13 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         vars.redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
         console2.log("redeem amount:", vars.redeemAmount);
 
+        console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
+        console2.log("deposits done");
+        /// redeem half of the shares
+        vars.redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+        console2.log("redeem amount:", vars.redeemAmount);
+
         _requestRedeemForAllUsers(vars.redeemAmount);
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -528,6 +537,7 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
             // Record share balance before claiming
             uint256 shareBalanceBeforeClaim = vault.balanceOf(accInstances[i].account);
             console2.log("User", i, "share balance before claim:", shareBalanceBeforeClaim);
+
             uint256 maxWithdraw = vault.maxWithdraw(accInstances[i].account);
             _claimWithdrawForAccount(accInstances[i], maxWithdraw);
 

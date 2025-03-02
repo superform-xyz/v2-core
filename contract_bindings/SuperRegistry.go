@@ -31,7 +31,7 @@ var (
 
 // SuperRegistryMetaData contains all meta data concerning the SuperRegistry contract.
 var SuperRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addresses\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"executeFeeSplitUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperformFeeSplit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTreasury\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeFeeSplit\",\"inputs\":[{\"name\":\"feeSplit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AddressSet\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"addr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeSplitProposed\",\"inputs\":[{\"name\":\"superformFeeSplit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeSplitUpdated\",\"inputs\":[{\"name\":\"superformFeeSplit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_SPLIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_EXPIRED\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"owner_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addresses\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AddressSet\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"addr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]}]",
 }
 
 // SuperRegistryABI is the input ABI used to generate the binding from.
@@ -242,68 +242,6 @@ func (_SuperRegistry *SuperRegistryCallerSession) GetAddress(id_ [32]byte) (comm
 	return _SuperRegistry.Contract.GetAddress(&_SuperRegistry.CallOpts, id_)
 }
 
-// GetSuperformFeeSplit is a free data retrieval call binding the contract method 0x666854af.
-//
-// Solidity: function getSuperformFeeSplit() view returns(uint256)
-func (_SuperRegistry *SuperRegistryCaller) GetSuperformFeeSplit(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperRegistry.contract.Call(opts, &out, "getSuperformFeeSplit")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// GetSuperformFeeSplit is a free data retrieval call binding the contract method 0x666854af.
-//
-// Solidity: function getSuperformFeeSplit() view returns(uint256)
-func (_SuperRegistry *SuperRegistrySession) GetSuperformFeeSplit() (*big.Int, error) {
-	return _SuperRegistry.Contract.GetSuperformFeeSplit(&_SuperRegistry.CallOpts)
-}
-
-// GetSuperformFeeSplit is a free data retrieval call binding the contract method 0x666854af.
-//
-// Solidity: function getSuperformFeeSplit() view returns(uint256)
-func (_SuperRegistry *SuperRegistryCallerSession) GetSuperformFeeSplit() (*big.Int, error) {
-	return _SuperRegistry.Contract.GetSuperformFeeSplit(&_SuperRegistry.CallOpts)
-}
-
-// GetTreasury is a free data retrieval call binding the contract method 0x3b19e84a.
-//
-// Solidity: function getTreasury() view returns(address)
-func (_SuperRegistry *SuperRegistryCaller) GetTreasury(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperRegistry.contract.Call(opts, &out, "getTreasury")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// GetTreasury is a free data retrieval call binding the contract method 0x3b19e84a.
-//
-// Solidity: function getTreasury() view returns(address)
-func (_SuperRegistry *SuperRegistrySession) GetTreasury() (common.Address, error) {
-	return _SuperRegistry.Contract.GetTreasury(&_SuperRegistry.CallOpts)
-}
-
-// GetTreasury is a free data retrieval call binding the contract method 0x3b19e84a.
-//
-// Solidity: function getTreasury() view returns(address)
-func (_SuperRegistry *SuperRegistryCallerSession) GetTreasury() (common.Address, error) {
-	return _SuperRegistry.Contract.GetTreasury(&_SuperRegistry.CallOpts)
-}
-
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
 // Solidity: function owner() view returns(address)
@@ -335,46 +273,56 @@ func (_SuperRegistry *SuperRegistryCallerSession) Owner() (common.Address, error
 	return _SuperRegistry.Contract.Owner(&_SuperRegistry.CallOpts)
 }
 
-// ExecuteFeeSplitUpdate is a paid mutator transaction binding the contract method 0x1b9bc28b.
+// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
 //
-// Solidity: function executeFeeSplitUpdate() returns()
-func (_SuperRegistry *SuperRegistryTransactor) ExecuteFeeSplitUpdate(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperRegistry.contract.Transact(opts, "executeFeeSplitUpdate")
+// Solidity: function pendingOwner() view returns(address)
+func (_SuperRegistry *SuperRegistryCaller) PendingOwner(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperRegistry.contract.Call(opts, &out, "pendingOwner")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
 }
 
-// ExecuteFeeSplitUpdate is a paid mutator transaction binding the contract method 0x1b9bc28b.
+// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
 //
-// Solidity: function executeFeeSplitUpdate() returns()
-func (_SuperRegistry *SuperRegistrySession) ExecuteFeeSplitUpdate() (*types.Transaction, error) {
-	return _SuperRegistry.Contract.ExecuteFeeSplitUpdate(&_SuperRegistry.TransactOpts)
+// Solidity: function pendingOwner() view returns(address)
+func (_SuperRegistry *SuperRegistrySession) PendingOwner() (common.Address, error) {
+	return _SuperRegistry.Contract.PendingOwner(&_SuperRegistry.CallOpts)
 }
 
-// ExecuteFeeSplitUpdate is a paid mutator transaction binding the contract method 0x1b9bc28b.
+// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
 //
-// Solidity: function executeFeeSplitUpdate() returns()
-func (_SuperRegistry *SuperRegistryTransactorSession) ExecuteFeeSplitUpdate() (*types.Transaction, error) {
-	return _SuperRegistry.Contract.ExecuteFeeSplitUpdate(&_SuperRegistry.TransactOpts)
+// Solidity: function pendingOwner() view returns(address)
+func (_SuperRegistry *SuperRegistryCallerSession) PendingOwner() (common.Address, error) {
+	return _SuperRegistry.Contract.PendingOwner(&_SuperRegistry.CallOpts)
 }
 
-// ProposeFeeSplit is a paid mutator transaction binding the contract method 0x9daa6600.
+// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
 //
-// Solidity: function proposeFeeSplit(uint256 feeSplit_) returns()
-func (_SuperRegistry *SuperRegistryTransactor) ProposeFeeSplit(opts *bind.TransactOpts, feeSplit_ *big.Int) (*types.Transaction, error) {
-	return _SuperRegistry.contract.Transact(opts, "proposeFeeSplit", feeSplit_)
+// Solidity: function acceptOwnership() returns()
+func (_SuperRegistry *SuperRegistryTransactor) AcceptOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _SuperRegistry.contract.Transact(opts, "acceptOwnership")
 }
 
-// ProposeFeeSplit is a paid mutator transaction binding the contract method 0x9daa6600.
+// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
 //
-// Solidity: function proposeFeeSplit(uint256 feeSplit_) returns()
-func (_SuperRegistry *SuperRegistrySession) ProposeFeeSplit(feeSplit_ *big.Int) (*types.Transaction, error) {
-	return _SuperRegistry.Contract.ProposeFeeSplit(&_SuperRegistry.TransactOpts, feeSplit_)
+// Solidity: function acceptOwnership() returns()
+func (_SuperRegistry *SuperRegistrySession) AcceptOwnership() (*types.Transaction, error) {
+	return _SuperRegistry.Contract.AcceptOwnership(&_SuperRegistry.TransactOpts)
 }
 
-// ProposeFeeSplit is a paid mutator transaction binding the contract method 0x9daa6600.
+// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
 //
-// Solidity: function proposeFeeSplit(uint256 feeSplit_) returns()
-func (_SuperRegistry *SuperRegistryTransactorSession) ProposeFeeSplit(feeSplit_ *big.Int) (*types.Transaction, error) {
-	return _SuperRegistry.Contract.ProposeFeeSplit(&_SuperRegistry.TransactOpts, feeSplit_)
+// Solidity: function acceptOwnership() returns()
+func (_SuperRegistry *SuperRegistryTransactorSession) AcceptOwnership() (*types.Transaction, error) {
+	return _SuperRegistry.Contract.AcceptOwnership(&_SuperRegistry.TransactOpts)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
@@ -593,9 +541,9 @@ func (_SuperRegistry *SuperRegistryFilterer) ParseAddressSet(log types.Log) (*Su
 	return event, nil
 }
 
-// SuperRegistryFeeSplitProposedIterator is returned from FilterFeeSplitProposed and is used to iterate over the raw logs and unpacked data for FeeSplitProposed events raised by the SuperRegistry contract.
-type SuperRegistryFeeSplitProposedIterator struct {
-	Event *SuperRegistryFeeSplitProposed // Event containing the contract specifics and raw log
+// SuperRegistryOwnershipTransferStartedIterator is returned from FilterOwnershipTransferStarted and is used to iterate over the raw logs and unpacked data for OwnershipTransferStarted events raised by the SuperRegistry contract.
+type SuperRegistryOwnershipTransferStartedIterator struct {
+	Event *SuperRegistryOwnershipTransferStarted // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -609,7 +557,7 @@ type SuperRegistryFeeSplitProposedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperRegistryFeeSplitProposedIterator) Next() bool {
+func (it *SuperRegistryOwnershipTransferStartedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -618,7 +566,7 @@ func (it *SuperRegistryFeeSplitProposedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperRegistryFeeSplitProposed)
+			it.Event = new(SuperRegistryOwnershipTransferStarted)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -633,7 +581,7 @@ func (it *SuperRegistryFeeSplitProposedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperRegistryFeeSplitProposed)
+		it.Event = new(SuperRegistryOwnershipTransferStarted)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -649,42 +597,60 @@ func (it *SuperRegistryFeeSplitProposedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperRegistryFeeSplitProposedIterator) Error() error {
+func (it *SuperRegistryOwnershipTransferStartedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperRegistryFeeSplitProposedIterator) Close() error {
+func (it *SuperRegistryOwnershipTransferStartedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperRegistryFeeSplitProposed represents a FeeSplitProposed event raised by the SuperRegistry contract.
-type SuperRegistryFeeSplitProposed struct {
-	SuperformFeeSplit *big.Int
-	EffectiveTime     *big.Int
-	Raw               types.Log // Blockchain specific contextual infos
+// SuperRegistryOwnershipTransferStarted represents a OwnershipTransferStarted event raised by the SuperRegistry contract.
+type SuperRegistryOwnershipTransferStarted struct {
+	PreviousOwner common.Address
+	NewOwner      common.Address
+	Raw           types.Log // Blockchain specific contextual infos
 }
 
-// FilterFeeSplitProposed is a free log retrieval operation binding the contract event 0x33f6ffd7ef6e2fbeec2756d83bf09809997101b62f86ef82fa0169570eee5cb5.
+// FilterOwnershipTransferStarted is a free log retrieval operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
 //
-// Solidity: event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime)
-func (_SuperRegistry *SuperRegistryFilterer) FilterFeeSplitProposed(opts *bind.FilterOpts) (*SuperRegistryFeeSplitProposedIterator, error) {
+// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
+func (_SuperRegistry *SuperRegistryFilterer) FilterOwnershipTransferStarted(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*SuperRegistryOwnershipTransferStartedIterator, error) {
 
-	logs, sub, err := _SuperRegistry.contract.FilterLogs(opts, "FeeSplitProposed")
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+	var newOwnerRule []interface{}
+	for _, newOwnerItem := range newOwner {
+		newOwnerRule = append(newOwnerRule, newOwnerItem)
+	}
+
+	logs, sub, err := _SuperRegistry.contract.FilterLogs(opts, "OwnershipTransferStarted", previousOwnerRule, newOwnerRule)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperRegistryFeeSplitProposedIterator{contract: _SuperRegistry.contract, event: "FeeSplitProposed", logs: logs, sub: sub}, nil
+	return &SuperRegistryOwnershipTransferStartedIterator{contract: _SuperRegistry.contract, event: "OwnershipTransferStarted", logs: logs, sub: sub}, nil
 }
 
-// WatchFeeSplitProposed is a free log subscription operation binding the contract event 0x33f6ffd7ef6e2fbeec2756d83bf09809997101b62f86ef82fa0169570eee5cb5.
+// WatchOwnershipTransferStarted is a free log subscription operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
 //
-// Solidity: event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime)
-func (_SuperRegistry *SuperRegistryFilterer) WatchFeeSplitProposed(opts *bind.WatchOpts, sink chan<- *SuperRegistryFeeSplitProposed) (event.Subscription, error) {
+// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
+func (_SuperRegistry *SuperRegistryFilterer) WatchOwnershipTransferStarted(opts *bind.WatchOpts, sink chan<- *SuperRegistryOwnershipTransferStarted, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
 
-	logs, sub, err := _SuperRegistry.contract.WatchLogs(opts, "FeeSplitProposed")
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+	var newOwnerRule []interface{}
+	for _, newOwnerItem := range newOwner {
+		newOwnerRule = append(newOwnerRule, newOwnerItem)
+	}
+
+	logs, sub, err := _SuperRegistry.contract.WatchLogs(opts, "OwnershipTransferStarted", previousOwnerRule, newOwnerRule)
 	if err != nil {
 		return nil, err
 	}
@@ -694,8 +660,8 @@ func (_SuperRegistry *SuperRegistryFilterer) WatchFeeSplitProposed(opts *bind.Wa
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperRegistryFeeSplitProposed)
-				if err := _SuperRegistry.contract.UnpackLog(event, "FeeSplitProposed", log); err != nil {
+				event := new(SuperRegistryOwnershipTransferStarted)
+				if err := _SuperRegistry.contract.UnpackLog(event, "OwnershipTransferStarted", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -716,146 +682,12 @@ func (_SuperRegistry *SuperRegistryFilterer) WatchFeeSplitProposed(opts *bind.Wa
 	}), nil
 }
 
-// ParseFeeSplitProposed is a log parse operation binding the contract event 0x33f6ffd7ef6e2fbeec2756d83bf09809997101b62f86ef82fa0169570eee5cb5.
+// ParseOwnershipTransferStarted is a log parse operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
 //
-// Solidity: event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime)
-func (_SuperRegistry *SuperRegistryFilterer) ParseFeeSplitProposed(log types.Log) (*SuperRegistryFeeSplitProposed, error) {
-	event := new(SuperRegistryFeeSplitProposed)
-	if err := _SuperRegistry.contract.UnpackLog(event, "FeeSplitProposed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperRegistryFeeSplitUpdatedIterator is returned from FilterFeeSplitUpdated and is used to iterate over the raw logs and unpacked data for FeeSplitUpdated events raised by the SuperRegistry contract.
-type SuperRegistryFeeSplitUpdatedIterator struct {
-	Event *SuperRegistryFeeSplitUpdated // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperRegistryFeeSplitUpdatedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperRegistryFeeSplitUpdated)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperRegistryFeeSplitUpdated)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperRegistryFeeSplitUpdatedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperRegistryFeeSplitUpdatedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperRegistryFeeSplitUpdated represents a FeeSplitUpdated event raised by the SuperRegistry contract.
-type SuperRegistryFeeSplitUpdated struct {
-	SuperformFeeSplit *big.Int
-	Raw               types.Log // Blockchain specific contextual infos
-}
-
-// FilterFeeSplitUpdated is a free log retrieval operation binding the contract event 0x23e50f4213503cbe5cbbcbd5abed363d018f6800f8027766632969ffef35b254.
-//
-// Solidity: event FeeSplitUpdated(uint256 superformFeeSplit)
-func (_SuperRegistry *SuperRegistryFilterer) FilterFeeSplitUpdated(opts *bind.FilterOpts) (*SuperRegistryFeeSplitUpdatedIterator, error) {
-
-	logs, sub, err := _SuperRegistry.contract.FilterLogs(opts, "FeeSplitUpdated")
-	if err != nil {
-		return nil, err
-	}
-	return &SuperRegistryFeeSplitUpdatedIterator{contract: _SuperRegistry.contract, event: "FeeSplitUpdated", logs: logs, sub: sub}, nil
-}
-
-// WatchFeeSplitUpdated is a free log subscription operation binding the contract event 0x23e50f4213503cbe5cbbcbd5abed363d018f6800f8027766632969ffef35b254.
-//
-// Solidity: event FeeSplitUpdated(uint256 superformFeeSplit)
-func (_SuperRegistry *SuperRegistryFilterer) WatchFeeSplitUpdated(opts *bind.WatchOpts, sink chan<- *SuperRegistryFeeSplitUpdated) (event.Subscription, error) {
-
-	logs, sub, err := _SuperRegistry.contract.WatchLogs(opts, "FeeSplitUpdated")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperRegistryFeeSplitUpdated)
-				if err := _SuperRegistry.contract.UnpackLog(event, "FeeSplitUpdated", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseFeeSplitUpdated is a log parse operation binding the contract event 0x23e50f4213503cbe5cbbcbd5abed363d018f6800f8027766632969ffef35b254.
-//
-// Solidity: event FeeSplitUpdated(uint256 superformFeeSplit)
-func (_SuperRegistry *SuperRegistryFilterer) ParseFeeSplitUpdated(log types.Log) (*SuperRegistryFeeSplitUpdated, error) {
-	event := new(SuperRegistryFeeSplitUpdated)
-	if err := _SuperRegistry.contract.UnpackLog(event, "FeeSplitUpdated", log); err != nil {
+// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
+func (_SuperRegistry *SuperRegistryFilterer) ParseOwnershipTransferStarted(log types.Log) (*SuperRegistryOwnershipTransferStarted, error) {
+	event := new(SuperRegistryOwnershipTransferStarted)
+	if err := _SuperRegistry.contract.UnpackLog(event, "OwnershipTransferStarted", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

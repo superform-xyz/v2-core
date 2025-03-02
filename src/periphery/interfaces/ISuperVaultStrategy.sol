@@ -11,7 +11,6 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error MISMATCH();
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
@@ -21,6 +20,7 @@ interface ISuperVaultStrategy {
     error INVALID_AMOUNT();
     error ALREADY_EXISTS();
     error LIMIT_EXCEEDED();
+    error LENGTH_MISMATCH();
     error INVALID_MANAGER();
     error NOT_INITIALIZED();
     error OPERATION_FAILED();

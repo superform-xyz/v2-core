@@ -6,6 +6,8 @@ import { BaseTest } from "../../BaseTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
@@ -63,9 +65,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
     uint256 constant MAX_ALLOCATION_RATE = 6000; // 50%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
-    uint256 constant ONE_HUNDRED_PERCENT = 10_000;
 
-    uint256 public constant REDEEM_THRESHOLD = 100;
+    uint256 constant ONE_HUNDRED_PERCENT = 10_000;
 
     uint256 public constant BOOTSTRAP_AMOUNT = 1e6;
 
@@ -91,6 +92,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Set up accounts
         accountEth = accountInstances[ETH].account;
         instanceOnEth = accountInstances[ETH];
+
+        accInstances = randomAccountInstances[ETH];
 
         // Set up super executor
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
@@ -151,6 +154,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 feeRecipient: TREASURY,
                 config: config,
                 finalMaxAllocationRate: MAX_ALLOCATION_RATE,
+                bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: address(fluidVault),
                 initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -262,6 +266,56 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             accInst.expect4337Revert();
         }
         executeOp(redeemUserOpData);
+    }
+
+    function __fulfillDepositRequest(AccountInstance memory accInst, uint256 depositAmount) internal {
+        console2.log("\n::::");
+
+        console2.log("Starting fulfill deposit request for amount:", depositAmount);
+
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        console2.log("Using deposit hook:", depositHookAddress);
+
+        // Split the deposit between two hooks
+        uint256 halfAmount = depositAmount / 2;
+
+        address[] memory hooks_ = new address[](2);
+        hooks_[0] = depositHookAddress;
+        hooks_[1] = depositHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = _getMerkleProof(depositHookAddress);
+        proofs[1] = proofs[0];
+
+        bytes[] memory hookCalldata = new bytes[](2);
+        // First half to fluid vault
+        hookCalldata[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            halfAmount, // Use half amount
+            false,
+            false
+        );
+        // Second half to aave vault
+        hookCalldata[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            depositAmount - halfAmount, // Use remaining amount to handle odd numbers
+            false,
+            false
+        );
+
+        address[] memory users = new address[](1);
+        users[0] = accInst.account;
+        console2.log("\n---");
+
+        console2.log("Strategy balance before fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(users, hooks_, proofs, hookCalldata, true);
+        vm.stopPrank();
+
+        console2.log("Strategy balance after fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
     }
 
     function __claimWithdraw(AccountInstance memory accInst, uint256 assets) internal {
