@@ -31,7 +31,7 @@ var (
 
 // AcrossReceiveFundsAndExecuteGatewayMetaData contains all meta data concerning the AcrossReceiveFundsAndExecuteGateway contract.
 var AcrossReceiveFundsAndExecuteGatewayMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"registry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"acrossSpokePool_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"entryPointAddress_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acrossSpokePool\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"entryPointAddress\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleV3AcrossMessage\",\"inputs\":[{\"name\":\"tokenSent\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"message\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"superRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperRegistry\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedAndExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SENDER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"acrossSpokePool_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"entryPointAddress_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superBundler_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acrossSpokePool\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"entryPointAddress\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleV3AcrossMessage\",\"inputs\":[{\"name\":\"tokenSent\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"message\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"superBundler\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"addresspayable\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedAndExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SENDER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]}]",
 }
 
 // AcrossReceiveFundsAndExecuteGatewayABI is the input ABI used to generate the binding from.
@@ -242,12 +242,12 @@ func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewayC
 	return _AcrossReceiveFundsAndExecuteGateway.Contract.EntryPointAddress(&_AcrossReceiveFundsAndExecuteGateway.CallOpts)
 }
 
-// SuperRegistry is a free data retrieval call binding the contract method 0x24c73dda.
+// SuperBundler is a free data retrieval call binding the contract method 0x61aeefef.
 //
-// Solidity: function superRegistry() view returns(address)
-func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewayCaller) SuperRegistry(opts *bind.CallOpts) (common.Address, error) {
+// Solidity: function superBundler() view returns(address)
+func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewayCaller) SuperBundler(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _AcrossReceiveFundsAndExecuteGateway.contract.Call(opts, &out, "superRegistry")
+	err := _AcrossReceiveFundsAndExecuteGateway.contract.Call(opts, &out, "superBundler")
 
 	if err != nil {
 		return *new(common.Address), err
@@ -259,18 +259,18 @@ func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewayC
 
 }
 
-// SuperRegistry is a free data retrieval call binding the contract method 0x24c73dda.
+// SuperBundler is a free data retrieval call binding the contract method 0x61aeefef.
 //
-// Solidity: function superRegistry() view returns(address)
-func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewaySession) SuperRegistry() (common.Address, error) {
-	return _AcrossReceiveFundsAndExecuteGateway.Contract.SuperRegistry(&_AcrossReceiveFundsAndExecuteGateway.CallOpts)
+// Solidity: function superBundler() view returns(address)
+func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewaySession) SuperBundler() (common.Address, error) {
+	return _AcrossReceiveFundsAndExecuteGateway.Contract.SuperBundler(&_AcrossReceiveFundsAndExecuteGateway.CallOpts)
 }
 
-// SuperRegistry is a free data retrieval call binding the contract method 0x24c73dda.
+// SuperBundler is a free data retrieval call binding the contract method 0x61aeefef.
 //
-// Solidity: function superRegistry() view returns(address)
-func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewayCallerSession) SuperRegistry() (common.Address, error) {
-	return _AcrossReceiveFundsAndExecuteGateway.Contract.SuperRegistry(&_AcrossReceiveFundsAndExecuteGateway.CallOpts)
+// Solidity: function superBundler() view returns(address)
+func (_AcrossReceiveFundsAndExecuteGateway *AcrossReceiveFundsAndExecuteGatewayCallerSession) SuperBundler() (common.Address, error) {
+	return _AcrossReceiveFundsAndExecuteGateway.Contract.SuperBundler(&_AcrossReceiveFundsAndExecuteGateway.CallOpts)
 }
 
 // HandleV3AcrossMessage is a paid mutator transaction binding the contract method 0x3a5be8cb.
