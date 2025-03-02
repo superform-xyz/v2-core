@@ -68,8 +68,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
 
-    uint256 public constant REDEEM_THRESHOLD = 100;
-
     uint256 public constant BOOTSTRAP_AMOUNT = 1e6;
 
     struct SharePricePoint {
@@ -156,6 +154,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 feeRecipient: TREASURY,
                 config: config,
                 finalMaxAllocationRate: MAX_ALLOCATION_RATE,
+                bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: address(fluidVault),
                 initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),

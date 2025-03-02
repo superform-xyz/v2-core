@@ -329,6 +329,11 @@ Key Points for Auditors:
   - Access control implementation
   - Emergency controls
   - Hook validation
+- Math and safety of the vault:
+  - We took an approach of using a state variable to track increases to totalAssets such that balance of asset sent to the vault doesn't influence the PPS
+  - Also, to determine the shares to mint when fulfilling deposit requests, the total share increase for a set of users is calculated based on the proportion of asset increase, for each user. By aggregating all deposit amounts and processing them together, the share issuance is calculated based on the full combined deposit. This adjustment ensures that the asset-to-share ratio remains consistent and the PPS is the same for all fulfilled depositors
+  - To prevent the problem depicted in https://github.com/OpenZeppelin/openzeppelin-contracts/blob/3882a0916300b357f3d2f438450c1e9bc2902bae/contracts/token/ERC20/extensions/ERC4626.sol#L22C1-L28C82 we decided to force
+  an initial deposit to the SuperVault. This amount should be non trivial (e.g $1 worth of asset)
 - Important cases to watch for:
   - Rebalance accuracy
   - Fee calculation accuracy

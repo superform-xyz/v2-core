@@ -45,6 +45,7 @@ interface ISuperVaultFactory {
         // Strategy configuration
         ISuperVaultStrategy.GlobalConfig config;
         uint256 finalMaxAllocationRate;
+        uint256 bootstrapAmount;
         // Initialization parameters
         address initYieldSource;
         bytes32 initHooksRoot;
@@ -68,6 +69,7 @@ interface ISuperVaultFactory {
         bytes[] bootstrappingHookCalldata;
         ISuperVaultStrategy.GlobalConfig config;
         uint256 finalMaxAllocationRate;
+        uint256 bootstrapAmount;
     }
 
     // Local variables struct to improve readability and organization

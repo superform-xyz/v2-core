@@ -31,7 +31,6 @@ contract SuperVaultFactory is ISuperVaultFactory {
     address public immutable strategyImplementation;
     address public immutable escrowImplementation;
     address public immutable peripheryRegistry;
-    uint256 private constant BOOTSTRAP_AMOUNT = 1e6;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -98,7 +97,8 @@ contract SuperVaultFactory is ISuperVaultFactory {
                 bootstrappingHookProofs: params.bootstrappingHookProofs,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
                 config: params.config,
-                finalMaxAllocationRate: params.finalMaxAllocationRate
+                finalMaxAllocationRate: params.finalMaxAllocationRate,
+                bootstrapAmount: params.bootstrapAmount
             })
         );
 
@@ -116,16 +116,18 @@ contract SuperVaultFactory is ISuperVaultFactory {
         vars.MANAGER_ROLE = keccak256("MANAGER_ROLE");
         vars.STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
         // Transfer bootstrap amount from sender to this contract
-        vars.assetToken.safeTransferFrom(msg.sender, address(this), BOOTSTRAP_AMOUNT);
-        vars.assetToken.safeTransferFrom(msg.sender, params.strategy, 100);
+        // Note: this should be a non trivial amount, e.g $1 worth of asset
+        // See:
+        // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/3882a0916300b357f3d2f438450c1e9bc2902bae/contracts/token/ERC20/extensions/ERC4626.sol#L22C1-L28C82
+        vars.assetToken.safeTransferFrom(msg.sender, address(this), params.bootstrapAmount);
 
         // Approve asset for superVault
-        vars.assetToken.safeIncreaseAllowance(params.superVault, BOOTSTRAP_AMOUNT);
+        vars.assetToken.safeIncreaseAllowance(params.superVault, params.bootstrapAmount);
 
         // 1. Request deposit
         vars.superVaultContract = IERC7540(params.superVault);
 
-        vars.superVaultContract.requestDeposit(BOOTSTRAP_AMOUNT, address(this), address(this));
+        vars.superVaultContract.requestDeposit(params.bootstrapAmount, address(this), address(this));
 
         // 2. Fulfill deposit request
         vars.users = new address[](1);
@@ -151,7 +153,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         );
 
         /// @dev Note: Theoretically this could go to an insurance fund
-        vars.superVaultContract.deposit(BOOTSTRAP_AMOUNT, params.recipient, address(this));
+        vars.superVaultContract.deposit(params.bootstrapAmount, params.recipient, address(this));
 
         vars.strategyContract.updateGlobalConfig(
             ISuperVaultStrategy.GlobalConfig({
