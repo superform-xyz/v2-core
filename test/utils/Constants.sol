@@ -87,6 +87,7 @@ abstract contract Constants {
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string public constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
     string public constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
+    string public constant GEARBOX_YIELD_SOURCE_ORACLE_KEY = "GearboxYieldSourceOracle";
     string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
 
     // tokens
@@ -103,7 +104,6 @@ abstract contract Constants {
     address public constant CHAIN_1_SUSDE = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
     address public constant CHAIN_1_USDE = 0x4c9EDD5852cd905f086C759E8383e09bff1E68B3;
     address public constant CHAIN_1_GEAR = 0xBa3335588D9403515223F109EdC4eB7269a9Ab5D;
-    address public constant CHAIN_1_CRV_USDC = 0x8EF73f036fEEC873D0B2fd20892215Df5B8Bdd72;
 
     address public constant CHAIN_10_DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     address public constant CHAIN_10_USDC = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
@@ -127,7 +127,6 @@ abstract contract Constants {
     string public constant ALOE_USDC_VAULT_KEY = "AloeUSDC";
     string public constant FLUID_VAULT_KEY = "FluidVault";
     string public constant EULER_VAULT_KEY = "EulerVault";
-    string public constant CURVE_GEARBOX_VAULT_KEY = "CurveGearbox";
 
     string public constant MORPHO_VAULT_KEY = "MorphoVault";
     string public constant CENTRIFUGE_USDC_VAULT_KEY = "CentrifugeUSDC";
@@ -145,7 +144,6 @@ abstract contract Constants {
     address public constant CHAIN_1_MorphoVault = 0xdd0f28e19C1780eb6396170735D45153D261490d;
     address public constant CHAIN_1_CentrifugeUSDC = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
     address public constant CHAIN_1_YearnVault = 0x028eC7330ff87667b6dfb0D94b954c820195336c;
-    address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
     address public constant CHAIN_1_PendleEthena = 0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185;
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
 
