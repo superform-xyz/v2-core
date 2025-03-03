@@ -190,25 +190,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
-
-        /*
-        // supply initial tokens to SuperVaultStrategy
-        /// @dev this is to avoid rounding errors when redeeming
-        uint256 initialDepositAmount = 1e6; // 1 USDC
-        _getTokens(address(asset), address(this), initialDepositAmount);
-        vm.startPrank(address(this));
-        asset.approve(address(vault), initialDepositAmount);
-        vault.requestDeposit(initialDepositAmount, address(this), address(this));
-        vm.stopPrank();
-        _fulfillDepositForInitialDeposit(initialDepositAmount);
-
-        vm.startPrank(address(this));
-        vault.deposit(initialDepositAmount, address(this), address(this));
-        vm.stopPrank();
-
-        uint256 initialBootstrapperShares = vault.balanceOf(address(this));
-        console2.log("boostrapper shares          ", initialBootstrapperShares);
-        */
     }
 
     /*//////////////////////////////////////////////////////////////
