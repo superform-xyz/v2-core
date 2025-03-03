@@ -238,7 +238,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         // Fund underlying tokens
         _fundUSDCTokens(10_000);
         _fundSUSDETokens(10_000);
-        _fundCRVUSDCeTokens(10_000);
+        _fundGEARTokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -700,6 +700,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[ETH][DAI_KEY] = CHAIN_1_DAI;
         existingUnderlyingTokens[ETH][USDC_KEY] = CHAIN_1_USDC;
         existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
+        existingUnderlyingTokens[ETH][GEAR_KEY] = CHAIN_1_GEAR;
         existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Optimism tokens
@@ -707,7 +708,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
         existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
         existingUnderlyingTokens[OP][USDCe_KEY] = CHAIN_10_USDCe;
-        vm.label(existingUnderlyingTokens[OP][USDCe_KEY], "USDCe");
 
         // Base tokens
         existingUnderlyingTokens[BASE][DAI_KEY] = CHAIN_8453_DAI;
@@ -731,8 +731,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY], EULER_VAULT_KEY);
         existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY] = CHAIN_1_MorphoVault;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
-        existingVaults[1][ERC4626_VAULT_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY] = CHAIN_1_CurveGearbox;
-        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY], CURVE_GEARBOX_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY] = CHAIN_10_AloeUSDC;
@@ -761,6 +759,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         /// @dev 5115 real pendle ethena vault on mainnet
         existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
         vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY], "PendleEthena");
+
+        /// @dev Staking real gearbox staking on mainnet
+        existingVaults[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY] = CHAIN_1_GearboxStaking;
+        vm.label(
+            existingVaults[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY], 
+            "GearboxStaking"
+        );
     }
 
     function _fundUSDCTokens(uint256 amount) internal {
@@ -785,9 +790,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         deal(existingUnderlyingTokens[OP][USDCe_KEY], accountInstances[OP].account, 1e18 * amount);
     }
 
-    function _fundCRVUSDCeTokens(uint256 amount) internal {
+    function _fundGEARTokens(uint256 amount) internal {
         vm.selectFork(FORKS[chainIds[0]]);
-        deal(existingUnderlyingTokens[chainIds[0]][CRV_USDC_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
+        deal(existingUnderlyingTokens[chainIds[0]][GEAR_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
     }
 
     function _setSuperRegistryAddresses() internal {
@@ -1383,4 +1388,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             usePrevHookAmount
         );
     }
+
+    function _createGearboxStakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
+    }
+    
+    function _createGearboxUnstakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
+    }
+    
 }
