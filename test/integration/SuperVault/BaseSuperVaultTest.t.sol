@@ -87,6 +87,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.selectFork(FORKS[ETH]);
         accInstances = randomAccountInstances[ETH];
         assertEq(accInstances.length, ACCOUNT_COUNT);
+
         peripheryRegistry = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
         // Set up accounts
@@ -138,6 +139,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bootstrapHooksData[0] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), BOOTSTRAP_AMOUNT, false, false
         );
+
         vm.startPrank(SV_MANAGER);
         deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
         asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
@@ -191,7 +193,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
