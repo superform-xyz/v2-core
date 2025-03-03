@@ -73,6 +73,7 @@ import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115
 import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
+import { GearboxYieldSourceOracle } from "../src/core/accounting/oracles/GearboxYieldSourceOracle.sol";
 
 // external
 import {
@@ -121,6 +122,7 @@ struct Addresses {
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
     FluidYieldSourceOracle fluidYieldSourceOracle;
+    GearboxYieldSourceOracle gearboxYieldSourceOracle;
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
     PeripheryRegistry peripheryRegistry;
@@ -354,6 +356,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.fluidYieldSourceOracle = new FluidYieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
+
+            A.gearboxYieldSourceOracle = new GearboxYieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.gearboxYieldSourceOracle), GEARBOX_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][GEARBOX_YIELD_SOURCE_ORACLE_KEY] = address(A.gearboxYieldSourceOracle);
 
             /// @dev periphery
             A.peripheryRegistry = new PeripheryRegistry(address(this), TREASURY);
@@ -761,9 +767,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY], "PendleEthena");
 
         /// @dev Staking real gearbox staking on mainnet
-        existingVaults[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY] = CHAIN_1_GearboxStaking;
+        existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY] = CHAIN_1_GearboxStaking;
         vm.label(
-            existingVaults[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY], 
+            existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY], 
             "GearboxStaking"
         );
     }
@@ -821,7 +827,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainIds[i], PERIPHERY_REGISTRY_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -842,6 +848,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 feePercent: 100,
                 feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
+            });
+            configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], GEARBOX_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: peripheryRegistry.getTreasury(),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
                 configs
