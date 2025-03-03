@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -217,6 +219,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Process hooks and get targeted yield sources
         address[] memory targetedYieldSources;
         (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, isDeposit);
+
+        console2.log("Processed Hooks");
 
         // Check vault caps after hooks processing (only for deposits)
         if (isDeposit) {
@@ -1059,15 +1063,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         private
         returns (address target)
-    {
+    {   
+        console2.log("Execute Hook");
+
         // Validate hook via merkle proof
         if (!isHookAllowed(hook, hookProof)) revert INVALID_HOOK();
+        console2.log("hook", hook);
 
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
         Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata);
         // prevent any hooks with more than one execution
         if (executions.length > 1) revert INVALID_HOOK();
+        console2.log("executions", executions.length);
 
         // Validate hook type
         ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
@@ -1209,7 +1217,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         private
         returns (uint256 amount, address target)
-    {
+    {   
+        console2.log("Process Inflow Hook Execution");
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
