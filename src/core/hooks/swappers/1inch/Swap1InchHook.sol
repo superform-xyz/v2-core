@@ -12,9 +12,10 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 /// @title Swap1InchHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice  Swap1InchHookParams
-/// address dstToken;
-/// bytes swapData;
+/// @notice         address dstToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address dstReceiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         bytes calldata txData_ = BytesLib.slice(data, 72, txData_.length - 72);
 contract Swap1InchHook is BaseHook, ISuperHook {
     using AddressLib for Address;
     using ProtocolLib for Address;
