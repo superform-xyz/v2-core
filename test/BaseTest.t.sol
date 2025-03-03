@@ -731,6 +731,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][EULER_VAULT_KEY][USDC_KEY], EULER_VAULT_KEY);
         existingVaults[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY] = CHAIN_1_MorphoVault;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY], MORPHO_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY] = CHAIN_1_CurveGearbox;
+        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][CURVE_GEARBOX_VAULT_KEY][GEAR_KEY], CURVE_GEARBOX_VAULT_KEY);
 
         /// @dev Optimism 4626vault addresses
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY] = CHAIN_10_AloeUSDC;
@@ -759,15 +761,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         /// @dev 5115 real pendle ethena vault on mainnet
         existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
         vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY], "PendleEthena");
-
-        /// wstETH
-        /// @dev pendle wrapped st ETH from LDO - market:  SY wstETH
-        // erc5115Vaults[10][0] = 0x96A528f4414aC3CcD21342996c93f2EcdEc24286;
-        // erc5115VaultsNames[10][0] = "wstETH";
-        // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetIn =
-        //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
-        // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
-        //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
     }
 
     function _fundUSDCTokens(uint256 amount) internal {
