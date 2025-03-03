@@ -237,8 +237,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Fund underlying tokens
         _fundUSDCTokens(10_000);
-
         _fundSUSDETokens(10_000);
+        _fundCRVUSDCeTokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -790,6 +790,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _fundUSDCeTokens(uint256 amount) internal {
         vm.selectFork(FORKS[OP]);
         deal(existingUnderlyingTokens[OP][USDCe_KEY], accountInstances[OP].account, 1e18 * amount);
+    }
+
+    function _fundCRVUSDCeTokens(uint256 amount) internal {
+        vm.selectFork(FORKS[chainIds[0]]);
+        deal(existingUnderlyingTokens[chainIds[0]][CRV_USDC_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
     }
 
     function _setSuperRegistryAddresses() internal {
