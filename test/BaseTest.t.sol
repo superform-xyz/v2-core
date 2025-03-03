@@ -1285,7 +1285,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _create1InchGenericRouterSwapHookData(
-        address account,
+        address dstReceiver,
         address dstToken,
         address executor,
         I1InchAggregationRouterV6.SwapDescription memory desc,
@@ -1300,11 +1300,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data
         );
 
-        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), _calldata);
     }
 
     function _create1InchUnoswapToHookData(
-        address account,
+        address dstReceiver,
         address dstToken,
         Address receiverUint256,
         Address fromTokenUint256,
@@ -1325,11 +1325,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             dex
         );
 
-        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), _calldata);
     }
 
     function _create1InchClipperSwapToHookData(
-        address account,
+        address dstReceiver,
         address dstToken,
         address exchange,
         Address srcToken,
@@ -1342,7 +1342,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         bytes memory _calldata = abi.encodeWithSelector(
             I1InchAggregationRouterV6.clipperSwapTo.selector,
             exchange,
-            payable(account),
+            payable(dstReceiver),
             srcToken,
             dstToken,
             amount,
@@ -1352,7 +1352,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             bytes32(0)
         );
 
-        return abi.encodePacked(dstToken, account, uint256(0), _calldata);
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), _calldata);
     }
 
     function _createOdosSwapHookData(
