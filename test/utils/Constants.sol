@@ -85,6 +85,7 @@ abstract contract Constants {
     string public constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
+    string public constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
     string public constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
     string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
 
@@ -95,7 +96,6 @@ abstract contract Constants {
     string public constant SUSDE_KEY = "SUSDe";
     string public constant USDCe_KEY = "USDCe";
     string public constant GEAR_KEY = "GEAR";
-    string public constant CRV_USDC_KEY = "CRV-USDC";
 
     address public constant CHAIN_1_DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address public constant CHAIN_1_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -147,8 +147,6 @@ abstract contract Constants {
     address public constant CHAIN_1_YearnVault = 0x028eC7330ff87667b6dfb0D94b954c820195336c;
     address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
     address public constant CHAIN_1_PendleEthena = 0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185;
-    address public constant CHAIN_1_CurveGearbox = 0x8EF73f036fEEC873D0B2fd20892215Df5B8Bdd72
-    ;
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
@@ -157,7 +155,7 @@ abstract contract Constants {
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
-    address public constant CHAIN_1_GearboxStaking = 	0x2fcbd02d5b1d52fc78d4c02890d7f4f47a459c33;
+    address public constant CHAIN_1_GearboxStaking = 	0x2fcbD02d5B1D52FC78d4c02890D7f4f47a459c33;
 
     // bridges
     string public constant DEBRIDGE_GATE_ADDRESS_KEY = "DeBridgeGateAddress";
