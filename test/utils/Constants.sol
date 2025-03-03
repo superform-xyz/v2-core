@@ -127,6 +127,7 @@ abstract contract Constants {
     string public constant ALOE_USDC_VAULT_KEY = "AloeUSDC";
     string public constant FLUID_VAULT_KEY = "FluidVault";
     string public constant EULER_VAULT_KEY = "EulerVault";
+    string public constant GEARBOX_VAULT_KEY = "GearboxVault";
 
     string public constant MORPHO_VAULT_KEY = "MorphoVault";
     string public constant CENTRIFUGE_USDC_VAULT_KEY = "CentrifugeUSDC";
@@ -145,7 +146,10 @@ abstract contract Constants {
     address public constant CHAIN_1_CentrifugeUSDC = 0x1d01Ef1997d44206d839b78bA6813f60F1B3A970;
     address public constant CHAIN_1_YearnVault = 0x028eC7330ff87667b6dfb0D94b954c820195336c;
     address public constant CHAIN_1_PendleEthena = 0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185;
+    address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
+    
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
+    
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
@@ -153,7 +157,7 @@ abstract contract Constants {
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
-    address public constant CHAIN_1_GearboxStaking = 	0xfBCA378AeA93EADD6882299A3d74D8641Cc0C4BC;
+    address public constant CHAIN_1_GearboxStaking = 	0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2;
 
     // bridges
     string public constant DEBRIDGE_GATE_ADDRESS_KEY = "DeBridgeGateAddress";
