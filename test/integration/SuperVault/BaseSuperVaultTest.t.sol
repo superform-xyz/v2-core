@@ -63,7 +63,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant VAULT_CAP = 1_000_000e6; // 1M USDC
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
-    uint256 constant MAX_ALLOCATION_RATE = 6000; // 50%
+    uint256 constant MAX_ALLOCATION_RATE = 6000; // 60%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
@@ -211,9 +211,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         */
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        PRIVATE FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
