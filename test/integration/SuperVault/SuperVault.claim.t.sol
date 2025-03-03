@@ -37,6 +37,8 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
     using Math for uint256;
 
+    SuperVault gearSuperVault;
+
     // Yield sources
     IGearboxFarmingPool public curveGearboxFarmingPool;
 
@@ -46,6 +48,8 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
 
     function setUp() public override {
         super.setUp();
+
+        console2.log("------setUp");
 
         amount = 1000e6; // 1000 GEAR
 
@@ -58,28 +62,38 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
         accountEth = accountInstances[ETH].account;
         instanceOnEth = accountInstances[ETH];
 
+        vm.label(accountEth, "AccountETH");
+
+        deal(address(asset), accountEth, 1000e18);
+
         accInstances = randomAccountInstances[ETH];
 
+        vm.label(SV_MANAGER, "SV_MANAGER");
+        vm.label(STRATEGIST, "STRATEGIST");
+        vm.label(address(factory), "Factory");
+
         // Set up super executor
-        superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
+        // superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
         // Deploy factory
-        factory = new SuperVaultFactory(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
+        // factory = new SuperVaultFactory(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
         // Set up roles
-        SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
-        STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
-        EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
+        // SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
+        // STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
+        // EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][GEAR_KEY]);
-        console2.log("asset", address(asset));
+        console2.log("asset: ", address(asset));
 
-        address gearboxStakingAddr = realVaultAddresses[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
+        address gearboxStakingAddr 
+        = realVaultAddresses[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
         vm.label(gearboxStakingAddr, "GearboxStaking");
 
         // Get real yield sources from fork
         curveGearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
+        vm.label(address(curveGearboxFarmingPool), "GearboxStaking"); 
 
         // Deploy vault trio with initial config
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
@@ -89,8 +103,15 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
             vaultThreshold: VAULT_THRESHOLD
         });
         bytes32 hookRoot = _getMerkleRoot();
+
+        // vm.startPrank(SV_MANAGER);
+        // strategy.proposeOrExecuteHookRoot(hookRoot);
+        // vm.warp(block.timestamp + 7 days);
+        // strategy.proposeOrExecuteHookRoot(bytes32(0));
+        // vm.stopPrank();
+
         address stakeHookAddress = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
-        console2.log("stakeHookAddress", stakeHookAddress);
+        console2.log("stakeHookAddress: ", stakeHookAddress);
 
         address[] memory bootstrapHooks = new address[](1);
         bootstrapHooks[0] = stakeHookAddress;
@@ -107,12 +128,16 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
             false
         );
 
+        // (bytes32 receivedRoot, , address[] memory hooksAddresses) = _generateMerkleTree();
+        // assertEq(receivedRoot, hookRoot);
+        // console2.log("hooksAddresses: ", hooksAddresses[0]);
+
         vm.startPrank(SV_MANAGER);
         deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
         asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
 
         // Deploy vault trio
-        (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
+        (address gearSuperVaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
                 asset: address(asset),
                 name: "SuperVault Gearbox",
@@ -126,25 +151,25 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
                 bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: address(curveGearboxFarmingPool),
                 initHooksRoot: hookRoot,
-                initYieldSourceOracle: _getContract(ETH, STAKING_YIELD_SOURCE_ORACLE_KEY),
+                initYieldSourceOracle: _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: bootstrapHooks,
                 bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHooksData
             })
         );
-        vm.label(vaultAddr, "SuperVault Gearbox");
-        vm.label(strategyAddr, "SuperVaultStrategy");
-        vm.label(escrowAddr, "SuperVaultEscrow");
+        vm.label(gearSuperVaultAddr, "GearSuperVault");
+        vm.label(strategyAddr, "GearSuperVaultStrategy");
+        vm.label(escrowAddr, "GearSuperVaultEscrow");
 
         // Cast addresses to contract types
-        vault = SuperVault(vaultAddr);
-        strategy = SuperVaultStrategy(strategyAddr);
+        gearSuperVault = SuperVault(gearSuperVaultAddr);
         escrow = SuperVaultEscrow(escrowAddr);
+        strategy = SuperVaultStrategy(strategyAddr);
 
         // Add a new yield source as manager
         strategy.manageYieldSource(
             address(curveGearboxFarmingPool),
-            _getContract(ETH, STAKING_YIELD_SOURCE_ORACLE_KEY),
+            _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
             0,
             false // addYieldSource
         );
@@ -199,7 +224,7 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
         bytes[] memory fulfillHooksData = new bytes[](1);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createGearboxStakeHookData(
-            bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)), address(curveGearboxFarmingPool), depositAmount, false, false
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(curveGearboxFarmingPool), depositAmount, false, false
         );
 
         vm.startPrank(STRATEGIST);
