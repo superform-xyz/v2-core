@@ -21,11 +21,13 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 /// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-/// @notice         uint256 pathDefinitionLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-/// @notice         bytes pathDefinition = BytesLib.slice(data, 188, pathDefinitionLength);
-/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinitionLength, 20), 0);
-/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinitionLength + 20, 4), 0);
-/// @notice         bool usePreviousHookAmount = _decodeBool(data, 168 + pathDefinitionLength + 20 + 4);
+/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
+/// @notice         bytes pathDefinition = BytesLib.slice(data, 188, pathDefinition_paramLength);
+/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20),
+/// 0);
+/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20,
+/// 4), 0);
+/// @notice         bool usePreviousHookAmount = _decodeBool(data, 168 + pathDefinition_paramLength + 20 + 4);
 contract SwapOdosHook is BaseHook, ISuperHook {
     IOdosRouterV2 public odosRouterV2;
 
@@ -54,10 +56,10 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        uint256 pathDefinitionLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-        bytes memory pathDefinition = BytesLib.slice(data, 188, pathDefinitionLength);
-        address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinitionLength, 20), 0);
-        uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinitionLength + 20, 4), 0);
+        uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
+        bytes memory pathDefinition = BytesLib.slice(data, 188, pathDefinition_paramLength);
+        address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20), 0);
+        uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20, 4), 0);
 
         executions = new Execution[](1);
         executions[0] = Execution({
