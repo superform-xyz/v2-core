@@ -29,6 +29,7 @@ test-integration :; forge test --match-test test_MatchRequests_MultiplePairs -vv
 
 .PHONY: generate
 generate:
+	rm -rf contract_bindings/*
 	./script/run/retrieve-abis.sh
 	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
 	abigen --abi out/AcrossSendFundsAndExecuteOnDstHook.sol/AcrossSendFundsAndExecuteOnDstHook.abi --pkg contracts --type AcrossSendFundsAndExecuteOnDstHook --out contract_bindings/AcrossSendFundsAndExecuteOnDstHook.go
