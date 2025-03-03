@@ -153,7 +153,7 @@ abstract contract Constants {
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
-    address public constant CHAIN_1_GearboxStaking = 	0x2fcbD02d5B1D52FC78d4c02890D7f4f47a459c33;
+    address public constant CHAIN_1_GearboxStaking = 	0xfBCA378AeA93EADD6882299A3d74D8641Cc0C4BC;
 
     // bridges
     string public constant DEBRIDGE_GATE_ADDRESS_KEY = "DeBridgeGateAddress";
