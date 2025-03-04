@@ -812,6 +812,23 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    // 0.2% fee for Ledger entries where the SuperVault is the target so that we can test the fee derivation
+    function _setUpSuperLedgerForVault_With_Ledger_Fees() internal {
+        vm.selectFork(FORKS[ETH]);
+        vm.startPrank(MANAGER);
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
+            feePercent: 100,
+            feeRecipient: TREASURY,
+            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
+        });
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+        vm.stopPrank();
+    }
+
     function _rebalanceFromVaultToVault(
         address[] memory hooksAddresses,
         bytes32[][] memory proofs,
@@ -851,23 +868,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy.allocate(hooksAddresses, proofs, hooksData);
         vm.stopPrank();
     }
-
-    // 0.2% fee for Ledger entries where the SuperVault is the target so that we can test the fee derivation
-    function _setUpSuperLedgerForVault_With_Ledger_Fees() internal {
-        vm.selectFork(FORKS[ETH]);
-        vm.startPrank(MANAGER);
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
-            feeRecipient: TREASURY,
-            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
-        });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
-        vm.stopPrank();
-    }
     
 
     /*//////////////////////////////////////////////////////////////
@@ -892,7 +892,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -934,11 +934,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
-            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT);
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
 
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
-                superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
+                superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 recipientFee = totalFee - superformFee;
             }
         }
