@@ -33,6 +33,8 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 
 import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 contract SuperVaultClaimTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
     using Math for uint256;
@@ -231,6 +233,8 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
 
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         address stakeHookAddress = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
+        console2.log("depositHookAddress: ", depositHookAddress);
+        console2.log("stakeHookAddress: ", stakeHookAddress);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = depositHookAddress;
