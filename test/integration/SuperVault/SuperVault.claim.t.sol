@@ -231,26 +231,41 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
 
+        address approveHookAddress = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         address stakeHookAddress = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
-        console2.log("depositHookAddress: ", depositHookAddress);
-        console2.log("stakeHookAddress: ", stakeHookAddress);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = depositHookAddress;
+        //fulfillHooksAddresses[1] = approveHookAddress;
         fulfillHooksAddresses[1] = stakeHookAddress;
 
         bytes32[][] memory proofs = new bytes32[][](2);
         proofs[0] = _getMerkleProof(depositHookAddress);
+        //proofs[1] = _getMerkleProof(approveHookAddress);
         proofs[1] = _getMerkleProof(stakeHookAddress);
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createGearboxStakeHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), depositAmount, false, false
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(gearboxVault), 
+            depositAmount, 
+            false, 
+            false
         );
+        // fulfillHooksData[1] = _createApproveHookData(
+        //   address(gearboxVault), 
+        //   address(gearboxFarmingPool), 
+        //   depositAmount, 
+        //   true
+        // );
         fulfillHooksData[1] = _createGearboxStakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), depositAmount, true, false
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
+            address(gearboxFarmingPool), 
+            depositAmount, 
+            true, 
+            false
         );
 
         vm.startPrank(STRATEGIST);
