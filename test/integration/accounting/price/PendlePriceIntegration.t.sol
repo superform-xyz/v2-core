@@ -53,7 +53,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         superLedgerConfiguration = SuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
         pendleLedger = ERC1155Ledger(_getContract(ETH, ERC1155_LEDGER_KEY));
 
-        pendleVault = IStandardizedYield(0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185);
+        pendleVault = IStandardizedYield(CHAIN_1_PendleEthena);
         underlying = CHAIN_1_SUSDE;
     }
 
