@@ -42,7 +42,7 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
     SuperVaultStrategy strategyGearSuperVault;
 
     // Yield sources
-    IGearboxFarmingPool public curveGearboxFarmingPool;
+    IGearboxFarmingPool public gearboxFarmingPool;
     IERC4626 public gearboxVault;
 
     uint256 public amount;
@@ -90,7 +90,7 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
         address gearboxStakingAddr 
         = realVaultAddresses[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
         vm.label(gearboxStakingAddr, "GearboxStaking");
-
+        gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
         // Deploy vault trio with initial config
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
             vaultCap: VAULT_CAP,
@@ -164,7 +164,7 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
 
         // Add a new yield source as manager
         strategyGearSuperVault.manageYieldSource(
-            address(gearboxStakingAddr),
+            gearboxStakingAddr,
             _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
             0,
             false // addYieldSource
@@ -228,18 +228,25 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
     function _fulfillDeposit_Gearbox_SV(uint256 depositAmount) internal {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
+
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address stakeHookAddress = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
 
-        address[] memory fulfillHooksAddresses = new address[](1);
+        address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = stakeHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](1);
+        bytes32[][] memory proofs = new bytes32[][](2);
         proofs[0] = _getMerkleProof(depositHookAddress);
+        proofs[1] = _getMerkleProof(stakeHookAddress);
 
-        bytes[] memory fulfillHooksData = new bytes[](1);
+        bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createGearboxStakeHookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), depositAmount, false, false
+        );
+        fulfillHooksData[1] = _createGearboxStakeHookData(
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), depositAmount, true, false
         );
 
         vm.startPrank(STRATEGIST);
@@ -257,7 +264,12 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accInst.account, depositAmount, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), 
+            address(gearSuperVault), 
+            accInst.account, 
+            depositAmount, 
+            false, 
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
