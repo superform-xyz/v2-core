@@ -60,7 +60,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     IERC4626 public aaveVault;
 
     // Constants
-    uint256 constant VAULT_CAP = 1_000_000e6; // 1M USDC
+    uint256 constant VAULT_CAP = type(uint256).max;
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
     uint256 constant MAX_ALLOCATION_RATE = 6000; // 60%
@@ -538,6 +538,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    function _claimRedeemForUsers(address[] memory redeemUsers) internal {
+        for (uint256 i; i < redeemUsers.length; i++) {
+            address user = redeemUsers[i];
+            uint256 maxWithdrawAmount = vault.maxWithdraw(user);
+            if (maxWithdrawAmount > 0) {
+                vm.startPrank(user);
+                vault.withdraw(maxWithdrawAmount, user, user);
+                vm.stopPrank();
+            }
+        }
+    }
+
     function _completeDepositFlow(uint256 depositAmount) internal {
         // create deposit requests for all users
         _requestDepositForAllUsers(depositAmount);
@@ -559,6 +571,44 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // claim deposits
         for (uint256 i; i < ACCOUNT_COUNT;) {
             _claimDepositForAccount(accInstances[i], depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function _completeDepositFlowWithVaryingAmounts(uint256[] memory depositAmounts) internal {
+        require(depositAmounts.length == ACCOUNT_COUNT, "Invalid deposit amounts length");
+
+        // Calculate total amount for allocation
+        uint256 totalAmount;
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            _getTokens(address(asset), accInstances[i].account, depositAmounts[i]);
+            _requestDepositForAccount(accInstances[i], depositAmounts[i]);
+            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmounts[i]);
+            totalAmount += depositAmounts[i];
+            unchecked {
+                ++i;
+            }
+        }
+
+        // create fullfillment data
+        uint256 allocationAmountVault1 = totalAmount / 2;
+        uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            requestingUsers[i] = accInstances[i].account;
+            unchecked {
+                ++i;
+            }
+        }
+
+        // fulfill deposits
+        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+
+        // claim deposits
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            _claimDepositForAccount(accInstances[i], depositAmounts[i]);
             unchecked {
                 ++i;
             }
