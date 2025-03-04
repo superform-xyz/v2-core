@@ -48,11 +48,9 @@ interface ISuperVaultFactory {
         uint256 bootstrapAmount;
         // Initialization parameters
         address initYieldSource;
-        bytes32 initHooksRoot;
         address initYieldSourceOracle;
         // Bootstrapping parameters
         address[] bootstrappingHooks;
-        bytes32[][] bootstrappingHookProofs;
         bytes[] bootstrappingHookCalldata;
     }
 
@@ -65,7 +63,6 @@ interface ISuperVaultFactory {
         address strategist;
         address recipient;
         address[] bootstrappingHooks;
-        bytes32[][] bootstrappingHookProofs;
         bytes[] bootstrappingHookCalldata;
         ISuperVaultStrategy.GlobalConfig config;
         uint256 finalMaxAllocationRate;

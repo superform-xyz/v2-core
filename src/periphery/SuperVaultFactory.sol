@@ -81,7 +81,6 @@ contract SuperVaultFactory is ISuperVaultFactory {
             peripheryRegistry,
             params.config,
             params.initYieldSource,
-            params.initHooksRoot,
             params.initYieldSourceOracle
         );
 
@@ -94,7 +93,6 @@ contract SuperVaultFactory is ISuperVaultFactory {
                 strategist: params.strategist,
                 recipient: params.feeRecipient,
                 bootstrappingHooks: params.bootstrappingHooks,
-                bootstrappingHookProofs: params.bootstrappingHookProofs,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
                 config: params.config,
                 finalMaxAllocationRate: params.finalMaxAllocationRate,
@@ -147,7 +145,6 @@ contract SuperVaultFactory is ISuperVaultFactory {
         vars.strategyContract.fulfillRequests(
             vars.users,
             params.bootstrappingHooks,
-            params.bootstrappingHookProofs,
             params.bootstrappingHookCalldata,
             true
         );

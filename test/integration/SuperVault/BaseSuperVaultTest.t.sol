@@ -63,7 +63,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant VAULT_CAP = 1_000_000e6; // 1M USDC
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
-    uint256 constant MAX_ALLOCATION_RATE = 6000; // 60%
+    uint256 constant MAX_ALLOCATION_RATE = 6000; // 50%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
@@ -125,14 +125,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             maxAllocationRate: ONE_HUNDRED_PERCENT,
             vaultThreshold: VAULT_THRESHOLD
         });
-        bytes32 hookRoot = _getMerkleRoot();
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory bootstrapHooks = new address[](1);
         bootstrapHooks[0] = depositHookAddress;
-
-        bytes32[][] memory bootstrapHookProofs = new bytes32[][](1);
-        bootstrapHookProofs[0] = _getMerkleProof(depositHookAddress);
 
         bytes[] memory bootstrapHooksData = new bytes[](1);
         bootstrapHooksData[0] = _createDeposit4626HookData(
@@ -156,10 +152,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 finalMaxAllocationRate: MAX_ALLOCATION_RATE,
                 bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: address(fluidVault),
-                initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHooksData
             })
         );
@@ -183,15 +177,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
 
         _setFeeConfig(100, TREASURY);
-
-        // Set up hook root (same one as bootstrap, just to test)
-        vm.startPrank(SV_MANAGER);
-        strategy.proposeOrExecuteHookRoot(hookRoot);
-        vm.warp(block.timestamp + 7 days);
-        strategy.proposeOrExecuteHookRoot(bytes32(0));
-        vm.stopPrank();
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        PRIVATE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -261,10 +251,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         hooks_[0] = depositHookAddress;
         hooks_[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(depositHookAddress);
-        proofs[1] = proofs[0];
-
         bytes[] memory hookCalldata = new bytes[](2);
         // First half to fluid vault
         hookCalldata[0] = _createDeposit4626HookData(
@@ -290,7 +276,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         console2.log("Strategy balance before fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(users, hooks_, proofs, hookCalldata, true);
+        strategy.fulfillRequests(users, hooks_, hookCalldata, true);
         vm.stopPrank();
 
         console2.log("Strategy balance after fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
@@ -331,10 +317,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(depositHookAddress);
-        proofs[1] = proofs[0];
-
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
@@ -346,7 +328,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -363,10 +345,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(depositHookAddress);
-        proofs[1] = proofs[0];
-
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
@@ -377,7 +355,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -415,10 +393,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = withdrawHookAddress;
         fulfillHooksAddresses[1] = withdrawHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = proofs[0];
-
         (uint256 fluidSharesOut, uint256 aaveSharesOut) = _calculateVaultShares(redeemShares);
 
         bytes[] memory fulfillHooksData = new bytes[](2);
@@ -442,7 +416,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
         vm.stopPrank();
     }
 
@@ -479,10 +453,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(depositHookAddress);
-        proofs[1] = proofs[0];
-
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
@@ -493,7 +463,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
         vm.stopPrank();
     }
 
@@ -509,10 +479,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = withdrawHookAddress;
         fulfillHooksAddresses[1] = withdrawHookAddress;
-
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = proofs[0];
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
@@ -534,7 +500,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
         vm.stopPrank();
     }
 
@@ -798,10 +764,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             false,
             false
         );
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
     }
-    
 
     /*//////////////////////////////////////////////////////////////
                         FEE DERIVATION FUNCTIONS

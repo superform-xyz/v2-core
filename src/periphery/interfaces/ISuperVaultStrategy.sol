@@ -26,7 +26,6 @@ interface ISuperVaultStrategy {
     error OPERATION_FAILED();
     error INVALID_TIMESTAMP();
     error REQUEST_NOT_FOUND();
-    error INVALID_HOOK_ROOT();
     error INVALID_VAULT_CAP();
     error INVALID_HOOK_TYPE();
     error INSUFFICIENT_FUNDS();
@@ -70,8 +69,6 @@ interface ISuperVaultStrategy {
     event GlobalConfigUpdated(
         uint256 vaultCap, uint256 superVaultCap, uint256 maxAllocationRate, uint256 vaultThreshold
     );
-    event HookRootUpdated(bytes32 newRoot);
-    event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
     event EmergencyWithdrawableProposed(bool newWithdrawable, uint256 effectiveTime);
     event EmergencyWithdrawableUpdated(bool withdrawable);
@@ -231,13 +228,11 @@ interface ISuperVaultStrategy {
     /// @notice Fulfill deposit requests for multiple users
     /// @param users Array of users with pending deposit requests
     /// @param hooks Array of hooks to use for deposits
-    /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     /// @param isDeposit Whether the requests are deposits or redeems
     function fulfillRequests(
         address[] calldata users,
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata,
         bool isDeposit
     )
@@ -250,23 +245,19 @@ interface ISuperVaultStrategy {
 
     /// @notice Allocate funds between yield sources
     /// @param hooks Array of hooks to use for allocations
-    /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     function allocate(
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata
     )
         external;
 
     /// @notice Claims rewards from yield sources and stores them for later use
     /// @param hooks Array of hooks to use for claiming rewards
-    /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     /// @param expectedTokensOut Array of tokens expected from hooks
     function claim(
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata,
         address[] calldata expectedTokensOut
     )
@@ -274,14 +265,10 @@ interface ISuperVaultStrategy {
 
     /// @notice Compounds previously claimed tokens by swapping them to the asset and allocating to yield sources
     /// @param hooks Array of arrays of hooks to use for swapping and allocating [swapHooks, allocateHooks]
-    /// @param swapHookProofs Array of merkle proofs for swap hooks
-    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
     /// @param hookCalldata Array of arrays of calldata for hooks [swapHookCalldata, allocateHookCalldata]
     /// @param claimedTokensToCompound Array of claimed token addresses to compound
     function compoundClaimedTokens(
         address[][] calldata hooks,
-        bytes32[][] calldata swapHookProofs,
-        bytes32[][] calldata allocateHookProofs,
         bytes[][] calldata hookCalldata,
         address[] calldata claimedTokensToCompound
     )
@@ -304,11 +291,6 @@ interface ISuperVaultStrategy {
     ///        2 - Toggle activation (oracle param ignored).
     /// @param activate Boolean flag for activation when actionType is 2.
     function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
-
-    /// @notice Propose or execute a hook root update
-    /// @dev if newRoot is 0, executes the proposed hook root update
-    /// @param newRoot New hook root to propose or execute
-    function proposeOrExecuteHookRoot(bytes32 newRoot) external;
 
     /// @notice Propose changes to vault-specific fee configuration
     /// @param performanceFeeBps New performance fee in basis points
@@ -345,13 +327,6 @@ interface ISuperVaultStrategy {
     /// @dev returns vault address, asset address, and vault decimals
     function getVaultInfo() external view returns (address vault, address asset, uint8 vaultDecimals);
 
-    /// @notice Get the hook info
-    /// @dev returns hook root, proposed hook root, and hook root effective time
-    function getHookInfo()
-        external
-        view
-        returns (bytes32 hookRoot, bytes32 proposedHookRoot, uint256 hookRootEffectiveTime);
-
     /// @notice Get the global and fee configurations
     function getConfigInfo() external view returns (GlobalConfig memory globalConfig, FeeConfig memory feeConfig);
 
@@ -369,8 +344,7 @@ interface ISuperVaultStrategy {
 
     /// @notice Check if a hook is allowed via merkle proof
     /// @param hook Address of the hook to check
-    /// @param proof Merkle proof for the hook
-    function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
+    function isHookAllowed(address hook) external view returns (bool);
 
     /// @notice Get the claimed token amounts in the vault
     /// @param token The token address

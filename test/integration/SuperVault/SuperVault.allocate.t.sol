@@ -82,7 +82,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         );
 
         vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // change allocation rates
@@ -98,7 +98,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
@@ -530,7 +530,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
