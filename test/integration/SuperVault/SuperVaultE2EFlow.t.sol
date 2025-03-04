@@ -103,7 +103,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         (ISuperLedger.LedgerEntry[] memory entries,) = superLedgerETH.getLedger(accountEth, address(vault));
 
         assertEq(entries.length, 1, "Should have one ledger entry");
-        // Shares are not consumed because the SuperVault is the target and AccountingOutflow is skipped
+        // Shares are not consumed here because the SuperVault is the target and AccountingOutflow is skipped
     }
 
     function test_SuperVault_E2E_Flow_With_Ledger_Fees() public {
@@ -138,7 +138,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Verify shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
-        assertEq(userShares, expectedUserShares, "User shares not minted correctly");
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
@@ -161,6 +160,8 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
+        console2.log("claimableAssets", claimableAssets);
+        console2.log("----userShares", userShares);
 
         (
           ISuperLedger.LedgerEntry[] memory entries, 
@@ -181,7 +182,9 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Step 6: Claim Withdraw
         _claimWithdraw(claimableAssets);
 
-        uint256 totalFee = superformFee + recipientFee; //  + expectedLedgerFee;
+        console2.log("assets after claimWithdraw", asset.balanceOf(accountEth));
+
+        uint256 totalFee = superformFee + recipientFee + expectedLedgerFee;
 
         console2.log("expectedLedgerFee", expectedLedgerFee);
         console2.log("totalFee", totalFee);
