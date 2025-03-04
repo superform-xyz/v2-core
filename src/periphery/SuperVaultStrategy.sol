@@ -1224,7 +1224,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
-
         // Update _lastTotalAssets to account for assets being moved in
         _updateLastTotalAssets(_lastTotalAssets - (balanceAssetBefore - balanceAssetAfter));
 

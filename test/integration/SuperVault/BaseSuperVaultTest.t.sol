@@ -63,7 +63,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant VAULT_CAP = 1_000_000e6; // 1M USDC
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
-    uint256 constant MAX_ALLOCATION_RATE = 6000; // 50%
+    uint256 constant MAX_ALLOCATION_RATE = 6000; // 60%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
@@ -190,30 +190,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
-
-        /*
-        // supply initial tokens to SuperVaultStrategy
-        /// @dev this is to avoid rounding errors when redeeming
-        uint256 initialDepositAmount = 1e6; // 1 USDC
-        _getTokens(address(asset), address(this), initialDepositAmount);
-        vm.startPrank(address(this));
-        asset.approve(address(vault), initialDepositAmount);
-        vault.requestDeposit(initialDepositAmount, address(this), address(this));
-        vm.stopPrank();
-        _fulfillDepositForInitialDeposit(initialDepositAmount);
-
-        vm.startPrank(address(this));
-        vault.deposit(initialDepositAmount, address(this), address(this));
-        vm.stopPrank();
-
-        uint256 initialBootstrapperShares = vault.balanceOf(address(this));
-        console2.log("boostrapper shares          ", initialBootstrapperShares);
-        */
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        PRIVATE FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -783,6 +761,47 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
         vm.stopPrank();
     }
+
+    function _rebalanceFromVaultToVault(
+        address[] memory hooksAddresses,
+        bytes32[][] memory proofs,
+        bytes[] memory hooksData,
+        address sourceVault,
+        address targetVault,
+        uint256 targetAssets,
+        uint256 currentAssets
+    ) internal {
+        uint256 assetsToMove = targetAssets - currentAssets;
+        uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
+
+        console2.log("_rebalanceFromVaultToVault targetAssets", targetAssets);
+        console2.log("_rebalanceFromVaultToVault currentAssets", currentAssets);
+        console2.log("_rebalanceFromVaultToVault assetsToMove", assetsToMove);
+        console2.log("_rebalanceFromVaultToVault sharesToRedeem", sharesToRedeem);
+        console2.log("Moving from", sourceVault, "to", targetVault);
+        console2.log("Assets to move:", assetsToMove);
+        console2.log("Shares to redeem:", sharesToRedeem);
+
+        vm.startPrank(STRATEGIST);
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            sourceVault,
+            address(strategy),
+            sharesToRedeem,
+            false,
+            false
+        );
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            targetVault,
+            assetsToMove - 1,
+            false,
+            false
+        );
+        strategy.allocate(hooksAddresses, proofs, hooksData);
+        vm.stopPrank();
+    }
+    
 
     /*//////////////////////////////////////////////////////////////
                         FEE DERIVATION FUNCTIONS
