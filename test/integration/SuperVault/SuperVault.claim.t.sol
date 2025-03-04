@@ -163,18 +163,12 @@ contract SuperVaultClaimTest is BaseSuperVaultTest {
         strategyGearSuperVault = SuperVaultStrategy(strategyAddr);
 
         // Add a new yield source as manager
-        // strategy.manageYieldSource(
-        //     address(gearboxVault),
-        //     _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-        //     0,
-        //     false // addYieldSource
-        // );
-        // strategy.manageYieldSource(
-        //     address(curveGearboxFarmingPool),
-        //     _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
-        //     0,
-        //     false // addYieldSource
-        // );
+        strategyGearSuperVault.manageYieldSource(
+            address(gearboxStakingAddr),
+            _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
+            0,
+            false // addYieldSource
+        );
         vm.stopPrank();
 
         _setFeeConfig(100, TREASURY);
