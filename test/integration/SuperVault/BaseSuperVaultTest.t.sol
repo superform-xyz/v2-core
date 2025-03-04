@@ -762,6 +762,47 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    function _rebalanceFromVaultToVault(
+        address[] memory hooksAddresses,
+        bytes32[][] memory proofs,
+        bytes[] memory hooksData,
+        address sourceVault,
+        address targetVault,
+        uint256 targetAssets,
+        uint256 currentAssets
+    ) internal {
+        uint256 assetsToMove = targetAssets - currentAssets;
+        uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
+
+        console2.log("_rebalanceFromVaultToVault targetAssets", targetAssets);
+        console2.log("_rebalanceFromVaultToVault currentAssets", currentAssets);
+        console2.log("_rebalanceFromVaultToVault assetsToMove", assetsToMove);
+        console2.log("_rebalanceFromVaultToVault sharesToRedeem", sharesToRedeem);
+        console2.log("Moving from", sourceVault, "to", targetVault);
+        console2.log("Assets to move:", assetsToMove);
+        console2.log("Shares to redeem:", sharesToRedeem);
+
+        vm.startPrank(STRATEGIST);
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            sourceVault,
+            address(strategy),
+            sharesToRedeem,
+            false,
+            false
+        );
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            targetVault,
+            assetsToMove - 1,
+            false,
+            false
+        );
+        strategy.allocate(hooksAddresses, proofs, hooksData);
+        vm.stopPrank();
+    }
+    
+
     /*//////////////////////////////////////////////////////////////
                         FEE DERIVATION FUNCTIONS
     //////////////////////////////////////////////////////////////*/

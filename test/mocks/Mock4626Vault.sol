@@ -74,4 +74,8 @@ contract Mock4626Vault is ERC4626 {
         _burn(owner, shares);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
+    
+    function totalAssets() public view override returns (uint256) {
+        return _totalAssets;
+    }
 }
