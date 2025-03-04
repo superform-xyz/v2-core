@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
@@ -9,6 +9,7 @@ import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserO
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
 
 /// @title SuperNativePaymaster
+/// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
 /// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.sol
 contract SuperNativePaymaster is BasePaymaster {

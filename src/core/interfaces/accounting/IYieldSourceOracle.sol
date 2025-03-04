@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // Superform
@@ -38,23 +38,41 @@ interface IYieldSourceOracle {
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Returns the oracle registry contract
+    /// @return oracleRegistry The oracle registry contract
+    function oracleRegistry() external view returns (IOracle);
+
     /// @notice Returns the number of decimals of the yield source shares
     /// @return decimals The number of decimals of the yield source shares
     function decimals(address yieldSourceAddress) external view returns (uint8);
 
-    /// @notice Returns the number of shares that would be received for a given amount of assets    
+    /// @notice Returns the number of shares that would be received for a given amount of assets
     /// @param yieldSourceAddress The yield source to derive the number of shares for
     /// @param assetIn The asset to derive the number of shares for
     /// @param assetsIn The amount of assets to derive the number of shares for
     /// @return shares The number of shares that would be received for the given amount of assets
-    function getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn) external view returns (uint256);
+    function getShareOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 assetsIn
+    )
+        external
+        view
+        returns (uint256);
 
     /// @notice Returns the number of assets that would be received for a given amount of shares
     /// @param yieldSourceAddress The yield source to derive the number of assets for
     /// @param assetIn The asset to derive the number of assets for
     /// @param sharesIn The amount of shares to derive the number of assets for
     /// @return assets The number of assets that would be received for the given amount of shares
-    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn) external view returns (uint256);
+    function getAssetOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 sharesIn
+    )
+        external
+        view
+        returns (uint256);
 
     /// @notice Derives the price of an action
     /// @param yieldSourceAddress The yield source to derive the price for

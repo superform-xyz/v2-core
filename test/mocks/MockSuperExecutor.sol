@@ -29,11 +29,6 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
-    modifier onlyBridgeGateway() {
-        if (!superRegistry.hasRole(keccak256("BRIDGE_GATEWAY"), msg.sender)) revert NOT_AUTHORIZED();
-        _;
-    }
-
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
     }
@@ -109,7 +104,8 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedgerConfiguration ledgerConfiguration = ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
+            ISuperLedgerConfiguration ledgerConfiguration =
+                ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
             bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
@@ -136,7 +132,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
             try superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID")) returns (address vaultAddress) {
                 vault = ISuperCollectiveVault(vaultAddress);
             } catch {
-                return; 
+                return;
             }
 
             if (address(vault) != address(0)) {

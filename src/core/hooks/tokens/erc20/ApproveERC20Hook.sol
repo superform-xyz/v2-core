@@ -9,10 +9,10 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveERC20Hook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);

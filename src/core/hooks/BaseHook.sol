@@ -3,9 +3,11 @@ pragma solidity >=0.8.28;
 
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
-
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
 
+/// @title BaseHook
+/// @author Superform Labs
+/// @notice Base hook for all hooks
 abstract contract BaseHook is SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE

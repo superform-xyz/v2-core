@@ -1,17 +1,16 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 
 /// @title ISuperVaultStrategy
-/// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 /// @author SuperForm Labs
+/// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error MISMATCH();
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
@@ -21,6 +20,7 @@ interface ISuperVaultStrategy {
     error INVALID_AMOUNT();
     error ALREADY_EXISTS();
     error LIMIT_EXCEEDED();
+    error LENGTH_MISMATCH();
     error INVALID_MANAGER();
     error NOT_INITIALIZED();
     error OPERATION_FAILED();
@@ -50,6 +50,7 @@ interface ISuperVaultStrategy {
     error INVALID_EMERGENCY_WITHDRAWAL();
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
+    error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -120,6 +121,7 @@ interface ISuperVaultStrategy {
     struct FulfillmentVars {
         // Common variables used in both deposit and redeem flows
         uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
+        uint256 totalSupplyAmount; // Base total amount of shares in the vault
         uint256 spentAmount; // Running total of assets/shares spent in hooks
         uint256 pricePerShare; // Current price per share, used for calculations
         uint256 requestedAmount; // Individual user's requested amount
@@ -144,12 +146,15 @@ interface ISuperVaultStrategy {
         uint256 finalAssets; // Final assets after fee calculation
         // Price tracking
         uint256 currentPricePerShare; // Current price per share for calculations
+        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct AllocationVars {
         // Hook execution variables
         address prevHook;
         uint256 amount;
+        uint256 balanceAssetBefore;
+        uint256 balanceAssetAfter;
         // Current yield source state
         uint256 currentYieldSourceAssets;
         // Hook type and execution
@@ -285,6 +290,11 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Update global configuration
+    /// @param config New global configuration
+    function updateGlobalConfig(GlobalConfig calldata config) external;
+
     /// @notice Manage yield sources: add, update oracle, and toggle activation.
     /// @param source Address of the yield source.
     /// @param oracle Address of the oracle (used for adding/updating).
@@ -326,6 +336,7 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @notice Check if the strategy is initialized
     /// @return True if the strategy is initialized, false otherwise
     function isInitialized() external view returns (bool);

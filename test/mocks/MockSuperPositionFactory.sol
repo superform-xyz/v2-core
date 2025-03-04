@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
+
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-
-// @dev all of these are mocks; some values are hardcoded or not using RBAC 
+// @dev all of these are mocks; some values are hardcoded or not using RBAC
 
 contract MockSuperPosition is ERC20 {
     /*//////////////////////////////////////////////////////////////
@@ -18,7 +18,16 @@ contract MockSuperPosition is ERC20 {
 
     error INVALID_FACTORY();
 
-    constructor(address factory_, address underlying_, uint256 id_) ERC20(string.concat(ERC20(underlying_).name(), " Super Position"), string.concat(ERC20(underlying_).symbol(), " SP")) {
+    constructor(
+        address factory_,
+        address underlying_,
+        uint256 id_
+    )
+        ERC20(
+            string.concat(ERC20(underlying_).name(), " Super Position"),
+            string.concat(ERC20(underlying_).symbol(), " SP")
+        )
+    {
         factory = factory_;
         underlying = underlying_;
         _decimals = ERC20(underlying_).decimals();
@@ -53,15 +62,20 @@ contract MockSuperPosition is ERC20 {
     }
 }
 
-
 contract MockSuperPositionFactory {
-    event SuperPositionCreated(uint64 indexed chainId, address indexed yieldSourceAddress, bytes4 indexed yieldSourceOracleId, address asset, address superPosition);
+    event SuperPositionCreated(
+        uint64 indexed chainId,
+        address indexed yieldSourceAddress,
+        bytes4 indexed yieldSourceOracleId,
+        address asset,
+        address superPosition
+    );
 
     address[] public allSuperPositions;
     mapping(address => bool) public isSP;
     mapping(uint256 spId => address sp) public createdSPs;
-    
-    address public bundler; 
+
+    address public bundler;
 
     error INVALID_BUNDLER();
     error INVALID_SP_ID();
@@ -69,20 +83,38 @@ contract MockSuperPositionFactory {
 
     constructor(address _bundler) {
         bundler = _bundler;
-    }   
+    }
 
     // ---- view ----
     function spCount() external view returns (uint256) {
         return allSuperPositions.length;
     }
 
-    function getSPId(address yieldSourceAddress, bytes4 yieldSourceOracleId, uint64 chainId) external pure returns (uint256) {
+    function getSPId(
+        address yieldSourceAddress,
+        bytes4 yieldSourceOracleId,
+        uint64 chainId
+    )
+        external
+        pure
+        returns (uint256)
+    {
         return _getSPId(yieldSourceAddress, yieldSourceOracleId, chainId);
     }
 
     // ---- write ----
-    function mintSuperPosition(uint64 chainId, address yieldSourceAddress, bytes4 yieldSourceOracleId, address asset, address to, uint256 amount) external returns (address) {
-        if (msg.sender != bundler) revert INVALID_BUNDLER();    
+    function mintSuperPosition(
+        uint64 chainId,
+        address yieldSourceAddress,
+        bytes4 yieldSourceOracleId,
+        address asset,
+        address to,
+        uint256 amount
+    )
+        external
+        returns (address)
+    {
+        if (msg.sender != bundler) revert INVALID_BUNDLER();
         address _sp = _createSP(asset, yieldSourceAddress, yieldSourceOracleId, chainId);
 
         _mintSP(_sp, to, amount);
@@ -90,7 +122,7 @@ contract MockSuperPositionFactory {
     }
 
     function burnSuperPosition(uint256 spId, address from, uint256 amount) external returns (address) {
-        if (msg.sender != bundler) revert INVALID_BUNDLER();    
+        if (msg.sender != bundler) revert INVALID_BUNDLER();
 
         if (createdSPs[spId] == address(0)) revert INVALID_SP_ID();
         if (!isSP[createdSPs[spId]]) revert INVALID_SP();
@@ -98,7 +130,6 @@ contract MockSuperPositionFactory {
         _burnSP(createdSPs[spId], from, amount);
         return createdSPs[spId];
     }
-
 
     // ---- private ----
     function _mintSP(address sp, address to, uint256 amount) private {
@@ -108,7 +139,16 @@ contract MockSuperPositionFactory {
     function _burnSP(address sp, address from, uint256 amount) private {
         MockSuperPosition(sp).burn(from, amount);
     }
-    function _createSP(address asset, address yieldSourceAddress, bytes4 yieldSourceOracleId, uint64 chainId) private returns (address) {
+
+    function _createSP(
+        address asset,
+        address yieldSourceAddress,
+        bytes4 yieldSourceOracleId,
+        uint64 chainId
+    )
+        private
+        returns (address)
+    {
         uint256 _spId = _getSPId(yieldSourceAddress, yieldSourceOracleId, chainId);
         if (createdSPs[_spId] != address(0)) return createdSPs[_spId];
 
@@ -120,16 +160,22 @@ contract MockSuperPositionFactory {
         return _sp;
     }
 
-    function _getSPId(address yieldSourceAddress, bytes4 yieldSourceOracleId, uint64 chainId) private pure returns (uint256) {
+    function _getSPId(
+        address yieldSourceAddress,
+        bytes4 yieldSourceOracleId,
+        uint64 chainId
+    )
+        private
+        pure
+        returns (uint256)
+    {
         /**
-            address yieldSourceAddress (20 bytes)
-            bytes4 yieldSourceOracleId (4 bytes)
-            uint64 chainId (8 bytes)
-            ----
-            32 bytes
-        */
-
+         * address yieldSourceAddress (20 bytes)
+         *         bytes4 yieldSourceOracleId (4 bytes)
+         *         uint64 chainId (8 bytes)
+         *         ----
+         *         32 bytes
+         */
         return uint256(keccak256(abi.encode(yieldSourceAddress, yieldSourceOracleId, chainId)));
-    }   
+    }
 }
-

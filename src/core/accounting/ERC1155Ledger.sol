@@ -3,13 +3,13 @@ pragma solidity >=0.8.28;
 
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { BaseLedger } from "./BaseLedger.sol";
 
-import {BaseLedger} from "./BaseLedger.sol";
-
+/// @title ERC1155Ledger
+/// @author Superform Labs
 /// @notice 5115 vaults ledger implementation
 contract ERC1155Ledger is BaseLedger {
     constructor(address registry_) BaseLedger(registry_) { }
-
 
     /*//////////////////////////////////////////////////////////////
                             PRIVATE FUNCTIONS
@@ -23,11 +23,12 @@ contract ERC1155Ledger is BaseLedger {
         uint256 usedShares
     )
         internal
-        onlyExecutor
         override
+        onlyExecutor
         returns (uint256 feeAmount)
     {
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config = superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
+            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
@@ -100,7 +101,7 @@ contract ERC1155Ledger is BaseLedger {
             uint256 sharesConsumed = availableShares > ctx.remainingShares ? ctx.remainingShares : availableShares;
             entry.amountSharesAvailableToConsume -= sharesConsumed;
             ctx.remainingShares -= sharesConsumed;
-            
+
             // amount of assets in the entry price (registered at the INFLOW operation)
             uint256 entryBasis = sharesConsumed * entry.price / (10 ** ctx.decimals);
 
@@ -110,7 +111,7 @@ contract ERC1155Ledger is BaseLedger {
             uint256 currentBasis = sharesConsumed * ppsNow / (10 ** ctx.decimals);
 
             // if pps increased => currentBasis > entryBasis
-            //   otherwise profit = 0 because the current price is lower than INFLOW price of the entry            
+            //   otherwise profit = 0 because the current price is lower than INFLOW price of the entry
             if (currentBasis > entryBasis) {
                 ctx.profit += (currentBasis - entryBasis);
             }

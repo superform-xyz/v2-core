@@ -2,16 +2,17 @@
 pragma solidity >=0.8.28;
 
 // external
+
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // Superform
 import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
-
 import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
 
-contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer {
+contract SuperCollectiveVault is Ownable, SuperRegistryImplementer, ISuperCollectiveVault {
     using ExcessivelySafeCall for address;
     using SafeERC20 for IERC20;
 
@@ -26,17 +27,10 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
     mapping(address => mapping(address => uint256)) private _lockedAmounts;
     mapping(address => mapping(address => mapping(bytes32 => bool))) private _hasBeenDistributed;
 
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }
+    constructor(address registry_, address owner_) SuperRegistryImplementer(registry_) Ownable(owner_) { }
 
     modifier onlyExecutor() {
         if (_getAddress(keccak256("SUPER_EXECUTOR_ID")) != msg.sender) revert NOT_AUTHORIZED();
-        _;
-    }
-
-    address public immutable superCollectiveVaultManager;
-
-    modifier onlySuperCollectiveVaultManager() {
-        if (!superRegistry.hasRole(keccak256("SUPER_COLLECTIVE_VAULT_MANAGER"), msg.sender)) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -79,7 +73,7 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperCollectiveVault
-    function updateMerkleRoot(bytes32 merkleRoot_, bool status) external onlySuperCollectiveVaultManager {
+    function updateMerkleRoot(bytes32 merkleRoot_, bool status) external onlyOwner {
         _registeredMerkleRoots[merkleRoot_] = status;
         emit MerkleRootUpdated(merkleRoot_, status);
     }
@@ -100,20 +94,13 @@ contract SuperCollectiveVault is ISuperCollectiveVault, SuperRegistryImplementer
     }
 
     /// @inheritdoc ISuperCollectiveVault
-    function unlock(address account, address token, uint256 amount) external onlySuperCollectiveVaultManager {
+    function unlock(address account, address token, uint256 amount) external onlyOwner {
         if (account == address(0)) revert INVALID_ACCOUNT();
         _unlock(account, token, amount);
     }
 
     /// @inheritdoc ISuperCollectiveVault
-    function batchUnlock(
-        address account,
-        address[] calldata tokens,
-        uint256[] calldata amounts
-    )
-        external
-        onlySuperCollectiveVaultManager
-    {
+    function batchUnlock(address account, address[] calldata tokens, uint256[] calldata amounts) external onlyOwner {
         if (account == address(0)) revert INVALID_ACCOUNT();
 
         uint256 len = tokens.length;

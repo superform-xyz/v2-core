@@ -6,7 +6,6 @@ import { Script } from "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 // Superform
-import "./DeploySuperDeployer.s.sol";
 import { SuperDeployer } from "./utils/SuperDeployer.sol";
 import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
 import { Configuration } from "./utils/Configuration.sol";
@@ -19,7 +18,6 @@ import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
-import { DeBridgeReceiveFundsAndExecuteGateway } from "../src/core/bridges/DeBridgeReceiveFundsAndExecuteGateway.sol";
 
 import { SuperPositionsMock } from "../test/mocks/SuperPositionsMock.sol";
 
@@ -36,7 +34,6 @@ import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20H
 import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
 import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
-import { YearnClaimAllRewardsHook } from "../src/core/hooks/claim/yearn/YearnClaimAllRewardsHook.sol";
 // ---- | vault
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Withdraw4626VaultHook } from "../src/core/hooks/vaults/4626/Withdraw4626VaultHook.sol";
@@ -53,8 +50,6 @@ import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook
 // ---- | bridges
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { DeBridgeSendFundsAndExecuteOnDstHook } from
-    "../src/core/hooks/bridges/debridge/DeBridgeSendFundsAndExecuteOnDstHook.sol";
 // ---- | swappers
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 
@@ -88,7 +83,6 @@ contract DeployV2 is Script, Configuration {
         address superPositionSentinel;
         address acrossReceiveFundsGateway;
         address acrossReceiveFundsAndExecuteGateway;
-        address debridgeReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
         address oracleRegistry;
         address peripheryRegistry;
@@ -225,19 +219,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
             abi.encodePacked(
                 type(AcrossReceiveFundsAndExecuteGateway).creationCode,
-                abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], ENTRY_POINT)
-            )
-        );
-
-        // Deploy DeBridgeReceiveFundsAndExecuteGateway
-        deployedContracts.debridgeReceiveFundsAndExecuteGateway = __deployContract(
-            deployer,
-            DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
-            abi.encodePacked(
-                type(DeBridgeReceiveFundsAndExecuteGateway).creationCode,
-                abi.encode(deployedContracts.superRegistry, configuration.debridgeGates[chainId], ENTRY_POINT)
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], ENTRY_POINT, configuration.bundler)
             )
         );
 
@@ -260,26 +242,11 @@ contract DeployV2 is Script, Configuration {
     function _configure(uint64 chainId) internal {
         SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
 
-        // ---- | set deployed contracts roles
-        superRegistry.setRole(
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY), keccak256("BRIDGE_GATEWAY"), true
-        );
-
-        // -- SuperRegistry
-        superRegistry.setAddress(keccak256(bytes(SUPER_LEDGER_ID)), _getContract(chainId, SUPER_LEDGER_KEY));
         superRegistry.setAddress(
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
-        superRegistry.setAddress(
-            keccak256(bytes(ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID)),
-            _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
-        );
-
         superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setAddress(keccak256(bytes(SUPER_BUNDLER_ID)), configuration.bundler);
-        superRegistry.setAddress(keccak256(bytes(ORACLE_REGISTRY_ID)), _getContract(chainId, SUPER_ORACLE_KEY));
         superRegistry.setAddress(keccak256(bytes(SUPER_REGISTRY_ID)), _getContract(chainId, SUPER_REGISTRY_KEY));
-        superRegistry.setAddress(keccak256(bytes(TREASURY_ID)), configuration.treasury);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -326,7 +293,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory hookAddresses)
     {
-        uint256 len = 21;
+        uint256 len = 19;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         hookAddresses = new address[](len);
 
@@ -334,85 +301,79 @@ contract DeployV2 is Script, Configuration {
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(
+                    registry,
+                    configuration.owner,
+                    configuration.acrossSpokePoolV3s[chainId],
+                    _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+                )
             )
         );
         hooks[1] = HookDeployment(
-            DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
-            abi.encodePacked(
-                type(DeBridgeSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.debridgeGates[chainId])
-            )
-        );
-        hooks[2] = HookDeployment(
             FLUID_CLAIM_REWARD_HOOK_KEY,
             abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[3] = HookDeployment(
+        hooks[2] = HookDeployment(
             GEARBOX_CLAIM_REWARD_HOOK_KEY,
             abi.encodePacked(type(GearboxClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[4] = HookDeployment(
-            YEARN_CLAIM_ALL_REWARDS_HOOK_KEY,
-            abi.encodePacked(type(YearnClaimAllRewardsHook).creationCode, abi.encode(registry, configuration.owner))
-        );
-        hooks[5] = HookDeployment(
+        hooks[3] = HookDeployment(
             YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
             abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[6] = HookDeployment(
+        hooks[4] = HookDeployment(
             APPROVE_ERC20_HOOK_KEY,
             abi.encodePacked(type(ApproveERC20Hook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[7] = HookDeployment(
+        hooks[5] = HookDeployment(
             TRANSFER_ERC20_HOOK_KEY,
             abi.encodePacked(type(TransferERC20Hook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[8] = HookDeployment(
+        hooks[6] = HookDeployment(
             DEPOSIT_4626_VAULT_HOOK_KEY,
             abi.encodePacked(type(Deposit4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[9] = HookDeployment(
+        hooks[7] = HookDeployment(
             WITHDRAW_4626_VAULT_HOOK_KEY,
             abi.encodePacked(type(Withdraw4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[10] = HookDeployment(
+        hooks[8] = HookDeployment(
             DEPOSIT_5115_VAULT_HOOK_KEY,
             abi.encodePacked(type(Deposit5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[11] = HookDeployment(
+        hooks[9] = HookDeployment(
             WITHDRAW_5115_VAULT_HOOK_KEY,
             abi.encodePacked(type(Withdraw5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[12] = HookDeployment(
+        hooks[10] = HookDeployment(
             REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
             abi.encodePacked(type(RequestDeposit7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[13] = HookDeployment(
+        hooks[11] = HookDeployment(
             REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY,
             abi.encodePacked(type(RequestWithdraw7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[14] = HookDeployment(
+        hooks[12] = HookDeployment(
             GEARBOX_STAKE_HOOK_KEY,
             abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[15] = HookDeployment(
+        hooks[13] = HookDeployment(
             GEARBOX_UNSTAKE_HOOK_KEY,
             abi.encodePacked(type(GearboxUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[16] = HookDeployment(
+        hooks[14] = HookDeployment(
             FLUID_STAKE_HOOK_KEY,
             abi.encodePacked(type(FluidStakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[17] = HookDeployment(
+        hooks[15] = HookDeployment(
             FLUID_STAKE_WITH_PERMIT_HOOK_KEY,
             abi.encodePacked(type(FluidStakeWithPermitHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[18] = HookDeployment(
+        hooks[16] = HookDeployment(
             FLUID_UNSTAKE_HOOK_KEY,
             abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
         );
-        hooks[19] = HookDeployment(
+        hooks[17] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
             abi.encodePacked(
                 type(Swap1InchHook).creationCode,
@@ -420,7 +381,7 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        hooks[20] = HookDeployment(
+        hooks[18] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
             abi.encodePacked(
                 type(SwapOdosHook).creationCode,

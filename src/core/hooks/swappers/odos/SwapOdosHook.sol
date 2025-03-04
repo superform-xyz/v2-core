@@ -4,17 +4,16 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
+import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 
-import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
-
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title SwapOdosHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
@@ -22,12 +21,13 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 /// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-/// @notice         uint256 pathDefinitionLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-/// @notice         bytes pathDefinition = BytesLib.slice(data, 188, pathDefinitionLength);
-/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinitionLength, 20), 0);
-/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinitionLength + 20, 4),
+/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
+/// @notice         bytes pathDefinition = BytesLib.slice(data, 188, pathDefinition_paramLength);
+/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20),
 /// 0);
-/// @notice         bool usePreviousHookAmount = _decodeBool(data, 168 + pathDefinitionLength + 20 + 4);
+/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20,
+/// 4), 0);
+/// @notice         bool usePreviousHookAmount = _decodeBool(data, 168 + pathDefinition_paramLength + 20 + 4);
 contract SwapOdosHook is BaseHook, ISuperHook {
     IOdosRouterV2 public odosRouterV2;
 
@@ -56,10 +56,10 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        uint256 pathDefinitionLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-        bytes memory pathDefinition = BytesLib.slice(data, 188, pathDefinitionLength);
-        address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinitionLength, 20), 0);
-        uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinitionLength + 20, 4), 0);
+        uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
+        bytes memory pathDefinition = BytesLib.slice(data, 188, pathDefinition_paramLength);
+        address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20), 0);
+        uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20, 4), 0);
 
         executions = new Execution[](1);
         executions[0] = Execution({

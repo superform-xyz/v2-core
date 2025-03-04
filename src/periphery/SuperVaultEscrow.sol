@@ -1,12 +1,12 @@
-// SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.28;
 
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /// @title SuperVaultEscrow
-/// @notice Escrow contract for SuperVault shares during request/claim process
 /// @author SuperForm Labs
+/// @notice Escrow contract for SuperVault shares during request/claim process
 contract SuperVaultEscrow {
     using SafeERC20 for IERC20;
 
