@@ -635,7 +635,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (oracle == address(0)) revert ZERO_ADDRESS();
             if (yieldSource.oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-            if (_total4626Assets(source) < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_EXCEEDED();
+            if (IYieldSourceOracle(oracle).getTVL(source) < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_EXCEEDED();
 
             yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
             yieldSourcesList.push(source);
@@ -652,13 +652,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_ORACLE_NOT_FOUND();
                 if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_ACTIVE();
 
-                if (_total4626Assets(source) < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_EXCEEDED();
+                if (IYieldSourceOracle(yieldSource.oracle).getTVL(source) < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_EXCEEDED();
 
                 yieldSource.isActive = true;
                 emit YieldSourceReactivated(source);
             } else {
                 if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-                if (_getTokenBalance(source, address(this)) > 0) revert INVALID_AMOUNT();
+                if (IYieldSourceOracle(yieldSource.oracle).getTVL(source) > 0) revert INVALID_AMOUNT();
 
                 yieldSource.isActive = false;
                 emit YieldSourceDeactivated(source);
