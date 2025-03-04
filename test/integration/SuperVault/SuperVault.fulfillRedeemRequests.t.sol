@@ -271,7 +271,6 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = redeemAmount / 2;
         uint256 allocationAmountVault2 = redeemAmount - allocationAmountVault1;
         _fulfillRedeemForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
-        console2.log("------fulfilled redeem");
         uint256 initialAssetBalance = asset.balanceOf(accInstances[0].account);
 
         // increase price of assets
@@ -286,7 +285,6 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         uint256 maxWithdraw = vault.maxWithdraw(accInstances[0].account);
         console2.log("maxWithdraw", maxWithdraw);
         _claimWithdrawForAccount(accInstances[0], maxWithdraw);
-        console2.log("------claimed withdraw");
         uint256 assetsReceived = asset.balanceOf(accInstances[0].account) - initialAssetBalance;
         assertApproxEqRel(
             assetsReceived,

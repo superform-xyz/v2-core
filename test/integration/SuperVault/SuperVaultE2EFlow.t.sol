@@ -71,7 +71,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
 
-        console2.log("----deposit done ---");
         uint256 totalRedeemShares = vault.balanceOf(accountEth);
 
         // Step 4: Request Redeem
