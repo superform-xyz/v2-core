@@ -81,9 +81,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     // Request tracking
     mapping(address controller => SuperVaultState state) private superVaultState;
 
-    // Claimed tokens tracking
-    mapping(address token => uint256 amount) public claimedTokens;
-
     IPeripheryRegistry private peripheryRegistry;
 
     // Track the last known total assets (free assets available)
@@ -472,7 +469,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Validate hook arrays
         _validateHookArrayLengths(vars.hooks, vars.hookProofs, vars.hookCalldata);
         uint256 expectedTokensLength = vars.expectedTokensOut.length;
-        //if (expectedTokensLength == 0) revert ZERO_LENGTH();
+        if (expectedTokensLength == 0) revert ZERO_LENGTH();
 
         // Execute claim hooks and get balance changes
         uint256[] memory balanceChanges 
