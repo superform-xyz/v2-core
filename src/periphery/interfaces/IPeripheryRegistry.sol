@@ -21,6 +21,8 @@ interface IPeripheryRegistry {
     //////////////////////////////////////////////////////////////*/
     event HookRegistered(address indexed hook);
     event HookUnregistered(address indexed hook);
+    event FulfillRequestsHookRegistered(address indexed hook);
+    event FulfillRequestsHookUnregistered(address indexed hook);
     event FeeSplitUpdated(uint256 superformFeeSplit);
     event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime);
     event TreasuryUpdated(address indexed treasury);
@@ -44,13 +46,23 @@ interface IPeripheryRegistry {
     /// @return True if the hook is registered, false otherwise
     function isHookRegistered(address hook_) external view returns (bool);
 
+    /// @notice Check if a fulfill requests hook is registered
+    /// @param hook_ The hook to check
+    /// @return True if the hook is registered, false otherwise
+    function isFulfillRequestsHookRegistered(address hook_) external view returns (bool);
+
     /// @notice Register a hook
-    /// @param hook_ The hook to register
-    function registerHook(address hook_) external;
+    /// @param hook_ The address of the hook to register
+    /// @param isFulfillRequestsHook_ Whether this is a fulfill requests hook or a regular hook
+    /// @dev Only callable by owner
+    function registerHook(address hook_, bool isFulfillRequestsHook_) external;
 
     /// @notice Unregister a hook
-    /// @param hook_ The hook to unregister
-    function unregisterHook(address hook_) external;
+    /// @param hook_ The address of the hook to unregister
+    /// @param isFulfillRequestsHook_ Whether this is a fulfill requests hook or a regular hook
+    /// @dev Only callable by owner
+    function unregisterHook(address hook_, bool isFulfillRequestsHook_) external;
+
 
     /// @dev Propose a new fee split for Superform.
     /// @param feeSplit_ The new fee split in basis points (0-10000).
