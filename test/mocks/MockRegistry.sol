@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { IERC7484 } from "../vendors/nexus/IERC7484.sol";
+import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 
 contract MockRegistry is IERC7484 {
     event Log(address sender);
