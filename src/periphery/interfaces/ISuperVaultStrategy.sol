@@ -199,6 +199,7 @@ interface ISuperVaultStrategy {
     struct ArbitraryHookExecutionVars {
         uint256 amountIn;
         address[] tokensIn;
+        address[] yieldSources;
         address[] expectedTokensOut;
         address[] hooks;
         bytes32[][] hookProofs;
@@ -270,7 +271,7 @@ interface ISuperVaultStrategy {
     /// @notice Executes whitelisted non-accounting hooks
     /// @param vars ArbitraryHookVars struct containing hook execution parameters
 
-    function callArbitraryHooks(ArbitraryHookExecutionVars calldata vars) external;
+    function executeArbitraryHooks(ArbitraryHookExecutionVars calldata vars) external;
 
     // /// @notice Calls any inflow type of hook into approved yield sources
     // /// @param amountIn Amount of assets to use for hook execution
@@ -372,11 +373,6 @@ interface ISuperVaultStrategy {
     /// @param proof Merkle proof for the hook
     function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
 
-    /// @notice Get the claimed token amounts in the vault
-    /// @param token The token address
-    /// @return The amount of tokens claimed
-    function claimedTokens(address token) external view returns (uint256);
-
     /// @notice Get the SuperVault state for a given owner and state type
     /// @param owner The owner address
     /// @param stateType The state type to get
@@ -386,6 +382,11 @@ interface ISuperVaultStrategy {
     ///        4 - averageWithdrawPrice
     /// @return The state value
     function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
+
+    /// @notice Get the strategy tokens and amounts
+    /// @return tokens The strategy tokens
+    /// @return amounts The amounts of strategy tokens
+    function getStrategyTokens() external view returns (address[] memory tokens, uint256[] memory amounts);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
