@@ -255,11 +255,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         hooksAddresses[1] = withdrawHookAddress;
         hooksAddresses[2] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](3);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(withdrawHookAddress);
-        proofs[2] = _getMerkleProof(depositHookAddress);
-
         bytes[] memory hooksData = new bytes[](3);
         // redeem from FluidVault
         hooksData[0] = _createWithdraw4626HookData(
@@ -301,7 +296,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances

@@ -231,13 +231,11 @@ interface ISuperVaultStrategy {
     /// @notice Fulfill deposit requests for multiple users
     /// @param users Array of users with pending deposit requests
     /// @param hooks Array of hooks to use for deposits
-    /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     /// @param isDeposit Whether the requests are deposits or redeems
     function fulfillRequests(
         address[] calldata users,
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata,
         bool isDeposit
     )
@@ -250,11 +248,9 @@ interface ISuperVaultStrategy {
 
     /// @notice Allocate funds between yield sources
     /// @param hooks Array of hooks to use for allocations
-    /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     function allocate(
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata
     )
         external;
