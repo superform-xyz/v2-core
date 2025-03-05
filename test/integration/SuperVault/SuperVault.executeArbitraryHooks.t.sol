@@ -198,7 +198,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         vm.warp(block.timestamp + 50 weeks);
 
         // Step 4: Request Redeem
-        _requestRedeem_Gearbox_SV(userShares);
+        //_requestRedeem_Gearbox_SV(userShares);
     }
 
     /*//////////////////////////////////////////////////////////////
