@@ -1155,11 +1155,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
         if (hookType != expectedHookType) revert INVALID_HOOK_TYPE();
 
-        // Validate target is an active yield source if needed
-        if (validateYieldSource) {
-            YieldSource storage source = yieldSources[target];
-            if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-        }
+        // Validate target is an active yield source
+        YieldSource storage source = yieldSources[executions[0].target];
+        if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
