@@ -385,7 +385,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
     }
 
-    function test_VaultLifecycle_AddAndRemoveOverTime() public {
+    function test_VaultLifecycle_FullAlocateOverTime_() public {
         NewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -555,6 +555,227 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
 
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, proofs, hooksData);
+        vm.stopPrank();
+
+        vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance) + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        assertApproxEqRel(
+                vars.finalTotalValue,
+                vars.initialTotalValue,
+                0.01e18,
+                "Total final value should be preserved during allocation"
+            );
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            finalUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            finalUserShares[i] = vault.balanceOf(accInstances[i].account);
+            
+            assertGt(finalUserAssets[i], midUserAssets[i], "User assets should increase after reallocation");
+            assertEq(finalUserShares[i], midUserShares[i], "User shares should remain constant");
+            
+            console2.log(
+                string.concat("\n=== User ", Strings.toString(i), " Final Yield ===")
+            );
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Mid Assets:", midUserAssets[i]);
+            console2.log("Final Assets:", finalUserAssets[i]);
+            console2.log("Total Yield:", finalUserAssets[i] - initialUserAssets[i]);
+            console2.log("Total Yield %:", ((finalUserAssets[i] - initialUserAssets[i]) * 10000) / initialUserAssets[i]);
+            console2.log("Post-Reallocation Yield:", finalUserAssets[i] - midUserAssets[i]);
+            console2.log(
+                "Post-Reallocation Yield %:", 
+                ((finalUserAssets[i] - midUserAssets[i]) * 10000) / midUserAssets[i]
+            );
+        }
+    }
+
+    function test_VaultLifecycle_AddAndRemoveOverTime() public {
+        NewYieldSourceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
+        vars.initialAaveVaultPPS = aaveVault.convertToAssets(1e18);
+
+        
+        // do an initial allocation
+        _completeDepositFlow(vars.depositAmount);
+
+        uint256[] memory initialUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory initialUserShares = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            initialUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            initialUserShares[i] = vault.balanceOf(accInstances[i].account);
+        }
+
+
+        vm.warp(block.timestamp + 20 days);
+
+        uint256[] memory midUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory midUserShares = new uint256[](ACCOUNT_COUNT);
+        
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            midUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            midUserShares[i] = vault.balanceOf(accInstances[i].account);
+            
+            assertGt(midUserAssets[i], initialUserAssets[i], "User assets should increase after 20 days");
+            assertEq(midUserShares[i], initialUserShares[i], "User shares should remain constant");
+            
+            console2.log(
+                string.concat("\n=== User ", Strings.toString(i), " Yield after 20 days ===")
+            );
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Current Assets:", midUserAssets[i]);
+            console2.log("Yield:", midUserAssets[i] - initialUserAssets[i]);
+            console2.log("Yield %:", ((midUserAssets[i] - initialUserAssets[i]) * 10000) / initialUserAssets[i]);
+        }
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+
+        // 100% to aave allocation
+        vars.amountToReallocateFluidVault = vars.initialFluidVaultBalance;
+        vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
+
+        console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
+
+        vm.warp(block.timestamp + 20 days);
+
+        uint256[] memory finalUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory finalUserShares = new uint256[](ACCOUNT_COUNT);
+        
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            finalUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            finalUserShares[i] = vault.balanceOf(accInstances[i].account);
+            
+            assertGt(finalUserAssets[i], midUserAssets[i], "User assets should increase after reallocation");
+            assertEq(finalUserShares[i], midUserShares[i], "User shares should remain constant");
+            
+            console2.log(
+                string.concat("\n=== User ", Strings.toString(i), " Final Yield ===")
+            );
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Mid Assets:", midUserAssets[i]);
+            console2.log("Final Assets:", finalUserAssets[i]);
+            console2.log("Total Yield:", finalUserAssets[i] - initialUserAssets[i]);
+            console2.log("Total Yield %:", ((finalUserAssets[i] - initialUserAssets[i]) * 10000) / initialUserAssets[i]);
+            console2.log("Post-Reallocation Yield:", finalUserAssets[i] - midUserAssets[i]);
+            console2.log(
+                "Post-Reallocation Yield %:", 
+                ((finalUserAssets[i] - midUserAssets[i]) * 10000) / midUserAssets[i]
+            );
+        }
+
+        // allocation; fluid -> aave
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = depositHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](2);
+        proofs[0] = _getMerkleProof(withdrawHookAddress);
+        proofs[1] = _getMerkleProof(depositHookAddress);
+
+        bytes[] memory hooksData = new bytes[](2);
+        // redeem from fluid entirely
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            vars.amountToReallocateFluidVault,
+            false,
+            false
+        );
+        // deposit to aave
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            vars.assetAmountToReallocateFromFluidVault,
+            false,
+            false
+        );
+
+        // change allocation rates to allow 100% to aave allocation
+        vm.startPrank(MANAGER);
+        strategy.updateGlobalConfig(
+            ISuperVaultStrategy.GlobalConfig({
+                vaultCap: VAULT_CAP,
+                superVaultCap: SUPER_VAULT_CAP,
+                maxAllocationRate: 10000,
+                vaultThreshold: VAULT_THRESHOLD
+            })
+        );
+        vm.stopPrank();
+
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, proofs, hooksData);
+        vm.stopPrank(); 
+
+        // disable fluid vault entirely
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, false);
+        vm.stopPrank();
+
+        // check new balances
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+        vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalValue,
+            vars.initialTotalValue,
+            0.01e18,
+            "Total value should be preserved during allocation"
+        );
+
+        assertEq(vars.finalFluidVaultBalance, 0, "FluidVault balance should be 0");
+        assertGt(vars.finalAaveVaultBalance, vars.initialAaveVaultBalance, "AaveVault balance should increase");
+
+        vm.warp(block.timestamp + 20 days); 
+
+        // 80% to aave allocation
+        vars.amountToReallocateAaveVault = vars.finalAaveVaultBalance *20/100;
+        vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
+        // re-allocate back to fluid; withdraw from aave (20%)
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            vars.amountToReallocateAaveVault,
+            false,
+            false
+        );
+        // deposit to f;io
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            vars.assetAmountToReallocateFromAaveVault,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
+        strategy.allocate(hooksAddresses, proofs, hooksData);
+        vm.stopPrank();
+
+        // re-enable fluid vault
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, true);
+        vm.stopPrank();
+
+        // try allocate again
         vm.startPrank(STRATEGIST);
         strategy.allocate(hooksAddresses, proofs, hooksData);
         vm.stopPrank();

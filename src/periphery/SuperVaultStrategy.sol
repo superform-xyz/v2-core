@@ -654,7 +654,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 emit YieldSourceReactivated(source);
             } else {
                 if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-                if (IYieldSourceOracle(oracle).getTVL(source) > 0) revert INVALID_AMOUNT();
+                if (IYieldSourceOracle(oracle).getTVLByOwnerOfShares(source, address(this)) > 0) revert INVALID_AMOUNT();
 
                 yieldSource.isActive = false;
                 emit YieldSourceDeactivated(source);
