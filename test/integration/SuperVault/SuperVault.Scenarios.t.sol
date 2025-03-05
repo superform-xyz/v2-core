@@ -9,15 +9,15 @@ import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { console2 } from "forge-std/console2.sol";
 import { Vm } from "forge-std/Vm.sol";
-
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
 // superform
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { RuggableVault } from "../../mocks/RuggableVault.sol";
 import { RuggableConvertVault } from "../../mocks/RuggableConvertVault.sol";
-
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
@@ -1036,23 +1036,27 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         view
         returns (MultipleOperationsVars memory)
     {
-        for (uint256 i; i < ACCOUNT_COUNT && vars.selectedCount < 15; i++) {
+        uint256 i;
+        while (vars.selectedCount < 15) {
             uint256 randIndex = uint256(keccak256(abi.encodePacked(vars.seed, "redeem", i))) % ACCOUNT_COUNT;
+
             if (!vars.selected[randIndex]) {
-                vars.selected[randIndex] = true;
                 vars.redeemUsers[vars.selectedCount] = accInstances[randIndex].account;
                 // Redeem 25-75% of their balance
-                uint256 randPercent = 25 + (uint256(keccak256(abi.encodePacked(vars.seed, "percent", i))) % 51);
+                uint256 randPercent = 2500 + (uint256(keccak256(abi.encodePacked(vars.seed, "percent", i))) % 5100);
                 uint256 shares = vault.balanceOf(accInstances[randIndex].account);
-                vars.redeemAmounts[vars.selectedCount] = (shares * randPercent) / 100;
+
+                vars.redeemAmounts[vars.selectedCount] = (shares * randPercent) / 10_000;
+                vars.selected[randIndex] = true;
                 vars.selectedCount++;
             }
+            i++;
         }
         return vars;
     }
 
     function _processRedemptionRequests(MultipleOperationsVars memory vars) internal {
-        for (uint256 i; i < 15; i++) {
+        for (uint256 i; i < vars.selectedCount; i++) {
             vm.startPrank(vars.redeemUsers[i]);
             vault.requestRedeem(vars.redeemAmounts[i], vars.redeemUsers[i], vars.redeemUsers[i]);
             vm.stopPrank();
@@ -1287,7 +1291,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Price per share:", pricePerSharePreClaimTaintedAssets);
         console2.log("Ruggable Vault Balance:", IERC4626(vars.ruggableVault).balanceOf(address(strategy)));
         console2.log("Fluid Vault Balance:", fluidVault.balanceOf(address(strategy)));
-
 
         // Process claims for redeemed users, this will burn all tainted shares
         _claimRedeemForUsers(vars.redeemUsers);
