@@ -80,6 +80,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         address gearboxStakingAddr 
         = realVaultAddresses[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
+        console2.log("gearboxStakingAddr: ", gearboxStakingAddr); 
         vm.label(gearboxStakingAddr, "GearboxStaking");
         gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
 
@@ -263,24 +264,35 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
     }
 
     function _executeArbitraryHooks(uint256 amountToExecute) internal {
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
 
-        bytes32[][] memory proofs = new bytes32[][](1);
+        bytes32[][] memory proofs = new bytes32[][](2);
         proofs[0] = _getMerkleProof(hooksAddresses[0]);
+        proofs[1] = _getMerkleProof(hooksAddresses[1]);
 
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createGearboxStakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amount, false, false);
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToExecute, false);
+        hooksData[1] = _createGearboxStakeHookData(
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
+            address(gearboxFarmingPool), 
+            amountToExecute, 
+            false, 
+            false
+        );
 
-        address[] memory tokensIn = new address[](1);
+        address[] memory tokensIn = new address[](2);
         tokensIn[0] = address(gearboxVault);
+        tokensIn[1] = address(gearboxVault);
 
-        address[] memory yieldSources = new address[](1);
+        address[] memory yieldSources = new address[](2);
         yieldSources[0] = address(gearboxFarmingPool);
+        yieldSources[1] = address(gearboxFarmingPool);
 
-        address[] memory expectedTokensOut = new address[](1);
+        address[] memory expectedTokensOut = new address[](2);
         expectedTokensOut[0] = gearToken;
+        expectedTokensOut[1] = gearToken;
 
         vm.prank(STRATEGIST);
         strategyGearSuperVault.executeArbitraryHooks(
