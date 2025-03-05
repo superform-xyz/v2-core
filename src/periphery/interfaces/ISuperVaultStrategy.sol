@@ -197,6 +197,15 @@ interface ISuperVaultStrategy {
         address[] resizedArray;
     }
 
+    struct ArbitraryHookExecutionVars {
+        uint256 amountIn;
+        address[] tokensIn;
+        address[] expectedTokensOut;
+        address[] hooks;
+        bytes32[][] hookProofs;
+        bytes[] hookCalldata;
+    }
+    
     /*//////////////////////////////////////////////////////////////
                                 ENUMS
     //////////////////////////////////////////////////////////////*/
@@ -260,36 +269,27 @@ interface ISuperVaultStrategy {
         external;
 
     /// @notice Executes whitelisted non-accounting hooks
-    /// @param amountIn Amount of assets to use for hook execution
-    /// @param tokensIn Array of tokens to use for hook execution
-    /// @param hooks Array of hooks to use for claiming rewards
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
+    /// @param vars ArbitraryHookVars struct containing hook execution parameters
+
     function callArbitraryHooks(
-        uint256 amountIn,
-        address[] calldata tokensIn, // TODO: array or single token?
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
+        ArbitraryHookExecutionVars calldata vars
     )
         external;
 
-    /// @notice Calls any inflow type of hook into approved yield sources
-    /// @param amountIn Amount of assets to use for hook execution
-    /// @param hooks Array of arrays of hooks to use execution
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of arrays of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    function executeArbitraryAmounts(
-        uint256 amountIn,
-        address[][] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external;
+    // /// @notice Calls any inflow type of hook into approved yield sources
+    // /// @param amountIn Amount of assets to use for hook execution
+    // /// @param hooks Array of arrays of hooks to use execution
+    // /// @param hookProofs Array of merkle proofs for hooks
+    // /// @param hookCalldata Array of arrays of calldata for hooks
+    // /// @param expectedTokensOut Array of tokens expected from hooks
+    // function executeArbitraryAmounts(
+    //     uint256 amountIn,
+    //     address[][] calldata hooks,
+    //     bytes32[][] calldata hookProofs,
+    //     bytes[][] calldata hookCalldata,
+    //     address[] calldata expectedTokensOut
+    // )
+    //     external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
