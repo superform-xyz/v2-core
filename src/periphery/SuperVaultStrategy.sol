@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -1098,6 +1100,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (isFulfillRequestsHook) {
             if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
         } else {
+            console2.log("isHookAllowed", isHookAllowed(hook, hookProof));
             if (!isHookAllowed(hook, hookProof)) revert INVALID_HOOK();
         }
 
@@ -1126,6 +1129,81 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Execute the transaction
         (bool success,) = target.call{ value: executions[0].value }(executions[0].callData);
+        if (!success) revert OPERATION_FAILED();
+
+        // Reset approval if needed
+        if (approvalToken != address(0)) {
+            _resetTokenApproval(approvalToken, target);
+        }
+    }
+
+    function _executeArbitraryHook(
+        address hook,
+        address prevHook,
+        bytes memory hookCalldata,
+        bytes32[] calldata hookProof,
+        ISuperHook.HookType expectedHookType,
+        address approvalToken,
+        uint256 approvalAmount
+    )
+        private
+    {
+        // Validate hook via merkle proof
+        if (!isHookAllowed(hook, hookProof)) revert INVALID_HOOK();
+
+        // Validate hook type
+        ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
+        if (hookType != expectedHookType) revert INVALID_HOOK_TYPE();
+
+        // Validate target is an active yield source if needed
+        if (validateYieldSource) {
+            YieldSource storage source = yieldSources[target];
+            if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+        }
+
+        // Build executions for this hook
+        ISuperHook hookContract = ISuperHook(hook);
+        Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata);
+        
+        if (executions.length == 1)  {
+            _processHookExecution(
+                executions[0], 
+                approvalToken, 
+                approvalAmount
+            );
+        } else {
+            for (uint256 i; i < executions.length;) {
+                _processHookExecution(
+                    executions[i], 
+                    approvalToken, 
+                    approvalAmount
+                );
+                unchecked {
+                    i++;
+                }
+            }
+        }
+    }
+
+    function _processHookExecution(
+        Execution memory execution,
+        address approvalToken,
+        uint256 approvalAmount
+    ) internal {
+        address target = execution.target;
+
+        // Handle token approvals if needed
+        if (approvalToken != address(0)) {
+            _handleTokenApproval(approvalToken, target, approvalAmount);
+        }
+
+        // Handle token approvals if needed
+        if (approvalToken != address(0)) {
+            _handleTokenApproval(approvalToken, target, approvalAmount);
+        }
+
+        // Execute the transaction
+        (bool success,) = target.call{ value: execution.value }(execution.callData);
         if (!success) revert OPERATION_FAILED();
 
         // Reset approval if needed
@@ -1415,17 +1493,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Process hooks
         address prevHook;
         for (uint256 i = 0; i < hookVars.hooks.length;) {
-            _executeHook(
+            _executeArbitraryHook(
                 hookVars.hooks[i],
                 prevHook,
                 hookVars.hookCalldata[i],
                 hookVars.hookProofs[i],
                 ISuperHook.HookType.NONACCOUNTING,
-                false, // No yield source validation needed for these hooks
-                hookVars.expectedTokensOut[i], // approval token
-                hookVars.amountIn, // approval amount, can be zero,
-                false // Not fulfill requests hook
-            );
+                hookVars.expectedTokensOut[i], // approval token, can be zero
+                hookVars.amountIn // approval amount, can be zero
+            ); // These hooks are not fulfill requests hooks
             prevHook = hookVars.hooks[i];
             unchecked {
                 ++i;
@@ -1435,54 +1511,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Track balance changes
         balanceChanges = _trackBalanceChanges(hookVars.expectedTokensOut, initialBalances, false);
     }
-
-    // /// @notice Process swap hook execution
-    // /// @param hooks Array of hooks to process
-    // /// @param hookProofs Array of merkle proofs for hooks
-    // /// @param hookCalldata Array of calldata for hooks
-    // /// @param expectedTokensOut Array of tokens expected from hooks
-    // /// @param initialBalances Array of initial balances for each token
-    // /// @param initialAssetBalance Initial balance of the asset
-    // /// @return assetGained Amount of asset gained from swaps
-    // function _processSwapHookExecution(
-    //     address[] calldata hooks,
-    //     bytes32[][] calldata hookProofs,
-    //     bytes[] calldata hookCalldata,
-    //     address[] calldata expectedTokensOut,
-    //     uint256[] memory initialBalances,
-    //     uint256 initialAssetBalance
-    // )
-    //     private
-    //     returns (uint256 assetGained)
-    // {
-    //     // Process hooks
-    //     address prevHook;
-    //     for (uint256 i = 0; i < hooks.length;) {
-    //         // Execute hook with expected token approval
-    //         _executeHook(
-    //             hooks[i],
-    //             prevHook,
-    //             hookCalldata[i],
-    //             hookProofs[i],
-    //             ISuperHook.HookType.NONACCOUNTING,
-    //             false,
-    //             expectedTokensOut[i],
-    //             initialBalances[i]
-    //         );
-    //         prevHook = hooks[i];
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
-
-    //     // Verify all initial token balances are now zero
-    //     _trackBalanceChanges(expectedTokensOut, initialBalances, true);
-
-    //     // Calculate asset gained by comparing final balance with initial
-    //     uint256 finalAssetBalance = _getTokenBalance(address(_asset), address(this));
-    //     if (finalAssetBalance <= initialAssetBalance) revert INVALID_BALANCE_CHANGE();
-    //     assetGained = finalAssetBalance - initialAssetBalance;
-    // }
 
     /// @notice Check vault caps for targeted yield sources
     /// @param targetedYieldSources Array of yield sources to check
