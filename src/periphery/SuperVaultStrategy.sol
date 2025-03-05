@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -1100,7 +1098,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (isFulfillRequestsHook) {
             if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
         } else {
-            console2.log("isHookAllowed", isHookAllowed(hook, hookProof));
             if (!isHookAllowed(hook, hookProof)) revert INVALID_HOOK();
         }
 
