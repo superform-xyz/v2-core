@@ -503,7 +503,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
@@ -551,7 +551,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance) + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
@@ -708,7 +708,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank(); 
 
         // disable fluid vault entirely
@@ -762,7 +762,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // re-enable fluid vault
@@ -772,7 +772,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // try allocate again
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance) + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
