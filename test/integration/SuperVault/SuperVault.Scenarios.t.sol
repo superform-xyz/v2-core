@@ -200,7 +200,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _verifyFinalBalances(vars);
     }
 
-    function test_Allocate_NewYieldSource() public {
+    function test_11_Allocate_NewYieldSource() public {
         NewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -385,7 +385,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
     }
 
-    function test_VaultLifecycle_FullAlocateOverTime_() public {
+    function test_9_VaultLifecycle_FullAlocateOverTime_() public {
         NewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -590,7 +590,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
     }
 
-    function test_VaultLifecycle_AddAndRemoveOverTime() public {
+    function test_9_VaultLifecycle_AddAndRemoveOverTime() public {
         NewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
