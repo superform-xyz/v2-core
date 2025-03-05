@@ -321,10 +321,10 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
     function _requestRedeem_Gearbox_SV(uint256 shares) internal {
         address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createRequestRedeem7540VaultHookData(
+        hooksData[0] = _createRequestWithdraw7540VaultHookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), 
             address(gearSuperVault), 
             accountEth, 
