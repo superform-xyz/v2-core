@@ -720,7 +720,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             console2.log("assetsFromShares", assetsFromShares);
             console2.log("maxDepositAmounts", maxDepositAmounts[i]);
             assertApproxEqRel(assetsFromShares, maxDepositAmounts[i], 0.01e18); // Allow 1% deviation
-            console2.log("--------------------------------");
             unchecked {
                 ++i;
             }

@@ -622,8 +622,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY]);
             peripheryRegistry.registerHook(address(Addr.gearboxStakeHook), false);
 
-            console.log("---------------------------- Addr.gearboxStakeHook", address(Addr.gearboxStakeHook));
-
             Addr.gearboxUnstakeHook =
                 new GearboxUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.gearboxUnstakeHook), GEARBOX_UNSTAKE_HOOK_KEY);
