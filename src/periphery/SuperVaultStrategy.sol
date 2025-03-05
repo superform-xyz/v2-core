@@ -25,11 +25,9 @@ import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
-import "forge-std/console2.sol";
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
-
 contract SuperVaultStrategy is ISuperVaultStrategy {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -360,12 +358,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function allocate(
-        address[] calldata hooks,
-        bytes[] calldata hookCalldata
-    )
-        external
-    {
+    function allocate(address[] calldata hooks, bytes[] calldata hookCalldata) external {
         _requireRole(STRATEGIST_ROLE);
         uint256 hooksLength = hooks.length;
         _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
@@ -583,14 +576,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 activeSourceCount;
 
         totalAssets_ = _lastTotalAssets;
-        console2.log("totalAssets_", totalAssets_);
         for (uint256 i; i < length;) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
                 uint256 tvl = _getTvlByOwnerOfShares(source);
                 totalAssets_ += tvl;
                 sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
-                console2.log("tvl", tvl);
             }
             unchecked {
                 ++i;
@@ -663,7 +654,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 emit YieldSourceReactivated(source);
             } else {
                 if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-                if (IYieldSourceOracle(oracle).getTVLByOwnerOfShares(source, address(this)) > 0) revert INVALID_AMOUNT();
+                if (IYieldSourceOracle(oracle).getTVLByOwnerOfShares(source, address(this)) > 0) {
+                    revert INVALID_AMOUNT();
+                }
 
                 yieldSource.isActive = false;
                 emit YieldSourceDeactivated(source);
@@ -1026,13 +1019,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Validate array lengths for fulfill functions
     /// @param hooksLength Length of hooks array
     /// @param hookCalldataLength Length of hook calldata array
-    function _validateFulfillHooksArrays(
-        uint256 hooksLength,
-        uint256 hookCalldataLength
-    )
-        private
-        pure
-    {
+    function _validateFulfillHooksArrays(uint256 hooksLength, uint256 hookCalldataLength) private pure {
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookCalldataLength) {
             revert LENGTH_MISMATCH();
