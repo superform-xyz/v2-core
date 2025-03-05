@@ -6,10 +6,10 @@ import { Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.
 import "modulekit/accounts/common/lib/ModeLib.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { INexus } from "./vendors/nexus/INexus.sol";
-import { INexusFactory } from "./vendors/nexus/INexusFactory.sol";
-import { BootstrapConfig, INexusBoostrap } from "./vendors/nexus/INexusBootstrap.sol";
-import { IERC7484 } from "./vendors/nexus/IERC7484.sol";
+import { INexus } from "../src/vendor/nexus/INexus.sol";
+import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
+import { BootstrapConfig, INexusBoostrap } from "../src/vendor/nexus/INexusBootstrap.sol";
+import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 
 // Superform
 import { IMinimalEntryPoint, PackedUserOperation } from "../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
