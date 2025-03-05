@@ -180,9 +180,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.bootstrapHooks = new address[](1);
         vars.bootstrapHooks[0] = vars.depositHookAddress;
 
-        vars.bootstrapProofs = new bytes32[][](1);
-        vars.bootstrapProofs[0] = vars.depositProof;
-
         vars.bootstrapData = new bytes[](1);
         vars.depositHookData = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), _bootstrapAmount, false, false
@@ -208,7 +205,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 initHooksRoot: vars.hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: vars.bootstrapHooks,
-                bootstrappingHookProofs: vars.bootstrapProofs,
                 bootstrappingHookCalldata: vars.bootstrapData
             })
         );
@@ -393,7 +389,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -411,10 +407,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = withdrawHookAddress;
         fulfillHooksAddresses[1] = withdrawHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = proofs[0];
-
         (uint256 fluidSharesOut, uint256 aaveSharesOut) = _calculateVaultShares(redeemShares);
 
         bytes[] memory fulfillHooksData = new bytes[](2);
@@ -428,7 +420,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
         vm.stopPrank();
     }
 
@@ -447,10 +439,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(depositHookAddress);
-        proofs[1] = proofs[0];
-
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
@@ -461,7 +449,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
         vm.stopPrank();
     }
 
@@ -480,10 +468,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = withdrawHookAddress;
         fulfillHooksAddresses[1] = withdrawHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = proofs[0];
-
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
         fulfillHooksData[0] = _createWithdraw4626HookData(
@@ -494,7 +478,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
         vm.stopPrank();
     }
 
@@ -744,7 +728,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function _rebalanceFromVaultToVault(
         address[] memory hooksAddresses,
-        bytes32[][] memory proofs,
         bytes[] memory hooksData,
         address sourceVault,
         address targetVault,
@@ -771,7 +754,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         hooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, assetsToMove - 1, false, false
         );
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
     }
 

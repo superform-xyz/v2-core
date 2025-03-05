@@ -71,7 +71,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
 
     function test_RevertOnZeroAddresses() public {
         address[] memory bootstrapHooks;
-        bytes32[][] memory bootstrapHookProofs;
         bytes[] memory bootstrapHookCalldata;
 
         // Test with zero asset address
@@ -92,7 +91,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initHooksRoot: bytes32(0),
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHookCalldata
             })
         );
@@ -115,7 +113,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initHooksRoot: bytes32(0),
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHookCalldata
             })
         );
@@ -138,7 +135,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initHooksRoot: bytes32(0),
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHookCalldata
             })
         );
@@ -161,7 +157,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initHooksRoot: bytes32(0),
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHookCalldata
             })
         );
@@ -186,7 +181,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         bytes32 initHooksRoot;
         address initYieldSource;
         address[] bootstrappingHooks;
-        bytes32[][] bootstrappingHookProofs;
         bytes[] bootstrappingHookCalldata;
     }
 
@@ -216,7 +210,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initHooksRoot: params.initHooksRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: params.bootstrappingHooks,
-                bootstrappingHookProofs: params.bootstrappingHookProofs,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata
             })
         );
