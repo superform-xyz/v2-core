@@ -51,7 +51,7 @@ interface ISuperVaultStrategy {
     error MAX_ALLOCATION_RATE_EXCEEDED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
-
+    error DEPOSIT_FAILURE_INVALID_TARGET();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
