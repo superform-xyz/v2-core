@@ -541,7 +541,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _testRuggableVaultWithdraw(vars);
     }
 
-    function test_10_RuggableVault_Convert_Withdraw() public {
+    function test_10_RuggableVault_Withdraw_ConvertDistortion() public {
         RugTestVarsWithdraw memory vars;
         vars.depositAmount = 1000e6;
         vars.rugPercentage = 5000; // 50% rug
@@ -1288,10 +1288,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Ruggable Vault Balance:", IERC4626(vars.ruggableVault).balanceOf(address(strategy)));
         console2.log("Fluid Vault Balance:", fluidVault.balanceOf(address(strategy)));
 
-        // The price per share might decrease due to the rug, but this depends on the type of ruggable vault
-        // For RuggableVault (rugs on withdraw), the price per share decreases after fulfillment
-        // For RuggableConvertVault (rugs via convert), the price per share might not decrease immediately
-        // We'll check the specific behavior in the individual test functions
 
         // Process claims for redeemed users, this will burn all tainted shares
         _claimRedeemForUsers(vars.redeemUsers);

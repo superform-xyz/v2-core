@@ -24,7 +24,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 test-vvv :; forge test --match-test test_MatchRequests_MultiplePairs -vv
 
-test-integration :; forge test --match-test test_10_RuggableVault_Convert_Withdraw -vv
+test-integration :; forge test --match-test test_10_RuggableVault_Withdraw -vv
 
 
 .PHONY: generate
