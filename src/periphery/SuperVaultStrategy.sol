@@ -489,7 +489,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
         }
 
-        //emit RewardsClaimed(expectedTokensOut, balanceChanges);
+        emit HooksExecuted(vars.amountIn, vars.tokensIn, vars.tokensOut, balanceChanges);
     }
 
     // function executeArbitraryAmounts(

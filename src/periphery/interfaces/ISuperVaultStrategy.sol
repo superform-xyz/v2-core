@@ -72,6 +72,7 @@ interface ISuperVaultStrategy {
     );
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
+    event HooksExecuted(uint256 amountIn, address[] tokensIn, address[] tokensOut, uint256[] balanceChanges);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
     event EmergencyWithdrawableProposed(bool newWithdrawable, uint256 effectiveTime);
     event EmergencyWithdrawableUpdated(bool withdrawable);
@@ -79,10 +80,8 @@ interface ISuperVaultStrategy {
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
-    event RewardsClaimedAndCompounded(uint256 amount);
     event RewardsDistributorSet(address indexed rewardsDistributor);
     event RewardsDistributed(address[] tokens, uint256[] amounts);
-    event RewardsClaimed(address[] tokens, uint256[] amounts);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
