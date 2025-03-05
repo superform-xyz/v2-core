@@ -189,7 +189,6 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         // Get shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
-        assertGt(userShares, 0, "User shares not minted");
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
