@@ -43,6 +43,8 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
     SuperVaultEscrow escrowGearSuperVault;
     SuperVaultStrategy strategyGearSuperVault;
 
+    address gearToken;
+
     // Yield sources
     IERC4626 public gearboxVault;
     IGearboxFarmingPool public gearboxFarmingPool;
@@ -60,29 +62,27 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         // Set up accounts
         accountEth = accountInstances[ETH].account;
         instanceOnEth = accountInstances[ETH];
-
         vm.label(accountEth, "AccountETH");
-
-        deal(address(asset), accountEth, 1000e18);
-
-        vm.label(SV_MANAGER, "SV_MANAGER");
-        vm.label(STRATEGIST, "STRATEGIST");
-        vm.label(address(factory), "Factory");
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
+        vm.label(address(asset), "Asset");
         console2.log("asset: ", address(asset));
+
+        gearToken = existingUnderlyingTokens[ETH][GEAR_KEY];
+        console2.log("gearToken: ", address(gearToken));
+        vm.label(gearToken, "GearToken");
 
         // Get real yield sources from fork
         address gearboxVaultAddr = realVaultAddresses[ETH][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY];
-        console2.log("----gearboxVaultAddr: ", gearboxVaultAddr);
-        gearboxVault = IERC4626(gearboxVaultAddr);
         vm.label(gearboxVaultAddr, "GearboxVault");
+        gearboxVault = IERC4626(gearboxVaultAddr);
 
         address gearboxStakingAddr 
         = realVaultAddresses[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
         vm.label(gearboxStakingAddr, "GearboxStaking");
         gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
+
         // Deploy vault trio with initial config
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
             vaultCap: VAULT_CAP,
@@ -93,16 +93,12 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         bytes32 hookRoot = _getMerkleRoot();
 
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        address stakeHookAddress = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
-        console2.log("stakeHookAddress: ", stakeHookAddress);
 
         address[] memory bootstrapHooks = new address[](1);
         bootstrapHooks[0] = depositHookAddress;
-        //bootstrapHooks[1] = stakeHookAddress;
 
         bytes32[][] memory bootstrapHookProofs = new bytes32[][](1);
         bootstrapHookProofs[0] = _getMerkleProof(depositHookAddress);
-        //bootstrapHookProofs[1] = _getMerkleProof(stakeHookAddress);
 
         bytes[] memory bootstrapHooksData = new bytes[](1);
         bootstrapHooksData[0] = _createDeposit4626HookData(
@@ -112,13 +108,6 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
             false, 
             false
         );
-        // bootstrapHooksData[1] = _createGearboxStakeHookData(
-        //     bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
-        //     address(curveGearboxFarmingPool),
-        //     BOOTSTRAP_AMOUNT, 
-        //     false, 
-        //     false
-        // );
 
         vm.startPrank(SV_MANAGER);
         deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
@@ -173,7 +162,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         vm.stopPrank();
     }
 
-    function test_SuperVault_Claim() public {
+    function test_SuperVault_ExecuteArbitraryHooks() public {
         vm.selectFork(FORKS[ETH]);
 
         // Record initial balances
@@ -187,8 +176,13 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
             asset.balanceOf(accountEth), initialUserAssets - amount, "User assets not reduced after deposit request"
         );
 
+        uint256 amountToStake = gearboxVault.convertToShares(amount);
+
         // Step 2: Fulfill Deposit
         _fulfillDeposit_Gearbox_SV(amount);
+
+        // Step 3: Execute Arbitrary Hooks
+        _executeArbitraryHooks(amountToStake);
 
         // Step 3: Claim Deposit
         __claimDeposit_Gearbox_SV(instanceOnEth, amount);
@@ -221,40 +215,21 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
 
-        address approveHookAddress = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        address stakeHookAddress = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
 
-        address[] memory fulfillHooksAddresses = new address[](2);
+        address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = depositHookAddress;
-        //fulfillHooksAddresses[1] = approveHookAddress;
-        fulfillHooksAddresses[1] = stakeHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
+        bytes32[][] memory proofs = new bytes32[][](1);
         proofs[0] = _getMerkleProof(depositHookAddress);
-        //proofs[1] = _getMerkleProof(approveHookAddress);
-        proofs[1] = _getMerkleProof(stakeHookAddress);
 
-        bytes[] memory fulfillHooksData = new bytes[](2);
+        bytes[] memory fulfillHooksData = new bytes[](1);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
             address(gearboxVault), 
             depositAmount, 
             false, 
-            false
-        );
-        // fulfillHooksData[1] = _createApproveHookData(
-        //   address(gearboxVault), 
-        //   address(gearboxFarmingPool), 
-        //   depositAmount, 
-        //   true
-        // );
-        fulfillHooksData[1] = _createGearboxStakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
-            address(gearboxFarmingPool), 
-            depositAmount, 
-            true, 
             false
         );
 
@@ -275,7 +250,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         claimHooksData[0] = _createDeposit7540VaultHookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), 
             address(gearSuperVault), 
-            accInst.account, 
+            accountEth, 
             depositAmount, 
             false, 
             false
@@ -285,5 +260,39 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
+    }
+
+    function _executeArbitraryHooks(uint256 amountToExecute) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
+
+        bytes32[][] memory proofs = new bytes32[][](1);
+        proofs[0] = _getMerkleProof(hooksAddresses[0]);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createGearboxStakeHookData(
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amount, false, false);
+
+        address[] memory tokensIn = new address[](1);
+        tokensIn[0] = address(gearboxVault);
+
+        address[] memory yieldSources = new address[](1);
+        yieldSources[0] = address(gearboxFarmingPool);
+
+        address[] memory expectedTokensOut = new address[](1);
+        expectedTokensOut[0] = gearToken;
+
+        vm.prank(STRATEGIST);
+        strategyGearSuperVault.executeArbitraryHooks(
+          ISuperVaultStrategy.ArbitraryHookExecutionVars({
+            amountIn: amountToExecute,
+            tokensIn: tokensIn,
+            yieldSources: yieldSources,
+            expectedTokensOut: expectedTokensOut,
+            hooks: hooksAddresses,
+            hookProofs: proofs,
+            hookCalldata: hooksData
+          })
+        );
     }
 }
