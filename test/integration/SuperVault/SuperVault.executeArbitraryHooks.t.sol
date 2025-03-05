@@ -183,13 +183,24 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         _fulfillDeposit_Gearbox_SV(amount);
 
         // Step 3: Execute Arbitrary Hooks
-        _executeStakeHooks(amountToStake);
+        _executeStakeHook(amountToStake);
 
         // Step 3: Claim Deposit
         __claimDeposit_Gearbox_SV(instanceOnEth, amount);
 
         // Get shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
+        assertGt(userShares, 0, "User shares not minted");
+
+        // Record balances before redeem
+        uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
+        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
+
+        // Fast forward time to simulate yield on underlying vaults
+        vm.warp(block.timestamp + 50 weeks);
+
+        // Step 4: Request Redeem
+        _requestRedeem_Gearbox_SV(userShares);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -263,7 +274,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         executeOp(claimUserOpData);
     }
 
-    function _executeStakeHooks(uint256 amountToStake) internal {
+    function _executeStakeHook(uint256 amountToStake) internal {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
@@ -273,11 +284,11 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         proofs[1] = _getMerkleProof(hooksAddresses[1]);
 
         bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToExecute, false);
+        hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake, false);
         hooksData[1] = _createGearboxStakeHookData(
             bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
             address(gearboxFarmingPool), 
-            amountToExecute, 
+            amountToStake, 
             false, 
             false
         );
@@ -297,7 +308,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         vm.prank(STRATEGIST);
         strategyGearSuperVault.executeArbitraryHooks(
           ISuperVaultStrategy.ArbitraryHookExecutionVars({
-            amountIn: amountToExecute,
+            amountIn: amountToStake,
             tokensIn: tokensIn,
             yieldSources: yieldSources,
             expectedTokensOut: expectedTokensOut,
@@ -306,5 +317,25 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
             hookCalldata: hooksData
           })
         );
+    }
+
+    function _requestRedeem_Gearbox_SV(uint256 shares) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRequestRedeem7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), 
+            address(gearSuperVault), 
+            accountEth, 
+            shares, 
+            false, 
+            false
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        executeOp(userOpData);
     }
 }
