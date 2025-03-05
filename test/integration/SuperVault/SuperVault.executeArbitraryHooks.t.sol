@@ -329,7 +329,6 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
             address(gearSuperVault), 
             accountEth, 
             shares, 
-            false, 
             false
         );
 
