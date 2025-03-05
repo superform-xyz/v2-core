@@ -462,11 +462,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function claim(
+    function callArbitraryHooks(
+        uint256 amountIn,
+        address[] calldata tokensIn,
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
+        bytes[] calldata hookCalldata
     )
         external
     {
@@ -478,7 +479,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (expectedTokensLength == 0) revert ZERO_LENGTH();
 
         // Execute claim hooks and get balance changes
-        uint256[] memory balanceChanges = _processClaimHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
+        uint256[] memory balanceChanges = _processArbitraryHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
 
         // Store claimed tokens in state
         for (uint256 i; i < expectedTokensLength;) {
@@ -495,12 +496,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function compoundClaimedTokens(
+    function executeArbitraryAmounts(
+        uint256 amountIn,
         address[][] calldata hooks,
-        bytes32[][] calldata swapHookProofs,
-        bytes32[][] calldata allocateHookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata claimedTokensToCompound
+        bytes32[][] calldata hookProofs,
+        bytes[][] calldata hookCalldata
     )
         external
     {
@@ -1301,13 +1301,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         _updateLastTotalAssets(_lastTotalAssets + (balanceAssetAfter - balanceAssetBefore));
     }
 
-    /// @notice Process claim hook execution
+    /// @notice Process non-accounting hook executions
     /// @param hooks Array of hooks to process
     /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     /// @param expectedTokensOut Array of tokens expected from hooks
     /// @return balanceChanges Array of balance changes for each token
-    function _processClaimHookExecution(
+    function _processArbitraryHookExecution(
+        bool approvalNeeded,
+        uint256 amountIn,
         address[] calldata hooks,
         bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata,
@@ -1328,17 +1330,31 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Process hooks
         address prevHook;
         for (uint256 i = 0; i < hooks.length;) {
-            // Execute hook with no approval needed
-            _executeHook(
-                hooks[i],
-                prevHook,
-                hookCalldata[i],
-                hookProofs[i],
-                ISuperHook.HookType.NONACCOUNTING,
-                false,
-                address(0), // no approval needed
-                0
-            );
+            if (!approvalNeeded) {
+                // Execute hook with no approval needed
+                _executeHook(
+                    hooks[i],
+                    prevHook,
+                    hookCalldata[i],
+                    hookProofs[i],
+                    ISuperHook.HookType.NONACCOUNTING,
+                    false, // No yield source validation needed for these hooks
+                    address(0), // no approval needed
+                    0
+                );
+            } else {
+                // Execute hook with approval needed
+                _executeHook(
+                    hooks[i],
+                    prevHook,
+                    hookCalldata[i],
+                    hookProofs[i],
+                    ISuperHook.HookType.NONACCOUNTING,
+                    false, // No yield source validation needed for these hooks
+                    expectedTokensOut[i],
+                    amountIn
+                );
+            }
             prevHook = hooks[i];
             unchecked {
                 ++i;
