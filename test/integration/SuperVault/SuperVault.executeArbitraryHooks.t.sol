@@ -131,7 +131,6 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
                 initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHooksData
             })
         );
@@ -186,7 +185,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         _executeStakeHook(amountToStake);
 
         // Step 3: Claim Deposit
-        __claimDeposit_Gearbox_SV(instanceOnEth, amount);
+        __claimDeposit_Gearbox_SV(amount);
 
         // Get shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
@@ -246,7 +245,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -254,7 +253,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
     }
 
-    function __claimDeposit_Gearbox_SV(AccountInstance memory accInst, uint256 depositAmount) private {
+    function __claimDeposit_Gearbox_SV(uint256 depositAmount) private {
         address[] memory claimHooksAddresses = new address[](1);
         claimHooksAddresses[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
 
@@ -270,7 +269,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
-        UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
+        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
 

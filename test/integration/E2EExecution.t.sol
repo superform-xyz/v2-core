@@ -6,7 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import { BaseE2ETest } from "../BaseE2ETest.t.sol";
-import { INexus } from "../vendors/nexus/INexus.sol";
+import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
 import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";

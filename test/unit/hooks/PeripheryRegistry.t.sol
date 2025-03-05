@@ -27,7 +27,7 @@ contract PeripheryRegistryTest is BaseTest {
     function testRegisterHook_FulfillHook_Success() public {
         peripheryRegistry.registerHook(testFulfillHook, true);
         assertTrue(peripheryRegistry.isFulfillRequestsHookRegistered(testFulfillHook));
-        assertFalse(peripheryRegistry.isHookRegistered(testFulfillHook));
+        assertTrue(peripheryRegistry.isHookRegistered(testFulfillHook));
     }
 
     function testRegisterHook_Fail_NotAuthorized() public {
@@ -116,24 +116,24 @@ contract PeripheryRegistryTest is BaseTest {
 
         // Verify regular hooks
         address[] memory registeredHooks = peripheryRegistry.getRegisteredHooks();
-        assertEq(registeredHooks.length, 3);
+        assertEq(registeredHooks.length, 6); // Both regular and fulfill hooks are in this array
         for (uint256 i = 0; i < 3; i++) {
-            assertEq(registeredHooks[i], regularHooks[i]);
             assertTrue(peripheryRegistry.isHookRegistered(regularHooks[i]));
         }
 
         // Verify fulfill hooks
         for (uint256 i = 0; i < 3; i++) {
             assertTrue(peripheryRegistry.isFulfillRequestsHookRegistered(fulfillHooks[i]));
+            assertTrue(peripheryRegistry.isHookRegistered(fulfillHooks[i])); // Fulfill hooks should also be registered as regular hooks
         }
 
-        // Unregister middle hooks
+        // Test unregistering hooks
         peripheryRegistry.unregisterHook(regularHooks[1], false);
         peripheryRegistry.unregisterHook(fulfillHooks[1], true);
 
         // Verify updated arrays and mappings
         registeredHooks = peripheryRegistry.getRegisteredHooks();
-        assertEq(registeredHooks.length, 2);
+        assertEq(registeredHooks.length, 4); // 2 regular + 2 fulfill hooks remaining
         assertFalse(peripheryRegistry.isHookRegistered(regularHooks[1]));
         assertFalse(peripheryRegistry.isFulfillRequestsHookRegistered(fulfillHooks[1]));
     }

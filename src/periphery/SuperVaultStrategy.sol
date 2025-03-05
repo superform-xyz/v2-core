@@ -191,7 +191,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function fulfillRequests(
         address[] calldata users,
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
         bytes[] memory hookCalldata,
         bool isDeposit
     )
@@ -202,7 +201,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (usersLength == 0) revert ZERO_LENGTH();
         uint256 hooksLength = hooks.length;
 
-        _validateHooksArrays(hooksLength, hookProofs.length, hookCalldata.length);
+        _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
 
         FulfillmentVars memory vars;
 
@@ -217,6 +216,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Process hooks and get targeted yield sources
         address[] memory targetedYieldSources;
+        bytes32[][] memory hookProofs = new bytes32[][](hooksLength);
         (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, isDeposit, true);
 
         // Check vault caps after hooks processing (only for deposits)
@@ -359,14 +359,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @inheritdoc ISuperVaultStrategy
     function allocate(
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
         bytes[] calldata hookCalldata
     )
         external
     {
         _requireRole(STRATEGIST_ROLE);
         uint256 hooksLength = hooks.length;
-        _validateHooksArrays(hooksLength, hookProofs.length, hookCalldata.length);
+        _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
 
         AllocationVars memory vars;
         address[] memory inflowTargets = new address[](hooksLength);
@@ -498,80 +497,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         emit HooksExecuted(vars.amountIn, vars.tokensIn, vars.expectedTokensOut, balanceChanges);
     }
 
-    // function executeArbitraryAmounts(
-    //     uint256 amountIn,
-    //     address[][] calldata hooks,
-    //     bytes32[][] calldata hookProofs,
-    //     bytes[][] calldata hookCalldata,
-    //     address[] calldata expectedTokensOut
-    // ) external {
-    //     _requireRole(STRATEGIST_ROLE);
-    // }
-
-    /// @inheritdoc ISuperVaultStrategy
-    // function executeArbitraryAmounts(
-    //     uint256 amountIn,
-    //     address[][] calldata hooks,
-    //     bytes32[][] calldata hookProofs,
-    //     bytes[][] calldata hookCalldata
-    // )
-    //     external
-    // {
-    //     _requireRole(STRATEGIST_ROLE);
-
-    //     // Validate overall hook sets
-    //     _validateHookSets(hooks, hookCalldata, 2); // Must have exactly 2 arrays: swap and allocate
-
-    //     // Validate individual hook arrays
-    //     _validateHookArrayLengths(hooks[0], swapHookProofs, hookCalldata[0]);
-    //     _validateHookArrayLengths(hooks[1], allocateHookProofs, hookCalldata[1]);
-
-    //     uint256 claimedTokensLength = claimedTokensToCompound.length;
-    //     if (claimedTokensLength == 0) revert ZERO_LENGTH();
-
-    //     ClaimLocalVars memory vars;
-
-    //     // Get initial asset balance
-    //     vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
-
-    //     // Get balance changes for claimed tokens
-    //     vars.balanceChanges = new uint256[](claimedTokensLength);
-    //     for (uint256 i; i < claimedTokensLength;) {
-    //         vars.balanceChanges[i] = claimedTokens[claimedTokensToCompound[i]];
-    //         // Reset claimed tokens amount
-    //         if (vars.balanceChanges[i] > 0) {
-    //             claimedTokens[claimedTokensToCompound[i]] = 0;
-    //         }
-    //         unchecked {
-    //             ++i;
-    //         }
-    //     }
-
-    //     // Step 1: Execute swap hooks and get asset gained
-    //     vars.assetGained = _processSwapHookExecution(
-    //         hooks[0],
-    //         swapHookProofs,
-    //         hookCalldata[0],
-    //         claimedTokensToCompound,
-    //         vars.balanceChanges,
-    //         vars.initialAssetBalance
-    //     );
-
-    //     // Step 2: Execute inflow hooks to allocate gained assets
-    //     vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
-
-    //     (vars.fulfillmentVars, vars.targetedYieldSources) =
-    //         _processHooks(hooks[1], allocateHookProofs, hookCalldata[1], vars.fulfillmentVars, true);
-
-    //     // Check vault caps after all hooks are processed
-    //     _checkVaultCaps(vars.targetedYieldSources);
-
-    //     // Verify all assets were allocated
-    //     if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_AMOUNT();
-
-    //     emit RewardsClaimedAndCompounded(vars.assetGained);
-    // }
-
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -671,7 +596,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 emit YieldSourceReactivated(source);
             } else {
                 if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-                if (IYieldSourceOracle(oracle).getTVL(source) > 0) revert INVALID_AMOUNT();
+                if (IYieldSourceOracle(oracle).getTVLByOwnerOfShares(source, address(this)) > 0) revert INVALID_AMOUNT();
 
                 yieldSource.isActive = false;
                 emit YieldSourceDeactivated(source);
@@ -843,7 +768,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Check if a hook is allowed via merkle proof
     /// @param hook Address of the hook to check
     /// @param proof Merkle proof for the hook
-    function isHookAllowed(address hook, bytes32[] calldata proof) public view returns (bool) {
+    function isHookAllowed(address hook, bytes32[] memory proof) public view returns (bool) {
         if (hookRoot == bytes32(0)) return false;
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(hook))));
         return MerkleProof.verify(proof, hookRoot, leaf);
@@ -1043,6 +968,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
     }
 
+    /// @notice Validate array lengths for fulfill functions
+    /// @param hooksLength Length of hooks array
+    /// @param hookCalldataLength Length of hook calldata array
+    function _validateFulfillHooksArrays(
+        uint256 hooksLength,
+        uint256 hookCalldataLength
+    )
+        private
+        pure
+    {
+        if (hooksLength == 0) revert ZERO_LENGTH();
+        if (hooksLength != hookCalldataLength) {
+            revert LENGTH_MISMATCH();
+        }
+    }
+
     /// @notice Validate requests and get total amount
     /// @param usersLength Length of users array
     /// @param users Array of user addresses
@@ -1084,7 +1025,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] calldata hookProof,
+        bytes32[] memory hookProof,
         ISuperHook.HookType expectedHookType,
         bool validateYieldSource,
         address approvalToken,
@@ -1250,7 +1191,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @return targetedYieldSources Array of yield sources targeted by inflow hooks
     function _processHooks(
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
+        bytes32[][] memory hookProofs,
         bytes[] memory hookCalldata,
         FulfillmentVars memory vars,
         bool isDeposit,
@@ -1319,7 +1260,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] calldata hookProof,
+        bytes32[] memory hookProof,
         bool isFulfillRequestsHookCheck
     )
         private
@@ -1397,7 +1338,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] calldata hookProof,
+        bytes32[] memory hookProof,
         bool isFulfillRequestsHookCheck
     )
         private
@@ -1445,7 +1386,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] calldata hookProof,
+        bytes32[] memory hookProof,
         uint256 amount,
         bool isFulfillRequestsHookCheck
     )
@@ -1672,7 +1613,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hookCalldata Array of hook calldata
     function _validateHookArrayLengths(
         address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
+        bytes32[][] memory hookProofs,
         bytes[] calldata hookCalldata
     )
         private
