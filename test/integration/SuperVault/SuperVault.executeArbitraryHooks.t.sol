@@ -183,7 +183,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         _fulfillDeposit_Gearbox_SV(amount);
 
         // Step 3: Execute Arbitrary Hooks
-        _executeArbitraryHooks(amountToStake);
+        _executeStakeHooks(amountToStake);
 
         // Step 3: Claim Deposit
         __claimDeposit_Gearbox_SV(instanceOnEth, amount);
@@ -263,7 +263,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         executeOp(claimUserOpData);
     }
 
-    function _executeArbitraryHooks(uint256 amountToExecute) internal {
+    function _executeStakeHooks(uint256 amountToStake) internal {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
