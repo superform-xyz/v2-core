@@ -204,7 +204,7 @@ interface ISuperVaultStrategy {
         bytes32[][] hookProofs;
         bytes[] hookCalldata;
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                 ENUMS
     //////////////////////////////////////////////////////////////*/
@@ -270,10 +270,7 @@ interface ISuperVaultStrategy {
     /// @notice Executes whitelisted non-accounting hooks
     /// @param vars ArbitraryHookVars struct containing hook execution parameters
 
-    function callArbitraryHooks(
-        ArbitraryHookExecutionVars calldata vars
-    )
-        external;
+    function callArbitraryHooks(ArbitraryHookExecutionVars calldata vars) external;
 
     // /// @notice Calls any inflow type of hook into approved yield sources
     // /// @param amountIn Amount of assets to use for hook execution
