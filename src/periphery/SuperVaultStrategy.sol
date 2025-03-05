@@ -463,28 +463,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @inheritdoc ISuperVaultStrategy
     function callArbitraryHooks(
-        uint256 amountIn,
-        address[] calldata tokensIn,
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata
+        ArbitraryHookExecutionVars calldata vars
     )
         external
     {
         _requireRole(STRATEGIST_ROLE);
 
         // Validate hook arrays
-        _validateHookArrayLengths(hooks, hookProofs, hookCalldata);
-        uint256 expectedTokensLength = expectedTokensOut.length;
-        if (expectedTokensLength == 0) revert ZERO_LENGTH();
+        _validateHookArrayLengths(vars.hooks, vars.hookProofs, vars.hookCalldata);
+        uint256 expectedTokensLength = vars.expectedTokensOut.length;
+        //if (expectedTokensLength == 0) revert ZERO_LENGTH();
 
         // Execute claim hooks and get balance changes
-        uint256[] memory balanceChanges = _processArbitraryHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
+        uint256[] memory balanceChanges 
+        = _processArbitraryHookExecution(vars);
 
         // Store claimed tokens in state
         for (uint256 i; i < expectedTokensLength;) {
             if (balanceChanges[i] > 0) {
-                claimedTokens[expectedTokensOut[i]] += balanceChanges[i];
+                claimedTokens[vars.expectedTokensOut[i]] += balanceChanges[i];
             }
 
             unchecked {
@@ -492,72 +489,83 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
         }
 
-        emit RewardsClaimed(expectedTokensOut, balanceChanges);
+        //emit RewardsClaimed(expectedTokensOut, balanceChanges);
     }
+
+    // function executeArbitraryAmounts(
+    //     uint256 amountIn,
+    //     address[][] calldata hooks,
+    //     bytes32[][] calldata hookProofs,
+    //     bytes[][] calldata hookCalldata,
+    //     address[] calldata expectedTokensOut
+    // ) external {
+    //     _requireRole(STRATEGIST_ROLE);
+    // }
+    
 
     /// @inheritdoc ISuperVaultStrategy
-    function executeArbitraryAmounts(
-        uint256 amountIn,
-        address[][] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[][] calldata hookCalldata
-    )
-        external
-    {
-        _requireRole(STRATEGIST_ROLE);
+    // function executeArbitraryAmounts(
+    //     uint256 amountIn,
+    //     address[][] calldata hooks,
+    //     bytes32[][] calldata hookProofs,
+    //     bytes[][] calldata hookCalldata
+    // )
+    //     external
+    // {
+    //     _requireRole(STRATEGIST_ROLE);
 
-        // Validate overall hook sets
-        _validateHookSets(hooks, hookCalldata, 2); // Must have exactly 2 arrays: swap and allocate
+    //     // Validate overall hook sets
+    //     _validateHookSets(hooks, hookCalldata, 2); // Must have exactly 2 arrays: swap and allocate
 
-        // Validate individual hook arrays
-        _validateHookArrayLengths(hooks[0], swapHookProofs, hookCalldata[0]);
-        _validateHookArrayLengths(hooks[1], allocateHookProofs, hookCalldata[1]);
+    //     // Validate individual hook arrays
+    //     _validateHookArrayLengths(hooks[0], swapHookProofs, hookCalldata[0]);
+    //     _validateHookArrayLengths(hooks[1], allocateHookProofs, hookCalldata[1]);
 
-        uint256 claimedTokensLength = claimedTokensToCompound.length;
-        if (claimedTokensLength == 0) revert ZERO_LENGTH();
+    //     uint256 claimedTokensLength = claimedTokensToCompound.length;
+    //     if (claimedTokensLength == 0) revert ZERO_LENGTH();
 
-        ClaimLocalVars memory vars;
+    //     ClaimLocalVars memory vars;
 
-        // Get initial asset balance
-        vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
+    //     // Get initial asset balance
+    //     vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
 
-        // Get balance changes for claimed tokens
-        vars.balanceChanges = new uint256[](claimedTokensLength);
-        for (uint256 i; i < claimedTokensLength;) {
-            vars.balanceChanges[i] = claimedTokens[claimedTokensToCompound[i]];
-            // Reset claimed tokens amount
-            if (vars.balanceChanges[i] > 0) {
-                claimedTokens[claimedTokensToCompound[i]] = 0;
-            }
-            unchecked {
-                ++i;
-            }
-        }
+    //     // Get balance changes for claimed tokens
+    //     vars.balanceChanges = new uint256[](claimedTokensLength);
+    //     for (uint256 i; i < claimedTokensLength;) {
+    //         vars.balanceChanges[i] = claimedTokens[claimedTokensToCompound[i]];
+    //         // Reset claimed tokens amount
+    //         if (vars.balanceChanges[i] > 0) {
+    //             claimedTokens[claimedTokensToCompound[i]] = 0;
+    //         }
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
 
-        // Step 1: Execute swap hooks and get asset gained
-        vars.assetGained = _processSwapHookExecution(
-            hooks[0],
-            swapHookProofs,
-            hookCalldata[0],
-            claimedTokensToCompound,
-            vars.balanceChanges,
-            vars.initialAssetBalance
-        );
+    //     // Step 1: Execute swap hooks and get asset gained
+    //     vars.assetGained = _processSwapHookExecution(
+    //         hooks[0],
+    //         swapHookProofs,
+    //         hookCalldata[0],
+    //         claimedTokensToCompound,
+    //         vars.balanceChanges,
+    //         vars.initialAssetBalance
+    //     );
 
-        // Step 2: Execute inflow hooks to allocate gained assets
-        vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
+    //     // Step 2: Execute inflow hooks to allocate gained assets
+    //     vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
 
-        (vars.fulfillmentVars, vars.targetedYieldSources) =
-            _processHooks(hooks[1], allocateHookProofs, hookCalldata[1], vars.fulfillmentVars, true);
+    //     (vars.fulfillmentVars, vars.targetedYieldSources) =
+    //         _processHooks(hooks[1], allocateHookProofs, hookCalldata[1], vars.fulfillmentVars, true);
 
-        // Check vault caps after all hooks are processed
-        _checkVaultCaps(vars.targetedYieldSources);
+    //     // Check vault caps after all hooks are processed
+    //     _checkVaultCaps(vars.targetedYieldSources);
 
-        // Verify all assets were allocated
-        if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_AMOUNT();
+    //     // Verify all assets were allocated
+    //     if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_AMOUNT();
 
-        emit RewardsClaimedAndCompounded(vars.assetGained);
-    }
+    //     emit RewardsClaimedAndCompounded(vars.assetGained);
+    // }
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
@@ -1302,26 +1310,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @notice Process non-accounting hook executions
-    /// @param hooks Array of hooks to process
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
+    /// @param hookVars ArbitraryHookExecutionVars struct containing hook execution parameters
     /// @return balanceChanges Array of balance changes for each token
     function _processArbitraryHookExecution(
-        bool approvalNeeded,
-        uint256 amountIn,
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
+        ArbitraryHookExecutionVars calldata hookVars
     )
         private
         returns (uint256[] memory balanceChanges)
     {
         // Get initial balances
-        uint256[] memory initialBalances = new uint256[](expectedTokensOut.length);
-        for (uint256 i = 0; i < expectedTokensOut.length;) {
-            initialBalances[i] = _getTokenBalance(expectedTokensOut[i], address(this));
+        uint256[] memory initialBalances = new uint256[](hookVars.expectedTokensOut.length);
+        for (uint256 i = 0; i < hookVars.expectedTokensOut.length;) {
+            initialBalances[i] = _getTokenBalance(hookVars.expectedTokensOut[i], address(this));
             unchecked {
                 ++i;
             }
@@ -1329,89 +1329,74 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Process hooks
         address prevHook;
-        for (uint256 i = 0; i < hooks.length;) {
-            if (!approvalNeeded) {
-                // Execute hook with no approval needed
-                _executeHook(
-                    hooks[i],
-                    prevHook,
-                    hookCalldata[i],
-                    hookProofs[i],
-                    ISuperHook.HookType.NONACCOUNTING,
-                    false, // No yield source validation needed for these hooks
-                    address(0), // no approval needed
-                    0
-                );
-            } else {
-                // Execute hook with approval needed
-                _executeHook(
-                    hooks[i],
-                    prevHook,
-                    hookCalldata[i],
-                    hookProofs[i],
-                    ISuperHook.HookType.NONACCOUNTING,
-                    false, // No yield source validation needed for these hooks
-                    expectedTokensOut[i],
-                    amountIn
-                );
-            }
-            prevHook = hooks[i];
+        for (uint256 i = 0; i < hookVars.hooks.length;) {
+            _executeHook(
+                hookVars.hooks[i],
+                prevHook,
+                hookVars.hookCalldata[i],
+                hookVars.hookProofs[i],
+                ISuperHook.HookType.NONACCOUNTING,
+                false, // No yield source validation needed for these hooks
+                hookVars.expectedTokensOut[i], // approval token
+                hookVars.amountIn // approval amount, can be zero
+            );   
+            prevHook = hookVars.hooks[i];
             unchecked {
                 ++i;
             }
         }
 
         // Track balance changes
-        balanceChanges = _trackBalanceChanges(expectedTokensOut, initialBalances, false);
+        balanceChanges = _trackBalanceChanges(hookVars.expectedTokensOut, initialBalances, false);
     }
 
-    /// @notice Process swap hook execution
-    /// @param hooks Array of hooks to process
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    /// @param initialBalances Array of initial balances for each token
-    /// @param initialAssetBalance Initial balance of the asset
-    /// @return assetGained Amount of asset gained from swaps
-    function _processSwapHookExecution(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut,
-        uint256[] memory initialBalances,
-        uint256 initialAssetBalance
-    )
-        private
-        returns (uint256 assetGained)
-    {
-        // Process hooks
-        address prevHook;
-        for (uint256 i = 0; i < hooks.length;) {
-            // Execute hook with expected token approval
-            _executeHook(
-                hooks[i],
-                prevHook,
-                hookCalldata[i],
-                hookProofs[i],
-                ISuperHook.HookType.NONACCOUNTING,
-                false,
-                expectedTokensOut[i],
-                initialBalances[i]
-            );
-            prevHook = hooks[i];
-            unchecked {
-                ++i;
-            }
-        }
+    // /// @notice Process swap hook execution
+    // /// @param hooks Array of hooks to process
+    // /// @param hookProofs Array of merkle proofs for hooks
+    // /// @param hookCalldata Array of calldata for hooks
+    // /// @param expectedTokensOut Array of tokens expected from hooks
+    // /// @param initialBalances Array of initial balances for each token
+    // /// @param initialAssetBalance Initial balance of the asset
+    // /// @return assetGained Amount of asset gained from swaps
+    // function _processSwapHookExecution(
+    //     address[] calldata hooks,
+    //     bytes32[][] calldata hookProofs,
+    //     bytes[] calldata hookCalldata,
+    //     address[] calldata expectedTokensOut,
+    //     uint256[] memory initialBalances,
+    //     uint256 initialAssetBalance
+    // )
+    //     private
+    //     returns (uint256 assetGained)
+    // {
+    //     // Process hooks
+    //     address prevHook;
+    //     for (uint256 i = 0; i < hooks.length;) {
+    //         // Execute hook with expected token approval
+    //         _executeHook(
+    //             hooks[i],
+    //             prevHook,
+    //             hookCalldata[i],
+    //             hookProofs[i],
+    //             ISuperHook.HookType.NONACCOUNTING,
+    //             false,
+    //             expectedTokensOut[i],
+    //             initialBalances[i]
+    //         );
+    //         prevHook = hooks[i];
+    //         unchecked {
+    //             ++i;
+    //         }
+    //     }
 
-        // Verify all initial token balances are now zero
-        _trackBalanceChanges(expectedTokensOut, initialBalances, true);
+    //     // Verify all initial token balances are now zero
+    //     _trackBalanceChanges(expectedTokensOut, initialBalances, true);
 
-        // Calculate asset gained by comparing final balance with initial
-        uint256 finalAssetBalance = _getTokenBalance(address(_asset), address(this));
-        if (finalAssetBalance <= initialAssetBalance) revert INVALID_BALANCE_CHANGE();
-        assetGained = finalAssetBalance - initialAssetBalance;
-    }
+    //     // Calculate asset gained by comparing final balance with initial
+    //     uint256 finalAssetBalance = _getTokenBalance(address(_asset), address(this));
+    //     if (finalAssetBalance <= initialAssetBalance) revert INVALID_BALANCE_CHANGE();
+    //     assetGained = finalAssetBalance - initialAssetBalance;
+    // }
 
     /// @notice Check vault caps for targeted yield sources
     /// @param targetedYieldSources Array of yield sources to check
