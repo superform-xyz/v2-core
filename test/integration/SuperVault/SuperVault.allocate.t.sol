@@ -62,10 +62,6 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(depositHookAddress);
-
         bytes[] memory hooksData = new bytes[](2);
         // redeem from FluidVault
         hooksData[0] = _createWithdraw4626HookData(
@@ -82,7 +78,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         );
 
         vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // change allocation rates
@@ -98,7 +94,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
@@ -194,17 +190,13 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(depositHookAddress);
-
         bytes[] memory hooksData = new bytes[](2);
 
         // Determine which way to rebalance
         if (vars.currentFluidVaultAssets < vars.targetFluidVaultAssets) {
-            _rebalanceFromAaveToFluid(vars, hooksAddresses, proofs, hooksData);
+            _rebalanceFromAaveToFluid(vars, hooksAddresses, hooksData);
         } else {
-            _rebalanceFromFluidToAave(vars, hooksAddresses, proofs, hooksData);
+            _rebalanceFromFluidToAave(vars, hooksAddresses, hooksData);
         }
 
         // final balances
@@ -283,9 +275,9 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
 
         vm.startPrank(STRATEGIST);
         if (vars.currentFluidVaultAssets < vars.targetFluidVaultAssets) {
-            _rebalanceFromAaveToFluid(vars, hooksAddresses, proofs, hooksData);
+            _rebalanceFromAaveToFluid(vars, hooksAddresses, hooksData);
         } else {
-            _rebalanceFromFluidToAave(vars, hooksAddresses, proofs, hooksData);
+            _rebalanceFromFluidToAave(vars, hooksAddresses, hooksData);
         }
         vm.stopPrank();
 
@@ -381,9 +373,9 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
 
         vm.startPrank(STRATEGIST);
         if (vars.currentFluidVaultAssets < vars.targetFluidVaultAssets) {
-            _rebalanceFromAaveToFluid(vars, hooksAddresses, proofs, hooksData);
+            _rebalanceFromAaveToFluid(vars, hooksAddresses, hooksData);
         } else {
-            _rebalanceFromFluidToAave(vars, hooksAddresses, proofs, hooksData);
+            _rebalanceFromFluidToAave(vars, hooksAddresses, hooksData);
         }
         vm.stopPrank();
 
@@ -484,11 +476,6 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         hooksAddresses[1] = withdrawHookAddress;
         hooksAddresses[2] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](3);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(withdrawHookAddress);
-        proofs[2] = _getMerkleProof(depositHookAddress);
-
         bytes[] memory hooksData = new bytes[](3);
         // redeem from FluidVault
         hooksData[0] = _createWithdraw4626HookData(
@@ -530,7 +517,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
@@ -576,12 +563,10 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
     function _rebalanceFromAaveToFluid(
         RebalanceVars memory vars,
         address[] memory hooksAddresses,
-        bytes32[][] memory proofs,
         bytes[] memory hooksData
     ) private {
         _rebalanceFromVaultToVault(
             hooksAddresses,
-            proofs,
             hooksData,
             address(aaveVault),
             address(fluidVault),
@@ -593,12 +578,10 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
     function _rebalanceFromFluidToAave(
         RebalanceVars memory vars,
         address[] memory hooksAddresses,
-        bytes32[][] memory proofs,
         bytes[] memory hooksData
     ) private {
         _rebalanceFromVaultToVault(
             hooksAddresses,
-            proofs,
             hooksData,
             address(fluidVault),
             address(aaveVault),
