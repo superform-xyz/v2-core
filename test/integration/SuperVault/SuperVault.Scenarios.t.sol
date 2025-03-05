@@ -857,20 +857,28 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         view
         returns (MultipleOperationsVars memory)
     {
-        for (uint256 i; i < ACCOUNT_COUNT && vars.selectedCount < 15; i++) {
-            uint256 randIndex = uint256(keccak256(abi.encodePacked(vars.seed, "redeem", i))) % ACCOUNT_COUNT;
+        uint256 attempt = 0;
+        while (vars.selectedCount < 15 && attempt < ACCOUNT_COUNT * 2) {
+            uint256 randIndex = uint256(keccak256(abi.encodePacked(vars.seed, block.timestamp, "redeem", attempt))) % ACCOUNT_COUNT;
+            
             if (!vars.selected[randIndex]) {
                 vars.selected[randIndex] = true;
-                vars.redeemUsers[vars.selectedCount] = accInstances[randIndex].account;
-                // Redeem 25-75% of their balance
-                uint256 randPercent = 25 + (uint256(keccak256(abi.encodePacked(vars.seed, "percent", i))) % 51);
-                uint256 shares = vault.balanceOf(accInstances[randIndex].account);
-                vars.redeemAmounts[vars.selectedCount] = (shares * randPercent) / 100;
-                vars.selectedCount++;
+                address user = accInstances[randIndex].account;
+
+                // Ensure user has a balance
+                uint256 shares = vault.balanceOf(user);
+                if (shares > 0) {
+                    uint256 randPercent = 25 + (uint256(keccak256(abi.encodePacked(vars.seed, "percent", attempt))) % 51);
+                    vars.redeemUsers[vars.selectedCount] = user;
+                    vars.redeemAmounts[vars.selectedCount] = (shares * randPercent) / 100;
+                    vars.selectedCount++;
+                }
             }
+            attempt++;
         }
         return vars;
     }
+
 
     function _processRedemptionRequests(MultipleOperationsVars memory vars) internal {
         for (uint256 i; i < 15; i++) {
