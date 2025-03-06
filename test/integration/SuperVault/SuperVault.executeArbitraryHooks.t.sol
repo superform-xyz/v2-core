@@ -78,9 +78,9 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         vm.label(gearboxVaultAddr, "GearboxVault");
         gearboxVault = IERC4626(gearboxVaultAddr);
 
-        address gearboxStakingAddr 
-        = realVaultAddresses[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
-        console2.log("gearboxStakingAddr: ", gearboxStakingAddr); 
+        address gearboxStakingAddr =
+            realVaultAddresses[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
+        console2.log("gearboxStakingAddr: ", gearboxStakingAddr);
         vm.label(gearboxStakingAddr, "GearboxStaking");
         gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
 
@@ -103,11 +103,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         bytes[] memory bootstrapHooksData = new bytes[](1);
         bootstrapHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(gearboxVault),
-            BOOTSTRAP_AMOUNT, 
-            false, 
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), BOOTSTRAP_AMOUNT, false, false
         );
 
         vm.startPrank(SV_MANAGER);
@@ -212,7 +208,11 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         // Verify shares are escrowed
         assertEq(IERC20(gearSuperVault.share()).balanceOf(accountEth), 0, "User shares not transferred from account");
-        assertEq(IERC20(gearSuperVault.share()).balanceOf(address(escrowGearSuperVault)), userShares, "Shares not transferred to escrow");
+        assertEq(
+            IERC20(gearSuperVault.share()).balanceOf(address(escrowGearSuperVault)),
+            userShares,
+            "Shares not transferred to escrow"
+        );
 
         // Step 5: Fulfill Redeem
         _fulfillRedeem_Gearbox_SV(userShares);
@@ -260,11 +260,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         bytes[] memory fulfillHooksData = new bytes[](1);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(gearboxVault), 
-            depositAmount, 
-            false, 
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), depositAmount, false, false
         );
 
         vm.startPrank(STRATEGIST);
@@ -282,11 +278,11 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), 
-            address(gearSuperVault), 
-            accountEth, 
-            depositAmount, 
-            false, 
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearSuperVault),
+            accountEth,
+            depositAmount,
+            false,
             false
         );
 
@@ -308,11 +304,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake, false);
         hooksData[1] = _createGearboxStakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
-            address(gearboxFarmingPool), 
-            amountToStake, 
-            false, 
-            false
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToStake, false, false
         );
 
         address[] memory tokensIn = new address[](2);
@@ -329,15 +321,15 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         vm.prank(STRATEGIST);
         strategyGearSuperVault.executeArbitraryHooks(
-          ISuperVaultStrategy.ArbitraryHookExecutionVars({
-            amountIn: amountToStake,
-            tokensIn: tokensIn,
-            yieldSources: yieldSources,
-            expectedTokensOut: expectedTokensOut,
-            hooks: hooksAddresses,
-            hookProofs: proofs,
-            hookCalldata: hooksData
-          })
+            ISuperVaultStrategy.ArbitraryHookExecutionVars({
+                amountIn: amountToStake,
+                tokensIn: tokensIn,
+                yieldSources: yieldSources,
+                expectedTokensOut: expectedTokensOut,
+                hooks: hooksAddresses,
+                hookProofs: proofs,
+                hookCalldata: hooksData
+            })
         );
     }
 
@@ -347,11 +339,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), 
-            address(gearSuperVault), 
-            accountEth, 
-            shares, 
-            false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accountEth, shares, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -370,12 +358,10 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         //proofs[1] = _getMerkleProof(hooksAddresses[1]);
 
         bytes[] memory hooksData = new bytes[](1);
-        //hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake, false);
+        //hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake,
+        // false);
         hooksData[0] = _createGearboxUnstakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
-            address(gearboxFarmingPool), 
-            amountToUnStake, 
-            false
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false
         );
 
         address[] memory tokensIn = new address[](1);
@@ -389,15 +375,15 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
 
         vm.prank(STRATEGIST);
         strategyGearSuperVault.executeArbitraryHooks(
-          ISuperVaultStrategy.ArbitraryHookExecutionVars({
-            amountIn: amountToUnStake,
-            tokensIn: tokensIn,
-            yieldSources: yieldSources,
-            expectedTokensOut: expectedTokensOut,
-            hooks: hooksAddresses,
-            hookProofs: proofs,
-            hookCalldata: hooksData
-          })
+            ISuperVaultStrategy.ArbitraryHookExecutionVars({
+                amountIn: amountToUnStake,
+                tokensIn: tokensIn,
+                yieldSources: yieldSources,
+                expectedTokensOut: expectedTokensOut,
+                hooks: hooksAddresses,
+                hookProofs: proofs,
+                hookCalldata: hooksData
+            })
         );
     }
 
@@ -439,5 +425,4 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-    
 }
