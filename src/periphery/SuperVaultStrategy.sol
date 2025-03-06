@@ -24,11 +24,10 @@ import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
-import { console2 } from "forge-std/console2.sol";
+
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
-
 contract SuperVaultStrategy is ISuperVaultStrategy {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -210,14 +209,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.availableAmount = _getTokenBalance(address(_asset), address(this));
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
-        if (isDeposit) console2.log("\n----FULFILLDEPOSITS-------");
-        else console2.log("\n----FULFILLREDEEM-------");
+
         /// @dev grab current PPS before processing hooks
-        /// In deposits, assets haven't reached the underlying vaults yet
-        /// In redeems, if grabbed here, assets are still in the underlying vaults
         vars.pricePerShare = _getSuperVaultPPS();
 
-        console2.log("totalRequestedAmount", vars.totalRequestedAmount);
         // Process hooks and get targeted yield sources
         address[] memory targetedYieldSources;
         bytes32[][] memory hookProofs = new bytes32[][](hooksLength);
@@ -258,32 +253,23 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Track shares used from each redeemer in memory
         uint256[] memory sharesUsedByRedeemer = new uint256[](redeemLength);
-        console2.log("\n----------MATCH-REQUESTS--------");
         // Process deposits first, matching with redeem requests
         // Full deposit fulfilment is prioritized vs outflows from the SuperVault (which can be partially matched)
         for (uint256 i; i < depositLength;) {
-            console2.log("\n-----DEPOSITOR----", i);
             address depositor = depositUsers[i];
             SuperVaultState storage depositState = superVaultState[depositor];
             vars.depositAssets = depositState.pendingDepositRequest;
-            console2.log("DEPOSIT ASSETS", vars.depositAssets);
-            console2.log("depositor", depositor);
             if (vars.depositAssets == 0) revert REQUEST_NOT_FOUND();
 
             // Calculate shares needed at current price
             vars.sharesNeeded = vars.depositAssets.mulDiv(PRECISION, vars.currentPricePerShare, Math.Rounding.Floor);
             vars.remainingShares = vars.sharesNeeded;
 
-            console2.log("vars.depositAssets", vars.depositAssets);
-            console2.log("vars.currentPricePerShare", vars.currentPricePerShare);
-            console2.log("vars.sharesNeeded", vars.sharesNeeded);
-
             // Try to fulfill with redeem requests
             for (uint256 j; j < redeemLength && vars.remainingShares > 0;) {
                 address redeemer = redeemUsers[j];
                 SuperVaultState storage redeemState = superVaultState[redeemer];
                 vars.redeemShares = redeemState.pendingRedeemRequest;
-                console2.log("redeemShares", vars.redeemShares);
                 if (vars.redeemShares == 0) {
                     unchecked {
                         ++j;
@@ -299,8 +285,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 sharesUsedByRedeemer[j] += vars.sharesToUse;
 
                 vars.remainingShares -= vars.sharesToUse;
-
-                console2.log("vars.remainingShares", vars.remainingShares);
 
                 unchecked {
                     ++j;
@@ -816,16 +800,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Calculate current PPS in price decimals
             (uint256 totalAssetsValue,) = totalAssets();
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
-            console2.log("totalAssetsValue", totalAssetsValue);
         }
-        console2.log("PPS", pricePerShare);
-        console2.log("totalSupplyAmount", totalSupplyAmount);
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
-        console2.log("shares", vars.shares);
 
         uint256 newTotalUserShares = state.maxMint + vars.shares;
 
@@ -858,8 +838,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         state.sharePricePointCursor = lastConsumedIndex;
         state.pendingRedeemRequest = 0;
-
-        console2.log("finalAssets", finalAssets);
 
         state.maxWithdraw += finalAssets;
 
@@ -913,7 +891,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (shares == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
-        console2.log("PPS ON REDEEM", _getSuperVaultPPS());
 
         state.pendingRedeemRequest = state.pendingRedeemRequest + shares;
         return shares;
@@ -1203,7 +1180,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
-
         uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
         // Execute hook with asset approval

@@ -21,11 +21,10 @@ import {
 } from "../vendor/standards/ERC7540/IERC7540Vault.sol";
 import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
-import { console2 } from "forge-std/console2.sol";
+
 /// @title SuperVault
 /// @author SuperForm Labs
 /// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
-
 contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -187,8 +186,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (shares == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
-        console2.log("shares", shares);
-        console2.log("balanceOf(owner)", balanceOf(owner));
         if (balanceOf(owner) < shares) revert INVALID_AMOUNT();
 
         // If msg.sender is operator of owner, the transfer is executed as if
