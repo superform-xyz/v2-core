@@ -477,7 +477,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
         // Forward to strategy
         uint256 actualAssets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
-
         // Transfer shares back to vault and burn them
         ISuperVaultEscrow(escrow).transferShares(address(this), shares);
         _burn(address(this), shares);

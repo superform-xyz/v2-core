@@ -45,7 +45,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertEq(strategy.pendingDepositRequest(accountEth), depositAmount, "Wrong pending deposit amount");
         console2.log("Pending deposit request:", strategy.pendingDepositRequest(accountEth));
         // Fulfill deposit
-        _fulfillDeposit(depositAmount);
+        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
 
         // Verify state
         assertEq(strategy.pendingDepositRequest(accountEth), 0, "Pending request not cleared");
@@ -57,13 +57,13 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // First setup a deposit and claim it
         _requestDeposit(depositAmount);
-        _fulfillDeposit(depositAmount);
+        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
         _claimDeposit(depositAmount);
 
         uint256 vaultBalance = vault.balanceOf(accountEth);
         uint256 redeemShares = vaultBalance - (vaultBalance * 2e4 / 1e5);
         _requestRedeem(redeemShares);
-        _fulfillRedeem(redeemShares);
+        _fulfillRedeem(redeemShares, address(fluidVault), address(aaveVault));
 
         // Verify state
         assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
@@ -75,12 +75,12 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // First setup a deposit and claim it
         _requestDeposit(depositAmount);
-        _fulfillDeposit(depositAmount);
+        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
         _claimDeposit(depositAmount);
 
         uint256 redeemShares = vault.balanceOf(accountEth);
         _requestRedeem(redeemShares);
-        _fulfillRedeem(redeemShares);
+        _fulfillRedeem(redeemShares, address(fluidVault), address(aaveVault));
 
         uint256 vaultShares = vault.balanceOf(accountEth);
         assertEq(vaultShares, 0, "Vault shares not zero");
@@ -95,7 +95,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Setup and fulfill deposit
         _requestDeposit(depositAmount);
-        _fulfillDeposit(depositAmount);
+        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
 
         // Get claimable shares
         uint256 claimableShares = strategy.getSuperVaultState(accountEth, 1);
@@ -117,7 +117,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // First setup a deposit and claim it
         _requestDeposit(depositAmount);
-        _fulfillDeposit(depositAmount);
+        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
         _claimDeposit(depositAmount);
 
         // Now request redeem of half the shares
@@ -134,13 +134,13 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // First setup a deposit and claim it
         _requestDeposit(depositAmount);
-        _fulfillDeposit(depositAmount);
+        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
         _claimDeposit(depositAmount);
 
         // Now request redeem of half the shares
         uint256 redeemShares = vault.balanceOf(accountEth) / 2;
         _requestRedeem(redeemShares);
-        _fulfillRedeem(redeemShares);
+        _fulfillRedeem(redeemShares, address(fluidVault), address(aaveVault));
 
         // Verify state
         assertEq(strategy.pendingRedeemRequest(accountEth), 0, "Pending redeem request not cleared");
@@ -155,7 +155,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         // First setup a deposit and claim it
         _requestDeposit(depositAmount);
         console2.log("-------------- initialAssetBalance strategy 1 ", asset.balanceOf(address(strategy)));
-        _fulfillDeposit(depositAmount);
+        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
         console2.log("-------------- initialAssetBalance strategy 2 ", asset.balanceOf(address(strategy)));
         _claimDeposit(depositAmount);
         console2.log("-------------- initialAssetBalance strategy 3 ", asset.balanceOf(address(strategy)));
@@ -169,7 +169,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         // Request redeem of half the shares
         uint256 redeemShares = initialShares / 2;
         _requestRedeem(redeemShares);
-        _fulfillRedeem(redeemShares);
+        _fulfillRedeem(redeemShares, address(fluidVault), address(aaveVault));
 
         console2.log("-------------- balance strategy after redeem ", asset.balanceOf(address(strategy)));
         // Get claimable assets

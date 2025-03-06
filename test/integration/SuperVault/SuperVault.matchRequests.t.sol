@@ -88,9 +88,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             _getTokens(address(asset), accInstances[redeemIndex].account, amount);
             _requestDepositForAccount(accInstances[redeemIndex], amount);
 
-            vm.startPrank(STRATEGIST);
-            __fulfillDepositRequest(accInstances[redeemIndex], amount);
-            vm.stopPrank();
+            _fulfillDeposit(amount, accInstances[redeemIndex].account, address(fluidVault), address(aaveVault));
 
             _claimDepositForAccount(accInstances[redeemIndex], amount);
             redeemUsers[i] = accInstances[redeemIndex].account;
@@ -423,7 +421,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         uint256 strategyBalanceBefore = IERC20(address(asset)).balanceOf(address(strategy));
         console2.log("Strategy balance before fulfill:", strategyBalanceBefore);
 
-        __fulfillDepositRequest(acc, amount);
+        _fulfillDeposit(amount, acc.account, address(fluidVault), address(aaveVault));
 
         uint256 strategyBalanceAfter = IERC20(address(asset)).balanceOf(address(strategy));
         console2.log("Strategy balance after fulfill:", strategyBalanceAfter);
