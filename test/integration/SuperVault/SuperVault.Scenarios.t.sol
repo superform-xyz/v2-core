@@ -73,14 +73,17 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 depositAmount;
         uint256 initialFluidVaultBalance;
         uint256 initialAaveVaultBalance;
+        uint256 initialMockVaultBalance;
         uint256 initialPendleVaultBalance;
         uint256 amountToReallocateFluidVault;
         uint256 amountToReallocateAaveVault;
         uint256 assetAmountToReallocateFromFluidVault;
         uint256 assetAmountToReallocateFromAaveVault;
+        uint256 assetAmountToReallocateToMockVault;
         uint256 assetAmountToReallocateToPendleVault;
         uint256 finalFluidVaultBalance;
         uint256 finalAaveVaultBalance;
+        uint256 finalMockVaultBalance;
         uint256 finalPendleVaultBalance;
         uint256 initialTotalValue;
         uint256 finalTotalValue;
@@ -90,6 +93,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 initialFluidVaultPPS;
         uint256 initialAaveVaultPPS;
         uint256 initialPendleVaultPPS;
+        uint256 initialMockVaultPPS;
     }
 
     struct VaultLifecycleVars {
@@ -912,6 +916,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Aave Vault:", aaveRatio, "%");
         console2.log("Mock Vault:", mockRatio, "%");
     }
+   
+
 
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
@@ -939,10 +945,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = withdrawHookAddress;
         hooksAddresses[2] = depositHookAddress;
-
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(withdrawHookAddress);
-        proofs[2] = _getMerkleProof(depositHookAddress);
 
         hooksData[0] = _createWithdraw4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -972,7 +974,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 20 days);
@@ -1029,9 +1031,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
         hooksAddresses[2] = depositHookAddress;
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(depositHookAddress);
-        proofs[2] = _getMerkleProof(depositHookAddress);
 
         hooksData[0] = _createWithdraw4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -1060,7 +1059,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, proofs, hooksData);
+        strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 20 days);
