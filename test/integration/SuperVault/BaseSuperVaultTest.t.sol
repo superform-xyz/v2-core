@@ -497,6 +497,46 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    function _fulfillDepositForUsers(
+        address[] memory requestingUsers,
+        address vault1,
+        address vault2,
+        address vault3,
+        uint256 allocationAmountVault1,
+        uint256 allocationAmountVault2,
+        uint256 allocationAmountVault3
+    )
+        internal
+    {
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](3);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+        fulfillHooksAddresses[2] = depositHookAddress;
+
+        bytes32[][] memory proofs = new bytes32[][](3);
+        proofs[0] = _getMerkleProof(depositHookAddress);
+        proofs[1] = proofs[0];
+        proofs[2] = proofs[0];
+
+        bytes[] memory fulfillHooksData = new bytes[](3);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault1), allocationAmountVault1, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault2), allocationAmountVault2, false, false
+        );
+        fulfillHooksData[2] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault3), allocationAmountVault3, false, false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, true);
+        vm.stopPrank();
+    }
+
     function _fulfillRedeemForUsers(
         address[] memory requestingUsers,
         uint256 redeemSharesVault1,
