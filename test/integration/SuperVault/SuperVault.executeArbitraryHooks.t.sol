@@ -176,7 +176,7 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
             asset.balanceOf(accountEth), initialUserAssets - amount, "User assets not reduced after deposit request"
         );
 
-        uint256 amountToStake = gearboxVault.convertToShares(amount);
+        uint256 amountToStake = gearSuperVault.convertToShares(amount);
 
         // Step 2: Fulfill Deposit
         _fulfillDeposit_Gearbox_SV(amount);
@@ -188,7 +188,8 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         __claimDeposit_Gearbox_SV(amount);
 
         // Get shares minted to user
-        uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
+        uint256 userShares = IERC4626(gearSuperVault).balanceOf(accountEth);
+        console2.log("userShares: ", userShares);
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
@@ -197,8 +198,31 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
 
+        uint256 amountToUnStake = gearboxFarmingPool.balanceOf(address(strategyGearSuperVault));
+        console2.log("amountToUnStake: ", amountToUnStake);
+
+        console2.log("ppsBeforeUnStake: ", _getSuperVaultPricePerShare());
+
+        _executeUnStakeHook(amountToUnStake);
+
+        console2.log("ppsAfterUnStake: ", _getSuperVaultPricePerShare());
+
         // Step 4: Request Redeem
-        //_requestRedeem_Gearbox_SV(userShares);
+        _requestRedeem_Gearbox_SV(userShares);
+
+        // Verify shares are escrowed
+        assertEq(IERC20(gearSuperVault.share()).balanceOf(accountEth), 0, "User shares not transferred from account");
+        assertEq(IERC20(gearSuperVault.share()).balanceOf(address(escrowGearSuperVault)), userShares, "Shares not transferred to escrow");
+
+        // Step 5: Fulfill Redeem
+        _fulfillRedeem_Gearbox_SV(userShares);
+
+        uint256 claimableAssets = gearSuperVault.maxWithdraw(accountEth);
+
+        // Step 6: Claim Withdraw
+        _claimWithdraw_Gearbox_SV(claimableAssets);
+        console2.log("userAssetChange: ", asset.balanceOf(accountEth) - preRedeemUserAssets);
+        console2.log("ppsAfter: ", _getSuperVaultPricePerShare());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -212,12 +236,12 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(gearSuperVault), depositAmount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accInst.account, depositAmount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accountEth, depositAmount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(entry));
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
     }
 
@@ -335,4 +359,85 @@ contract SuperVaultExecuteArbitraryHooksTest is BaseSuperVaultTest {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
     }
+
+    function _executeUnStakeHook(uint256 amountToUnStake) internal {
+        address[] memory hooksAddresses = new address[](1);
+        //hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, GEARBOX_UNSTAKE_HOOK_KEY);
+
+        bytes32[][] memory proofs = new bytes32[][](1);
+        proofs[0] = _getMerkleProof(hooksAddresses[0]);
+        //proofs[1] = _getMerkleProof(hooksAddresses[1]);
+
+        bytes[] memory hooksData = new bytes[](1);
+        //hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake, false);
+        hooksData[0] = _createGearboxUnstakeHookData(
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), 
+            address(gearboxFarmingPool), 
+            amountToUnStake, 
+            false
+        );
+
+        address[] memory tokensIn = new address[](1);
+        tokensIn[0] = address(gearboxVault);
+
+        address[] memory yieldSources = new address[](1);
+        yieldSources[0] = address(gearboxFarmingPool);
+
+        address[] memory expectedTokensOut = new address[](1);
+        expectedTokensOut[0] = gearToken;
+
+        vm.prank(STRATEGIST);
+        strategyGearSuperVault.executeArbitraryHooks(
+          ISuperVaultStrategy.ArbitraryHookExecutionVars({
+            amountIn: amountToUnStake,
+            tokensIn: tokensIn,
+            yieldSources: yieldSources,
+            expectedTokensOut: expectedTokensOut,
+            hooks: hooksAddresses,
+            hookProofs: proofs,
+            hookCalldata: hooksData
+          })
+        );
+    }
+
+    function _fulfillRedeem_Gearbox_SV(uint256 shares) internal {
+        /// @dev with preserve percentages based on USD value allocation
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountEth;
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](1);
+        fulfillHooksAddresses[0] = withdrawHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](1);
+        fulfillHooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxVault),
+            address(strategyGearSuperVault),
+            shares,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
+        vm.stopPrank();
+    }
+
+    function _claimWithdraw_Gearbox_SV(uint256 assets) internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createWithdraw7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accountEth, assets, false, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
+    }
+    
 }
