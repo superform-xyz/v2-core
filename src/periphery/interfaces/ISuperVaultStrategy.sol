@@ -48,7 +48,6 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ALREADY_ACTIVE();
     error INVALID_PERFORMANCE_FEE_BPS();
     error INVALID_EMERGENCY_WITHDRAWAL();
-    error MAX_ALLOCATION_RATE_EXCEEDED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
     error DEPOSIT_FAILURE_INVALID_TARGET();
@@ -68,7 +67,7 @@ interface ISuperVaultStrategy {
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
     event YieldSourceReactivated(address indexed source);
     event GlobalConfigUpdated(
-        uint256 vaultCap, uint256 superVaultCap, uint256 maxAllocationRate, uint256 vaultThreshold
+        uint256 vaultCap, uint256 superVaultCap, uint256 vaultThreshold
     );
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
@@ -91,7 +90,6 @@ interface ISuperVaultStrategy {
     struct GlobalConfig {
         uint256 vaultCap; // Maximum assets per individual yield source
         uint256 superVaultCap; // Maximum total assets across all yield sources
-        uint256 maxAllocationRate; // Maximum allocation percentage per yield source (in basis points)
         uint256 vaultThreshold; // Minimum TVL of a yield source that can be interacted with
     }
 
@@ -121,7 +119,6 @@ interface ISuperVaultStrategy {
     struct FulfillmentVars {
         // Common variables used in both deposit and redeem flows
         uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
-        uint256 totalSupplyAmount; // Base total amount of shares in the vault
         uint256 spentAmount; // Running total of assets/shares spent in hooks
         uint256 pricePerShare; // Current price per share, used for calculations
         uint256 requestedAmount; // Individual user's requested amount
@@ -130,7 +127,6 @@ interface ISuperVaultStrategy {
         uint256 availableAmount; // Only used in deposit to check initial balance
         // Variables for share calculations
         uint256 shares; // Used in deposit for minting shares
-        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct MatchVars {
@@ -249,11 +245,7 @@ interface ISuperVaultStrategy {
     /// @notice Allocate funds between yield sources
     /// @param hooks Array of hooks to use for allocations
     /// @param hookCalldata Array of calldata for hooks
-    function allocate(
-        address[] calldata hooks,
-        bytes[] calldata hookCalldata
-    )
-        external;
+    function allocate(address[] calldata hooks, bytes[] calldata hookCalldata) external;
 
     /// @notice Claims rewards from yield sources and stores them for later use
     /// @param hooks Array of hooks to use for claiming rewards

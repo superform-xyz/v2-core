@@ -96,7 +96,6 @@ contract SuperVaultFactory is ISuperVaultFactory {
                 bootstrappingHooks: params.bootstrappingHooks,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
                 config: params.config,
-                finalMaxAllocationRate: params.finalMaxAllocationRate,
                 bootstrapAmount: params.bootstrapAmount
             })
         );
@@ -144,23 +143,12 @@ contract SuperVaultFactory is ISuperVaultFactory {
         }
 
         vars.strategyContract.fulfillRequests(
-            vars.users,
-            params.bootstrappingHooks,
-            params.bootstrappingHookCalldata,
-            true
+            vars.users, params.bootstrappingHooks, params.bootstrappingHookCalldata, true
         );
 
         /// @dev Note: Theoretically this could go to an insurance fund
         vars.superVaultContract.deposit(params.bootstrapAmount, params.recipient, address(this));
 
-        vars.strategyContract.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: params.config.vaultCap,
-                superVaultCap: params.config.superVaultCap,
-                maxAllocationRate: params.finalMaxAllocationRate,
-                vaultThreshold: params.config.vaultThreshold
-            })
-        );
         vars.strategyContract.setAddress(vars.STRATEGIST_ROLE, params.strategist);
         vars.strategyContract.setAddress(vars.MANAGER_ROLE, params.manager);
     }

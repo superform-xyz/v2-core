@@ -44,7 +44,6 @@ interface ISuperVaultFactory {
         address feeRecipient;
         // Strategy configuration
         ISuperVaultStrategy.GlobalConfig config;
-        uint256 finalMaxAllocationRate;
         uint256 bootstrapAmount;
         // Initialization parameters
         address initYieldSource;
@@ -66,7 +65,6 @@ interface ISuperVaultFactory {
         address[] bootstrappingHooks;
         bytes[] bootstrappingHookCalldata;
         ISuperVaultStrategy.GlobalConfig config;
-        uint256 finalMaxAllocationRate;
         uint256 bootstrapAmount;
     }
 

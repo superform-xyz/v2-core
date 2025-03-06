@@ -11,7 +11,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     function test_DeployVault() public {
         // Deploy a new vault
         (address vaultAddr, address strategyAddr, address escrowAddr) =
-            _deployVault(address(asset), 1_000_000e6, 5_000_000e6, 10_000, 100_000e6, 1e6, "SV");
+            _deployVault(address(asset), 1_000_000e6, 5_000_000e6, 100_000e6, 1e6, "SV");
         // Verify addresses are not zero
         assertTrue(vaultAddr != address(0), "Vault address should not be zero");
         assertTrue(strategyAddr != address(0), "Strategy address should not be zero");
@@ -52,7 +52,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 address(asset),
                 1_000_000e6, // vaultCap
                 5_000_000e6, // superVaultCap
-                2000, // maxAllocationRate (20%)
                 100_000e6, // vaultThreshold
                 1e6, // bootstrapAmount
                 symbols[i] // symbol
@@ -84,7 +83,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 feeRecipient: TREASURY,
                 vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                maxAllocationRate: 2000,
                 vaultThreshold: 100_000e6,
                 bootstrapAmount: 1e6,
                 symbol: "TV",
@@ -106,7 +104,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 feeRecipient: TREASURY,
                 vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                maxAllocationRate: 2000,
                 vaultThreshold: 100_000e6,
                 bootstrapAmount: 1e6,
                 symbol: "TV",
@@ -128,7 +125,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 feeRecipient: TREASURY,
                 vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                maxAllocationRate: 2000,
                 vaultThreshold: 100_000e6,
                 bootstrapAmount: 1e6,
                 symbol: "TV",
@@ -150,7 +146,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 feeRecipient: TREASURY,
                 vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                maxAllocationRate: 2000,
                 vaultThreshold: 100_000e6,
                 bootstrapAmount: 1e6,
                 symbol: "TV",
@@ -174,7 +169,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         address feeRecipient;
         uint256 vaultCap;
         uint256 superVaultCap;
-        uint256 maxAllocationRate;
         uint256 vaultThreshold;
         uint256 bootstrapAmount;
         string symbol;
@@ -191,7 +185,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         ISuperVaultStrategy.GlobalConfig memory globalConfig = ISuperVaultStrategy.GlobalConfig({
             vaultCap: params.vaultCap,
             superVaultCap: params.superVaultCap,
-            maxAllocationRate: ONE_HUNDRED_PERCENT,
             vaultThreshold: params.vaultThreshold
         });
         (vaultAddr, strategyAddr, escrowAddr) = factory.createVault(
@@ -204,7 +197,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 emergencyAdmin: params.emergencyAdmin,
                 feeRecipient: params.feeRecipient,
                 config: globalConfig,
-                finalMaxAllocationRate: params.maxAllocationRate,
                 bootstrapAmount: params.bootstrapAmount,
                 initYieldSource: params.initYieldSource,
                 initHooksRoot: params.initHooksRoot,

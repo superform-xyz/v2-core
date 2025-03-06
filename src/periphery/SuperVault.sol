@@ -21,10 +21,11 @@ import {
 } from "../vendor/standards/ERC7540/IERC7540Vault.sol";
 import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
-
+import { console2 } from "forge-std/console2.sol";
 /// @title SuperVault
 /// @author SuperForm Labs
 /// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
+
 contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -186,7 +187,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         if (shares == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
-
+        console2.log("shares", shares);
+        console2.log("balanceOf(owner)", balanceOf(owner));
         if (balanceOf(owner) < shares) revert INVALID_AMOUNT();
 
         // If msg.sender is operator of owner, the transfer is executed as if
@@ -371,7 +373,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function maxDeposit(address owner) public view override returns (uint256) {
-        return convertToAssets(maxMint(owner));
+        return maxMint(owner).mulDiv(strategy.getSuperVaultState(owner, 3), PRECISION, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
@@ -381,7 +383,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
 
     /// @inheritdoc IERC4626
     function maxRedeem(address owner) public view override returns (uint256) {
-        return convertToShares(maxWithdraw(owner));
+        return maxWithdraw(owner).mulDiv(PRECISION, strategy.getSuperVaultState(owner, 4), Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
@@ -415,6 +417,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Convert maxMint to assets using average deposit price
         /// @dev we use `Ceil` rounding here because `Floor` is used for shares
         uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, PRECISION, Math.Rounding.Ceil);
+
         if (assets > maxAssets) revert INVALID_DEPOSIT_CLAIM();
 
         // Calculate shares based on assets and average price
@@ -475,11 +478,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         // Calculate shares based on assets and average withdraw price
         shares = assets.mulDiv(PRECISION, averageWithdrawPrice, Math.Rounding.Floor);
 
-        // Forward to strategy
+        // Take assets from strategy
         uint256 actualAssets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
-        // Transfer shares back to vault and burn them
-        ISuperVaultEscrow(escrow).transferShares(address(this), shares);
-        _burn(address(this), shares);
         _asset.safeTransfer(receiver, actualAssets);
 
         emit Withdraw(msg.sender, receiver, owner, actualAssets, shares);
@@ -499,13 +499,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
         uint256 maxWithdrawAmount = maxWithdraw(owner);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
-        // Forward to strategy
-        // true assets transferred are returned here
+        // Take assets from strategy
         assets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
-
-        // Transfer shares back to vault and burn them
-        ISuperVaultEscrow(escrow).transferShares(address(this), shares);
-        _burn(address(this), shares);
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
@@ -516,6 +511,13 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     function mintShares(uint256 amount) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
         _mint(escrow, amount);
+    }
+
+    /// @notice Burn shares, only callable by strategy
+    /// @param amount The amount of shares to burn
+    function burnShares(uint256 amount) external {
+        if (msg.sender != address(strategy)) revert UNAUTHORIZED();
+        _burn(escrow, amount);
     }
 
     /// @notice Callback function for when a deposit becomes claimable

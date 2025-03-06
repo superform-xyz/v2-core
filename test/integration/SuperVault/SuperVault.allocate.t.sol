@@ -22,104 +22,6 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
-    function test_Allocate_BetweenVaults() public {
-        uint256 depositAmount = 1000e6;
-
-        // perform a 50/50 allocation for all users
-        _completeDepositFlow(depositAmount);
-
-        uint256 initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
-        uint256 initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-
-        console2.log("Initial FluidVault balance:", initialFluidVaultBalance);
-        console2.log("Initial AaveVault balance:", initialAaveVaultBalance);
-
-        // 20% goes from fluid to aave
-        uint256 amountToReallocate = initialFluidVaultBalance * 20 / 100;
-        uint256 assetAmountToReallocate = fluidVault.convertToAssets(amountToReallocate);
-        console2.log("Asset amount to reallocate:", assetAmountToReallocate);
-
-        // change allocation rates to make sure it reverts
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 5000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
-
-        //deal(address(asset), address(strategy), assetAmountToReallocate);
-
-        // allocation
-        vm.startPrank(STRATEGIST);
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = withdrawHookAddress;
-        hooksAddresses[1] = depositHookAddress;
-
-        bytes[] memory hooksData = new bytes[](2);
-        // redeem from FluidVault
-        hooksData[0] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(fluidVault),
-            address(strategy),
-            amountToReallocate,
-            false,
-            false
-        );
-        // deposit to aave with exact amount
-        hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), assetAmountToReallocate, false, false
-        );
-
-        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        strategy.allocate(hooksAddresses, hooksData);
-        vm.stopPrank();
-
-        // change allocation rates
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 7000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
-
-        vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
-        vm.stopPrank();
-
-        // check new balances
-        uint256 finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
-        uint256 finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-
-        console2.log("Final FluidVault balance:", finalFluidVaultBalance);
-        console2.log("Final AaveVault balance:", finalAaveVaultBalance);
-        assertApproxEqRel(
-            finalFluidVaultBalance,
-            initialFluidVaultBalance - amountToReallocate,
-            0.01e18,
-            "FluidVault balance should decrease by the reallocated amount"
-        );
-        assertGt(finalAaveVaultBalance, initialAaveVaultBalance, "AaveVault balance should increase");
-
-        uint256 initialTotalValue =
-            fluidVault.convertToAssets(initialFluidVaultBalance) + aaveVault.convertToAssets(initialAaveVaultBalance);
-
-        uint256 finalTotalValue =
-            fluidVault.convertToAssets(finalFluidVaultBalance) + aaveVault.convertToAssets(finalAaveVaultBalance);
-        assertApproxEqRel(
-            finalTotalValue, initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
-        );
-    }
 
     struct RebalanceVars {
         uint256 depositAmount;
@@ -153,18 +55,6 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
         console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
         console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
-
-        // update to 70/30 allo
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 7000, // 70%
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
 
         (vars.totalAssets,) = strategy.totalAssets();
         console2.log("vars.totalAssets", vars.totalAssets);
@@ -231,18 +121,6 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         vars.depositAmount = 5e5; //0.5 usd
 
         _completeDepositFlow(vars.depositAmount);
-
-        // update to 70/30 allo
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 7000, // 70%
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
@@ -322,25 +200,12 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
             ISuperVaultStrategy.GlobalConfig({
                 vaultCap: 50_000_000e6,
                 superVaultCap: 100_000_000e6,
-                maxAllocationRate: MAX_ALLOCATION_RATE,
                 vaultThreshold: VAULT_THRESHOLD
             })
         );
         vm.stopPrank();
 
         _completeDepositFlow(vars.depositAmount);
-
-        // update to 70/30 allo
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: 50_000_000e6,
-                superVaultCap: 100_000_000e6,
-                maxAllocationRate: 7000, // 70%
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
@@ -503,18 +368,6 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
             false,
             false
         );
-
-        // change allocation rates to allow 30/30/40 allo
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 5000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
         strategy.allocate(hooksAddresses, hooksData);

@@ -55,7 +55,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant VAULT_CAP = type(uint256).max;
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
-    uint256 constant MAX_ALLOCATION_RATE = 6000; // 60%
+    uint256 constant MAX_ALLOCATION_RATE = 10_000; // 60%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
@@ -155,7 +155,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         address _asset,
         uint256 _vaultCap,
         uint256 _superVaultCap,
-        uint256 _maxAllocationRate,
         uint256 _vaultThreshold,
         uint256 _bootstrapAmount,
         string memory _superVaultSymbol
@@ -169,7 +168,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.globalConfig = ISuperVaultStrategy.GlobalConfig({
             vaultCap: _vaultCap,
             superVaultCap: _superVaultCap,
-            maxAllocationRate: ONE_HUNDRED_PERCENT,
             vaultThreshold: _vaultThreshold
         });
         vars.hookRoot = _getMerkleRoot();
@@ -199,7 +197,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
                 config: vars.globalConfig,
-                finalMaxAllocationRate: _maxAllocationRate,
                 bootstrapAmount: _bootstrapAmount,
                 initYieldSource: address(fluidVault),
                 initHooksRoot: vars.hookRoot,
@@ -234,7 +231,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(asset),
             VAULT_CAP,
             SUPER_VAULT_CAP,
-            MAX_ALLOCATION_RATE,
             VAULT_THRESHOLD,
             BOOTSTRAP_AMOUNT,
             _superVaultSymbol
@@ -470,7 +466,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
         fulfillHooksAddresses[2] = depositHookAddress;
-
 
         bytes[] memory fulfillHooksData = new bytes[](3);
         // allocate up to the max allocation rate in the two Vaults
