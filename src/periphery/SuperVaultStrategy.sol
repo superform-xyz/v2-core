@@ -25,7 +25,6 @@ import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
-import "forge-std/console2.sol";
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -1151,15 +1150,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
             if (isFulfillRequestsHookCheck) {
-                console2.log("-----outAmount           ", locals.outAmount);
-                console2.log("-----expectedAssetsOrSharesOut", expectedAssetsOrSharesOut[i]);
-                console2.log("-----_getSlippageTolerance()", _getSlippageTolerance());
-                console2.log("-----ONE_HUNDRED_PERCENT - _getSlippageTolerance()()", ONE_HUNDRED_PERCENT - _getSlippageTolerance());
-
-
-                console2.log("-----locals left           ", locals.outAmount * ONE_HUNDRED_PERCENT);
-                console2.log("-----locals right          ", expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance()));
-
                 if (locals.outAmount * ONE_HUNDRED_PERCENT < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
             }
          
