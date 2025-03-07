@@ -842,7 +842,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainIds[i], PERIPHERY_REGISTRY_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -863,6 +863,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 feePercent: 100,
                 feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
+            });
+            configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], GEARBOX_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: peripheryRegistry.getTreasury(),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
                 configs
