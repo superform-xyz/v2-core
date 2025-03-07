@@ -949,23 +949,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hookCalldata The calldata for the hook
     /// @param hookProof The merkle proof for the hook
     /// @param expectedHookType The expected type of hook
-    /// @param validateYieldSource Whether to validate the yield source
     /// @param approvalToken Token to approve (address(0) if no approval needed)
     /// @param approvalAmount Amount to approve
-    /// @return target The target address from the execution
     function _executeHook(
         address hook,
         address prevHook,
         bytes memory hookCalldata,
         bytes32[] memory hookProof,
         ISuperHook.HookType expectedHookType,
-        bool validateYieldSource,
         address approvalToken,
         uint256 approvalAmount,
-        bool isFulfillRequestsHook
+        bool isFulfillRequestsHook,
+        address target
     )
         private
-        returns (address target)
     {
         // Validate hook via merkle proof
         if (isFulfillRequestsHook) {
@@ -986,11 +983,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         target = executions[0].target;
 
-        // Validate target is an active yield source if needed
-        if (validateYieldSource) {
-            YieldSource storage source = yieldSources[target];
-            if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-        }
         approvalToken = hookType == ISuperHook.HookType.OUTFLOW ? target : approvalToken;
         // Handle token approvals if needed
         if (approvalToken != address(0)) {
@@ -1134,25 +1126,27 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
-        address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
-        outAmount = IYieldSourceOracle(yieldSources[yieldSource].oracle).getBalanceOfOwner(yieldSource, address(this));
+        target = HookDataDecoder.extractYieldSource(hookCalldata);
+        YieldSource storage yieldSource = yieldSources[target];
+        if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+        outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
 
         uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Execute hook with asset approval
-        target = _executeHook(
+        _executeHook(
             hook,
             prevHook,
             hookCalldata,
             hookProof,
             ISuperHook.HookType.INFLOW,
-            true,
             address(_asset),
             amount,
-            isFulfillRequestsHookCheck
+            isFulfillRequestsHookCheck,
+            target
         );
         uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
-        outAmount = IYieldSourceOracle(yieldSources[yieldSource].oracle).getBalanceOfOwner(yieldSource, address(this)) - outAmount;
+        outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
         
         // Update assetsInRequest to account for assets being moved in
         _updateAssetsInRequest(assetsInRequest - (balanceAssetBefore - balanceAssetAfter));
@@ -1200,10 +1194,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
-        // Execute hook and track balances
-        (execVars.target, execVars.balanceAssetBefore, execVars.balanceAssetAfter) =
-            _executeOutflowHook(hook, prevHook, hookCalldata, hookProof, execVars.amount, isFulfillRequestsHookCheck);
+        execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
+        execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
+
+        // Execute hook and track balances
+        _executeHook(
+            hook,
+            prevHook,
+            hookCalldata,
+            hookProof,
+            ISuperHook.HookType.OUTFLOW,
+            address(0),
+            amount,
+            isFulfillRequestsHookCheck,
+            execVars.target
+        );
+
+        execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
         outAmount = execVars.balanceAssetAfter - execVars.balanceAssetBefore;
         // Update total assets and return values
@@ -1223,35 +1232,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         amount = _decodeHookAmount(hook, hookCalldata);
         yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
-    }
-
-    /// @notice Execute outflow hook and track balances
-    function _executeOutflowHook(
-        address hook,
-        address prevHook,
-        bytes memory hookCalldata,
-        bytes32[] memory hookProof,
-        uint256 amount,
-        bool isFulfillRequestsHookCheck
-    )
-        private
-        returns (address target, uint256 balanceAssetBefore, uint256 balanceAssetAfter)
-    {
-        balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
-
-        target = _executeHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            hookProof,
-            ISuperHook.HookType.OUTFLOW,
-            true,
-            address(0),
-            amount,
-            isFulfillRequestsHookCheck
-        );
-
-        balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
     }
 
     /// @notice Check vault caps for targeted yield sources
