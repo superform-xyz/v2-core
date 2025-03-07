@@ -189,6 +189,8 @@ interface ISuperVaultStrategy {
         // Hook execution results
         uint256 amount;
         address hookTarget;
+        uint256 outAmount;
+        
         // Arrays for tracking
         address[] targetedYieldSources;
         address[] resizedArray;
