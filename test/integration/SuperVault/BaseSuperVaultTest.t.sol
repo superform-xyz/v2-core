@@ -744,7 +744,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
+            feePercent: 0,
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
@@ -752,7 +752,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
-    // 0.2% fee for Ledger entries where the SuperVault is the target so that we can test the fee derivation
+    // 0.1% fee for Ledger entries where the SuperVault is the target so that we can test the fee derivation
     function _setUpSuperLedgerForVault_With_Ledger_Fees() internal {
         vm.selectFork(FORKS[ETH]);
         vm.startPrank(MANAGER);
