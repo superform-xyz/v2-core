@@ -228,12 +228,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
         return _deployVault(
-            address(asset),
-            VAULT_CAP,
-            SUPER_VAULT_CAP,
-            VAULT_THRESHOLD,
-            BOOTSTRAP_AMOUNT,
-            _superVaultSymbol
+            address(asset), VAULT_CAP, SUPER_VAULT_CAP, VAULT_THRESHOLD, BOOTSTRAP_AMOUNT, _superVaultSymbol
         );
     }
 
@@ -785,7 +780,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         hooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, assetsToMove - 1, false, false
         );
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
     }
 

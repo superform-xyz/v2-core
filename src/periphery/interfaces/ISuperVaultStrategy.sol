@@ -51,6 +51,7 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
     error DEPOSIT_FAILURE_INVALID_TARGET();
+    error CANNOT_CHANGE_TOTAL_ASSETS();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -66,9 +67,7 @@ interface ISuperVaultStrategy {
     event YieldSourceDeactivated(address indexed source);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
     event YieldSourceReactivated(address indexed source);
-    event GlobalConfigUpdated(
-        uint256 vaultCap, uint256 superVaultCap, uint256 vaultThreshold
-    );
+    event GlobalConfigUpdated(uint256 vaultCap, uint256 superVaultCap, uint256 vaultThreshold);
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
@@ -78,10 +77,7 @@ interface ISuperVaultStrategy {
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
-    event RewardsClaimedAndCompounded(uint256 amount);
-    event RewardsDistributorSet(address indexed rewardsDistributor);
-    event RewardsDistributed(address[] tokens, uint256[] amounts);
-    event RewardsClaimed(address[] tokens, uint256[] amounts);
+    event HooksExecuted(address[] hooks, uint256 initialBalance, uint256 finalBalance);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
@@ -242,38 +238,10 @@ interface ISuperVaultStrategy {
     /// @param depositUsers Array of users with pending deposit requests
     function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external;
 
-    /// @notice Allocate funds between yield sources
-    /// @param hooks Array of hooks to use for allocations
-    /// @param hookCalldata Array of calldata for hooks
-    function allocate(address[] calldata hooks, bytes[] calldata hookCalldata) external;
-
-    /// @notice Claims rewards from yield sources and stores them for later use
-    /// @param hooks Array of hooks to use for claiming rewards
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    function claim(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external;
-
-    /// @notice Compounds previously claimed tokens by swapping them to the asset and allocating to yield sources
-    /// @param hooks Array of arrays of hooks to use for swapping and allocating [swapHooks, allocateHooks]
-    /// @param swapHookProofs Array of merkle proofs for swap hooks
-    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
-    /// @param hookCalldata Array of arrays of calldata for hooks [swapHookCalldata, allocateHookCalldata]
-    /// @param claimedTokensToCompound Array of claimed token addresses to compound
-    function compoundClaimedTokens(
-        address[][] calldata hooks,
-        bytes32[][] calldata swapHookProofs,
-        bytes32[][] calldata allocateHookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata claimedTokensToCompound
-    )
-        external;
+    /// @notice Execute arbitrary hooks with proper validation based on hook type
+    /// @param hooks Array of hooks to execute in sequence
+    /// @param hookCalldata Array of calldata for each hook
+    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT

@@ -333,7 +333,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
@@ -671,7 +671,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
@@ -716,7 +716,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
@@ -852,7 +852,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // disable fluid vault entirely
@@ -903,7 +903,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // re-enable fluid vault
@@ -913,7 +913,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // try allocate again
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
@@ -1123,7 +1123,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 20 days);
@@ -1208,7 +1208,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 20 days);
@@ -1618,7 +1618,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
             // Execute allocation
             vm.startPrank(STRATEGIST);
-            strategy.allocate(hooksAddresses, hooksData);
+            strategy.executeHooks(hooksAddresses, hooksData);
             vm.stopPrank();
 
             // Check final balances
