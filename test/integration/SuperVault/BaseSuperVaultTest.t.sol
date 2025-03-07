@@ -143,6 +143,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         address[] bootstrapHooks;
         bytes32[][] bootstrapProofs;
         bytes[] bootstrapData;
+        uint256[] minAssetsOrSharesOut;
     }
 
     /**
@@ -178,6 +179,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.bootstrapHooks = new address[](1);
         vars.bootstrapHooks[0] = vars.depositHookAddress;
 
+        vars.minAssetsOrSharesOut = new uint256[](1);
+        vars.minAssetsOrSharesOut[0] = 0; 
+
         vars.bootstrapData = new bytes[](1);
         vars.depositHookData = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), _bootstrapAmount, false, false
@@ -202,7 +206,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 initHooksRoot: vars.hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: vars.bootstrapHooks,
-                bootstrappingHookCalldata: vars.bootstrapData
+                bootstrappingHookCalldata: vars.bootstrapData,
+                minAssetsOrSharesOut: vars.minAssetsOrSharesOut
             })
         );
 
@@ -369,9 +374,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(depositHookAddress);
-        proofs[1] = proofs[0];
 
         bytes[] memory fulfillHooksData = new bytes[](2);
 
@@ -384,8 +386,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, depositAmount - halfAmount, false, false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](2);
+        minAssetsOrSharesOut[0] = 0;
+        minAssetsOrSharesOut[1] = 0;
+
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true);
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -415,8 +421,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), aaveSharesOut, false, false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](2);
+        minAssetsOrSharesOut[0] = 0;
+        minAssetsOrSharesOut[1] = 0;
+
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 
@@ -444,8 +454,46 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, allocationAmountVault2, false, false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](2);
+        minAssetsOrSharesOut[0] = 0;
+        minAssetsOrSharesOut[1] = 0;
+
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true);
+        vm.stopPrank();
+    }
+
+    function _fulfillDepositForUsers(
+        address[] memory requestingUsers,
+        uint256 allocationAmountVault1,
+        uint256 allocationAmountVault2,
+        address vault1,
+        address vault2,
+        uint256[] memory minAssetsOrSharesOut,
+        bytes4 revertSelector
+    )
+        internal
+    {
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, allocationAmountVault1, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, allocationAmountVault2, false, false
+        );
+
+        vm.startPrank(STRATEGIST);
+        if (revertSelector != bytes4(0)) {
+            vm.expectRevert(revertSelector);
+        }
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true);
         vm.stopPrank();
     }
 
@@ -479,8 +527,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault3), allocationAmountVault3, false, false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](3);
+        minAssetsOrSharesOut[0] = 0;
+        minAssetsOrSharesOut[1] = 0;
+        minAssetsOrSharesOut[2] = 0;
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true);
         vm.stopPrank();
     }
 
@@ -508,8 +560,46 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), redeemSharesVault2, false, false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](2);
+        minAssetsOrSharesOut[0] = 0;
+        minAssetsOrSharesOut[1] = 0;
+
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
+        vm.stopPrank();
+    }
+
+    function _fulfillRedeemForUsers(
+        address[] memory requestingUsers,
+        uint256 redeemSharesVault1,
+        uint256 redeemSharesVault2,
+        address vault1,
+        address vault2,
+        uint256[] memory minAssetsOrSharesOut,
+        bytes4 revertSelector
+    )
+        internal
+    {
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = withdrawHookAddress;
+        fulfillHooksAddresses[1] = withdrawHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // Withdraw proportionally from both vaults
+        fulfillHooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), redeemSharesVault1, false, false
+        );
+        fulfillHooksData[1] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), redeemSharesVault2, false, false
+        );
+
+        vm.startPrank(STRATEGIST);
+        if (revertSelector != bytes4(0)) {
+            vm.expectRevert(revertSelector);
+        }
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 
@@ -528,6 +618,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 ++i;
             }
         }
+
         // fulfill deposits
         _fulfillDepositForUsers(
             requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
@@ -570,7 +661,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // fulfill deposits
         _fulfillDepositForUsers(
-            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)  
         );
 
         // claim deposits

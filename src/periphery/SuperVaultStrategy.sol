@@ -189,17 +189,39 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address[] calldata users,
         address[] calldata hooks,
         bytes[] memory hookCalldata,
+        uint256[] memory minAssetsOrSharesOut,
         bool isDeposit
     )
         external
     {
         _requireRole(STRATEGIST_ROLE);
+
         uint256 usersLength = users.length;
         if (usersLength == 0) revert ZERO_LENGTH();
         uint256 hooksLength = hooks.length;
+        if (hooksLength != minAssetsOrSharesOut.length) revert INVALID_ARRAY_LENGTH();
 
         _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
 
+        // @dev fail early for minAssetsOrSharesOut
+        for (uint256 i; i < hooksLength;) {
+            address yieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+            if (yieldSource == address(0)) revert YIELD_SOURCE_NOT_FOUND();
+
+            uint256 amountOrShares = ISuperHookInflowOutflow(hooks[i]).decodeAmount(hookCalldata[i]);
+
+            uint256 previewOutAmount;
+            if (isDeposit) {
+                previewOutAmount = IYieldSourceOracle(yieldSources[yieldSource].oracle).getShareOutput(yieldSource, address(_asset), amountOrShares);
+            } else {
+                previewOutAmount = IYieldSourceOracle(yieldSources[yieldSource].oracle).getAssetOutput(yieldSource, address(_asset), amountOrShares);
+            }
+            
+            if (previewOutAmount < minAssetsOrSharesOut[i]) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
+
+            unchecked { ++i; }
+        }
+      
         FulfillmentVars memory vars;
 
         // Validate requests and determine total amount (assets for deposits, shares for redeem)

@@ -161,6 +161,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 pricePerShareAfterAllocation;
         uint256 ppsBeforeWarp;
         uint256 ppsAfterWarp;
+        uint256[] minAssetsOrSharesOut;
+        uint256 assetsVault1;
+        uint256 assetsVault2;
     }
 
     function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
@@ -183,7 +186,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             }
         }
 
-        // Complete deposits with varying amounts
         _completeDepositFlowWithVaryingAmounts(vars.depositAmounts);
 
         // Store initial state for yield verification
@@ -485,17 +487,37 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Simulate time passing
         vm.warp(vars.initialTimestamp + 1 days);
 
-        // Fulfill deposit requests
+        uint256 sharesVault1 = IERC4626(address(fluidVault)).convertToShares(vars.depositAmount * 5 / 2);
+        uint256 sharesVault2 = IERC4626(address(vars.ruggableVault)).convertToShares(vars.depositAmount * 5 / 2);
+        
+        uint256[] memory minAssetsOrSharesOut = new uint256[](2);
+        minAssetsOrSharesOut[0] = sharesVault1 - sharesVault1* 1e4/1e5; //10% slippage
+        minAssetsOrSharesOut[1] = vars.depositAmount * 5 / 2; // this should make the call revert 
+
+        // expect revert on this call and try again after
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
             vars.depositAmount * 5 / 2,
             address(fluidVault),
-            address(vars.ruggableVault)
+            address(vars.ruggableVault),
+            minAssetsOrSharesOut,
+            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector
+        );
+
+        minAssetsOrSharesOut[1] = sharesVault2 - sharesVault2* 1e3/1e5; //1% slippage
+        _fulfillDepositForUsers(
+            vars.depositUsers,
+            vars.depositAmount * 5 / 2,
+            vars.depositAmount * 5 / 2,
+            address(fluidVault),
+            address(vars.ruggableVault),
+            minAssetsOrSharesOut,
+            bytes4(0)
         );
     }
 
-    function test_10_RuggableVault_Withdraw() public {
+    function test_10_RuggableVault_WithdrawX() public {
         RugTestVarsWithdraw memory vars;
         vars.depositAmount = 1000e6;
         vars.rugPercentage = 5000; // 50% rug
@@ -1462,6 +1484,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // Fulfill deposit requests
+        uint256[] memory minAssetsOrSharesOut = new uint256[](2);
+        minAssetsOrSharesOut[0] = 0;
+        minAssetsOrSharesOut[1] = 0;
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
@@ -1529,13 +1554,30 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.ppsAfterWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
         console2.log("PPS AFTER WARP", vars.ppsAfterWarp);
 
+
+
         // Fulfill redemption requests
         vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
         vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
+
+        
+        vars.assetsVault1 = IERC4626(address(fluidVault)).convertToAssets(vars.redeemSharesVault1);
+        vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
+        
+        vars.minAssetsOrSharesOut = new uint256[](2);
+        vars.minAssetsOrSharesOut[0] = vars.assetsVault1 - vars.assetsVault1 * 1e4/1e5; //10% slippage
+        vars.minAssetsOrSharesOut[1] = vars.assetsVault2 + vars.assetsVault2 * 1e4/1e5; // this should make the call revert 
+
+        // this should revert
         _fulfillRedeemForUsers(
-            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), vars.ruggableVault
+            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), vars.ruggableVault, vars.minAssetsOrSharesOut, ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector
         );
 
+        vars.minAssetsOrSharesOut[1] = vars.assetsVault2 - vars.assetsVault2 * 1e4/1e5; //10% slippage
+        _fulfillRedeemForUsers(
+            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), vars.ruggableVault, vars.minAssetsOrSharesOut, bytes4(0)
+        );
+        
         // Log post-fulfillment state
         console2.log("\n=== Post-Fulfillment State ===");
         uint256 totalAssetsPreClaimTaintedAssets = vault.totalAssets();
