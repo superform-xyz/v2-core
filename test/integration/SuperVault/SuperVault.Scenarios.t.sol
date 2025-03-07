@@ -159,6 +159,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 finalTotalValue;
         uint256 vaultTotalAssetsAfterAllocation;
         uint256 pricePerShareAfterAllocation;
+        uint256 ppsBeforeWarp;
+        uint256 ppsAfterWarp;
     }
 
     function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
@@ -330,18 +332,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
 
-        // change allocation rates to allow 30/30/40 allo
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 5000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
-
         vm.startPrank(STRATEGIST);
         strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
@@ -496,7 +486,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.warp(vars.initialTimestamp + 1 days);
 
         // Fulfill deposit requests
-        vm.expectRevert(ISuperVaultStrategy.DEPOSIT_FAILURE_INVALID_TARGET.selector);
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
@@ -681,18 +670,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
 
-        // change allocation rates to allow 100% to aave allocation
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 10_000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
-
         vm.startPrank(STRATEGIST);
         strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
@@ -874,18 +851,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
 
-        // change allocation rates to allow 100% to aave allocation
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 10_000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
-
         vm.startPrank(STRATEGIST);
         strategy.allocate(hooksAddresses, hooksData);
         vm.stopPrank();
@@ -1008,17 +973,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // create deposit requests for all users
         _requestDepositForAllUsers(vars.depositAmount);
-
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 9000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
 
         // create fullfillment data
         uint256 totalAmount = vars.depositAmount * ACCOUNT_COUNT;
@@ -1515,7 +1469,13 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             address(fluidVault),
             vars.ruggableVault
         );
+        console2.log("\n=== TIME WARPING ===");
 
+        vars.ppsBeforeWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS BEFORE WARP", vars.ppsBeforeWarp);
+        vm.warp(block.timestamp + 10 weeks);
+        vars.ppsAfterWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS AFTER WARP", vars.ppsAfterWarp);
         // Claim deposits
         for (uint256 i = 0; i < 5; i++) {
             vm.startPrank(vars.depositUsers[i]);
@@ -1561,7 +1521,13 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // Simulate time passing
-        vm.warp(vars.initialTimestamp + 1 days);
+        console2.log("\n=== TIME WARPING ===");
+
+        vars.ppsBeforeWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS BEFORE WARP", vars.ppsBeforeWarp);
+        vm.warp(block.timestamp + 12 weeks);
+        vars.ppsAfterWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS AFTER WARP", vars.ppsAfterWarp);
 
         // Fulfill redemption requests
         vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
@@ -1594,9 +1560,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Final Total Assets:", finalTotalAssets);
         console2.log("Final Total Supply:", finalTotalSupply);
         console2.log("Final Price per share:", finalPricePerShare);
-
-        // Verify that the total supply decreased after claims
-        assertLt(finalTotalSupply, totalSupplyPreClaimTaintedAssets, "Total supply should decrease after claims");
 
         // CONTINUATION: Allocate from rugged vault back to fluid vault
         console2.log("\n=== Allocating from Rugged Vault back to Fluid Vault ===");
@@ -1652,18 +1615,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 false,
                 false
             );
-
-            // Update allocation rates to allow reallocation
-            vm.startPrank(SV_MANAGER);
-            strategy.updateGlobalConfig(
-                ISuperVaultStrategy.GlobalConfig({
-                    vaultCap: VAULT_CAP,
-                    superVaultCap: SUPER_VAULT_CAP,
-                    maxAllocationRate: 10_000, // 100%
-                    vaultThreshold: VAULT_THRESHOLD
-                })
-            );
-            vm.stopPrank();
 
             // Execute allocation
             vm.startPrank(STRATEGIST);

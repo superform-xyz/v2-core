@@ -606,17 +606,6 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
             initialShareBalances[i] = vault.balanceOf(accInstances[i].account);
         }
 
-        // update to 90/10% allo rate
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 9000, // 90%
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
         uint256 redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
 
         for (uint256 i; i < ACCOUNT_COUNT; i++) {

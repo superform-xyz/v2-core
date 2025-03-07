@@ -113,8 +113,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
                 ++j;
             }
         }
-        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        _fulfillDepositForUsers(requestingUsers, totalAmount, 0, address(fluidVault), address(aaveVault));
 
         // fullfill the rest of the users in 2 vaults
         _fulfillDepositForUsers(
@@ -284,25 +282,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         _fulfillDepositForUsers(
             requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
-    }
-
-    function test_RequestDeposit_FullAllocationInOneVault() public {
-        uint256 depositAmount = 1000e6;
-
-        // Create deposit requests for all users
-        _requestDepositForAllUsers(depositAmount);
-
-        // Try to fulfill all requests using only one vault
-        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT; i++) {
-            requestingUsers[i] = accInstances[i].account;
-        }
-
-        uint256 totalAmount = depositAmount * ACCOUNT_COUNT;
-
-        // Should revert when trying to allocate everything to one vault
-        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        _fulfillDepositForUsers(requestingUsers, totalAmount, 0, address(fluidVault), address(aaveVault));
     }
 
     function test_RequestDeposit_VerifyAmounts() public {
@@ -561,17 +540,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         vars.firstDepositShares = vault.balanceOf(accInstances[0].account) - vars.initialShareBalance;
         vars.firstDepositSharePrice = vars.firstDepositShares * 1e18 / vars.firstDepositAmount;
 
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 9000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
-
         _requestDepositForAccount(accInstances[0], vars.secondDepositAmount);
 
         vars.secondAllocationVault1 = vars.secondDepositAmount * 90 / 100;
@@ -590,23 +558,5 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         vars.secondDepositSharePrice = vars.secondDepositShares * 1e18 / vars.secondDepositAmount;
 
         _verifyAndLogChangingAllocation(vars);
-    }
-
-    function test_SingleUser_HighAllocation_RevertWithoutConfigUpdate() public {
-        uint256 depositAmount = 1000e6;
-
-        _getTokens(address(asset), accInstances[0].account, depositAmount);
-        _requestDepositForAccount(accInstances[0], depositAmount);
-
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accInstances[0].account;
-
-        uint256 highAllocationAmount = depositAmount * 90 / 100;
-        uint256 lowAllocationAmount = depositAmount - highAllocationAmount;
-
-        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        _fulfillDepositForUsers(
-            requestingUsers, highAllocationAmount, lowAllocationAmount, address(fluidVault), address(aaveVault)
-        );
     }
 }
