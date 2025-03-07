@@ -1485,8 +1485,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Fulfill deposit requests
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = IERC4626(address(fluidVault)).convertToShares(vars.depositAmount * 5 / 2) * 9900/10000;
-        expectedAssetsOrSharesOut[1] = IERC4626(address(vars.ruggableVault)).convertToShares(vars.depositAmount * 5 / 2) * 9900/10000;
+        expectedAssetsOrSharesOut[0] = IERC4626(address(fluidVault)).convertToShares(vars.depositAmount * 5 / 2);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(vars.ruggableVault)).convertToShares(vars.depositAmount * 5 / 2);
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
