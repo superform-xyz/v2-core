@@ -358,6 +358,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
 
+            A.gearboxYieldSourceOracle = new GearboxYieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.gearboxYieldSourceOracle), GEARBOX_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][GEARBOX_YIELD_SOURCE_ORACLE_KEY] = address(A.gearboxYieldSourceOracle);
+
             /// @dev periphery
             A.peripheryRegistry = new PeripheryRegistry(address(this), TREASURY);
             vm.label(address(A.peripheryRegistry), PERIPHERY_REGISTRY_KEY);
