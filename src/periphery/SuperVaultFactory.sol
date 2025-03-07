@@ -95,7 +95,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
                 recipient: params.feeRecipient,
                 bootstrappingHooks: params.bootstrappingHooks,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
-                minAssetsOrSharesOut: params.minAssetsOrSharesOut,
+                expectedAssetsOrSharesOut: params.expectedAssetsOrSharesOut,
                 config: params.config,
                 bootstrapAmount: params.bootstrapAmount
             })
@@ -144,7 +144,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         }
 
         vars.strategyContract.fulfillRequests(
-            vars.users, params.bootstrappingHooks, params.bootstrappingHookCalldata, params.minAssetsOrSharesOut, true
+            vars.users, params.bootstrappingHooks, params.bootstrappingHookCalldata, params.expectedAssetsOrSharesOut, true
         );
 
         /// @dev Note: Theoretically this could go to an insurance fund

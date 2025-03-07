@@ -71,7 +71,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     function test_RevertOnZeroAddresses() public {
         address[] memory bootstrapHooks;
         bytes[] memory bootstrapHookCalldata;
-        uint256[] memory minAssetsOrSharesOut;
+        uint256[] memory expectedAssetsOrSharesOut;
 
         // Test with zero asset address
         vm.expectRevert(ISuperVaultFactory.ZERO_ADDRESS.selector);
@@ -91,7 +91,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
                 bootstrappingHookCalldata: bootstrapHookCalldata,
-                minAssetsOrSharesOut: minAssetsOrSharesOut
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
 
@@ -113,7 +113,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
                 bootstrappingHookCalldata: bootstrapHookCalldata,
-                minAssetsOrSharesOut: minAssetsOrSharesOut
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
 
@@ -135,7 +135,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
                 bootstrappingHookCalldata: bootstrapHookCalldata,
-                minAssetsOrSharesOut: minAssetsOrSharesOut
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
 
@@ -157,7 +157,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initYieldSource: address(0),
                 bootstrappingHooks: bootstrapHooks,
                 bootstrappingHookCalldata: bootstrapHookCalldata,
-                minAssetsOrSharesOut: minAssetsOrSharesOut
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
     }
@@ -181,7 +181,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         address initYieldSource;
         address[] bootstrappingHooks;
         bytes[] bootstrappingHookCalldata;
-        uint256[] minAssetsOrSharesOut;
+        uint256[] expectedAssetsOrSharesOut;
     }
 
     function _createVault(VaultCreationParams memory params)
@@ -209,7 +209,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: params.bootstrappingHooks,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
-                minAssetsOrSharesOut: params.minAssetsOrSharesOut
+                expectedAssetsOrSharesOut: params.expectedAssetsOrSharesOut
             })
         );
     }
