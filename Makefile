@@ -21,8 +21,11 @@ ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_YearnIntegration_getPricePerShare -vvv
-test-integration :; forge test --match-test test_SuperVault_E2E_Flow_With_Ledger_Fees -vvvv
+
+test-vvv :; forge test --match-test test_MatchRequests_MultiplePairs -vv
+
+test-integration :; forge test --match-test test_Allocate_SmallAmounts -vvv
+
 
 .PHONY: generate
 generate:

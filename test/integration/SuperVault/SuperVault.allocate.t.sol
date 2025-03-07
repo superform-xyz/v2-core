@@ -22,7 +22,6 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
-
     struct RebalanceVars {
         uint256 depositAmount;
         uint256 initialFluidVaultBalance;
@@ -370,7 +369,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances
@@ -417,7 +416,9 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         RebalanceVars memory vars,
         address[] memory hooksAddresses,
         bytes[] memory hooksData
-    ) private {
+    )
+        private
+    {
         _rebalanceFromVaultToVault(
             hooksAddresses,
             hooksData,
@@ -432,7 +433,9 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         RebalanceVars memory vars,
         address[] memory hooksAddresses,
         bytes[] memory hooksData
-    ) private {
+    )
+        private
+    {
         _rebalanceFromVaultToVault(
             hooksAddresses,
             hooksData,
