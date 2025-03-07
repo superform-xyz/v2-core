@@ -88,7 +88,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
             vaultCap: VAULT_CAP,
             superVaultCap: SUPER_VAULT_CAP,
-            maxAllocationRate: ONE_HUNDRED_PERCENT,
             vaultThreshold: VAULT_THRESHOLD
         });
         bytes32 hookRoot = _getMerkleRoot();
@@ -97,9 +96,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         address[] memory bootstrapHooks = new address[](1);
         bootstrapHooks[0] = depositHookAddress;
-
-        bytes32[][] memory bootstrapHookProofs = new bytes32[][](1);
-        bootstrapHookProofs[0] = _getMerkleProof(depositHookAddress);
 
         bytes[] memory bootstrapHooksData = new bytes[](1);
         bootstrapHooksData[0] = _createDeposit4626HookData(
@@ -121,7 +117,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
                 config: config,
-                finalMaxAllocationRate: ONE_HUNDRED_PERCENT,
                 bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: address(gearboxVault),
                 initHooksRoot: hookRoot,
@@ -147,8 +142,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             false // addYieldSource
         );
         vm.stopPrank();
-
-        _setFeeConfig(100, TREASURY);
 
         // Set up hook root (same one as bootstrap, just to test)
         vm.startPrank(SV_MANAGER);
@@ -297,40 +290,14 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
 
-        bytes32[][] memory proofs = new bytes32[][](2);
-        proofs[0] = _getMerkleProof(hooksAddresses[0]);
-        proofs[1] = _getMerkleProof(hooksAddresses[1]);
-
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake, false);
         hooksData[1] = _createGearboxStakeHookData(
             bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToStake, false, false
         );
 
-        address[] memory tokensIn = new address[](2);
-        tokensIn[0] = address(gearboxVault);
-        tokensIn[1] = address(gearboxVault);
-
-        address[] memory yieldSources = new address[](2);
-        yieldSources[0] = address(gearboxFarmingPool);
-        yieldSources[1] = address(gearboxFarmingPool);
-
-        address[] memory expectedTokensOut = new address[](2);
-        expectedTokensOut[0] = gearToken;
-        expectedTokensOut[1] = gearToken;
-
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.executeArbitraryHooks(
-            ISuperVaultStrategy.ArbitraryHookExecutionVars({
-                amountIn: amountToStake,
-                tokensIn: tokensIn,
-                yieldSources: yieldSources,
-                expectedTokensOut: expectedTokensOut,
-                hooks: hooksAddresses,
-                hookProofs: proofs,
-                hookCalldata: hooksData
-            })
-        );
+        strategyGearSuperVault.executeHooks(hooksAddresses, hooksData);
     }
 
     function _requestRedeem_Gearbox_SV(uint256 shares) internal {
@@ -350,41 +317,15 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
     function _executeUnStakeHook(uint256 amountToUnStake) internal {
         address[] memory hooksAddresses = new address[](1);
-        //hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[0] = _getHookAddress(ETH, GEARBOX_UNSTAKE_HOOK_KEY);
 
-        bytes32[][] memory proofs = new bytes32[][](1);
-        proofs[0] = _getMerkleProof(hooksAddresses[0]);
-        //proofs[1] = _getMerkleProof(hooksAddresses[1]);
-
         bytes[] memory hooksData = new bytes[](1);
-        //hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake,
-        // false);
         hooksData[0] = _createGearboxUnstakeHookData(
             bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false
         );
 
-        address[] memory tokensIn = new address[](1);
-        tokensIn[0] = address(gearboxVault);
-
-        address[] memory yieldSources = new address[](1);
-        yieldSources[0] = address(gearboxFarmingPool);
-
-        address[] memory expectedTokensOut = new address[](1);
-        expectedTokensOut[0] = gearToken;
-
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.executeArbitraryHooks(
-            ISuperVaultStrategy.ArbitraryHookExecutionVars({
-                amountIn: amountToUnStake,
-                tokensIn: tokensIn,
-                yieldSources: yieldSources,
-                expectedTokensOut: expectedTokensOut,
-                hooks: hooksAddresses,
-                hookProofs: proofs,
-                hookCalldata: hooksData
-            })
-        );
+        strategyGearSuperVault.executeHooks(hooksAddresses, hooksData);
     }
 
     function _fulfillRedeem_Gearbox_SV(uint256 shares) internal {
