@@ -240,7 +240,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, depositAmount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -255,7 +255,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, depositAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -270,7 +270,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, redeemShares, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), redeemShares, false
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
@@ -289,7 +289,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, assets, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =

@@ -340,12 +340,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            address(vault),
-            accInstances[0].account,
-            depositAmount,
-            false,
-            false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =

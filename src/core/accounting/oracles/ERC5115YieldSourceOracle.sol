@@ -72,7 +72,8 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
         uint256 totalShares = yieldSource.totalSupply();
         if (totalShares == 0) return 0;
-        return (totalShares * yieldSource.exchangeRate()) / 1e18;
+        (,, uint8 precision) = yieldSource.assetInfo();
+        return (totalShares * yieldSource.exchangeRate()) / (10 ** precision);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
