@@ -386,8 +386,53 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
             // Prevent any hooks with more than one execution
-            if (vars.executions.length > 1) revert INVALID_HOOK();
+            if (vars.executions.length == 1)  {
+                // For inflow/outflow hooks, validate target is an active yield source
+            if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
+                YieldSource storage source = yieldSources[vars.executions[0].target];
+                if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
+                // For inflows, track targets for cap validation
+                if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                    vars.inflowTargets[vars.inflowCount++] = vars.executions[0].target;
+
+                    // Get amount from hook and approve spending
+                    vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
+                    // TODO: think of a better to do this for outflows , especially when share is externalized
+                    _handleTokenApproval(address(_asset), vars.executions[0].target, vars.amount);
+                }
+            }
+
+            // Store pre-execution balance for non-accounting hooks
+            uint256 preExecutionTotalAssets = postExecutionTotalAssets;
+
+            // Execute the transaction
+            (vars.success,) =
+                vars.executions[0].target.call{ value: vars.executions[0].value }(vars.executions[0].callData);
+            if (!vars.success) revert OPERATION_FAILED();
+
+            // Call postExecute to update outAmount tracking
+            vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
+
+            // For non-accounting hooks, verify asset balance hasn't decreased
+            if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
+                (postExecutionTotalAssets,) = totalAssets();
+                if (postExecutionTotalAssets < preExecutionTotalAssets) revert CANNOT_CHANGE_TOTAL_ASSETS();
+            }
+
+            // Reset approval if it was an inflow
+            if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                _resetTokenApproval(address(_asset), vars.executions[0].target);
+            }
+
+            // Update prevHook for next iteration
+            vars.prevHook = hooks[i];
+
+                unchecked {
+                    ++i;
+                }
+            }
+        } else {
             // For inflow/outflow hooks, validate target is an active yield source
             if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
                 YieldSource storage source = yieldSources[vars.executions[0].target];
@@ -429,11 +474,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
 
-            unchecked {
-                ++i;
+                unchecked {
+                    ++i;
+                }
             }
         }
-
+        
         // Resize array if needed
         if (vars.inflowCount < vars.hooksLength && vars.inflowCount > 0) {
             vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
