@@ -369,7 +369,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         );
 
         vm.startPrank(STRATEGIST);
-        //strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
 
         // check new balances

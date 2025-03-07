@@ -369,6 +369,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
         vars.inflowTargets = new address[](vars.hooksLength);
 
+        (uint256 postExecutionTotalAssets,) = totalAssets();
+
         // Process each hook in sequence
         for (uint256 i; i < vars.hooksLength;) {
             // Validate hook via periphery registry
@@ -397,15 +399,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                     // Get amount from hook and approve spending
                     vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
+                    // TODO: think of a better to do this for outflows , especially when share is externalized
                     _handleTokenApproval(address(_asset), vars.executions[0].target, vars.amount);
                 }
             }
 
             // Store pre-execution balance for non-accounting hooks
-            uint256 preExecutionTotalAssets = 0;
-            if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
-                (preExecutionTotalAssets,) = totalAssets();
-            }
+            uint256 preExecutionTotalAssets = postExecutionTotalAssets;
 
             // Execute the transaction
             (vars.success,) =
@@ -417,7 +417,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             // For non-accounting hooks, verify asset balance hasn't decreased
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
-                (uint256 postExecutionTotalAssets,) = totalAssets();
+                (postExecutionTotalAssets,) = totalAssets();
                 if (postExecutionTotalAssets < preExecutionTotalAssets) revert CANNOT_CHANGE_TOTAL_ASSETS();
             }
 
@@ -449,9 +449,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Always ensure we have enough to cover assetsInRequest
         if (vars.finalAssetBalance < assetsInRequest) revert INVALID_AMOUNT();
-
-        // Update assetsInRequest to reflect the new balance
-        _updateAssetsInRequest(vars.finalAssetBalance);
 
         emit HooksExecuted(hooks, vars.initialAssetBalance, vars.finalAssetBalance);
     }
