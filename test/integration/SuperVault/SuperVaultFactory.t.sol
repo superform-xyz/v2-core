@@ -1,148 +1,209 @@
 // SPDX-License-Identifier: MIT
 pragma solidity =0.8.28;
 
-import { BaseTest } from "../../BaseTest.t.sol";
-import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
+import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
 
-contract SuperVaultFactoryTest is BaseTest {
-    SuperVaultFactory public factory;
-    address public SV_MANAGER;
-    address public STRATEGIST;
-    address public EMERGENCY_ADMIN;
-    address public FEE_RECIPIENT;
-
-    IERC20Metadata public asset;
-
-    function setUp() public override {
-        super.setUp();
-
-        vm.selectFork(FORKS[ETH]);
-
-        // Deploy the factory
-        address peripheryRegistry = _getContract(ETH, PERIPHERY_REGISTRY_KEY);
-        factory = new SuperVaultFactory(peripheryRegistry);
-        SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
-        STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
-        EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        FEE_RECIPIENT = _deployAccount(FEE_RECIPIENT_KEY, "FEE_RECIPIENT");
-        // Get USDC from fork
-        asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
-    }
-    /*
+contract SuperVaultFactoryTest is BaseSuperVaultTest {
     function test_DeployVault() public {
-        // Create initial config
-        ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: 1_000_000e6, // USDC has 6 decimals
-            superVaultCap: 5_000_000e6,
-            maxAllocationRate: 10_000, // 100%
-            vaultThreshold: 100_000e6
-        });
-
         // Deploy a new vault
-        (address vault, address strategy, address escrow) = factory.createVault(
-            address(asset), "SuperVault", "SV", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, FEE_RECIPIENT
-        );
-
+        (address vaultAddr, address strategyAddr, address escrowAddr) =
+            _deployVault(address(asset), 1_000_000e6, 5_000_000e6, 100_000e6, 1e6, "SV");
         // Verify addresses are not zero
-        assertTrue(vault != address(0), "Vault address should not be zero");
-        assertTrue(strategy != address(0), "Strategy address should not be zero");
-        assertTrue(escrow != address(0), "Escrow address should not be zero");
+        assertTrue(vaultAddr != address(0), "Vault address should not be zero");
+        assertTrue(strategyAddr != address(0), "Strategy address should not be zero");
+        assertTrue(escrowAddr != address(0), "Escrow address should not be zero");
 
         // Verify initialization
-        SuperVault vaultContract = SuperVault(vault);
-        ISuperVaultStrategy strategyContract = ISuperVaultStrategy(strategy);
-        SuperVaultEscrow escrowContract = SuperVaultEscrow(escrow);
+        SuperVault vaultContract = SuperVault(vaultAddr);
+        ISuperVaultStrategy strategyContract = ISuperVaultStrategy(strategyAddr);
+        SuperVaultEscrow escrowContract = SuperVaultEscrow(escrowAddr);
 
         // Check vault state
         assertEq(vaultContract.name(), "SuperVault", "Wrong vault name");
         assertEq(vaultContract.symbol(), "SV", "Wrong vault symbol");
         assertEq(vaultContract.asset(), address(asset), "Wrong asset");
-        assertEq(address(vaultContract.strategy()), strategy, "Wrong strategy");
+        assertEq(address(vaultContract.strategy()), strategyAddr, "Wrong strategy");
         assertEq(vaultContract.decimals(), 6, "Wrong decimals");
 
         // Check strategy state
-        (address _vault, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
+        (address _vaultAddr, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
         assertEq(strategyContract.isInitialized(), true, "Strategy not initialized");
-        assertEq(_vault, vault, "Wrong vault in strategy");
+        assertEq(_vaultAddr, vaultAddr, "Wrong vault in strategy");
         assertEq(_asset, address(asset), "Wrong asset in strategy");
         assertEq(_decimals, 6, "Wrong decimals in strategy");
 
         // Check escrow state
         assertTrue(escrowContract.initialized(), "Escrow not initialized");
-        assertEq(escrowContract.vault(), vault, "Wrong vault in escrow");
-        assertEq(escrowContract.strategy(), strategy, "Wrong strategy in escrow");
+        assertEq(escrowContract.vault(), vaultAddr, "Wrong vault in escrow");
+        assertEq(escrowContract.strategy(), strategyAddr, "Wrong strategy in escrow");
     }
 
     function test_DeployMultipleVaults() public {
-        ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: 1_000_000e6,
-            superVaultCap: 5_000_000e6,
-            maxAllocationRate: 2000, // 20%
-            vaultThreshold: 100_000e6
-        });
-
         // Deploy multiple vaults with different names/symbols
-        string[3] memory names = ["Super Test Vault 1", "Super Test Vault 2", "Super Test Vault 3"];
         string[3] memory symbols = ["sTV1", "sTV2", "sTV3"];
 
         for (uint256 i = 0; i < 3; i++) {
-            (address vault, address strategy, address escrow) = factory.createVault(
-                address(asset), names[i], symbols[i], SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, FEE_RECIPIENT
+            // Deploy a new vault with custom configuration
+            (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(
+                address(asset),
+                1_000_000e6, // vaultCap
+                5_000_000e6, // superVaultCap
+                100_000e6, // vaultThreshold
+                1e6, // bootstrapAmount
+                symbols[i] // symbol
             );
 
             // Verify each vault is properly initialized
-            SuperVault vaultContract = SuperVault(vault);
-            assertEq(vaultContract.name(), names[i], "Wrong vault name");
+            SuperVault vaultContract = SuperVault(vaultAddr);
             assertEq(vaultContract.symbol(), symbols[i], "Wrong vault symbol");
             assertEq(vaultContract.decimals(), 6, "Wrong decimals");
 
-            assertEq(ISuperVaultStrategy(strategy).isInitialized(), true, "Strategy not initialized");
+            assertEq(ISuperVaultStrategy(strategyAddr).isInitialized(), true, "Strategy not initialized");
 
-            assertTrue(SuperVaultEscrow(escrow).initialized(), "Escrow not initialized");
+            assertTrue(SuperVaultEscrow(escrowAddr).initialized(), "Escrow not initialized");
         }
     }
 
     function test_RevertOnZeroAddresses() public {
-        ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: 1_000_000e6,
-            superVaultCap: 5_000_000e6,
-            maxAllocationRate: 2000,
-            vaultThreshold: 100_000e6
-        });
+        address[] memory bootstrapHooks;
+        bytes[] memory bootstrapHookCalldata;
 
         // Test with zero asset address
-        vm.expectRevert(SuperVaultFactory.ZERO_ADDRESS.selector);
-        factory.createVault(
-            address(0), "Test Vault", "TV", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, FEE_RECIPIENT
+        vm.expectRevert(ISuperVaultFactory.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(0),
+                manager: SV_MANAGER,
+                strategist: STRATEGIST,
+                emergencyAdmin: EMERGENCY_ADMIN,
+                feeRecipient: TREASURY,
+                vaultCap: 1_000_000e6,
+                superVaultCap: 5_000_000e6,
+                vaultThreshold: 100_000e6,
+                bootstrapAmount: 1e6,
+                symbol: "TV",
+                initHooksRoot: bytes32(0),
+                initYieldSource: address(0),
+                bootstrappingHooks: bootstrapHooks,
+                bootstrappingHookCalldata: bootstrapHookCalldata
+            })
         );
 
-        // Test with zero manager address
-        vm.expectRevert(SuperVaultFactory.ZERO_ADDRESS.selector);
-        factory.createVault(
-            address(asset), "Test Vault", "TV", address(0), STRATEGIST, EMERGENCY_ADMIN, config, FEE_RECIPIENT
+        // Test with zero manager address (by temporarily setting SV_MANAGER to address(0))
+        vm.expectRevert(ISuperVaultFactory.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(asset),
+                manager: address(0),
+                strategist: STRATEGIST,
+                emergencyAdmin: EMERGENCY_ADMIN,
+                feeRecipient: TREASURY,
+                vaultCap: 1_000_000e6,
+                superVaultCap: 5_000_000e6,
+                vaultThreshold: 100_000e6,
+                bootstrapAmount: 1e6,
+                symbol: "TV",
+                initHooksRoot: bytes32(0),
+                initYieldSource: address(0),
+                bootstrappingHooks: bootstrapHooks,
+                bootstrappingHookCalldata: bootstrapHookCalldata
+            })
         );
 
-        // Test with zero strategist address
-        vm.expectRevert(SuperVaultFactory.ZERO_ADDRESS.selector);
-        factory.createVault(
-            address(asset), "Test Vault", "TV", SV_MANAGER, address(0), EMERGENCY_ADMIN, config, FEE_RECIPIENT
+        // Test with zero strategist address (by temporarily setting STRATEGIST to address(0))
+        vm.expectRevert(ISuperVaultFactory.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(asset),
+                manager: SV_MANAGER,
+                strategist: address(0),
+                emergencyAdmin: EMERGENCY_ADMIN,
+                feeRecipient: TREASURY,
+                vaultCap: 1_000_000e6,
+                superVaultCap: 5_000_000e6,
+                vaultThreshold: 100_000e6,
+                bootstrapAmount: 1e6,
+                symbol: "TV",
+                initHooksRoot: bytes32(0),
+                initYieldSource: address(0),
+                bootstrappingHooks: bootstrapHooks,
+                bootstrappingHookCalldata: bootstrapHookCalldata
+            })
         );
 
-        // Test with zero emergency admin address
-        vm.expectRevert(SuperVaultFactory.ZERO_ADDRESS.selector);
-        factory.createVault(
-            address(asset), "Test Vault", "TV", SV_MANAGER, STRATEGIST, address(0), config, FEE_RECIPIENT
-        );
-
-        // Test with zero fee recipient address
-        vm.expectRevert(SuperVaultFactory.ZERO_ADDRESS.selector);
-        factory.createVault(
-            address(asset), "Test Vault", "TV", SV_MANAGER, STRATEGIST, EMERGENCY_ADMIN, config, address(0)
+        // Test with zero emergency admin address (by temporarily setting EMERGENCY_ADMIN to address(0))
+        vm.expectRevert(ISuperVaultFactory.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(asset),
+                manager: SV_MANAGER,
+                strategist: STRATEGIST,
+                emergencyAdmin: address(0),
+                feeRecipient: TREASURY,
+                vaultCap: 1_000_000e6,
+                superVaultCap: 5_000_000e6,
+                vaultThreshold: 100_000e6,
+                bootstrapAmount: 1e6,
+                symbol: "TV",
+                initHooksRoot: bytes32(0),
+                initYieldSource: address(0),
+                bootstrappingHooks: bootstrapHooks,
+                bootstrappingHookCalldata: bootstrapHookCalldata
+            })
         );
     }
-    */
+
+    /*//////////////////////////////////////////////////////////////
+                        INTERNAL HELPERS
+    //////////////////////////////////////////////////////////////*/
+
+    struct VaultCreationParams {
+        address asset;
+        address manager;
+        address strategist;
+        address emergencyAdmin;
+        address feeRecipient;
+        uint256 vaultCap;
+        uint256 superVaultCap;
+        uint256 vaultThreshold;
+        uint256 bootstrapAmount;
+        string symbol;
+        bytes32 initHooksRoot;
+        address initYieldSource;
+        address[] bootstrappingHooks;
+        bytes[] bootstrappingHookCalldata;
+    }
+
+    function _createVault(VaultCreationParams memory params)
+        internal
+        returns (address vaultAddr, address strategyAddr, address escrowAddr)
+    {
+        ISuperVaultStrategy.GlobalConfig memory globalConfig = ISuperVaultStrategy.GlobalConfig({
+            vaultCap: params.vaultCap,
+            superVaultCap: params.superVaultCap,
+            vaultThreshold: params.vaultThreshold
+        });
+        (vaultAddr, strategyAddr, escrowAddr) = factory.createVault(
+            ISuperVaultFactory.VaultCreationParams({
+                asset: params.asset,
+                name: "SuperVault",
+                symbol: params.symbol,
+                manager: params.manager,
+                strategist: params.strategist,
+                emergencyAdmin: params.emergencyAdmin,
+                feeRecipient: params.feeRecipient,
+                config: globalConfig,
+                bootstrapAmount: params.bootstrapAmount,
+                initYieldSource: params.initYieldSource,
+                initHooksRoot: params.initHooksRoot,
+                initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                bootstrappingHooks: params.bootstrappingHooks,
+                bootstrappingHookCalldata: params.bootstrappingHookCalldata
+            })
+        );
+    }
 }

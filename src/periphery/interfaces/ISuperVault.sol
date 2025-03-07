@@ -41,6 +41,10 @@ interface ISuperVault {
     /// @param amount The amount of shares to mint
     function mintShares(uint256 amount) external;
 
+    /// @notice Burn shares, only callable by strategy
+    /// @param amount The amount of shares to burn
+    function burnShares(uint256 amount) external;
+
     /// @notice Callback function for when a deposit becomes claimable
     /// @param user The user whose deposit is claimable
     /// @param assets The amount of assets deposited

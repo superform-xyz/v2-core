@@ -15,7 +15,9 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) public isHookRegistered;
+    mapping(address => bool) public isFulfillRequestsHookRegistered;
     address[] public registeredHooks;
+    address[] public registeredFulfillRequestsHooks;
 
     address private treasury;
 
@@ -42,33 +44,62 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IPeripheryRegistry
-    function registerHook(address hook_) external onlyOwner {
-        if (isHookRegistered[hook_]) revert HOOK_ALREADY_REGISTERED();
+    function registerHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
         if (hook_ == address(0)) revert INVALID_ADDRESS();
-        isHookRegistered[hook_] = true;
-        registeredHooks.push(hook_);
-        emit HookRegistered(hook_);
-    }
 
-    /// @inheritdoc IPeripheryRegistry
-    function unregisterHook(address hook_) external onlyOwner {
-        if (!isHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
-        if (hook_ == address(0)) revert INVALID_ADDRESS();
-        isHookRegistered[hook_] = false;
-
-        // Remove the hook from the registeredHooks array
-        for (uint256 i = 0; i < registeredHooks.length; i++) {
-            if (registeredHooks[i] == hook_) {
-                // Move the last element to the position of the element to delete
-                registeredHooks[i] = registeredHooks[registeredHooks.length - 1];
-                // Remove the last element
-                registeredHooks.pop();
-                break;
-            }
+        if (isFulfillRequestsHook_) {
+            if (isFulfillRequestsHookRegistered[hook_]) revert HOOK_ALREADY_REGISTERED();
+            isFulfillRequestsHookRegistered[hook_] = true;
+            registeredFulfillRequestsHooks.push(hook_);
+            emit FulfillRequestsHookRegistered(hook_);
         }
 
-        emit HookUnregistered(hook_);
+        if (!isHookRegistered[hook_]) {
+            isHookRegistered[hook_] = true;
+            registeredHooks.push(hook_);
+            emit HookRegistered(hook_);
+        } else if (!isFulfillRequestsHook_) {
+            revert HOOK_ALREADY_REGISTERED();
+        }
     }
+
+
+    /// @inheritdoc IPeripheryRegistry
+    function unregisterHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
+        if (hook_ == address(0)) revert INVALID_ADDRESS();
+
+        if (isFulfillRequestsHook_) {
+            if (!isFulfillRequestsHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
+            isFulfillRequestsHookRegistered[hook_] = false;
+
+            // Remove from fulfill requests hooks array
+            for (uint256 i = 0; i < registeredFulfillRequestsHooks.length; i++) {
+                if (registeredFulfillRequestsHooks[i] == hook_) {
+                    registeredFulfillRequestsHooks[i] = registeredFulfillRequestsHooks[registeredFulfillRequestsHooks.length - 1];
+                    registeredFulfillRequestsHooks.pop();
+                    break;
+                }
+            }
+            emit FulfillRequestsHookUnregistered(hook_);
+        }
+
+        if (isHookRegistered[hook_]) {
+            isHookRegistered[hook_] = false;
+
+            // Remove from regular hooks array
+            for (uint256 i = 0; i < registeredHooks.length; i++) {
+                if (registeredHooks[i] == hook_) {
+                    registeredHooks[i] = registeredHooks[registeredHooks.length - 1];
+                    registeredHooks.pop();
+                    break;
+                }
+            }
+            emit HookUnregistered(hook_);
+        } else if (!isFulfillRequestsHook_) {
+            revert HOOK_NOT_REGISTERED();
+        }
+    }
+
 
     /// @inheritdoc IPeripheryRegistry
     function proposeFeeSplit(uint256 feeSplit_) external onlyOwner {

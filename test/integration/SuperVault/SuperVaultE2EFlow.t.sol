@@ -56,7 +56,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         );
 
         // Step 2: Fulfill Deposit
-        _fulfillDeposit(amount);
+        _fulfillDeposit(amount, accountEth, address(fluidVault), address(aaveVault));
 
         // Step 3: Claim Deposit
         _claimDeposit(amount);
@@ -85,7 +85,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         uint256 totalFee = superformFee + recipientFee;
 
-        _fulfillRedeem(totalRedeemShares);
+        _fulfillRedeem(totalRedeemShares, address(fluidVault), address(aaveVault));
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
@@ -131,7 +131,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         uint256 expectedUserShares = vault.convertToShares(amount);
 
         // Step 2: Fulfill Deposit
-        _fulfillDeposit(amount);
+        _fulfillDeposit(amount, accountEth, address(fluidVault), address(aaveVault));
 
         // Step 3: Claim Deposit
         _claimDeposit(amount);
@@ -156,12 +156,10 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFees(userShares, _getSuperVaultPricePerShare());
 
         // Step 5: Fulfill Redeem
-        _fulfillRedeem(userShares);
+        _fulfillRedeem(userShares, address(fluidVault), address(aaveVault));
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
-        console2.log("claimableAssets", claimableAssets);
-        console2.log("----userShares", userShares);
 
         (
           ISuperLedger.LedgerEntry[] memory entries, 
@@ -182,24 +180,12 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Step 6: Claim Withdraw
         _claimWithdraw(claimableAssets);
 
-        console2.log("assets after claimWithdraw", asset.balanceOf(accountEth));
-
         uint256 totalFee = superformFee + recipientFee + expectedLedgerFee;
-
-        console2.log("expectedLedgerFee", expectedLedgerFee);
-        console2.log("totalFee", totalFee);
-        console2.log("superformFee", superformFee);
-        console2.log("recipientFee", recipientFee);
-        console2.log("feeBalanceBefore", feeBalanceBefore);
-        console2.log("asset.balanceOf(TREASURY)", asset.balanceOf(TREASURY));
 
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
         (entries,) = superLedgerETH.getLedger(accountEth, address(vault));
-        console2.log("entries[0].pricePerShare", entries[0].price);
-        console2.log("entries[0].amountSharesAvailableToConsume", entries[0].amountSharesAvailableToConsume);
-
         // Verify fee was taken
         _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
 
@@ -208,6 +194,5 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         assertEq(entries.length, 1, "Should have one ledger entry");
         assertEq(entries[0].amountSharesAvailableToConsume, 0, "Shares should be consumed");
-        // Shares are not consumed because the SuperVault is the target and AccountingOutflow is skipped
     }
 }

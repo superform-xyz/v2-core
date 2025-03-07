@@ -2,20 +2,25 @@
 pragma solidity =0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
-// superform
-import { console2 } from "forge-std/console2.sol";
-
-import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
-
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-
+import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { console2 } from "forge-std/console2.sol";
+import { Vm } from "forge-std/Vm.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
+// superform
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
+import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
+import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
+import { RuggableVault } from "../../mocks/RuggableVault.sol";
+import { RuggableConvertVault } from "../../mocks/RuggableConvertVault.sol";
+import { SuperVault } from "../../../src/periphery/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 
 contract SuperVaultScenariosTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
@@ -67,7 +72,98 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 redeemedShares;
     }
 
-    function test_MultipleOperations_RandomAmounts(uint256 seed) public {
+    struct NewYieldSourceVars {
+        uint256 depositAmount;
+        uint256 initialFluidVaultBalance;
+        uint256 initialAaveVaultBalance;
+        uint256 initialMockVaultBalance;
+        uint256 initialPendleVaultBalance;
+        uint256 amountToReallocateFluidVault;
+        uint256 amountToReallocateAaveVault;
+        uint256 assetAmountToReallocateFromFluidVault;
+        uint256 assetAmountToReallocateFromAaveVault;
+        uint256 assetAmountToReallocateToMockVault;
+        uint256 assetAmountToReallocateToPendleVault;
+        uint256 finalFluidVaultBalance;
+        uint256 finalAaveVaultBalance;
+        uint256 finalMockVaultBalance;
+        uint256 finalPendleVaultBalance;
+        uint256 initialTotalValue;
+        uint256 finalTotalValue;
+        Mock4626Vault newVault;
+        address pendleVault;
+        // Price per share tracking
+        uint256 initialFluidVaultPPS;
+        uint256 initialAaveVaultPPS;
+        uint256 initialPendleVaultPPS;
+        uint256 initialMockVaultPPS;
+    }
+
+    struct VaultLifecycleVars {
+        uint256 depositAmount;
+        uint256 initialTimestamp;
+        uint256[] userDepositAmounts;
+        address[] users;
+        uint256 initialFluidVaultPPS;
+        uint256 initialAaveVaultPPS;
+        uint256 initialPendleVaultPPS;
+        uint256 initialTotalValue;
+        uint256 finalTotalValue;
+        uint256[] userInitialShares;
+        uint256[] userInitialAssets;
+        uint256[] userFinalShares;
+        uint256[] userFinalAssets;
+        uint256[] userYields;
+        address pendleVault;
+    }
+
+    struct RugTestVarsDeposit {
+        uint256 depositAmount;
+        uint256 initialTotalAssets;
+        uint256 initialTotalSupply;
+        uint256 initialPricePerShare;
+        uint256 rugPercentage;
+        address[] depositUsers;
+        uint256[] depositAmounts;
+        uint256 initialTimestamp;
+        RuggableVault ruggableVault;
+    }
+
+    struct RugTestVarsWithdraw {
+        bool convertVault;
+        uint256 depositAmount;
+        uint256 initialTotalAssets;
+        uint256 initialTotalSupply;
+        uint256 initialPricePerShare;
+        uint256 rugPercentage;
+        address[] depositUsers;
+        uint256[] depositAmounts;
+        address[] redeemUsers;
+        uint256[] redeemAmounts;
+        uint256 totalRedeemShares;
+        uint256 redeemSharesVault1;
+        uint256 redeemSharesVault2;
+        uint256 initialTimestamp;
+        address ruggableVault;
+        uint256 initialRuggableVaultBalance;
+        uint256 initialFluidVaultBalance;
+        uint256 initialRuggableVaultAssets;
+        uint256 initialFluidVaultAssets;
+        uint256 amountToReallocate;
+        uint256 assetAmountToReallocate;
+        uint256 finalRuggableVaultBalance;
+        uint256 finalFluidVaultBalance;
+        uint256 finalRuggableVaultAssets;
+        uint256 finalFluidVaultAssets;
+        uint256 initialTotalValue;
+        uint256 finalTotalValue;
+        uint256 vaultTotalAssetsAfterAllocation;
+        uint256 pricePerShareAfterAllocation;
+        uint256 ppsBeforeWarp;
+        uint256 ppsAfterWarp;
+    }
+
+    function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
         MultipleOperationsVars memory vars;
         // Setup random seed and initial timestamp
         vars.initialTimestamp = block.timestamp;
@@ -110,7 +206,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.selected = new bool[](ACCOUNT_COUNT);
 
         // Select random users for redemption
-        _selectRandomUsersForRedemption(vars);
+        vars = _selectRandomUsersForRedemption(vars);
 
         // Simulate some more time passing (12 hours) before redemption requests
         vm.warp(vars.initialTimestamp + 1 days + 12 hours);
@@ -136,7 +232,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Fulfill redemptions
         vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
         vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
-        _fulfillRedeemForUsers(vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2);
+        _fulfillRedeemForUsers(
+            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), address(aaveVault)
+        );
 
         // Process claims for redeemed users
         _claimRedeemForUsers(vars.redeemUsers);
@@ -149,6 +247,990 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Verify final balances and shares
         _verifyFinalBalances(vars);
+    }
+
+    function test_11_Allocate_NewYieldSource() public {
+        NewYieldSourceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
+        vars.initialAaveVaultPPS = aaveVault.convertToAssets(1e18);
+
+        // do an initial allo
+        _completeDepositFlow(vars.depositAmount);
+
+        // add new vault as yield source
+        vars.newVault = new Mock4626Vault(asset, "New Vault", "NV");
+
+        //  -- add funds to the newVault to respect VAULT_THRESHOLD
+        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        asset.approve(address(vars.newVault), type(uint256).max);
+        vars.newVault.deposit(2 * VAULT_THRESHOLD, address(this));
+
+        vm.warp(block.timestamp + 20 days);
+
+        // -- add it as a new yield source
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        vm.stopPrank();
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.initialPendleVaultBalance = vars.newVault.balanceOf(address(strategy));
+
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+        console2.log("Initial PendleVault balance:", vars.initialPendleVaultBalance);
+
+        // 30/30/40
+        // allocate 20% from each vault to the new one
+        vars.amountToReallocateFluidVault = vars.initialFluidVaultBalance * 20 / 100;
+        vars.amountToReallocateAaveVault = vars.initialAaveVaultBalance * 20 / 100;
+        vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
+        vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
+        vars.assetAmountToReallocateToPendleVault =
+            vars.assetAmountToReallocateFromFluidVault + vars.assetAmountToReallocateFromAaveVault;
+        console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
+        console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
+
+        vm.warp(block.timestamp + 20 days);
+
+        // allocation
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = withdrawHookAddress;
+        hooksAddresses[2] = depositHookAddress;
+
+        bytes[] memory hooksData = new bytes[](3);
+        // redeem from FluidVault
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            vars.amountToReallocateFluidVault,
+            false,
+            false
+        );
+        // redeem from AaveVault
+        hooksData[1] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            vars.amountToReallocateAaveVault,
+            false,
+            false
+        );
+        // deposit to PendleVault
+        hooksData[2] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vars.newVault),
+            vars.assetAmountToReallocateToPendleVault,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        // check new balances
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalPendleVaultBalance = vars.newVault.balanceOf(address(strategy));
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("Final PendleVault balance:", vars.finalPendleVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalFluidVaultBalance,
+            vars.initialFluidVaultBalance - vars.amountToReallocateFluidVault,
+            0.01e18,
+            "FluidVault balance should decrease by the reallocated amount"
+        );
+
+        assertApproxEqRel(
+            vars.finalAaveVaultBalance,
+            vars.initialAaveVaultBalance - vars.amountToReallocateAaveVault,
+            0.01e18,
+            "AaveVault balance should decrease by the reallocated amount"
+        );
+
+        assertGt(vars.finalPendleVaultBalance, vars.initialPendleVaultBalance, "PendleVault balance should increase");
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
+            + vars.newVault.convertToAssets(vars.initialPendleVaultBalance);
+
+        vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
+            + vars.newVault.convertToAssets(vars.finalPendleVaultBalance);
+        assertApproxEqRel(
+            vars.finalTotalValue, vars.initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
+        );
+
+        // Enhanced checks for price per share and yield
+        console2.log("\n=== Enhanced Vault Metrics ===");
+
+        // Price per share comparison
+        uint256 fluidVaultFinalPPS = fluidVault.convertToAssets(1e18);
+        uint256 aaveVaultFinalPPS = aaveVault.convertToAssets(1e18);
+        uint256 pendleVaultFinalPPS = vars.newVault.convertToAssets(1e18);
+
+        console2.log("\nPrice per Share Changes:");
+        console2.log("Fluid Vault:");
+        console2.log("  Initial PPS:", vars.initialFluidVaultPPS);
+        console2.log("  Final PPS:", fluidVaultFinalPPS);
+        console2.log(
+            "  Change:",
+            fluidVaultFinalPPS > vars.initialFluidVaultPPS ? "+" : "",
+            fluidVaultFinalPPS - vars.initialFluidVaultPPS
+        );
+        console2.log(
+            "  Change %:", ((fluidVaultFinalPPS - vars.initialFluidVaultPPS) * 10_000) / vars.initialFluidVaultPPS
+        );
+
+        console2.log("\nAave Vault:");
+        console2.log("  Initial PPS:", vars.initialAaveVaultPPS);
+        console2.log("  Final PPS:", aaveVaultFinalPPS);
+        console2.log(
+            "  Change:",
+            aaveVaultFinalPPS > vars.initialAaveVaultPPS ? "+" : "",
+            aaveVaultFinalPPS - vars.initialAaveVaultPPS
+        );
+        console2.log(
+            "  Change %:", ((aaveVaultFinalPPS - vars.initialAaveVaultPPS) * 10_000) / vars.initialAaveVaultPPS
+        );
+
+        console2.log("\nYield Metrics:");
+        uint256 totalYield =
+            vars.finalTotalValue > vars.initialTotalValue ? vars.finalTotalValue - vars.initialTotalValue : 0;
+        console2.log("Total Yield:", totalYield);
+        console2.log("Yield %:", (totalYield * 10_000) / vars.initialTotalValue);
+
+        assertGe(fluidVaultFinalPPS, vars.initialFluidVaultPPS, "Fluid Vault should not lose value");
+        assertGe(aaveVaultFinalPPS, vars.initialAaveVaultPPS, "Aave Vault should not lose value");
+        assertGe(pendleVaultFinalPPS, 1e18, "Pendle Vault should not lose value");
+
+        uint256 totalFinalBalance =
+            vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalPendleVaultBalance;
+
+        uint256 fluidRatio = (vars.finalFluidVaultBalance * 100) / totalFinalBalance;
+        uint256 aaveRatio = (vars.finalAaveVaultBalance * 100) / totalFinalBalance;
+        uint256 pendleRatio = (vars.finalPendleVaultBalance * 100) / totalFinalBalance;
+
+        console2.log("\nFinal Allocation Ratios:");
+        console2.log("Fluid Vault:", fluidRatio, "%");
+        console2.log("Aave Vault:", aaveRatio, "%");
+        console2.log("Pendle Vault:", pendleRatio, "%");
+    }
+
+    function test_10_RuggableVault_Deposit() public {
+        RugTestVarsDeposit memory vars;
+        vars.depositAmount = 1000e6;
+        vars.rugPercentage = 10; // 0.1% rug
+        vars.initialTimestamp = block.timestamp;
+
+        // Deploy a ruggable vault that rugs on deposit
+        vars.ruggableVault = new RuggableVault(
+            IERC20(address(asset)),
+            "Ruggable Vault",
+            "RUG",
+            true, // rug on deposit
+            false, // don't rug on withdraw
+            vars.rugPercentage
+        );
+
+        // Add funds to the ruggable vault to respect VAULT_THRESHOLD
+        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        asset.approve(address(vars.ruggableVault), type(uint256).max);
+        vars.ruggableVault.deposit(2 * VAULT_THRESHOLD, address(this));
+
+        // Deploy a new SuperVault with the ruggable vault
+        _deployNewSuperVaultWithRuggableVault(address(vars.ruggableVault));
+
+        // Setup deposit users and amounts
+        vars.depositUsers = new address[](5);
+        vars.depositAmounts = new uint256[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            vars.depositUsers[i] = accInstances[i].account;
+            vars.depositAmounts[i] = vars.depositAmount;
+        }
+
+        // Perform deposits
+        for (uint256 i = 0; i < 5; i++) {
+            _getTokens(address(asset), vars.depositUsers[i], vars.depositAmounts[i]);
+            vm.startPrank(vars.depositUsers[i]);
+            asset.approve(address(vault), vars.depositAmounts[i]);
+            vault.requestDeposit(vars.depositAmounts[i], vars.depositUsers[i], vars.depositUsers[i]);
+            vm.stopPrank();
+        }
+
+        // Store initial state
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+
+        // Log initial state
+        console2.log("\n=== Initial State ===");
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", vars.ruggableVault.balanceOf(address(strategy)));
+        console2.log("Fluid Vault Balance:", fluidVault.balanceOf(address(strategy)));
+
+        // Simulate time passing
+        vm.warp(vars.initialTimestamp + 1 days);
+
+        // Fulfill deposit requests
+        _fulfillDepositForUsers(
+            vars.depositUsers,
+            vars.depositAmount * 5 / 2,
+            vars.depositAmount * 5 / 2,
+            address(fluidVault),
+            address(vars.ruggableVault)
+        );
+    }
+
+    function test_10_RuggableVault_Withdraw() public {
+        RugTestVarsWithdraw memory vars;
+        vars.depositAmount = 1000e6;
+        vars.rugPercentage = 5000; // 50% rug
+        vars.initialTimestamp = block.timestamp;
+
+        // Deploy a ruggable vault that rugs on withdraw
+        RuggableVault ruggableVault = new RuggableVault(
+            IERC20(address(asset)),
+            "Ruggable Vault",
+            "RUG",
+            false, // don't rug on deposit
+            true, // rug on withdraw
+            vars.rugPercentage
+        );
+
+        vars.ruggableVault = address(ruggableVault);
+        vars.convertVault = false;
+        // Log the rug configuration
+        console2.log("\n=== RuggableVault Configuration ===");
+        console2.log("Rug on deposit:", ruggableVault.rugOnDeposit());
+        console2.log("Rug on withdraw:", ruggableVault.rugOnWithdraw());
+        console2.log("Rug percentage:", ruggableVault.rugPercentage());
+
+        // Calculate how much would be rugged for a sample amount
+        uint256 sampleAmount = 1000e6;
+        uint256 ruggedAmount = ruggableVault.calculateRuggedAmount(sampleAmount);
+        console2.log("For a sample amount of", sampleAmount, "the rugged amount would be", ruggedAmount);
+
+        // Verify the rug calculation is correct
+        assertEq(
+            ruggedAmount,
+            sampleAmount * vars.rugPercentage / 10_000,
+            "Rugged amount calculation should match expected value"
+        );
+
+        _testRuggableVaultWithdraw(vars);
+    }
+
+    function test_10_RuggableVault_Withdraw_ConvertDistortion() public {
+        RugTestVarsWithdraw memory vars;
+        vars.depositAmount = 1000e6;
+        vars.rugPercentage = 5000; // 50% rug
+        vars.initialTimestamp = block.timestamp;
+
+        // Deploy a ruggable vault that rugs via convert functions
+        RuggableConvertVault ruggableConvertVault = new RuggableConvertVault(
+            IERC20(address(asset)),
+            "Ruggable Convert Vault",
+            "RUGC",
+            vars.rugPercentage,
+            true // rug enabled
+        );
+
+        vars.ruggableVault = address(ruggableConvertVault);
+        vars.convertVault = true;
+        _testRuggableVaultWithdraw(vars);
+
+        // Verify that the SuperVault's totalAssets was affected by the inflated reporting
+        uint256 vaultTotalAssets = ruggableConvertVault.totalAssets();
+        console2.log("Ruggable vault total assets:", vaultTotalAssets);
+
+        // Disable the rug to see the true value
+        ruggableConvertVault.setRugEnabled(false);
+        uint256 vaultTotalAssetsWithoutRug = ruggableConvertVault.totalAssets();
+        console2.log("Ruggable total assets (rug disabled):", vaultTotalAssetsWithoutRug);
+        console2.log("Difference:", vaultTotalAssets - vaultTotalAssetsWithoutRug);
+
+        // The difference should be significant if there are still assets in the ruggable vault
+        assertGt(
+            vaultTotalAssets, vaultTotalAssetsWithoutRug, "SuperVault total assets should be higher with rug enabled"
+        );
+    }
+
+    function test_9_VaultLifecycle_FullAlocateOverTime_() public {
+        NewYieldSourceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
+        vars.initialAaveVaultPPS = aaveVault.convertToAssets(1e18);
+
+        // do an initial allocation
+        _completeDepositFlow(vars.depositAmount);
+
+        uint256[] memory initialUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory initialUserShares = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            initialUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            initialUserShares[i] = vault.balanceOf(accInstances[i].account);
+        }
+
+        vm.warp(block.timestamp + 20 days);
+
+        uint256[] memory midUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory midUserShares = new uint256[](ACCOUNT_COUNT);
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            midUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            midUserShares[i] = vault.balanceOf(accInstances[i].account);
+
+            assertGt(midUserAssets[i], initialUserAssets[i], "User assets should increase after 20 days");
+            assertEq(midUserShares[i], initialUserShares[i], "User shares should remain constant");
+
+            console2.log(string.concat("\n=== User ", Strings.toString(i), " Yield after 20 days ==="));
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Current Assets:", midUserAssets[i]);
+            console2.log("Yield:", midUserAssets[i] - initialUserAssets[i]);
+            console2.log("Yield %:", ((midUserAssets[i] - initialUserAssets[i]) * 10_000) / initialUserAssets[i]);
+        }
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+
+        // 100% to aave allocation
+        vars.amountToReallocateFluidVault = vars.initialFluidVaultBalance;
+        vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
+
+        console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
+
+        vm.warp(block.timestamp + 20 days);
+
+        uint256[] memory finalUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory finalUserShares = new uint256[](ACCOUNT_COUNT);
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            finalUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            finalUserShares[i] = vault.balanceOf(accInstances[i].account);
+
+            assertGt(finalUserAssets[i], midUserAssets[i], "User assets should increase after reallocation");
+            assertEq(finalUserShares[i], midUserShares[i], "User shares should remain constant");
+
+            console2.log(string.concat("\n=== User ", Strings.toString(i), " Final Yield ==="));
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Mid Assets:", midUserAssets[i]);
+            console2.log("Final Assets:", finalUserAssets[i]);
+            console2.log("Total Yield:", finalUserAssets[i] - initialUserAssets[i]);
+            console2.log(
+                "Total Yield %:", ((finalUserAssets[i] - initialUserAssets[i]) * 10_000) / initialUserAssets[i]
+            );
+            console2.log("Post-Reallocation Yield:", finalUserAssets[i] - midUserAssets[i]);
+            console2.log(
+                "Post-Reallocation Yield %:", ((finalUserAssets[i] - midUserAssets[i]) * 10_000) / midUserAssets[i]
+            );
+        }
+
+        // allocation; fluid -> aave
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory hooksData = new bytes[](2);
+        // redeem from fluid entirely
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            vars.amountToReallocateFluidVault,
+            false,
+            false
+        );
+        // deposit to aave
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            vars.assetAmountToReallocateFromFluidVault,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        // check new balances
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+        vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalValue, vars.initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
+        );
+
+        assertEq(vars.finalFluidVaultBalance, 0, "FluidVault balance should be 0");
+        assertGt(vars.finalAaveVaultBalance, vars.initialAaveVaultBalance, "AaveVault balance should increase");
+
+        vm.warp(block.timestamp + 20 days);
+
+        // 80% to aave allocation
+        vars.amountToReallocateAaveVault = vars.finalAaveVaultBalance * 20 / 100;
+        vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
+        // re-allocate back to fluid; withdraw from aave (20%)
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            vars.amountToReallocateAaveVault,
+            false,
+            false
+        );
+        // deposit to f;io
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            vars.assetAmountToReallocateFromAaveVault,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
+            + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        assertApproxEqRel(
+            vars.finalTotalValue,
+            vars.initialTotalValue,
+            0.01e18,
+            "Total final value should be preserved during allocation"
+        );
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            finalUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            finalUserShares[i] = vault.balanceOf(accInstances[i].account);
+
+            assertGt(finalUserAssets[i], midUserAssets[i], "User assets should increase after reallocation");
+            assertEq(finalUserShares[i], midUserShares[i], "User shares should remain constant");
+
+            console2.log(string.concat("\n=== User ", Strings.toString(i), " Final Yield ==="));
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Mid Assets:", midUserAssets[i]);
+            console2.log("Final Assets:", finalUserAssets[i]);
+            console2.log("Total Yield:", finalUserAssets[i] - initialUserAssets[i]);
+            console2.log(
+                "Total Yield %:", ((finalUserAssets[i] - initialUserAssets[i]) * 10_000) / initialUserAssets[i]
+            );
+            console2.log("Post-Reallocation Yield:", finalUserAssets[i] - midUserAssets[i]);
+            console2.log(
+                "Post-Reallocation Yield %:", ((finalUserAssets[i] - midUserAssets[i]) * 10_000) / midUserAssets[i]
+            );
+        }
+    }
+
+    function test_9_VaultLifecycle_AddAndRemoveOverTime() public {
+        NewYieldSourceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
+        vars.initialAaveVaultPPS = aaveVault.convertToAssets(1e18);
+
+        // do an initial allocation
+        _completeDepositFlow(vars.depositAmount);
+
+        uint256[] memory initialUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory initialUserShares = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            initialUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            initialUserShares[i] = vault.balanceOf(accInstances[i].account);
+        }
+
+        vm.warp(block.timestamp + 20 days);
+
+        uint256[] memory midUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory midUserShares = new uint256[](ACCOUNT_COUNT);
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            midUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            midUserShares[i] = vault.balanceOf(accInstances[i].account);
+
+            assertGt(midUserAssets[i], initialUserAssets[i], "User assets should increase after 20 days");
+            assertEq(midUserShares[i], initialUserShares[i], "User shares should remain constant");
+
+            console2.log(string.concat("\n=== User ", Strings.toString(i), " Yield after 20 days ==="));
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Current Assets:", midUserAssets[i]);
+            console2.log("Yield:", midUserAssets[i] - initialUserAssets[i]);
+            console2.log("Yield %:", ((midUserAssets[i] - initialUserAssets[i]) * 10_000) / initialUserAssets[i]);
+        }
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+
+        // 100% to aave allocation
+        vars.amountToReallocateFluidVault = vars.initialFluidVaultBalance;
+        vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
+
+        console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
+
+        vm.warp(block.timestamp + 20 days);
+
+        uint256[] memory finalUserAssets = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory finalUserShares = new uint256[](ACCOUNT_COUNT);
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            finalUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            finalUserShares[i] = vault.balanceOf(accInstances[i].account);
+
+            assertGt(finalUserAssets[i], midUserAssets[i], "User assets should increase after reallocation");
+            assertEq(finalUserShares[i], midUserShares[i], "User shares should remain constant");
+
+            console2.log(string.concat("\n=== User ", Strings.toString(i), " Final Yield ==="));
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Mid Assets:", midUserAssets[i]);
+            console2.log("Final Assets:", finalUserAssets[i]);
+            console2.log("Total Yield:", finalUserAssets[i] - initialUserAssets[i]);
+            console2.log(
+                "Total Yield %:", ((finalUserAssets[i] - initialUserAssets[i]) * 10_000) / initialUserAssets[i]
+            );
+            console2.log("Post-Reallocation Yield:", finalUserAssets[i] - midUserAssets[i]);
+            console2.log(
+                "Post-Reallocation Yield %:", ((finalUserAssets[i] - midUserAssets[i]) * 10_000) / midUserAssets[i]
+            );
+        }
+
+        // allocation; fluid -> aave
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory hooksData = new bytes[](2);
+        // redeem from fluid entirely
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            vars.amountToReallocateFluidVault,
+            false,
+            false
+        );
+        // deposit to aave
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            vars.assetAmountToReallocateFromFluidVault,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        // disable fluid vault entirely
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, false);
+        vm.stopPrank();
+
+        // check new balances
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+        vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalValue, vars.initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
+        );
+
+        assertEq(vars.finalFluidVaultBalance, 0, "FluidVault balance should be 0");
+        assertGt(vars.finalAaveVaultBalance, vars.initialAaveVaultBalance, "AaveVault balance should increase");
+
+        vm.warp(block.timestamp + 20 days);
+
+        // 80% to aave allocation
+        vars.amountToReallocateAaveVault = vars.finalAaveVaultBalance * 20 / 100;
+        vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
+        // re-allocate back to fluid; withdraw from aave (20%)
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            vars.amountToReallocateAaveVault,
+            false,
+            false
+        );
+        // deposit to f;io
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            vars.assetAmountToReallocateFromAaveVault,
+            false,
+            false
+        );
+
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        // re-enable fluid vault
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, true);
+        vm.stopPrank();
+
+        // try allocate again
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
+            + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        assertApproxEqRel(
+            vars.finalTotalValue,
+            vars.initialTotalValue,
+            0.01e18,
+            "Total final value should be preserved during allocation"
+        );
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            finalUserAssets[i] = vault.convertToAssets(vault.balanceOf(accInstances[i].account));
+            finalUserShares[i] = vault.balanceOf(accInstances[i].account);
+
+            assertGt(finalUserAssets[i], midUserAssets[i], "User assets should increase after reallocation");
+            assertEq(finalUserShares[i], midUserShares[i], "User shares should remain constant");
+
+            console2.log(string.concat("\n=== User ", Strings.toString(i), " Final Yield ==="));
+            console2.log("Initial Assets:", initialUserAssets[i]);
+            console2.log("Mid Assets:", midUserAssets[i]);
+            console2.log("Final Assets:", finalUserAssets[i]);
+            console2.log("Total Yield:", finalUserAssets[i] - initialUserAssets[i]);
+            console2.log(
+                "Total Yield %:", ((finalUserAssets[i] - initialUserAssets[i]) * 10_000) / initialUserAssets[i]
+            );
+            console2.log("Post-Reallocation Yield:", finalUserAssets[i] - midUserAssets[i]);
+            console2.log(
+                "Post-Reallocation Yield %:", ((finalUserAssets[i] - midUserAssets[i]) * 10_000) / midUserAssets[i]
+            );
+        }
+    }
+
+    function test_1_DynamicAllocation(uint256 amount) public {
+        NewYieldSourceVars memory vars;
+        vars.depositAmount = bound(amount, 10e6, 1000e6);
+
+        vars.newVault = new Mock4626Vault(asset, "New Vault", "NV");
+
+        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        asset.approve(address(vars.newVault), type(uint256).max);
+        vars.newVault.deposit(2 * VAULT_THRESHOLD, address(this));
+
+        // warp before adding a new vault;
+        vm.warp(block.timestamp + 20 days);
+
+        // -- add it as a new yield source
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        vm.stopPrank();
+
+        vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
+        vars.initialAaveVaultPPS = aaveVault.convertToAssets(1e18);
+
+        // warp again
+        vm.warp(block.timestamp + 20 days);
+
+        // create deposit requests for all users
+        _requestDepositForAllUsers(vars.depositAmount);
+
+        // create fullfillment data
+        uint256 totalAmount = vars.depositAmount * ACCOUNT_COUNT;
+        uint256 allocationAmountVault1 = totalAmount * 40 / 100;
+        uint256 allocationAmountVault2 = totalAmount * 30 / 100;
+        uint256 allocationAmountVault3 = totalAmount * 30 / 100;
+
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            requestingUsers[i] = accInstances[i].account;
+            unchecked {
+                ++i;
+            }
+        }
+
+        // fulfill deposits
+        _fulfillDepositForUsers(
+            requestingUsers,
+            address(fluidVault),
+            address(aaveVault),
+            address(vars.newVault),
+            allocationAmountVault1,
+            allocationAmountVault2,
+            allocationAmountVault3
+        );
+
+        // claim deposits
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            _claimDepositForAccount(accInstances[i], vars.depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.initialMockVaultBalance = vars.newVault.balanceOf(address(strategy));
+
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+        console2.log("Initial MockVault balance:", vars.initialMockVaultBalance);
+
+        _test_1_performReallocation(vars);
+
+        console2.log("\n=== Enhanced Vault Metrics ===");
+        uint256 fluidVaultFinalPPS = fluidVault.convertToAssets(1e18);
+        uint256 aaveVaultFinalPPS = aaveVault.convertToAssets(1e18);
+        uint256 mockVaultFinalPPS = vars.newVault.convertToAssets(1e18);
+
+        console2.log("\nPrice per Share Changes:");
+        console2.log("Fluid Vault:");
+        console2.log("  Initial PPS:", vars.initialFluidVaultPPS);
+        console2.log("  Final PPS:", fluidVaultFinalPPS);
+        console2.log(
+            "  Change:",
+            fluidVaultFinalPPS > vars.initialFluidVaultPPS ? "+" : "",
+            fluidVaultFinalPPS - vars.initialFluidVaultPPS
+        );
+        console2.log(
+            "  Change %:", ((fluidVaultFinalPPS - vars.initialFluidVaultPPS) * 10_000) / vars.initialFluidVaultPPS
+        );
+
+        console2.log("\nAave Vault:");
+        console2.log("  Initial PPS:", vars.initialAaveVaultPPS);
+        console2.log("  Final PPS:", aaveVaultFinalPPS);
+        console2.log(
+            "  Change:",
+            aaveVaultFinalPPS > vars.initialAaveVaultPPS ? "+" : "",
+            aaveVaultFinalPPS - vars.initialAaveVaultPPS
+        );
+        console2.log(
+            "  Change %:", ((aaveVaultFinalPPS - vars.initialAaveVaultPPS) * 10_000) / vars.initialAaveVaultPPS
+        );
+
+        console2.log("\nYield Metrics:");
+        uint256 totalYield =
+            vars.finalTotalValue > vars.initialTotalValue ? vars.finalTotalValue - vars.initialTotalValue : 0;
+        console2.log("Total Yield:", totalYield);
+        console2.log("Yield %:", (totalYield * 10_000) / vars.initialTotalValue);
+
+        assertGe(fluidVaultFinalPPS, vars.initialFluidVaultPPS, "Fluid Vault should not lose value");
+        assertGe(aaveVaultFinalPPS, vars.initialAaveVaultPPS, "Aave Vault should not lose value");
+        assertGe(mockVaultFinalPPS, 1e18, "Mock Vault should not lose value");
+
+        uint256 totalFinalBalance =
+            vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalMockVaultBalance;
+        uint256 fluidRatio = (vars.finalFluidVaultBalance * 100) / totalFinalBalance;
+        uint256 aaveRatio = (vars.finalAaveVaultBalance * 100) / totalFinalBalance;
+        uint256 mockRatio = (vars.finalMockVaultBalance * 100) / totalFinalBalance;
+
+        console2.log("\nFinal Allocation Ratios:");
+        console2.log("Fluid Vault:", fluidRatio, "%");
+        console2.log("Aave Vault:", aaveRatio, "%");
+        console2.log("Mock Vault:", mockRatio, "%");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        PRIVATE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function _test_1_performReallocation(NewYieldSourceVars memory vars) private {
+        vars.amountToReallocateFluidVault = vars.initialFluidVaultBalance * 20 / 100;
+        vars.amountToReallocateAaveVault = vars.initialAaveVaultBalance * 20 / 100;
+        vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
+        vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
+        vars.assetAmountToReallocateToMockVault =
+            vars.assetAmountToReallocateFromFluidVault + vars.assetAmountToReallocateFromAaveVault;
+
+        console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
+        console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
+        console2.log("Asset amount to reallocate from MocmVault:", vars.assetAmountToReallocateToMockVault);
+
+        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](3);
+        bytes[] memory hooksData = new bytes[](3);
+
+        // Setup hooks
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = withdrawHookAddress;
+        hooksAddresses[2] = depositHookAddress;
+
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            vars.amountToReallocateFluidVault,
+            false,
+            false
+        );
+
+        hooksData[1] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            vars.amountToReallocateAaveVault,
+            false,
+            false
+        );
+
+        hooksData[2] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vars.newVault),
+            vars.assetAmountToReallocateToMockVault,
+            false,
+            false
+        );
+
+        // Perform allocation
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 20 days);
+
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalMockVaultBalance = vars.newVault.balanceOf(address(strategy));
+
+        console2.log("FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("MockVault balance:", vars.finalMockVaultBalance);
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
+            + vars.newVault.convertToAssets(vars.initialMockVaultBalance);
+        vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
+            + vars.newVault.convertToAssets(vars.finalMockVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalValue,
+            vars.initialTotalValue,
+            0.01e18,
+            "Total value should be preserved during allocation - after first reallocation"
+        );
+
+        // Verify balance changes
+        assertApproxEqRel(
+            vars.finalFluidVaultBalance,
+            vars.initialFluidVaultBalance - vars.amountToReallocateFluidVault,
+            0.01e18,
+            "FluidVault balance should decrease by the reallocated amount"
+        );
+
+        assertApproxEqRel(
+            vars.finalAaveVaultBalance,
+            vars.initialAaveVaultBalance - vars.amountToReallocateAaveVault,
+            0.01e18,
+            "AaveVault balance should decrease by the reallocated amount"
+        );
+
+        assertGt(vars.finalMockVaultBalance, vars.initialMockVaultBalance, "MockVault balance should increase");
+
+        vars.initialMockVaultBalance = vars.newVault.balanceOf(address(strategy));
+        vars.assetAmountToReallocateToMockVault = vars.newVault.convertToAssets(vars.initialMockVaultBalance);
+        vars.assetAmountToReallocateFromFluidVault = vars.assetAmountToReallocateToMockVault * 30 / 100;
+        vars.assetAmountToReallocateFromAaveVault =
+            vars.initialMockVaultBalance - vars.assetAmountToReallocateFromFluidVault; // the rest goes here
+
+        console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
+        console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
+        console2.log("Asset amount to reallocate from MocmVault:", vars.assetAmountToReallocateToMockVault);
+
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = depositHookAddress;
+        hooksAddresses[2] = depositHookAddress;
+
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vars.newVault),
+            address(strategy),
+            vars.assetAmountToReallocateToMockVault,
+            false,
+            false
+        );
+
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            vars.assetAmountToReallocateFromFluidVault,
+            false,
+            false
+        );
+
+        hooksData[2] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            vars.assetAmountToReallocateFromAaveVault,
+            false,
+            false
+        );
+
+        // Perform allocation
+        vm.startPrank(STRATEGIST);
+        strategy.allocate(hooksAddresses, hooksData);
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 20 days);
+
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalMockVaultBalance = vars.newVault.balanceOf(address(strategy));
+
+        console2.log("FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("MockVault balance:", vars.finalMockVaultBalance);
+
+        vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
+            + vars.newVault.convertToAssets(vars.finalMockVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalValue,
+            vars.initialTotalValue,
+            0.01e18,
+            "Total value should be preserved during allocation - after second reallocation"
+        );
     }
 
     function _verifyInitialBalances(uint256[] memory depositAmounts) internal view {
@@ -198,26 +1280,42 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         view
         returns (MultipleOperationsVars memory)
     {
-        for (uint256 i; i < ACCOUNT_COUNT && vars.selectedCount < 15; i++) {
+        uint256 i;
+        while (vars.selectedCount < 15) {
             uint256 randIndex = uint256(keccak256(abi.encodePacked(vars.seed, "redeem", i))) % ACCOUNT_COUNT;
+
             if (!vars.selected[randIndex]) {
-                vars.selected[randIndex] = true;
                 vars.redeemUsers[vars.selectedCount] = accInstances[randIndex].account;
                 // Redeem 25-75% of their balance
-                uint256 randPercent = 25 + (uint256(keccak256(abi.encodePacked(vars.seed, "percent", i))) % 51);
+                uint256 randPercent = 2500 + (uint256(keccak256(abi.encodePacked(vars.seed, "percent", i))) % 5100);
                 uint256 shares = vault.balanceOf(accInstances[randIndex].account);
-                vars.redeemAmounts[vars.selectedCount] = (shares * randPercent) / 100;
+
+                vars.redeemAmounts[vars.selectedCount] = (shares * randPercent) / 10_000;
+                vars.selected[randIndex] = true;
                 vars.selectedCount++;
             }
+            i++;
         }
         return vars;
     }
 
     function _processRedemptionRequests(MultipleOperationsVars memory vars) internal {
-        for (uint256 i; i < 15; i++) {
+        for (uint256 i; i < vars.selectedCount; i++) {
             vm.startPrank(vars.redeemUsers[i]);
             vault.requestRedeem(vars.redeemAmounts[i], vars.redeemUsers[i], vars.redeemUsers[i]);
             vm.stopPrank();
+        }
+    }
+
+    function _claimRedeemForUsers(address[] memory redeemUsers) internal {
+        for (uint256 i; i < redeemUsers.length; i++) {
+            address user = redeemUsers[i];
+            uint256 maxWithdrawAmount = vault.maxWithdraw(user);
+            if (maxWithdrawAmount > 0) {
+                vm.startPrank(user);
+                vault.withdraw(maxWithdrawAmount, user, user);
+                vm.stopPrank();
+            }
         }
     }
 
@@ -335,5 +1433,252 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         assertApproxEqRel(v.totalUserAssets, v.finalTotalAssets, 0.01e18, "Total assets should match TVL");
         assertEq(v.totalPendingDeposits, 0, "Should have no pending deposits globally");
         assertEq(v.totalPendingRedeems, 0, "Should have no pending redeems globally");
+    }
+
+    function _testRuggableVaultWithdraw(RugTestVarsWithdraw memory vars) internal {
+        // Add funds to the ruggable vault to respect VAULT_THRESHOLD
+        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        asset.approve(vars.ruggableVault, type(uint256).max);
+        IERC4626(vars.ruggableVault).deposit(2 * VAULT_THRESHOLD, address(this));
+
+        // Deploy a new SuperVault with the ruggable vault
+        _deployNewSuperVaultWithRuggableVault(vars.ruggableVault);
+
+        // Setup deposit users and amounts
+        vars.depositUsers = new address[](5);
+        vars.depositAmounts = new uint256[](5);
+        for (uint256 i = 0; i < 5; i++) {
+            vars.depositUsers[i] = accInstances[i].account;
+            vars.depositAmounts[i] = vars.depositAmount;
+        }
+
+        // Perform deposits
+        for (uint256 i = 0; i < 5; i++) {
+            _getTokens(address(asset), vars.depositUsers[i], vars.depositAmounts[i]);
+            vm.startPrank(vars.depositUsers[i]);
+            asset.approve(address(vault), vars.depositAmounts[i]);
+            vault.requestDeposit(vars.depositAmounts[i], vars.depositUsers[i], vars.depositUsers[i]);
+            vm.stopPrank();
+        }
+
+        // Fulfill deposit requests
+        _fulfillDepositForUsers(
+            vars.depositUsers,
+            vars.depositAmount * 5 / 2,
+            vars.depositAmount * 5 / 2,
+            address(fluidVault),
+            vars.ruggableVault
+        );
+        console2.log("\n=== TIME WARPING ===");
+
+        vars.ppsBeforeWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS BEFORE WARP", vars.ppsBeforeWarp);
+        vm.warp(block.timestamp + 10 weeks);
+        vars.ppsAfterWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS AFTER WARP", vars.ppsAfterWarp);
+        // Claim deposits
+        for (uint256 i = 0; i < 5; i++) {
+            vm.startPrank(vars.depositUsers[i]);
+            uint256 maxDeposit = vault.maxDeposit(vars.depositUsers[i]);
+            vault.deposit(maxDeposit, vars.depositUsers[i], vars.depositUsers[i]);
+            vm.stopPrank();
+        }
+
+        // Store initial state
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+
+        // Log initial state
+        console2.log("\n=== Initial State Before Redemption ===");
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", IERC4626(vars.ruggableVault).balanceOf(address(strategy)));
+        console2.log("Fluid Vault Balance:", fluidVault.balanceOf(address(strategy)));
+
+        // Verify the initial state
+        assertGt(vars.initialTotalAssets, 0, "Initial total assets should be positive");
+        assertGt(vars.initialTotalSupply, 0, "Initial total supply should be positive");
+
+        // Setup redeem users and amounts
+        vars.redeemUsers = new address[](3);
+        vars.redeemAmounts = new uint256[](3);
+        vars.totalRedeemShares = 0;
+
+        for (uint256 i = 0; i < 3; i++) {
+            vars.redeemUsers[i] = vars.depositUsers[i];
+            uint256 userShares = vault.balanceOf(vars.redeemUsers[i]);
+            vars.redeemAmounts[i] = userShares; // Redeem all of their shares
+            vars.totalRedeemShares += vars.redeemAmounts[i];
+        }
+
+        // Request redemptions
+        for (uint256 i = 0; i < 3; i++) {
+            vm.startPrank(vars.redeemUsers[i]);
+            vault.requestRedeem(vars.redeemAmounts[i], vars.redeemUsers[i], vars.redeemUsers[i]);
+            vm.stopPrank();
+        }
+
+        // Simulate time passing
+        console2.log("\n=== TIME WARPING ===");
+
+        vars.ppsBeforeWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS BEFORE WARP", vars.ppsBeforeWarp);
+        vm.warp(block.timestamp + 12 weeks);
+        vars.ppsAfterWarp = vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS AFTER WARP", vars.ppsAfterWarp);
+
+        // Fulfill redemption requests
+        vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
+        vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
+        _fulfillRedeemForUsers(
+            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), vars.ruggableVault
+        );
+
+        // Log post-fulfillment state
+        console2.log("\n=== Post-Fulfillment State ===");
+        uint256 totalAssetsPreClaimTaintedAssets = vault.totalAssets();
+        uint256 totalSupplyPreClaimTaintedAssets = vault.totalSupply();
+        console2.log("Total Assets:", totalAssetsPreClaimTaintedAssets);
+        console2.log("Total Supply:", totalSupplyPreClaimTaintedAssets);
+        uint256 pricePerSharePreClaimTaintedAssets =
+            totalAssetsPreClaimTaintedAssets.mulDiv(1e18, totalSupplyPreClaimTaintedAssets, Math.Rounding.Floor);
+        console2.log("Price per share:", pricePerSharePreClaimTaintedAssets);
+        console2.log("Ruggable Vault Balance:", IERC4626(vars.ruggableVault).balanceOf(address(strategy)));
+        console2.log("Fluid Vault Balance:", fluidVault.balanceOf(address(strategy)));
+
+        // Process claims for redeemed users, this will burn all tainted shares
+        _claimRedeemForUsers(vars.redeemUsers);
+
+        // Verify global state
+        uint256 finalTotalAssets = vault.totalAssets();
+        uint256 finalTotalSupply = vault.totalSupply();
+        uint256 finalPricePerShare = finalTotalAssets.mulDiv(1e18, finalTotalSupply, Math.Rounding.Floor);
+
+        console2.log("\n=== Final State ===");
+        console2.log("Final Total Assets:", finalTotalAssets);
+        console2.log("Final Total Supply:", finalTotalSupply);
+        console2.log("Final Price per share:", finalPricePerShare);
+
+        // CONTINUATION: Allocate from rugged vault back to fluid vault
+        console2.log("\n=== Allocating from Rugged Vault back to Fluid Vault ===");
+
+        // Get initial balances
+        vars.initialRuggableVaultBalance = IERC4626(vars.ruggableVault).balanceOf(address(strategy));
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+
+        console2.log("Initial Ruggable Vault balance:", vars.initialRuggableVaultBalance);
+        console2.log("Initial Fluid Vault balance:", vars.initialFluidVaultBalance);
+
+        // Calculate asset amounts
+        vars.initialRuggableVaultAssets = IERC4626(vars.ruggableVault).convertToAssets(vars.initialRuggableVaultBalance);
+        vars.initialFluidVaultAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
+
+        console2.log("Initial Ruggable Vault assets:", vars.initialRuggableVaultAssets);
+        console2.log("Initial Fluid Vault assets:", vars.initialFluidVaultAssets);
+
+        vars.amountToReallocate = vars.initialRuggableVaultBalance;
+        vars.assetAmountToReallocate =
+            IERC4626(vars.ruggableVault).convertToAssets(vars.amountToReallocate) * 5000 / 10_000;
+
+        console2.log("Shares to reallocate from Ruggable Vault:", vars.amountToReallocate);
+        console2.log("Asset amount to reallocate:", vars.assetAmountToReallocate);
+
+        // Skip reallocation if there are no shares to reallocate
+        if (vars.amountToReallocate > 0) {
+            // Prepare allocation hooks
+            address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+            address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+            address[] memory hooksAddresses = new address[](2);
+            hooksAddresses[0] = withdrawHookAddress;
+            hooksAddresses[1] = depositHookAddress;
+
+            bytes[] memory hooksData = new bytes[](2);
+
+            // Redeem from Ruggable Vault
+            hooksData[0] = _createWithdraw4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                vars.ruggableVault,
+                address(strategy),
+                vars.amountToReallocate,
+                false,
+                false
+            );
+
+            // Deposit to Fluid Vault
+            hooksData[1] = _createDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(fluidVault),
+                vars.assetAmountToReallocate,
+                false,
+                false
+            );
+
+            // Execute allocation
+            vm.startPrank(STRATEGIST);
+            strategy.allocate(hooksAddresses, hooksData);
+            vm.stopPrank();
+
+            // Check final balances
+            vars.finalRuggableVaultBalance = IERC4626(vars.ruggableVault).balanceOf(address(strategy));
+            vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+
+            console2.log("Final Ruggable Vault balance:", vars.finalRuggableVaultBalance);
+            console2.log("Final Fluid Vault balance:", vars.finalFluidVaultBalance);
+
+            // Calculate asset amounts after reallocation
+            vars.finalRuggableVaultAssets = IERC4626(vars.ruggableVault).convertToAssets(vars.finalRuggableVaultBalance);
+            vars.finalFluidVaultAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+
+            console2.log("Final Ruggable Vault assets:", vars.finalRuggableVaultAssets);
+            console2.log("Final Fluid Vault assets:", vars.finalFluidVaultAssets);
+
+            // Verify reallocation
+            assertApproxEqRel(
+                vars.finalRuggableVaultBalance,
+                vars.initialRuggableVaultBalance - vars.amountToReallocate,
+                0.01e18,
+                "Ruggable Vault balance should decrease by the reallocated amount"
+            );
+
+            assertGt(vars.finalFluidVaultBalance, vars.initialFluidVaultBalance, "Fluid Vault balance should increase");
+
+            // Check total value preservation
+            vars.initialTotalValue = vars.initialRuggableVaultAssets + vars.initialFluidVaultAssets;
+            vars.finalTotalValue = vars.finalRuggableVaultAssets + vars.finalFluidVaultAssets;
+
+            console2.log("Initial total value:", vars.initialTotalValue);
+            console2.log("Final total value:", vars.finalTotalValue);
+
+            // Check final vault state
+            vars.vaultTotalAssetsAfterAllocation = vault.totalAssets();
+            vars.pricePerShareAfterAllocation =
+                vars.vaultTotalAssetsAfterAllocation.mulDiv(1e18, finalTotalSupply, Math.Rounding.Floor);
+
+            console2.log("Vault total assets after allocation:", vars.vaultTotalAssetsAfterAllocation);
+            console2.log("Price per share after allocation:", vars.pricePerShareAfterAllocation);
+        } else {
+            console2.log("Skipping reallocation as there are no shares to reallocate");
+        }
+    }
+
+    function _deployNewSuperVaultWithRuggableVault(address ruggableVault) internal {
+        // Deploy a new SuperVault with the ruggable vault
+        address vaultAddr;
+        address strategyAddr;
+        address escrowAddr;
+        (vaultAddr, strategyAddr, escrowAddr) = _deployVault("SV_USDC_RUG");
+
+        vault = SuperVault(vaultAddr);
+        strategy = SuperVaultStrategy(strategyAddr);
+        escrow = SuperVaultEscrow(escrowAddr);
+
+        // Replace aaveVault with ruggableVault in the strategy
+        vm.startPrank(SV_MANAGER);
+        strategy.manageYieldSource(ruggableVault, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true); // Add
+            // ruggableVault
+        vm.stopPrank();
     }
 }
