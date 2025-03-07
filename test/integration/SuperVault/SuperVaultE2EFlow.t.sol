@@ -56,7 +56,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         );
 
         // Step 2: Fulfill Deposit
-        _fulfillDeposit(amount);
+        _fulfillDeposit(amount, accountEth, address(fluidVault), address(aaveVault));
 
         // Step 3: Claim Deposit
         _claimDeposit(amount);
@@ -85,7 +85,7 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         uint256 totalFee = superformFee + recipientFee;
 
-        _fulfillRedeem(totalRedeemShares);
+        _fulfillRedeem(totalRedeemShares, address(fluidVault), address(aaveVault));
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
