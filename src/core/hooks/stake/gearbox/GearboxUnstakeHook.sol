@@ -66,7 +66,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, IS
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         address yieldSource = data.extractYieldSource();
         /// @dev in Gearbox, the staking token is the asset
         asset = IGearboxFarmingPool(yieldSource).stakingToken();
@@ -76,7 +76,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, IS
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
     }
 

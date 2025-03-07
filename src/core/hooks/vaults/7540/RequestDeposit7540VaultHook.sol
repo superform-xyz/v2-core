@@ -64,10 +64,10 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOu
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view onlyExecutor { }
+    function preExecute(address, address, bytes memory) external view { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view onlyExecutor { }
+    function postExecute(address, address, bytes memory) external view { }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {

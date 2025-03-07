@@ -71,7 +71,7 @@ contract Withdraw7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
         outAmount = _getBalance(account, asset);
@@ -81,7 +81,7 @@ contract Withdraw7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         address yieldSource = data.extractYieldSource();
         address asset = IERC7540(yieldSource).asset();
 

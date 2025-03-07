@@ -66,7 +66,7 @@ contract Deposit7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutf
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         // store current balance
         address yieldSource = data.extractYieldSource();
         address shareToken = IERC7540(yieldSource).share();
@@ -76,7 +76,7 @@ contract Deposit7575_7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutf
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         address shareToken = IERC7540(data.extractYieldSource()).share();
         outAmount = _getBalance(account, shareToken) - outAmount;
     }

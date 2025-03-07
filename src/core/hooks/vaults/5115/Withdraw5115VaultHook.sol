@@ -78,7 +78,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow,
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0); // tokenOut from data
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
@@ -87,7 +87,7 @@ contract Withdraw5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow,
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
         usedShares = usedShares - _getSharesBalance(account, data);
     }
