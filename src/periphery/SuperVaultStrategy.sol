@@ -428,9 +428,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
 
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         } else {
             // For inflow/outflow hooks, validate target is an active yield source
@@ -474,12 +473,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
 
-                unchecked {
-                    ++i;
-                }
+            unchecked {
+                ++i;
             }
         }
-        
+
         // Resize array if needed
         if (vars.inflowCount < vars.hooksLength && vars.inflowCount > 0) {
             vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
