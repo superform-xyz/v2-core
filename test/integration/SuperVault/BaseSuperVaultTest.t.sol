@@ -113,6 +113,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy = SuperVaultStrategy(strategyAddr);
         escrow = SuperVaultEscrow(escrowAddr);
 
+        _setFeeConfig(100, TREASURY);
+
         vm.startPrank(SV_MANAGER);
         strategy.manageYieldSource(
             address(aaveVault),
@@ -897,5 +899,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
 
         return (fluidSharesOut, aaveSharesOut);
+    }
+
+    function _setFeeConfig(uint256 feePercent, address recipient) internal {
+        vm.startPrank(SV_MANAGER);
+        strategy.proposeVaultFeeConfigUpdate(feePercent, recipient);
+        vm.warp(block.timestamp + 7 days);
+        strategy.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
     }
 }

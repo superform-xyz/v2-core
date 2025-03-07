@@ -9,7 +9,7 @@ import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { IERC5115 } from "../../../src/vendor/vaults/5115/IERC5115.sol";
+import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {
     RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
@@ -28,7 +28,7 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 
 contract SuperVault5115Underlying is BaseSuperVaultTest {
-    IERC5115 public pendleEthena;
+    IStandardizedYield public pendleEthena;
     address public pendleEthenaAddress;
 
     address public account;
@@ -59,13 +59,12 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         vm.label(pendleEthenaAddress, "PendleEthena");
 
         // Get real yield sources from fork
-        pendleEthena = IERC5115(pendleEthena);
+        pendleEthena = IStandardizedYield(pendleEthenaAddress);
 
         // Deploy vault trio with initial config
         ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
             vaultCap: VAULT_CAP,
             superVaultCap: SUPER_VAULT_CAP,
-            maxAllocationRate: ONE_HUNDRED_PERCENT,
             vaultThreshold: VAULT_THRESHOLD
         });
         bytes32 hookRoot = _getMerkleRoot();
@@ -104,13 +103,11 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
                 config: config,
-                finalMaxAllocationRate: ONE_HUNDRED_PERCENT,
                 bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: pendleEthenaAddress,
                 initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookProofs: bootstrapHookProofs,
                 bootstrappingHookCalldata: bootstrapHooksData
             })
         );
@@ -125,7 +122,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         superVaultEscrowsUSDE = SuperVaultEscrow(escrowAddr);
         superVaultStrategysUSDE = SuperVaultStrategy(strategyAddr);
 
-        _setFeeConfig(100, TREASURY);
+        _set5115FeeConfig(100, TREASURY);
 
         // Set up hook root (same one as bootstrap, just to test)
         vm.startPrank(SV_MANAGER);
@@ -167,8 +164,6 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
 
-        uint256 totalRedeemShares = superVaultsUSDE.balanceOf(account);
-
         // Step 4: Request Redeem
         _requestRedeemSV_5115(userShares);
 
@@ -176,7 +171,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         assertEq(IERC20(superVaultsUSDE.share()).balanceOf(account), 0, "User shares not transferred from account");
         assertEq(IERC20(superVaultsUSDE.share()).balanceOf(address(superVaultEscrowsUSDE)), userShares, "Shares not transferred to escrow");
 
-        _fulfillRedeemSV_5115(totalRedeemShares);
+        _fulfillRedeemSV_5115();
 
         uint256 claimableAssets = superVaultsUSDE.maxWithdraw(account);
     }
@@ -222,7 +217,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         users[0] = account;
 
         vm.startPrank(STRATEGIST);
-        superVaultStrategysUSDE.fulfillRequests(users, hooks_, proofs, hookCalldata, true);
+        superVaultStrategysUSDE.fulfillRequests(users, hooks_, hookCalldata, true);
         vm.stopPrank();
     }
 
@@ -257,7 +252,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         executeOp(redeemUserOpData);
     }
 
-    function _fulfillRedeemSV_5115(uint256 totalRedeemShares) internal {
+    function _fulfillRedeemSV_5115() internal {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = account;
 
@@ -266,22 +261,31 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
 
-        bytes32[][] memory proofs = new bytes32[][](1);
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
+        (, address asset_,) = pendleEthena.assetInfo();
+
+        uint256 shares = IERC20(asset_).balanceOf(address(superVaultStrategysUSDE));
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _create5115WithdrawHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
-            address(superVaultsUSDE),
+            pendleEthenaAddress,
             account,
-            totalRedeemShares,
-            totalRedeemShares,
+            shares,
+            shares,
             false,
             false
         );
 
         vm.startPrank(STRATEGIST);
-        superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, proofs, fulfillHooksData, false);
+        superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
+        vm.stopPrank();
+    }
+
+    function _set5115FeeConfig(uint256 feePercent, address recipient) internal {
+        vm.startPrank(SV_MANAGER);
+        superVaultStrategysUSDE.proposeVaultFeeConfigUpdate(feePercent, recipient);
+        vm.warp(block.timestamp + 7 days);
+        superVaultStrategysUSDE.executeVaultFeeConfigUpdate();
         vm.stopPrank();
     }
     
