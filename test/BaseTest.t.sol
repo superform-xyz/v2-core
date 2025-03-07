@@ -749,6 +749,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         /// @dev Optimism 4626vault addresses
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY] = CHAIN_10_AloeUSDC;
         vm.label(existingVaults[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY], ALOE_USDC_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY] = CHAIN_1_GearboxVault;
+        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY], GEARBOX_VAULT_KEY);
+        
+        /// @dev Staking real gearbox staking on mainnet
+        existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY] = CHAIN_1_GearboxStaking;
+        vm.label(
+            existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY], 
+            "GearboxStaking"
+        );
 
         /// @dev Base 4626 vault addresses
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
