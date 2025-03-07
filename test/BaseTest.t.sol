@@ -721,7 +721,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
         existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
         existingUnderlyingTokens[OP][USDCe_KEY] = CHAIN_10_USDCe;
-        vm.label(existingUnderlyingTokens[OP][USDCe_KEY], "USDCe");
+        existingUnderlyingTokens[ETH][GEAR_KEY] = CHAIN_1_GEAR;
+        existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Base tokens
         existingUnderlyingTokens[BASE][DAI_KEY] = CHAIN_8453_DAI;
