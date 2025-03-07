@@ -73,6 +73,7 @@ import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115
 import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
+import { GearboxYieldSourceOracle } from "../src/core/accounting/oracles/GearboxYieldSourceOracle.sol";
 
 // external
 import {
@@ -121,6 +122,7 @@ struct Addresses {
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
     FluidYieldSourceOracle fluidYieldSourceOracle;
+    GearboxYieldSourceOracle gearboxYieldSourceOracle;
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
     PeripheryRegistry peripheryRegistry;
