@@ -1563,7 +1563,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
         
         vars.expectedAssetsOrSharesOut = new uint256[](2);
-        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 - vars.assetsVault1 * 1e4/1e5; //10% slippage
+        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 - vars.assetsVault1; //10% slippage
         vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2 * 2; // this should make the call revert 
 
         // this should revert
