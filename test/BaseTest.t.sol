@@ -1399,4 +1399,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             usePrevHookAmount
         );
     }
+
+    function _createGearboxStakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
+    }
+    
+    function _createGearboxUnstakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        uint256 amount,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
+    }
 }
