@@ -39,9 +39,6 @@ import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540V
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-// -- erc7575_7540
-import { Deposit7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/Deposit7575_7540VaultHook.sol";
-import { Withdraw7575_7540VaultHook } from "../src/core/hooks/vaults/7575_7540/Withdraw7575_7540VaultHook.sol";
 
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
@@ -110,8 +107,6 @@ struct Addresses {
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestWithdraw7540VaultHook requestWithdraw7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
-    Deposit7575_7540VaultHook deposit7575_7540VaultHook;
-    Withdraw7575_7540VaultHook withdraw7575_7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     Swap1InchHook swap1InchHook;
     SwapOdosHook swapOdosHook;
@@ -531,22 +526,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             peripheryRegistry.registerHook(address(Addr.requestWithdraw7540VaultHook), true);
 
             if (DEBUG) console.log("requestWithdraw7540VaultHook deployed", address(Addr.requestWithdraw7540VaultHook));
-            Addr.deposit7575_7540VaultHook =
-                new Deposit7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.deposit7575_7540VaultHook), DEPOSIT_7575_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][DEPOSIT_7575_7540_VAULT_HOOK_KEY] = address(Addr.deposit7575_7540VaultHook);
-            peripheryRegistry.registerHook(address(Addr.deposit7575_7540VaultHook), false);
-            peripheryRegistry.registerHook(address(Addr.deposit7575_7540VaultHook), true);
 
-            if (DEBUG) console.log("deposit7575_7540VaultHook deployed", address(Addr.deposit7575_7540VaultHook));
-            Addr.withdraw7575_7540VaultHook =
-                new Withdraw7575_7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
-            vm.label(address(Addr.withdraw7575_7540VaultHook), WITHDRAW_7575_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][WITHDRAW_7575_7540_VAULT_HOOK_KEY] = address(Addr.withdraw7575_7540VaultHook);
-            peripheryRegistry.registerHook(address(Addr.withdraw7575_7540VaultHook), false);
-            peripheryRegistry.registerHook(address(Addr.withdraw7575_7540VaultHook), true);
-
-            if (DEBUG) console.log("withdraw7575_7540VaultHook deployed", address(Addr.withdraw7575_7540VaultHook));
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY),
                 address(this),
@@ -1203,7 +1183,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     function _createRequestDeposit7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address controller,
         uint256 amount,
         bool usePrevHookAmount
     )
@@ -1211,13 +1190,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
     function _createDeposit7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address controller,
         uint256 amount,
         bool usePrevHookAmount,
         bool lockForSP
@@ -1226,13 +1204,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount, lockForSP);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
     }
 
     function _createRequestWithdraw7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address owner,
         uint256 amount,
         bool usePrevHookAmount
     )
@@ -1240,13 +1217,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
     function _createWithdraw7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address owner,
         uint256 amount,
         bool usePrevHookAmount,
         bool lockForSP
@@ -1255,37 +1231,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createDeposit7575_7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address controller,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, controller, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createWithdraw7575_7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address owner,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, owner, amount, usePrevHookAmount, lockForSP);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
     }
 
     function _createDeposit5115VaultHookData(
