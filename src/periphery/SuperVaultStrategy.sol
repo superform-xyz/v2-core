@@ -386,7 +386,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-
             if (vars.executions.length == 1)  {
                 // For inflow/outflow hooks, validate target is an active yield source
                 if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
@@ -423,12 +422,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                 // Update prevHook for next iteration
                 vars.prevHook = hooks[i];
-
-                unchecked {
-                    ++i;
-                }
             } else {
                 uint256 prevExecutionAmount;
+                uint256 preExecutionTotalAssets;
                 for (uint256 j; j < vars.executions.length;) {
                      // For inflow/outflow hooks, validate target is an active yield source
                     if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
@@ -439,39 +435,45 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                         if (vars.hookType == ISuperHook.HookType.INFLOW) {
                             vars.inflowTargets[vars.inflowCount++] = vars.executions[j].target;
 
-                            // Get amount from hook and approve spending
-                            vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
+                            if (prevExecutionAmount == 0)  {
+                                // Get amount from hook and approve spending
+                                vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
 
-                            // TODO: think of a better to do this for outflows , especially when share is externalized
-                            _handleTokenApproval(address(_asset), vars.executions[j].target, vars.amount);
+                                // TODO: think of a better to do this for outflows , especially when share is externalized
+                                _handleTokenApproval(address(_asset), vars.executions[j].target, vars.amount);
+                            } 
+                            prevExecutionAmount = vars.amount;
                         }
                     }
 
                     // Store pre-execution balance for non-accounting hooks
-                    uint256 preExecutionTotalAssets = postExecutionTotalAssets;
+                    preExecutionTotalAssets = postExecutionTotalAssets;
 
                     // Execute the transaction
                     (vars.success,) =
                         vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
                     if (!vars.success) revert OPERATION_FAILED();
 
-                    // Call postExecute to update outAmount tracking
-                    vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
-
-                    // For non-accounting hooks, verify asset balance hasn't decreased
-                    if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
-                        (postExecutionTotalAssets,) = totalAssets();
-                        if (postExecutionTotalAssets < preExecutionTotalAssets) revert CANNOT_CHANGE_TOTAL_ASSETS();
-                    }
-
-                    // Update prevHook for next iteration
-                    vars.prevHook = hooks[i];
-
                     unchecked {
-                        ++i;
+                        ++j;
                     }
                 }
-            }   
+
+                // Call postExecute to update outAmount tracking
+                vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
+
+                // For non-accounting hooks, verify asset balance hasn't decreased
+                if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
+                    (postExecutionTotalAssets,) = totalAssets();
+                    if (postExecutionTotalAssets < preExecutionTotalAssets) revert CANNOT_CHANGE_TOTAL_ASSETS();
+                }
+                // Update prevHook for next iteration
+                vars.prevHook = hooks[i];
+            } 
+
+            unchecked {
+                ++i;
+            }
         }
 
         // Reset approval if it was an inflow
