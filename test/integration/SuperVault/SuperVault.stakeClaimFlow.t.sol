@@ -165,10 +165,10 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             asset.balanceOf(accountEth), initialUserAssets - amount, "User assets not reduced after deposit request"
         );
 
-        uint256 amountToStake = gearSuperVault.convertToShares(amount);
-
         // Step 2: Fulfill Deposit
         _fulfillDeposit_Gearbox_SV(amount);
+
+        uint256 amountToStake = gearboxVault.balanceOf(address(strategyGearSuperVault));
 
         // Step 3: Execute Arbitrary Hooks
         _executeStakeHook(amountToStake);
@@ -214,7 +214,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         // Step 6: Claim Withdraw
         _claimWithdraw_Gearbox_SV(claimableAssets);
-        console2.log("userAssetChange: ", asset.balanceOf(accountEth) - preRedeemUserAssets);
+        assertEq(asset.balanceOf(accountEth), preRedeemUserAssets + claimableAssets, "User assets not increased after withdraw");
         console2.log("ppsAfter: ", _getSuperVaultPricePerShare());
     }
 
@@ -321,7 +321,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createGearboxUnstakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false, false
         );
 
         vm.prank(STRATEGIST);
