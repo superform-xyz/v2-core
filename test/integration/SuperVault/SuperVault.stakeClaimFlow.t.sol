@@ -158,7 +158,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         uint256 initialUserAssets = asset.balanceOf(accountEth);
 
         // Step 1: Request Deposit
-        __requestDeposit_Gearbox_SV(instanceOnEth, amount);
+        __requestDeposit_Gearbox_SV(amount);
 
         // Verify assets transferred from user to vault
         assertEq(
@@ -225,7 +225,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function __requestDeposit_Gearbox_SV(AccountInstance memory accInst, uint256 depositAmount) private {
+    function __requestDeposit_Gearbox_SV(uint256 depositAmount) private {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -233,7 +233,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(gearSuperVault), depositAmount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accountEth, depositAmount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), depositAmount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -277,7 +277,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         claimHooksData[0] = _createDeposit7540VaultHookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             address(gearSuperVault),
-            accountEth,
             depositAmount,
             false,
             false
@@ -310,7 +309,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accountEth, shares, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), shares, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -362,7 +361,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), accountEth, assets, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault),  assets, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
