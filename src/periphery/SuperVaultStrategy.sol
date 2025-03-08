@@ -218,8 +218,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Process hooks and get targeted yield sources
         address[] memory targetedYieldSources;
-        bytes32[][] memory hookProofs = new bytes32[][](hooksLength);
-        (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, expectedAssetsOrSharesOut, isDeposit, true);
+        (vars, targetedYieldSources) = _processHooks(hooks, hookCalldata, vars, expectedAssetsOrSharesOut, isDeposit);
 
         // Check vault caps after hooks processing (only for deposits)
         if (isDeposit) {
@@ -947,7 +946,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hook The hook to execute
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param hookProof The merkle proof for the hook
     /// @param expectedHookType The expected type of hook
     /// @param approvalToken Token to approve (address(0) if no approval needed)
     /// @param approvalAmount Amount to approve
@@ -955,21 +953,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] memory hookProof,
         ISuperHook.HookType expectedHookType,
         address approvalToken,
         uint256 approvalAmount,
-        bool isFulfillRequestsHook,
         address target
     )
         private
     {
         // Validate hook via merkle proof
-        if (isFulfillRequestsHook) {
-            if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
-        } else {
-            if (!isHookAllowed(hook, hookProof)) revert INVALID_HOOK();
-        }
+        if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
 
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
@@ -1034,7 +1026,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @notice Process hooks for both deposit and redeem fulfillment
     /// @param hooks Array of hook addresses
-    /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     /// @param vars Fulfillment variables
     /// @param isDeposit Whether this is a deposit fulfillment
@@ -1042,12 +1033,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @return targetedYieldSources Array of yield sources targeted by inflow hooks
     function _processHooks(
         address[] calldata hooks,
-        bytes32[][] memory hookProofs,
         bytes[] memory hookCalldata,
         FulfillmentVars memory vars,
         uint256[] memory expectedAssetsOrSharesOut,
-        bool isDeposit,
-        bool isFulfillRequestsHookCheck
+        bool isDeposit
     )
         private
         returns (FulfillmentVars memory, address[] memory)
@@ -1062,7 +1051,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Process hook executions
             if (isDeposit) {
                 (locals.amount, locals.hookTarget, locals.outAmount) = _processInflowHookExecution(
-                    hooks[i], vars.prevHook, hookCalldata[i], hookProofs[i], isFulfillRequestsHookCheck
+                    hooks[i], vars.prevHook, hookCalldata[i]
                 );
                 locals.target = locals.hookTarget;
                 // Track targeted yield source for inflow operations
@@ -1073,17 +1062,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                     hooks[i],
                     vars.prevHook,
                     hookCalldata[i],
-                    hookProofs[i],
-                    isFulfillRequestsHookCheck,
                     vars.pricePerShare
                 );
             }
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
-            if (isFulfillRequestsHookCheck) {
-                if (locals.outAmount * ONE_HUNDRED_PERCENT < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
-            }
+            if (locals.outAmount * ONE_HUNDRED_PERCENT < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
          
             unchecked {
                 ++i;
@@ -1110,15 +1095,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param hookProof The merkle proof for the hook
     /// @return amount The amount from the hook
     /// @return target The target address from the execution
     function _processInflowHookExecution(
         address hook,
         address prevHook,
-        bytes memory hookCalldata,
-        bytes32[] memory hookProof,
-        bool isFulfillRequestsHookCheck
+        bytes memory hookCalldata
     )
         private
         returns (uint256 amount, address target, uint256 outAmount)
@@ -1137,11 +1119,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             hook,
             prevHook,
             hookCalldata,
-            hookProof,
             ISuperHook.HookType.INFLOW,
             address(_asset),
             amount,
-            isFulfillRequestsHookCheck,
             target
         );
         uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
@@ -1167,15 +1147,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param hookProof The merkle proof for the hook
     /// @return amount The amount from the hook
     /// @return target The target address from the execution
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] memory hookProof,
-        bool isFulfillRequestsHookCheck,
         uint256 pricePerShare
     )
         private
@@ -1204,11 +1181,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             hook,
             prevHook,
             hookCalldata,
-            hookProof,
             ISuperHook.HookType.OUTFLOW,
             address(0),
             amount,
-            isFulfillRequestsHookCheck,
             execVars.target
         );
 
