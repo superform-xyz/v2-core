@@ -54,6 +54,11 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
+    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256) {
+        return IERC4626(yieldSourceAddress).balanceOf(ownerOfShares);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares

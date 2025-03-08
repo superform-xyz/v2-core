@@ -32,9 +32,9 @@ interface ISuperVaultStrategy {
     error INSUFFICIENT_FUNDS();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
+    error INVALID_ARRAY_LENGTH(); 
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
-    error INVALID_PERIPHERY_REGISTRY();
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
     error INVALID_VAULT_THRESHOLD();
@@ -43,15 +43,17 @@ interface ISuperVaultStrategy {
     error INVALID_EMERGENCY_ADMIN();
     error VAULT_THRESHOLD_EXCEEDED();
     error INCOMPLETE_DEPOSIT_MATCH();
+    error RESIZED_ARRAY_LENGTH_ERROR();
+    error INVALID_PERIPHERY_REGISTRY();
+    error CANNOT_CHANGE_TOTAL_ASSETS();
     error YIELD_SOURCE_ALREADY_EXISTS();
     error INVALID_MAX_ALLOCATION_RATE();
     error YIELD_SOURCE_ALREADY_ACTIVE();
     error INVALID_PERFORMANCE_FEE_BPS();
     error INVALID_EMERGENCY_WITHDRAWAL();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
-    error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
+    error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
     error DEPOSIT_FAILURE_INVALID_TARGET();
-    error CANNOT_CHANGE_TOTAL_ASSETS();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -184,6 +186,8 @@ interface ISuperVaultStrategy {
         // Hook execution results
         uint256 amount;
         address hookTarget;
+        uint256 outAmount;
+        
         // Arrays for tracking
         address[] targetedYieldSources;
         address[] resizedArray;
@@ -224,11 +228,13 @@ interface ISuperVaultStrategy {
     /// @param users Array of users with pending deposit requests
     /// @param hooks Array of hooks to use for deposits
     /// @param hookCalldata Array of calldata for hooks
+    /// @param minAssetsOrSharesOut Array of minimum assets or shares out for each hook
     /// @param isDeposit Whether the requests are deposits or redeems
     function fulfillRequests(
         address[] calldata users,
         address[] calldata hooks,
         bytes[] calldata hookCalldata,
+        uint256[] calldata minAssetsOrSharesOut,
         bool isDeposit
     )
         external;
