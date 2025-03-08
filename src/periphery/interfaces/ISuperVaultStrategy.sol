@@ -22,7 +22,7 @@ interface ISuperVaultStrategy {
     error LIMIT_EXCEEDED();
     error LENGTH_MISMATCH();
     error INVALID_MANAGER();
-    error NOT_INITIALIZED();
+    error ALREADY_INITIALIZED();
     error OPERATION_FAILED();
     error INVALID_TIMESTAMP();
     error REQUEST_NOT_FOUND();

@@ -114,7 +114,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     )
         external
     {
-        if (_initialized) revert NOT_INITIALIZED();
+        if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();

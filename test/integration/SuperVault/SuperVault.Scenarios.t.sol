@@ -1799,4 +1799,166 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             // ruggableVault
         vm.stopPrank();
     }
+
+    // Structure to hold test variables
+    struct TestVars {
+        uint256 initialTimestamp;
+        uint256 totalDeposited;
+        uint256 initialTotalAssets;
+        uint256 initialTotalSupply;
+        uint256 initialPricePerShare;
+        uint256 finalTotalAssets;
+        uint256 finalTotalSupply;
+        uint256 finalPricePerShare;
+        uint256 fluidVaultBalance;
+        uint256 aaveVaultBalance;
+        uint256[] depositAmounts;
+        address[] depositUsers;
+    }
+
+    function test_12_multiMillionDeposits() public {
+        TestVars memory vars;
+        vars.initialTimestamp = block.timestamp;
+
+        // Set up deposit amounts for multiple rounds
+        // We'll do 3 rounds of deposits to reach 10M+ USDC
+        uint256 depositRounds = 3;
+        uint256 targetTotalDeposits = 9_000_000e6; // 10M USDC
+        uint256 depositPerRound = targetTotalDeposits / depositRounds;
+        uint256 depositPerUser = depositPerRound / ACCOUNT_COUNT;
+
+        console2.log("\n=== Starting multi-million deposit test ===");
+        console2.log("Target total deposits:", targetTotalDeposits / 1e6, "M USDC");
+        console2.log("Deposit rounds:", depositRounds);
+        console2.log("Deposit per round:", depositPerRound / 1e6, "M USDC");
+        console2.log("Deposit per user per round:", depositPerUser / 1e6, "M USDC");
+
+        // Round 1: Initial deposits
+        console2.log("\n=== Round 1 Deposits ===");
+        vars.depositAmounts = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i = 0; i < ACCOUNT_COUNT; i++) {
+            vars.depositAmounts[i] = depositPerUser;
+        }
+        _completeDepositFlowWithVaryingAmounts(vars.depositAmounts);
+        vars.totalDeposited += depositPerRound;
+        console2.log("balance of vault", IERC20(address(asset)).balanceOf(address(strategy)));
+        console2.log("total deposited", vars.totalDeposited);
+        console2.log("Total Assets:", vault.totalAssets());
+
+        // Wait 1 week
+        vm.warp(vars.initialTimestamp + 1 weeks);
+        console2.log("\n=== After 1 week ===");
+        console2.log("Total Assets:", vault.totalAssets());
+        console2.log("Price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
+        // Round 2: More deposits after 1 week
+        console2.log("\n=== Round 2 Deposits ===");
+        for (uint256 i = 0; i < ACCOUNT_COUNT; i++) {
+            _getTokens(address(asset), accInstances[i].account, depositPerUser);
+            _requestDepositForAccount(accInstances[i], depositPerUser);
+        }
+
+        // Prepare for fulfillment
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i = 0; i < ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        // Fulfill deposits with 60/40 split between vaults
+        console2.log("deposit per round", depositPerRound);
+
+        uint256 allocationAmountVault1 = (depositPerRound * 6000) / 10_000; // 60% to fluid vault
+        uint256 allocationAmountVault2 = depositPerRound - allocationAmountVault1; // 40% to aave vault
+        console2.log("\n=== Round 2 Fulfill Requests ===");
+
+        console2.log("allocation vault 1", allocationAmountVault1);
+        console2.log("allocation vault 2", allocationAmountVault2);
+        console2.log("balance of vault", IERC20(address(asset)).balanceOf(address(strategy)));
+        // TVL fluid 1669215723572
+        // tvl aave 1668059877911
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        // Claim deposits
+        for (uint256 i = 0; i < ACCOUNT_COUNT; i++) {
+            _claimDepositForAccount(accInstances[i], depositPerUser);
+        }
+
+        vars.totalDeposited += depositPerRound;
+
+        // Wait 2 more weeks
+        vm.warp(vars.initialTimestamp + 3 weeks);
+        console2.log("\n=== After 3 weeks ===");
+        console2.log("Total Assets:", vault.totalAssets() / 1e6, "M USDC");
+        console2.log("Price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
+        // Round 3: Final deposits after 3 weeks
+        console2.log("\n=== Round 3 Deposits ===");
+        for (uint256 i = 0; i < ACCOUNT_COUNT; i++) {
+            _getTokens(address(asset), accInstances[i].account, depositPerUser);
+            _requestDepositForAccount(accInstances[i], depositPerUser);
+        }
+
+        // Wait 2 more weeks before fulfilling final deposits
+        vm.warp(vars.initialTimestamp + 5 weeks);
+        console2.log("\n=== After 5 weeks (before final fulfillment) ===");
+        console2.log("Total Assets:", vault.totalAssets() / 1e6, "M USDC");
+        console2.log("Price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
+        // Store state before final fulfillment
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+
+        // Fulfill final deposits with 70/30 split
+        allocationAmountVault1 = (depositPerRound * 70) / 100; // 70% to fluid vault
+        allocationAmountVault2 = depositPerRound - allocationAmountVault1; // 30% to aave vault
+
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        // Claim deposits
+        for (uint256 i = 0; i < ACCOUNT_COUNT; i++) {
+            _claimDepositForAccount(accInstances[i], depositPerUser);
+        }
+
+        vars.totalDeposited += depositPerRound;
+
+        // Final verification after all deposits
+        console2.log("\n=== Final state after all deposits ===");
+        vars.finalTotalAssets = vault.totalAssets();
+        vars.finalTotalSupply = vault.totalSupply();
+        vars.finalPricePerShare = vars.finalTotalAssets.mulDiv(1e18, vars.finalTotalSupply, Math.Rounding.Floor);
+
+        console2.log("Total deposited:", vars.totalDeposited / 1e6, "M USDC");
+        console2.log("Final total assets:", vars.finalTotalAssets / 1e6, "M USDC");
+        console2.log("Final price per share:", vars.finalPricePerShare);
+
+        // Check underlying vault balances
+        vars.fluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.aaveVaultBalance = aaveVault.balanceOf(address(strategy));
+
+        uint256 fluidVaultAssets = fluidVault.convertToAssets(vars.fluidVaultBalance);
+        uint256 aaveVaultAssets = aaveVault.convertToAssets(vars.aaveVaultBalance);
+
+        console2.log("\n=== Underlying vault balances ===");
+        console2.log("Fluid vault shares:", vars.fluidVaultBalance);
+        console2.log("Fluid vault assets:", fluidVaultAssets / 1e6, "M USDC");
+        console2.log("Aave vault shares:", vars.aaveVaultBalance);
+        console2.log("Aave vault assets:", aaveVaultAssets / 1e6, "M USDC");
+        console2.log("Total underlying assets:", (fluidVaultAssets + aaveVaultAssets) / 1e6, "M USDC");
+
+        // Verify total assets matches the sum of underlying vault assets
+        assertApproxEqRel(vars.finalTotalAssets, fluidVaultAssets + aaveVaultAssets, 0.01e18); // 1% tolerance
+
+        // Verify price per share increased over time (yield accrual)
+        assertGt(vars.finalPricePerShare, 1e18, "Price per share should be greater than 1e18 after yield accrual");
+
+        // Verify total deposits reached target
+        assertGe(
+            vars.finalTotalAssets, targetTotalDeposits, "Total assets should be at least the target deposit amount"
+        );
+    }
 }

@@ -16,13 +16,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
+    uint256 private constant AMOUNT_POSITION = 24;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
@@ -41,22 +40,21 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOu
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 76);
+        bool usePrevHookAmount = _decodeBool(data, 56);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0) || controller == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.requestDeposit, (amount, controller, account))
+            callData: abi.encodeCall(IERC7540.requestDeposit, (amount, account, account))
         });
     }
 
