@@ -386,7 +386,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-            if (vars.executions.length == 1)  {
+            if (vars.executions.length == 1) {
                 // For inflow/outflow hooks, validate target is an active yield source
                 if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
                     YieldSource storage source = yieldSources[vars.executions[0].target];
@@ -426,7 +426,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 uint256 prevExecutionAmount;
                 uint256 preExecutionTotalAssets;
                 for (uint256 j; j < vars.executions.length;) {
-                     // For inflow/outflow hooks, validate target is an active yield source
+                    // For inflow/outflow hooks, validate target is an active yield source
                     if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
                         YieldSource storage source = yieldSources[vars.executions[j].target];
                         if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
@@ -435,13 +435,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                         if (vars.hookType == ISuperHook.HookType.INFLOW) {
                             vars.inflowTargets[vars.inflowCount++] = vars.executions[j].target;
 
-                            if (prevExecutionAmount == 0)  {
+                            if (prevExecutionAmount == 0) {
                                 // Get amount from hook and approve spending
                                 vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
 
-                                // TODO: think of a better to do this for outflows , especially when share is externalized
+                                // TODO: think of a better to do this for outflows , especially when share is
+                                // externalized
                                 _handleTokenApproval(address(_asset), vars.executions[j].target, vars.amount);
-                            } 
+                            }
                             prevExecutionAmount = vars.amount;
                         }
                     }
@@ -469,7 +470,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 }
                 // Update prevHook for next iteration
                 vars.prevHook = hooks[i];
-            } 
+            }
 
             unchecked {
                 ++i;
