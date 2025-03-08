@@ -173,12 +173,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         // Step 3: Execute Arbitrary Hooks
         _executeStakeHook(amountToStake);
 
+        assertGt(gearboxFarmingPool.balanceOf(address(strategyGearSuperVault)), 0, "Gearbox vault balance not increased after stake");
+
         // Step 3: Claim Deposit
         __claimDeposit_Gearbox_SV(amount);
 
         // Get shares minted to user
         uint256 userShares = IERC4626(gearSuperVault).balanceOf(accountEth);
-        console2.log("userShares: ", userShares);
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
@@ -188,11 +189,14 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         vm.warp(block.timestamp + 50 weeks);
 
         uint256 amountToUnStake = gearboxFarmingPool.balanceOf(address(strategyGearSuperVault));
-        console2.log("amountToUnStake: ", amountToUnStake);
 
         console2.log("ppsBeforeUnStake: ", _getSuperVaultPricePerShare());
 
+        uint256 preUnStakeGearboxBalance = gearboxVault.balanceOf(address(strategyGearSuperVault));
+
         _executeUnStakeHook(amountToUnStake);
+
+        assertGt(gearboxVault.balanceOf(address(strategyGearSuperVault)), preUnStakeGearboxBalance, "Gearbox vault balance not decreased after unstake");
 
         console2.log("ppsAfterUnStake: ", _getSuperVaultPricePerShare());
 
