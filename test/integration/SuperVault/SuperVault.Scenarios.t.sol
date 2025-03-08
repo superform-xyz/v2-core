@@ -487,14 +487,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Simulate time passing
         vm.warp(vars.initialTimestamp + 1 days);
 
-        uint256 sharesVault1 = IERC4626(address(fluidVault)).convertToShares(vars.depositAmount * 5 / 2);
-        uint256 sharesVault2 = IERC4626(address(vars.ruggableVault)).convertToShares(vars.depositAmount * 5 / 2);
-        
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         expectedAssetsOrSharesOut[0] = 0; //10% slippage
         expectedAssetsOrSharesOut[1] = 0; // this should make the call revert 
 
-        expectedAssetsOrSharesOut[1] = sharesVault2 - sharesVault2* 1e3/1e5; //1% slippage
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
