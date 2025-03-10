@@ -175,7 +175,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 depositAmount;
         uint256 initialFluidVaultPPS;
         uint256 initialAaveVaultPPS;
-        uint256 initialEulerVaultPPS;
         uint256 totalInitialBalance;
         uint256 initialFluidRatio;
         uint256 initialAaveRatio;
@@ -184,31 +183,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 initialFluidVaultBalance;
         uint256 initialAaveVaultBalance;
         uint256 initialEulerVaultBalance;
-        int256 fluidDiff;
-        int256 aaveDiff;
-        int256 eulerDiff;
-        address[] sources;
-        uint256[] sourceAmounts;
-        address[] destinations;
-        uint256[] destinationAmounts;
-        uint256 sourceCount;
-        uint256 destCount;
-        address source;
-        address destination;
-        uint256 amountToMove;
         // First reallocation (50/25/25)
         uint256 assetsToMove;
-        uint256 sharesToRedeem;
-        uint256 targetFluidAssets;
-        uint256 targetAaveAssets;
-        uint256 targetEulerAssets;
-        uint256 currentFluidAssets;
-        uint256 currentAaveAssets;
-        uint256 currentEulerAssets;
-        uint256 excessFluidAssets;
-        uint256 fluidSharesToRedeem;
-        uint256 assetsToMoveAave;
-        uint256 assetsToMoveEuler;
         uint256 finalFluidVaultBalance;
         uint256 finalAaveVaultBalance;
         uint256 finalEulerVaultBalance;
@@ -218,76 +194,18 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 finalEulerRatio;
         // Second reallocation (40/30/30)
         uint256 newVaultCap;
-        uint256 assetsToMoveToAave;
-        uint256 assetsToMoveToEuler;
         uint256 targetFluidAssets2;
         uint256 targetAaveAssets2;
         uint256 targetEulerAssets2;
         uint256 finalFluidVaultBalance2;
         uint256 finalAaveVaultBalance2;
         uint256 finalEulerVaultBalance2;
-        uint256 totalFinalBalance2;
         uint256 finalFluidRatio2;
         uint256 finalAaveRatio2;
         uint256 finalEulerRatio2;
         uint256 finalTotalValue;
         // misc
         ISuperVaultStrategy.GlobalConfig newConfig;
-    }
-
-    /**
-     * @notice Struct to hold local variables for the _reallocate function
-     */
-    struct ReallocateLocalVars {
-        // Current balances
-        uint256 currentVault1Balance;
-        uint256 currentVault2Balance;
-        uint256 currentVault3Balance;
-        uint256 totalBalance;
-        // Target balances
-        uint256 targetVault1Assets;
-        uint256 targetVault2Assets;
-        uint256 targetVault3Assets;
-        // Differences
-        int256 vault1Diff;
-        int256 vault2Diff;
-        int256 vault3Diff;
-        // Sources and destinations
-        address[] sources;
-        uint256[] sourceAmounts;
-        address[] destinations;
-        uint256[] destinationAmounts;
-        uint256 sourceCount;
-        uint256 destCount;
-        // For moving assets
-        address source;
-        address destination;
-        uint256 amountToMove;
-        uint256 sharesToRedeem;
-        address[] hooksAddresses;
-        bytes[] hooksData;
-        // Final balances and ratios
-        uint256 finalVault1Balance;
-        uint256 finalVault2Balance;
-        uint256 finalVault3Balance;
-        uint256 totalFinalBalance;
-        uint256 finalVault1Ratio;
-        uint256 finalVault2Ratio;
-        uint256 finalVault3Ratio;
-    }
-
-    /**
-     * @notice Struct to hold arguments for the _reallocate function
-     */
-    struct ReallocateArgs {
-        IERC4626 vault1;
-        IERC4626 vault2;
-        IERC4626 vault3;
-        uint256 targetVault1Percentage;
-        uint256 targetVault2Percentage;
-        uint256 targetVault3Percentage;
-        address withdrawHookAddress;
-        address depositHookAddress;
     }
 
     function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
@@ -2284,263 +2202,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Verify total deposits reached target
         assertGe(
             vars.finalTotalAssets, targetTotalDeposits, "Total assets should be at least the target deposit amount"
-        );
-    }
-
-    /**
-     * @notice Resizes an array of addresses to the specified length
-     * @param array The original array to resize
-     * @param newLength The new length for the array
-     * @return A new array with the specified length containing elements from the original array
-     */
-    function _resizeAddressArray(address[] memory array, uint256 newLength) internal pure returns (address[] memory) {
-        address[] memory newArray = new address[](newLength);
-        for (uint256 i = 0; i < newLength; i++) {
-            newArray[i] = array[i];
-        }
-        return newArray;
-    }
-
-    /**
-     * @notice Resizes an array of uint256 to the specified length
-     * @param array The original array to resize
-     * @param newLength The new length for the array
-     * @return A new array with the specified length containing elements from the original array
-     */
-    function _resizeUint256Array(uint256[] memory array, uint256 newLength) internal pure returns (uint256[] memory) {
-        uint256[] memory newArray = new uint256[](newLength);
-        for (uint256 i = 0; i < newLength; i++) {
-            newArray[i] = array[i];
-        }
-        return newArray;
-    }
-
-    function _reallocate(ReallocateArgs memory args)
-        internal
-        returns (uint256, uint256, uint256, uint256, uint256, uint256)
-    {
-        ReallocateLocalVars memory vars;
-
-        // Get current balances
-        vars.currentVault1Balance = args.vault1.convertToAssets(args.vault1.balanceOf(address(strategy)));
-        vars.currentVault2Balance = args.vault2.convertToAssets(args.vault2.balanceOf(address(strategy)));
-        vars.currentVault3Balance = args.vault3.convertToAssets(args.vault3.balanceOf(address(strategy)));
-
-        vars.totalBalance = vars.currentVault1Balance + vars.currentVault2Balance + vars.currentVault3Balance;
-
-        // Calculate target balances based on percentages (in basis points)
-        vars.targetVault1Assets = vars.totalBalance * args.targetVault1Percentage / 10_000;
-        vars.targetVault2Assets = vars.totalBalance * args.targetVault2Percentage / 10_000;
-        vars.targetVault3Assets = vars.totalBalance * args.targetVault3Percentage / 10_000;
-
-        console2.log("Total balance:", vars.totalBalance);
-        console2.log("Target Vault1 Assets:", vars.targetVault1Assets);
-        console2.log("Target Vault2 Assets:", vars.targetVault2Assets);
-        console2.log("Target Vault3 Assets:", vars.targetVault3Assets);
-
-        // Calculate the differences between current and target allocations
-        vars.vault1Diff = int256(vars.targetVault1Assets) - int256(vars.currentVault1Balance);
-        vars.vault2Diff = int256(vars.targetVault2Assets) - int256(vars.currentVault2Balance);
-        vars.vault3Diff = int256(vars.targetVault3Assets) - int256(vars.currentVault3Balance);
-
-        console2.log("\n=== Allocation Differences ===");
-        console2.log("Vault1 Diff:", vars.vault1Diff);
-        console2.log("Vault2 Diff:", vars.vault2Diff);
-        console2.log("Vault3 Diff:", vars.vault3Diff);
-
-        // Identify sources (vaults with excess assets) and destinations (vaults needing assets)
-        vars.sources = new address[](3);
-        vars.sourceAmounts = new uint256[](3);
-        vars.destinations = new address[](3);
-        vars.destinationAmounts = new uint256[](3);
-        vars.sourceCount = 0;
-        vars.destCount = 0;
-
-        if (vars.vault1Diff < 0) {
-            vars.sources[vars.sourceCount] = address(args.vault1);
-            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault1Diff);
-            vars.sourceCount++;
-        } else if (vars.vault1Diff > 0) {
-            vars.destinations[vars.destCount] = address(args.vault1);
-            vars.destinationAmounts[vars.destCount] = uint256(vars.vault1Diff);
-            vars.destCount++;
-        }
-
-        if (vars.vault2Diff < 0) {
-            vars.sources[vars.sourceCount] = address(args.vault2);
-            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault2Diff);
-            vars.sourceCount++;
-        } else if (vars.vault2Diff > 0) {
-            vars.destinations[vars.destCount] = address(args.vault2);
-            vars.destinationAmounts[vars.destCount] = uint256(vars.vault2Diff);
-            vars.destCount++;
-        }
-
-        if (vars.vault3Diff < 0) {
-            vars.sources[vars.sourceCount] = address(args.vault3);
-            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault3Diff);
-            vars.sourceCount++;
-        } else if (vars.vault3Diff > 0) {
-            vars.destinations[vars.destCount] = address(args.vault3);
-            vars.destinationAmounts[vars.destCount] = uint256(vars.vault3Diff);
-            vars.destCount++;
-        }
-
-        // Resize arrays to actual count
-        vars.sources = _resizeAddressArray(vars.sources, vars.sourceCount);
-        vars.sourceAmounts = _resizeUint256Array(vars.sourceAmounts, vars.sourceCount);
-        vars.destinations = _resizeAddressArray(vars.destinations, vars.destCount);
-        vars.destinationAmounts = _resizeUint256Array(vars.destinationAmounts, vars.destCount);
-
-        console2.log("\n=== Sources and Destinations ===");
-        for (uint256 i = 0; i < vars.sourceCount; i++) {
-            console2.log("Source:", vars.sources[i]);
-            console2.log("Amount:", vars.sourceAmounts[i]);
-        }
-        for (uint256 i = 0; i < vars.destCount; i++) {
-            console2.log("Destination:", vars.destinations[i]);
-            console2.log("Amount:", vars.destinationAmounts[i]);
-        }
-
-        // Iteratively move assets from sources to destinations
-        for (uint256 i = 0; i < vars.sourceCount && i < vars.destCount; i++) {
-            vars.source = vars.sources[i];
-            vars.destination = vars.destinations[i];
-            vars.amountToMove =
-                vars.sourceAmounts[i] < vars.destinationAmounts[i] ? vars.sourceAmounts[i] : vars.destinationAmounts[i];
-
-            if (vars.amountToMove > 0) {
-                console2.log("\nMoving", vars.amountToMove);
-                console2.log("from", vars.source, "to", vars.destination);
-
-                // Convert asset amount to shares for the source vault
-                if (vars.source == address(args.vault1)) {
-                    vars.sharesToRedeem = args.vault1.convertToShares(vars.amountToMove);
-                } else if (vars.source == address(args.vault2)) {
-                    vars.sharesToRedeem = args.vault2.convertToShares(vars.amountToMove);
-                } else if (vars.source == address(args.vault3)) {
-                    vars.sharesToRedeem = args.vault3.convertToShares(vars.amountToMove);
-                }
-
-                console2.log("Shares to redeem:", vars.sharesToRedeem);
-
-                vars.hooksAddresses = new address[](2);
-                vars.hooksAddresses[0] = args.withdrawHookAddress;
-                vars.hooksAddresses[1] = args.depositHookAddress;
-
-                vars.hooksData = new bytes[](2);
-                vars.hooksData[0] = _createWithdraw4626HookData(
-                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                    vars.source,
-                    address(strategy),
-                    vars.sharesToRedeem,
-                    false,
-                    false
-                );
-                vars.hooksData[1] = _createDeposit4626HookData(
-                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vars.destination, vars.amountToMove, true, false
-                );
-
-                vm.startPrank(STRATEGIST);
-                strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
-                vm.stopPrank();
-
-                // Update remaining amounts
-                vars.sourceAmounts[i] -= vars.amountToMove;
-                vars.destinationAmounts[i] -= vars.amountToMove;
-            }
-        }
-
-        // Handle any remaining sources or destinations by pairing them
-        for (uint256 i = 0; i < vars.sourceCount; i++) {
-            if (vars.sourceAmounts[i] > 0) {
-                for (uint256 j = 0; j < vars.destCount; j++) {
-                    if (vars.destinationAmounts[j] > 0) {
-                        vars.amountToMove = vars.sourceAmounts[i] < vars.destinationAmounts[j]
-                            ? vars.sourceAmounts[i]
-                            : vars.destinationAmounts[j];
-
-                        if (vars.amountToMove > 0) {
-                            console2.log("\nMoving remaining", vars.amountToMove);
-                            console2.log("from", vars.sources[i], "to", vars.destinations[j]);
-
-                            // Convert asset amount to shares for the source vault
-                            if (vars.sources[i] == address(args.vault1)) {
-                                vars.sharesToRedeem = args.vault1.convertToShares(vars.amountToMove);
-                            } else if (vars.sources[i] == address(args.vault2)) {
-                                vars.sharesToRedeem = args.vault2.convertToShares(vars.amountToMove);
-                            } else if (vars.sources[i] == address(args.vault3)) {
-                                vars.sharesToRedeem = args.vault3.convertToShares(vars.amountToMove);
-                            }
-
-                            console2.log("Shares to redeem:", vars.sharesToRedeem);
-
-                            vars.hooksAddresses = new address[](2);
-                            vars.hooksAddresses[0] = args.withdrawHookAddress;
-                            vars.hooksAddresses[1] = args.depositHookAddress;
-
-                            vars.hooksData = new bytes[](2);
-                            vars.hooksData[0] = _createWithdraw4626HookData(
-                                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                                vars.sources[i],
-                                address(strategy),
-                                vars.sharesToRedeem,
-                                false,
-                                false
-                            );
-                            vars.hooksData[1] = _createDeposit4626HookData(
-                                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                                vars.destinations[j],
-                                vars.amountToMove,
-                                true,
-                                false
-                            );
-
-                            vm.startPrank(STRATEGIST);
-                            strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
-                            vm.stopPrank();
-
-                            // Update remaining amounts
-                            vars.sourceAmounts[i] -= vars.amountToMove;
-                            vars.destinationAmounts[j] -= vars.amountToMove;
-
-                            if (vars.sourceAmounts[i] == 0) {
-                                break; // This source is depleted, move to next source
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Check new balances after reallocation
-        vars.finalVault1Balance = args.vault1.convertToAssets(args.vault1.balanceOf(address(strategy)));
-        vars.finalVault2Balance = args.vault2.convertToAssets(args.vault2.balanceOf(address(strategy)));
-        vars.finalVault3Balance = args.vault3.convertToAssets(args.vault3.balanceOf(address(strategy)));
-
-        console2.log("\n=== Final Balances After Reallocation ===");
-        console2.log("Final Vault1 balance:", vars.finalVault1Balance);
-        console2.log("Final Vault2 balance:", vars.finalVault2Balance);
-        console2.log("Final Vault3 balance:", vars.finalVault3Balance);
-
-        // Calculate final allocation percentages
-        vars.totalFinalBalance = vars.finalVault1Balance + vars.finalVault2Balance + vars.finalVault3Balance;
-        vars.finalVault1Ratio = (vars.finalVault1Balance * 10_000) / vars.totalFinalBalance;
-        vars.finalVault2Ratio = (vars.finalVault2Balance * 10_000) / vars.totalFinalBalance;
-        vars.finalVault3Ratio = (vars.finalVault3Balance * 10_000) / vars.totalFinalBalance;
-
-        console2.log("\n=== Final Allocation Ratios ===");
-        console2.log("Vault1:", vars.finalVault1Ratio / 100, "%");
-        console2.log("Vault2:", vars.finalVault2Ratio / 100, "%");
-        console2.log("Vault3:", vars.finalVault3Ratio / 100, "%");
-
-        return (
-            vars.finalVault1Balance,
-            vars.finalVault2Balance,
-            vars.finalVault3Balance,
-            vars.finalVault1Ratio,
-            vars.finalVault2Ratio,
-            vars.finalVault3Ratio
         );
     }
 }
