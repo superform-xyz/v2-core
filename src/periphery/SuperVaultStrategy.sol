@@ -1050,26 +1050,23 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 i; i < locals.hooksLength;) {
             // Process hook executions
             if (isDeposit) {
-                (locals.amount, locals.hookTarget, locals.outAmount) = _processInflowHookExecution(
-                    hooks[i], vars.prevHook, hookCalldata[i]
-                );
+                (locals.amount, locals.hookTarget, locals.outAmount) =
+                    _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
                 locals.target = locals.hookTarget;
                 // Track targeted yield source for inflow operations
                 locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
-
             } else {
-                (locals.amount, locals.hookTarget, locals.outAmount) = _processOutflowHookExecution(
-                    hooks[i],
-                    vars.prevHook,
-                    hookCalldata[i],
-                    vars.pricePerShare
-                );
+                (locals.amount, locals.hookTarget, locals.outAmount) =
+                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
-            if (locals.outAmount * ONE_HUNDRED_PERCENT < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
-         
+            if (
+                locals.outAmount * ONE_HUNDRED_PERCENT
+                    < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+            ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
+
             unchecked {
                 ++i;
             }
@@ -1115,19 +1112,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Execute hook with asset approval
-        _executeHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            ISuperHook.HookType.INFLOW,
-            address(_asset),
-            amount,
-            target
-        );
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, address(_asset), amount, target);
         uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
-        
+
         // Update assetsInRequest to account for assets being moved in
         _updateAssetsInRequest(assetsInRequest - (balanceAssetBefore - balanceAssetAfter));
     }
@@ -1142,14 +1131,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address target;
         address yieldSource;
     }
-
-    // deposit vault1
-    // deposit -> stake rewards vaault 2
-    // 
-    // Ideally all of this is done via fulfillRequests only:
-    // - redeem from vault1
-    // - unstake -> redeem from vault 2
-
 
     /// @notice Process outflow hook execution
     /// @param hook The hook to process
@@ -1185,15 +1166,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
         // Execute hook and track balances
-        _executeHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            ISuperHook.HookType.OUTFLOW,
-            address(0),
-            amount,
-            execVars.target
-        );
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, address(0), amount, execVars.target);
 
         execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
