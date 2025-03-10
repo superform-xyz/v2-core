@@ -180,7 +180,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.bootstrapHooks[0] = vars.depositHookAddress;
 
         vars.expectedAssetsOrSharesOut = new uint256[](1);
-        vars.expectedAssetsOrSharesOut[0] = 0; 
+        vars.expectedAssetsOrSharesOut[0] = 0;
 
         vars.bootstrapData = new bytes[](1);
         vars.depositHookData = _createDeposit4626HookData(
@@ -369,7 +369,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
 
-
         bytes[] memory fulfillHooksData = new bytes[](2);
 
         // Split the deposit between two hooks
@@ -386,7 +385,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -416,12 +417,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), aaveSharesOut, false, false
         );
 
-        
-        (uint256 totalSvAssets, ) = strategy.totalAssets();
-        uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION,  vault.totalSupply(), Math.Rounding.Floor);
+        (uint256 totalSvAssets,) = strategy.totalAssets();
+        uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
 
-        uint256 amountForVault1 =  fluidSharesOut * 1e18 / pricePerShare;
-        uint256 amountForVault2 =  aaveSharesOut * 1e18 / pricePerShare;
+        uint256 amountForVault1 = fluidSharesOut * 1e18 / pricePerShare;
+        uint256 amountForVault2 = aaveSharesOut * 1e18 / pricePerShare;
 
         uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
         uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
@@ -431,7 +431,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
@@ -464,7 +466,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -501,7 +505,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -535,7 +541,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -574,7 +582,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
         expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -604,11 +614,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         {
-            (uint256 totalSvAssets, ) = strategy.totalAssets();
-            uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION,  vault.totalSupply(), Math.Rounding.Floor);
+            (uint256 totalSvAssets,) = strategy.totalAssets();
+            uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
 
-            uint256 amountForVault1 =  redeemSharesVault1 * 1e18 / pricePerShare;
-            uint256 amountForVault2 =  redeemSharesVault2 * 1e18 / pricePerShare;
+            uint256 amountForVault1 = redeemSharesVault1 * 1e18 / pricePerShare;
+            uint256 amountForVault2 = redeemSharesVault2 * 1e18 / pricePerShare;
 
             uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
             uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
@@ -618,7 +628,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
@@ -652,7 +664,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
@@ -714,7 +728,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // fulfill deposits
         _fulfillDepositForUsers(
-            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)  
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
 
         // claim deposits
@@ -943,11 +957,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         hooksData[0] = _createWithdraw4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
         );
-        hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+        hooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),
             targetVault,
-            assetsToMove - 1,
-            false,
+            address(asset),
+            assetsToMove,
+            true,
             false
         );
         strategy.executeHooks(hooksAddresses, hooksData);
