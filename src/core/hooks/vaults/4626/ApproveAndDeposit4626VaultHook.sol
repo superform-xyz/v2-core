@@ -43,6 +43,7 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
+        address token = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, 76);
 
