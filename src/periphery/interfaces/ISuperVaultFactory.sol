@@ -52,6 +52,7 @@ interface ISuperVaultFactory {
         // Bootstrapping parameters
         address[] bootstrappingHooks;
         bytes[] bootstrappingHookCalldata;
+        uint256[] expectedAssetsOrSharesOut;
     }
 
     /// @notice Parameters for bootstrapping a vault
@@ -64,6 +65,7 @@ interface ISuperVaultFactory {
         address recipient;
         address[] bootstrappingHooks;
         bytes[] bootstrappingHookCalldata;
+        uint256[] expectedAssetsOrSharesOut;
         ISuperVaultStrategy.GlobalConfig config;
         uint256 bootstrapAmount;
     }

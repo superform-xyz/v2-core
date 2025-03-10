@@ -197,8 +197,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         }
 
         // Should revert when trying to fulfill with insufficient allocation
-        vm.expectRevert();
-        _fulfillDepositForUsers(requestingUsers, invalidAmount, invalidAmount, address(fluidVault), address(aaveVault));
+        _fulfillDepositForUsers(requestingUsers, invalidAmount, invalidAmount, address(fluidVault), address(aaveVault), ISuperVaultStrategy.INVALID_AMOUNT.selector);
     }
 
     function test_RequestDeposit_UnorderedFulfillment(uint256 depositAmount) public {
