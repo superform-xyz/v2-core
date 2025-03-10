@@ -963,18 +963,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (approvalToken != address(0)) {
                 _handleTokenApproval(approvalToken, target, approvalAmount);
             }
-
+            
             // Execute the transaction
             (bool success,) = target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) revert OPERATION_FAILED();
 
-            // Reset approval if needed
-            if (approvalToken != address(0)) {
-                _resetTokenApproval(approvalToken, target);
-            }
             unchecked {
                 ++i;
             }
+        }
+
+        // Reset approval if needed
+        if (approvalToken != address(0)) {
+            _resetTokenApproval(approvalToken, target);
         }
     }
 
