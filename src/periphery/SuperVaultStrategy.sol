@@ -388,7 +388,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-            uint256 prevExecutionAmount;
             uint256 preExecutionTotalAssets;
             for (uint256 j; j < vars.executions.length;) {
                 // For inflow/outflow hooks, validate target is an active yield source

@@ -128,8 +128,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
             "Vault assets not increased after deposit request"
         );
 
-        uint256 expectedUserShares = vault.convertToShares(amount);
-
         // Step 2: Fulfill Deposit
         _fulfillDeposit(amount, accountEth, address(fluidVault), address(aaveVault));
 
