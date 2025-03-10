@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -387,7 +389,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
-            
+
             uint256 prevExecutionAmount;
             uint256 preExecutionTotalAssets;
             for (uint256 j; j < vars.executions.length;) {
@@ -395,18 +397,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
                     YieldSource storage source = yieldSources[vars.executions[j].target];
                     if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-                    // For inflows, track targets for cap validation
-                    if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                        vars.inflowTargets[vars.inflowCount++] = vars.executions[j].target;
-                        if (prevExecutionAmount == 0) {
-                            // Get amount from hook and approve spending
-                            vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
-                            // TODO: think of a better to do this for outflows , especially when share is
-                            // externalized
-                            _handleTokenApproval(address(_asset), vars.executions[j].target, vars.amount);
-                        }
-                        prevExecutionAmount = vars.amount;
-                    }
                 }
 
                 // Store pre-execution balance for non-accounting hooks
@@ -432,11 +422,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             unchecked {
                 ++i;
             }
-        }
-
-        // Reset approval if it was an inflow
-        if (vars.hookType == ISuperHook.HookType.INFLOW) {
-            _resetTokenApproval(address(_asset), vars.executions[0].target);
         }
 
         // Resize array if needed
@@ -1053,26 +1038,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         for (uint256 i; i < locals.hooksLength;) {
             // Process hook executions
             if (isDeposit) {
-                (locals.amount, locals.hookTarget, locals.outAmount) = _processInflowHookExecution(
-                    hooks[i], vars.prevHook, hookCalldata[i]
-                );
+                (locals.amount, locals.hookTarget, locals.outAmount) =
+                    _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
                 locals.target = locals.hookTarget;
                 // Track targeted yield source for inflow operations
                 locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
-
             } else {
-                (locals.amount, locals.hookTarget, locals.outAmount) = _processOutflowHookExecution(
-                    hooks[i],
-                    vars.prevHook,
-                    hookCalldata[i],
-                    vars.pricePerShare
-                );
+                (locals.amount, locals.hookTarget, locals.outAmount) =
+                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
 
+            console2.log("---locals.amount", locals.amount);
+            console2.log("---locals.outAmount", locals.outAmount);
+            console2.log("---expectedAssetsOrSharesOut", expectedAssetsOrSharesOut[i]);
+            
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
-            if (locals.outAmount * ONE_HUNDRED_PERCENT < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
-         
+            console2.log("---vars.spentAmount", vars.spentAmount);
+            console2.log("---vars.totalRequestedAmount", vars.totalRequestedAmount);
+            if (
+                locals.outAmount * ONE_HUNDRED_PERCENT
+                    < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+            ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
+
             unchecked {
                 ++i;
             }
@@ -1118,19 +1106,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Execute hook with asset approval
-        _executeHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            ISuperHook.HookType.INFLOW,
-            address(_asset),
-            amount,
-            target
-        );
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, address(_asset), amount, target);
         uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
-        
+
         // Update assetsInRequest to account for assets being moved in
         _updateAssetsInRequest(assetsInRequest - (balanceAssetBefore - balanceAssetAfter));
     }
@@ -1171,8 +1151,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
 
-        hookCalldata =
-            ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
+        // hookCalldata =
+        //     ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
         if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
@@ -1180,15 +1160,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
         // Execute hook and track balances
-        _executeHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            ISuperHook.HookType.OUTFLOW,
-            address(0),
-            amount,
-            execVars.target
-        );
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, address(0), execVars.amount, execVars.target);
 
         execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
