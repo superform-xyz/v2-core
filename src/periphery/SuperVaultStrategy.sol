@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -1047,15 +1045,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 (locals.amount, locals.hookTarget, locals.outAmount) =
                     _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
-
-            console2.log("---locals.amount", locals.amount);
-            console2.log("---locals.outAmount", locals.outAmount);
-            console2.log("---expectedAssetsOrSharesOut", expectedAssetsOrSharesOut[i]);
             
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
-            console2.log("---vars.spentAmount", vars.spentAmount);
-            console2.log("---vars.totalRequestedAmount", vars.totalRequestedAmount);
             if (
                 locals.outAmount * ONE_HUNDRED_PERCENT
                     < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
@@ -1151,8 +1143,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
 
-        // hookCalldata =
-        //     ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
+        hookCalldata =
+             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
         if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
