@@ -268,10 +268,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
 
-        address[] memory tokensOut = pendleEthena.getTokensOut();
-        address asset_ = tokensOut[0];
-
-        uint256 shares = pendleEthena.balanceOf(address(superVaultStrategysUSDE));
+        uint256 shares = superVaultStrategysUSDE.pendingRedeemRequest(account);
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _create5115WithdrawHookData(
