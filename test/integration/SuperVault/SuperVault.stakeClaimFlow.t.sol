@@ -353,7 +353,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
 
-        uint256 shares = IERC4626(gearboxVault).balanceOf(address(strategyGearSuperVault));
+        uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _createWithdraw4626HookData(
@@ -366,7 +366,9 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         uint256[] memory minAssetsOrSharesOut = new uint256[](1);
-        minAssetsOrSharesOut[0] = gearboxVault.previewRedeem(shares);
+        uint256 assets = gearSuperVault.convertToAssets(shares);
+        uint256 underlyingShares = gearboxVault.convertToShares(assets);
+        minAssetsOrSharesOut[0] = underlyingShares;
 
         vm.startPrank(STRATEGIST);
         strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
