@@ -444,7 +444,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     )
         internal
     {
-        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = depositHookAddress;
