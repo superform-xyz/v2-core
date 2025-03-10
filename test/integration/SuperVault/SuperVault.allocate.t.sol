@@ -73,7 +73,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
 
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = withdrawHookAddress;
@@ -131,7 +131,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         bytes[] memory hooksData = new bytes[](2);
 
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
