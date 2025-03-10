@@ -33,6 +33,7 @@ import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115V
 import { Withdraw5115VaultHook } from "../src/core/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 // --- erc4626
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
 import { Withdraw4626VaultHook } from "../src/core/hooks/vaults/4626/Withdraw4626VaultHook.sol";
 // -- erc7540
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
@@ -101,6 +102,7 @@ struct Addresses {
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
+    ApproveAndDeposit4626VaultHook approveAndDeposit4626VaultHook;
     Withdraw4626VaultHook withdraw4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
     Withdraw5115VaultHook withdraw5115VaultHook;
@@ -644,6 +646,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY]);
             peripheryRegistry.registerHook(address(Addr.approveAndGearboxStakeHook), false);
+
+            Addr.approveAndDeposit4626VaultHook =
+                new ApproveAndDeposit4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndDeposit4626VaultHook), APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] = address(Addr.approveAndDeposit4626VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultDeposits,
+                address(Addr.approveAndDeposit4626VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY]);
+            peripheryRegistry.registerHook(address(Addr.approveAndDeposit4626VaultHook), true);
         }
     }
 
@@ -1062,6 +1078,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
+    }
+
+    function _createApproveAndDeposit4626HookData(
+        bytes4 yieldSourceOracleId,
+        address vault,
+        address token,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, amount, usePrevHookAmount, lockForSP);
     }
 
     function _create5115DepositHookData(
