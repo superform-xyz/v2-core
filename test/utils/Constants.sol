@@ -53,8 +53,6 @@ abstract contract Constants {
     string public constant REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY = "RequestWithdraw7540VaultHook";
     string public constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string public constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
-    string public constant DEPOSIT_7575_7540_VAULT_HOOK_KEY = "Deposit7575_7540VaultHook";
-    string public constant WITHDRAW_7575_7540_VAULT_HOOK_KEY = "Withdraw7575_7540VaultHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
