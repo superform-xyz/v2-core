@@ -54,6 +54,7 @@ import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
 import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
+import { ApproveAndGearboxStakeHook } from "../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
 
 // Claim Hooks
 // --- Fluid
@@ -112,6 +113,7 @@ struct Addresses {
     SwapOdosHook swapOdosHook;
     GearboxStakeHook gearboxStakeHook;
     GearboxUnstakeHook gearboxUnstakeHook;
+    ApproveAndGearboxStakeHook approveAndGearboxStakeHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
@@ -628,6 +630,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
             peripheryRegistry.registerHook(address(Addr.yearnClaimOneRewardHook), false);
+
+            Addr.approveAndGearboxStakeHook =
+                new ApproveAndGearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndGearboxStakeHook), GEARBOX_APPROVE_AND_STAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY] = address(Addr.approveAndGearboxStakeHook);
+            hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY] = Hook(
+                GEARBOX_APPROVE_AND_STAKE_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.Stakes,
+                address(Addr.approveAndGearboxStakeHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY]);
+            peripheryRegistry.registerHook(address(Addr.approveAndGearboxStakeHook), false);
         }
     }
 
@@ -1367,6 +1383,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             referralCode,
             usePrevHookAmount
         );
+    }
+
+    function _createApproveAndGearboxStakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        address token,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount, lockForSP);
     }
 
     function _createGearboxStakeHookData(
