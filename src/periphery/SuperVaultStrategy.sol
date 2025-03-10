@@ -1143,6 +1143,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address yieldSource;
     }
 
+    // deposit vault1
+    // deposit -> stake rewards vaault 2
+    // 
+    // Ideally all of this is done via fulfillRequests only:
+    // - redeem from vault1
+    // - unstake -> redeem from vault 2
+
+
     /// @notice Process outflow hook execution
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence

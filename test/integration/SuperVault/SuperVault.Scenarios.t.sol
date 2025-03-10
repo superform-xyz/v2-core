@@ -199,7 +199,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // First reallocation (50/25/25)
         uint256 assetsToMove;
         uint256 sharesToRedeem;
-        uint256 totalAssets;
         uint256 targetFluidAssets;
         uint256 targetAaveAssets;
         uint256 targetEulerAssets;
@@ -528,9 +527,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // Get initial balances
-        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
-        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.initialEulerVaultBalance = eulerVault.balanceOf(address(strategy));
+        vars.initialFluidVaultBalance = fluidVault.convertToAssets(fluidVault.balanceOf(address(strategy)));
+        vars.initialAaveVaultBalance = aaveVault.convertToAssets(aaveVault.balanceOf(address(strategy)));
+        vars.initialEulerVaultBalance = eulerVault.convertToAssets(eulerVault.balanceOf(address(strategy)));
 
         console2.log("\n=== Initial Balances ===");
         console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
@@ -540,40 +539,27 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Calculate initial allocation percentages
         vars.totalInitialBalance =
             vars.initialFluidVaultBalance + vars.initialAaveVaultBalance + vars.initialEulerVaultBalance;
-        vars.initialFluidRatio = (vars.initialFluidVaultBalance * 100) / vars.totalInitialBalance;
-        vars.initialAaveRatio = (vars.initialAaveVaultBalance * 100) / vars.totalInitialBalance;
-        vars.initialEulerRatio = (vars.initialEulerVaultBalance * 100) / vars.totalInitialBalance;
+        vars.initialFluidRatio = (vars.initialFluidVaultBalance * 10_000) / vars.totalInitialBalance;
+        vars.initialAaveRatio = (vars.initialAaveVaultBalance * 10_000) / vars.totalInitialBalance;
+        vars.initialEulerRatio = (vars.initialEulerVaultBalance * 10_000) / vars.totalInitialBalance;
 
         console2.log("\n=== Initial Allocation Ratios ===");
-        console2.log("Fluid Vault:", vars.initialFluidRatio, "%");
-        console2.log("Aave Vault:", vars.initialAaveRatio, "%");
-        console2.log("Euler Vault:", vars.initialEulerRatio, "%");
+        console2.log("Fluid Vault:", vars.initialFluidRatio / 100, "%");
+        console2.log("Aave Vault:", vars.initialAaveRatio / 100, "%");
+        console2.log("Euler Vault:", vars.initialEulerRatio / 100, "%");
 
         // First reallocation: Change to 50/25/25 (fluid/aave/euler)
         console2.log("\n=== First Reallocation: Target 50/25/25 ===");
 
         // Calculate target balances for 50/25/25 allocation
-        vars.totalAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
-            + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
-            + eulerVault.convertToAssets(vars.initialEulerVaultBalance);
+        vars.targetFluidAssets = vars.totalInitialBalance * 5000 / 10_000;
+        vars.targetAaveAssets = vars.totalInitialBalance * 2500 / 10_000;
+        vars.targetEulerAssets = vars.totalInitialBalance * 2500 / 10_000;
 
-        vars.targetFluidAssets = vars.totalAssets * 5000 / 10_000;
-        vars.targetAaveAssets = vars.totalAssets * 2500 / 10_000;
-        vars.targetEulerAssets = vars.totalAssets * 2500 / 10_000;
-
-        console2.log("Total Assets:", vars.totalAssets);
+        console2.log("Total initial balance:", vars.totalInitialBalance);
         console2.log("Target Fluid Assets:", vars.targetFluidAssets);
         console2.log("Target Aave Assets:", vars.targetAaveAssets);
         console2.log("Target Euler Assets:", vars.targetEulerAssets);
-
-        // Current assets in each vault
-        vars.currentFluidAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
-        vars.currentAaveAssets = aaveVault.convertToAssets(vars.initialAaveVaultBalance);
-        vars.currentEulerAssets = eulerVault.convertToAssets(vars.initialEulerVaultBalance);
-
-        console2.log("Current Fluid Assets:", vars.currentFluidAssets);
-        console2.log("Current Aave Assets:", vars.currentAaveAssets);
-        console2.log("Current Euler Assets:", vars.currentEulerAssets);
 
         // Set up hooks for reallocation
         vars.withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
@@ -581,9 +567,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // REFACTORED REALLOCATION ALGORITHM
         // Calculate the differences between current and target allocations
-        vars.fluidDiff = int256(vars.targetFluidAssets) - int256(vars.currentFluidAssets);
-        vars.aaveDiff = int256(vars.targetAaveAssets) - int256(vars.currentAaveAssets);
-        vars.eulerDiff = int256(vars.targetEulerAssets) - int256(vars.currentEulerAssets);
+        vars.fluidDiff = int256(vars.targetFluidAssets) - int256(vars.initialFluidVaultBalance);
+        vars.aaveDiff = int256(vars.targetAaveAssets) - int256(vars.initialAaveVaultBalance);
+        vars.eulerDiff = int256(vars.targetEulerAssets) - int256(vars.initialEulerVaultBalance);
 
         console2.log("\n=== Allocation Differences ===");
         console2.log("Fluid Diff:", vars.fluidDiff);
@@ -682,7 +668,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                     false
                 );
                 vars.hooksData[1] = _createDeposit4626HookData(
-                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vars.destination, vars.amountToMove, false, false
+                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vars.destination, vars.amountToMove, true, false
                 );
 
                 vm.startPrank(STRATEGIST);
@@ -691,7 +677,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
                 // Update remaining amounts
                 vars.sourceAmounts[i] -= vars.amountToMove;
+                console2.log("euler dst amounts", vars.destinationAmounts[i]);
                 vars.destinationAmounts[i] -= vars.amountToMove;
+                console2.log("euler dst amounts after", vars.destinationAmounts[i]);
             }
         }
 
@@ -735,7 +723,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                                 bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                                 vars.destinations[j],
                                 vars.amountToMove,
-                                false,
+                                true,
                                 false
                             );
 
@@ -757,9 +745,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // Check new balances after reallocation
-        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
-        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.finalEulerVaultBalance = eulerVault.balanceOf(address(strategy));
+        vars.finalFluidVaultBalance = fluidVault.convertToAssets(fluidVault.balanceOf(address(strategy)));
+        vars.finalAaveVaultBalance = aaveVault.convertToAssets(aaveVault.balanceOf(address(strategy)));
+        vars.finalEulerVaultBalance = eulerVault.convertToAssets(eulerVault.balanceOf(address(strategy)));
 
         console2.log("\n=== Final Balances After First Reallocation ===");
         console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
@@ -768,31 +756,26 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Calculate final allocation percentages
         vars.totalFinalBalance = vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalEulerVaultBalance;
-        vars.finalFluidRatio = (vars.finalFluidVaultBalance * 100) / vars.totalFinalBalance;
-        vars.finalAaveRatio = (vars.finalAaveVaultBalance * 100) / vars.totalFinalBalance;
-        vars.finalEulerRatio = (vars.finalEulerVaultBalance * 100) / vars.totalFinalBalance;
+        vars.finalFluidRatio = (vars.finalFluidVaultBalance * 10_000) / vars.totalFinalBalance;
+        vars.finalAaveRatio = (vars.finalAaveVaultBalance * 10_000) / vars.totalFinalBalance;
+        vars.finalEulerRatio = (vars.finalEulerVaultBalance * 10_000) / vars.totalFinalBalance;
 
         console2.log("\n=== Final Allocation Ratios ===");
-        console2.log("Fluid Vault:", vars.finalFluidRatio, "%");
-        console2.log("Aave Vault:", vars.finalAaveRatio, "%");
-        console2.log("Euler Vault:", vars.finalEulerRatio, "%");
+        console2.log("Fluid Vault:", vars.finalFluidRatio / 100, "%");
+        console2.log("Aave Vault:", vars.finalAaveRatio / 100, "%");
+        console2.log("Euler Vault:", vars.finalEulerRatio / 100, "%");
 
         // Verify the allocation is close to 50/25/25
-        assertApproxEqRel(vars.finalFluidRatio, 50, 0.05e18, "Fluid allocation should be close to 50%");
-        assertApproxEqRel(vars.finalAaveRatio, 25, 0.05e18, "Aave allocation should be close to 25%");
-        assertApproxEqRel(vars.finalEulerRatio, 25, 0.05e18, "Euler allocation should be close to 25%");
+        assertApproxEqRel(vars.finalFluidRatio, 5000, 0.05e18, "Fluid allocation should be close to 50%");
+        assertApproxEqRel(vars.finalAaveRatio, 2500, 0.05e18, "Aave allocation should be close to 25%");
+        assertApproxEqRel(vars.finalEulerRatio, 2500, 0.05e18, "Euler allocation should be close to 25%");
 
         // Second reallocation: Change to 40/30/30 (fluid/aave/euler)
         console2.log("\n=== Second Reallocation: Target 40/30/30 ===");
 
-        // First, update the vault cap to a lower value to test LIMIT_EXCEEDED error
-        vars.currentFluidAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
-        vars.currentAaveAssets = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
-        vars.currentEulerAssets = eulerVault.convertToAssets(vars.finalEulerVaultBalance);
-
         // Set the vault cap to be slightly higher than the current assets in the Aave vault
         // This will cause the next reallocation to fail when trying to increase Aave allocation
-        vars.newVaultCap = vars.currentAaveAssets + (vars.currentAaveAssets * 500 / 10_000); // Current + 5%
+        vars.newVaultCap = vars.finalAaveVaultBalance + (vars.finalAaveVaultBalance * 500 / 10_000); // Current + 5%
 
         console2.log("Setting new vault cap to:", vars.newVaultCap);
 
@@ -806,27 +789,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // Calculate target balances for 40/30/30 allocation
-        vars.totalAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
-            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
-            + eulerVault.convertToAssets(vars.finalEulerVaultBalance);
+        vars.targetFluidAssets2 = vars.totalFinalBalance * 4000 / 10_000;
+        vars.targetAaveAssets2 = vars.totalFinalBalance * 3000 / 10_000;
+        vars.targetEulerAssets2 = vars.totalFinalBalance * 3000 / 10_000;
 
-        vars.targetFluidAssets2 = vars.totalAssets * 4000 / 10_000;
-        vars.targetAaveAssets2 = vars.totalAssets * 3000 / 10_000;
-        vars.targetEulerAssets2 = vars.totalAssets * 3000 / 10_000;
-
-        console2.log("Total Assets:", vars.totalAssets);
+        console2.log("Total Assets:", vars.totalFinalBalance);
         console2.log("Target Fluid Assets:", vars.targetFluidAssets2);
         console2.log("Target Aave Assets:", vars.targetAaveAssets2);
         console2.log("Target Euler Assets:", vars.targetEulerAssets2);
-
-        // Current assets in each vault
-        vars.currentFluidAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
-        vars.currentAaveAssets = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
-        vars.currentEulerAssets = eulerVault.convertToAssets(vars.finalEulerVaultBalance);
-
-        console2.log("Current Fluid Assets:", vars.currentFluidAssets);
-        console2.log("Current Aave Assets:", vars.currentAaveAssets);
-        console2.log("Current Euler Assets:", vars.currentEulerAssets);
 
         // Check if the target Aave assets would exceed the vault cap
         if (vars.targetAaveAssets2 > vars.newVaultCap) {
@@ -835,7 +805,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             console2.log("Target Aave Assets:", vars.targetAaveAssets2);
 
             // Try to move assets from Fluid to Aave, which should fail with LIMIT_EXCEEDED
-            vars.assetsToMove = vars.targetAaveAssets2 - vars.currentAaveAssets;
+            vars.assetsToMove = vars.targetAaveAssets2 - vars.finalAaveVaultBalance;
 
             vars.hooksAddresses = new address[](2);
             vars.hooksAddresses[0] = vars.withdrawHookAddress;
@@ -851,7 +821,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 false
             );
             vars.hooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), vars.assetsToMove, false, false
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), vars.assetsToMove, true, false
             );
 
             vm.startPrank(STRATEGIST);
@@ -877,9 +847,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // REFACTORED SECOND REALLOCATION ALGORITHM
         // Calculate the differences between current and target allocations
-        vars.fluidDiff = int256(vars.targetFluidAssets2) - int256(vars.currentFluidAssets);
-        vars.aaveDiff = int256(vars.targetAaveAssets2) - int256(vars.currentAaveAssets);
-        vars.eulerDiff = int256(vars.targetEulerAssets2) - int256(vars.currentEulerAssets);
+        vars.fluidDiff = int256(vars.targetFluidAssets2) - int256(vars.finalFluidVaultBalance);
+        vars.aaveDiff = int256(vars.targetAaveAssets2) - int256(vars.finalAaveVaultBalance);
+        vars.eulerDiff = int256(vars.targetEulerAssets2) - int256(vars.finalEulerVaultBalance);
 
         console2.log("\n=== Second Allocation Differences ===");
         console2.log("Fluid Diff:", vars.fluidDiff);
@@ -976,7 +946,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                     false
                 );
                 vars.hooksData[1] = _createDeposit4626HookData(
-                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vars.destination, vars.amountToMove, false, false
+                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vars.destination, vars.amountToMove, true, false
                 );
 
                 vm.startPrank(STRATEGIST);
@@ -1031,7 +1001,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                                 bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                                 vars.destinations[j],
                                 vars.amountToMove,
-                                false,
+                                true,
                                 false
                             );
 
@@ -1053,9 +1023,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // Check final balances after second reallocation
-        vars.finalFluidVaultBalance2 = fluidVault.balanceOf(address(strategy));
-        vars.finalAaveVaultBalance2 = aaveVault.balanceOf(address(strategy));
-        vars.finalEulerVaultBalance2 = eulerVault.balanceOf(address(strategy));
+        vars.finalFluidVaultBalance2 = fluidVault.convertToAssets(fluidVault.balanceOf(address(strategy)));
+        vars.finalAaveVaultBalance2 = aaveVault.convertToAssets(aaveVault.balanceOf(address(strategy)));
+        vars.finalEulerVaultBalance2 = eulerVault.convertToAssets(eulerVault.balanceOf(address(strategy)));
 
         console2.log("\n=== Final Balances After Second Reallocation ===");
         console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance2);
@@ -1065,27 +1035,28 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Calculate final allocation percentages
         vars.totalFinalBalance2 =
             vars.finalFluidVaultBalance2 + vars.finalAaveVaultBalance2 + vars.finalEulerVaultBalance2;
-        vars.finalFluidRatio2 = (vars.finalFluidVaultBalance2 * 100) / vars.totalFinalBalance2;
-        vars.finalAaveRatio2 = (vars.finalAaveVaultBalance2 * 100) / vars.totalFinalBalance2;
-        vars.finalEulerRatio2 = (vars.finalEulerVaultBalance2 * 100) / vars.totalFinalBalance2;
+        vars.finalFluidRatio2 = (vars.finalFluidVaultBalance2 * 10_000) / vars.totalFinalBalance2;
+        vars.finalAaveRatio2 = (vars.finalAaveVaultBalance2 * 10_000) / vars.totalFinalBalance2;
+        vars.finalEulerRatio2 = (vars.finalEulerVaultBalance2 * 10_000) / vars.totalFinalBalance2;
 
         console2.log("\n=== Final Allocation Ratios ===");
-        console2.log("Fluid Vault:", vars.finalFluidRatio2, "%");
-        console2.log("Aave Vault:", vars.finalAaveRatio2, "%");
-        console2.log("Euler Vault:", vars.finalEulerRatio2, "%");
+        console2.log("Fluid Vault:", vars.finalFluidRatio2 / 100, "%");
+        console2.log("Aave Vault:", vars.finalAaveRatio2 / 100, "%");
+        console2.log("Euler Vault:", vars.finalEulerRatio2 / 100, "%");
 
         // Verify the allocation is close to 40/30/30
-        assertApproxEqRel(vars.finalFluidRatio2, 40, 0.05e18, "Fluid allocation should be close to 40%");
-        assertApproxEqRel(vars.finalAaveRatio2, 30, 0.05e18, "Aave allocation should be close to 30%");
-        assertApproxEqRel(vars.finalEulerRatio2, 30, 0.05e18, "Euler allocation should be close to 30%");
+        assertApproxEqRel(vars.finalFluidRatio2, 4000, 0.05e18, "Fluid allocation should be close to 40%");
+        assertApproxEqRel(vars.finalAaveRatio2, 3000, 0.05e18, "Aave allocation should be close to 30%");
+        assertApproxEqRel(vars.finalEulerRatio2, 3000, 0.05e18, "Euler allocation should be close to 30%");
 
         // Verify total value is preserved
-        vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance2)
-            + aaveVault.convertToAssets(vars.finalAaveVaultBalance2)
-            + eulerVault.convertToAssets(vars.finalEulerVaultBalance2);
+        vars.finalTotalValue = vars.finalFluidVaultBalance2 + vars.finalAaveVaultBalance2 + vars.finalEulerVaultBalance2;
 
         assertApproxEqRel(
-            vars.finalTotalValue, vars.totalAssets, 0.01e18, "Total value should be preserved during reallocation"
+            vars.finalTotalValue,
+            vars.totalInitialBalance,
+            0.01e18,
+            "Total value should be preserved during reallocation"
         );
     }
 
