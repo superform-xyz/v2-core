@@ -24,7 +24,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 test-vvv :; forge test --match-test test_Allocate_Rebalance -vvvv
 
-test-integration :; forge test --match-test test_SuperVault_StakeClaimFlow -vvvv
+test-integration :; forge test --match-test test_Allocate_SmallAmounts -vvvv
 
 
 .PHONY: generate
