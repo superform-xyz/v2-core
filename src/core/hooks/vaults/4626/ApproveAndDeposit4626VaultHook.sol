@@ -4,6 +4,7 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Superform
@@ -52,9 +53,22 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
-        executions = new Execution[](1);
+        executions = new Execution[](4);
+        executions = new Execution[](4);
         executions[0] =
-            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
+        executions[1] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
+        executions[2] = Execution({ 
+            target: yieldSource, 
+            value: 0, 
+            callData: abi.encodeCall(IERC4626.deposit, (amount, account)) 
+        });
+        executions[3] = Execution({ 
+            target: token, 
+            value: 0, 
+            callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) 
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
