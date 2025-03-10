@@ -106,6 +106,9 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
         asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
 
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        expectedAssetsOrSharesOut[0] = gearboxVault.convertToShares(BOOTSTRAP_AMOUNT);
+
         // Deploy vault trio
         (address gearSuperVaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
@@ -122,7 +125,8 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHooksData
+                bootstrappingHookCalldata: bootstrapHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.label(gearSuperVaultAddr, "GearSuperVault");
@@ -190,13 +194,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
         // Fast forward time to simulate yield on underlying vaults
-        vm.warp(block.timestamp + 50 weeks);
-
-        uint256 amountToUnStake = gearboxFarmingPool.balanceOf(address(strategyGearSuperVault));
-
+        vm.warp(block.timestamp + 60 weeks);
+        
         console2.log("ppsBeforeUnStake: ", _getSuperVaultPricePerShare());
 
         uint256 preUnStakeGearboxBalance = gearboxVault.balanceOf(address(strategyGearSuperVault));
+
+        uint256 amountToUnStake = gearboxFarmingPool.balanceOf(address(strategyGearSuperVault));
 
         _executeUnStakeHook(amountToUnStake);
 
@@ -220,7 +224,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         // Step 5: Fulfill Redeem
-        _fulfillRedeem_Gearbox_SV(userShares);
+        _fulfillRedeem_Gearbox_SV();
 
         uint256 claimableAssets = gearSuperVault.maxWithdraw(accountEth);
 
@@ -272,8 +276,11 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), depositAmount, false, false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](1);
+        minAssetsOrSharesOut[0] = gearboxVault.convertToShares(depositAmount);
+
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
+        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true);
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -297,14 +304,12 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
     }
 
     function _executeStakeHook(uint256 amountToStake) internal {
-        address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, GEARBOX_STAKE_HOOK_KEY);
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY);
 
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(gearboxVault), address(gearboxFarmingPool), amountToStake, false);
-        hooksData[1] = _createGearboxStakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToStake, false, false
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndGearboxStakeHookData(
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), address(gearboxVault), amountToStake, false, false
         );
 
         vm.prank(STRATEGIST);
@@ -339,7 +344,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         strategyGearSuperVault.executeHooks(hooksAddresses, hooksData);
     }
 
-    function _fulfillRedeem_Gearbox_SV(uint256 shares) internal {
+    function _fulfillRedeem_Gearbox_SV() internal {
         /// @dev with preserve percentages based on USD value allocation
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
@@ -347,6 +352,8 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
+
+        uint256 shares = IERC4626(gearboxVault).balanceOf(address(strategyGearSuperVault));
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _createWithdraw4626HookData(
@@ -358,8 +365,11 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](1);
+        minAssetsOrSharesOut[0] = gearboxVault.previewRedeem(shares);
+
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
+        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 
