@@ -166,6 +166,76 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 assetsVault2;
     }
 
+    struct VaultCapTestVars {
+        address withdrawHookAddress;
+        address depositHookAddress;
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        // Initial setup
+        uint256 depositAmount;
+        uint256 initialFluidVaultPPS;
+        uint256 initialAaveVaultPPS;
+        uint256 initialEulerVaultPPS;
+        uint256 totalInitialBalance;
+        uint256 initialFluidRatio;
+        uint256 initialAaveRatio;
+        uint256 initialEulerRatio;
+        // Vault balances
+        uint256 initialFluidVaultBalance;
+        uint256 initialAaveVaultBalance;
+        uint256 initialEulerVaultBalance;
+        int256 fluidDiff;
+        int256 aaveDiff;
+        int256 eulerDiff;
+        address[] sources;
+        uint256[] sourceAmounts;
+        address[] destinations;
+        uint256[] destinationAmounts;
+        uint256 sourceCount;
+        uint256 destCount;
+        address source;
+        address destination;
+        uint256 amountToMove;
+        // First reallocation (50/25/25)
+        uint256 assetsToMove;
+        uint256 sharesToRedeem;
+        uint256 totalAssets;
+        uint256 targetFluidAssets;
+        uint256 targetAaveAssets;
+        uint256 targetEulerAssets;
+        uint256 currentFluidAssets;
+        uint256 currentAaveAssets;
+        uint256 currentEulerAssets;
+        uint256 excessFluidAssets;
+        uint256 fluidSharesToRedeem;
+        uint256 assetsToMoveAave;
+        uint256 assetsToMoveEuler;
+        uint256 finalFluidVaultBalance;
+        uint256 finalAaveVaultBalance;
+        uint256 finalEulerVaultBalance;
+        uint256 totalFinalBalance;
+        uint256 finalFluidRatio;
+        uint256 finalAaveRatio;
+        uint256 finalEulerRatio;
+        // Second reallocation (40/30/30)
+        uint256 newVaultCap;
+        uint256 assetsToMoveToAave;
+        uint256 assetsToMoveToEuler;
+        uint256 targetFluidAssets2;
+        uint256 targetAaveAssets2;
+        uint256 targetEulerAssets2;
+        uint256 finalFluidVaultBalance2;
+        uint256 finalAaveVaultBalance2;
+        uint256 finalEulerVaultBalance2;
+        uint256 totalFinalBalance2;
+        uint256 finalFluidRatio2;
+        uint256 finalAaveRatio2;
+        uint256 finalEulerRatio2;
+        uint256 finalTotalValue;
+        // misc
+        ISuperVaultStrategy.GlobalConfig newConfig;
+    }
+
     function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
         MultipleOperationsVars memory vars;
         // Setup random seed and initial timestamp
@@ -430,6 +500,595 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Pendle Vault:", pendleRatio, "%");
     }
 
+    function test_4_Allocate_Simple_Vault_Caps() public {
+        VaultCapTestVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
+        vars.initialAaveVaultPPS = aaveVault.convertToAssets(1e18);
+
+        // Initial allocation - this will put the first two vaults at ~50/50
+        _completeDepositFlow(vars.depositAmount);
+
+        // Add Euler vault as a new yield source
+        address eulerVaultAddr = 0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9;
+        vm.label(eulerVaultAddr, "EulerVault");
+        IERC4626 eulerVault = IERC4626(eulerVaultAddr);
+
+        // Add funds to the Euler vault to respect VAULT_THRESHOLD
+        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        asset.approve(eulerVaultAddr, type(uint256).max);
+        eulerVault.deposit(2 * VAULT_THRESHOLD, address(this));
+
+        vm.warp(block.timestamp + 20 days);
+
+        // Add Euler vault as a new yield source
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(eulerVaultAddr, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        vm.stopPrank();
+
+        // Get initial balances
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.initialEulerVaultBalance = eulerVault.balanceOf(address(strategy));
+
+        console2.log("\n=== Initial Balances ===");
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+        console2.log("Initial EulerVault balance:", vars.initialEulerVaultBalance);
+
+        // Calculate initial allocation percentages
+        vars.totalInitialBalance =
+            vars.initialFluidVaultBalance + vars.initialAaveVaultBalance + vars.initialEulerVaultBalance;
+        vars.initialFluidRatio = (vars.initialFluidVaultBalance * 100) / vars.totalInitialBalance;
+        vars.initialAaveRatio = (vars.initialAaveVaultBalance * 100) / vars.totalInitialBalance;
+        vars.initialEulerRatio = (vars.initialEulerVaultBalance * 100) / vars.totalInitialBalance;
+
+        console2.log("\n=== Initial Allocation Ratios ===");
+        console2.log("Fluid Vault:", vars.initialFluidRatio, "%");
+        console2.log("Aave Vault:", vars.initialAaveRatio, "%");
+        console2.log("Euler Vault:", vars.initialEulerRatio, "%");
+
+        // First reallocation: Change to 50/25/25 (fluid/aave/euler)
+        console2.log("\n=== First Reallocation: Target 50/25/25 ===");
+
+        // Calculate target balances for 50/25/25 allocation
+        vars.totalAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
+            + eulerVault.convertToAssets(vars.initialEulerVaultBalance);
+
+        vars.targetFluidAssets = vars.totalAssets * 5000 / 10_000;
+        vars.targetAaveAssets = vars.totalAssets * 2500 / 10_000;
+        vars.targetEulerAssets = vars.totalAssets * 2500 / 10_000;
+
+        console2.log("Total Assets:", vars.totalAssets);
+        console2.log("Target Fluid Assets:", vars.targetFluidAssets);
+        console2.log("Target Aave Assets:", vars.targetAaveAssets);
+        console2.log("Target Euler Assets:", vars.targetEulerAssets);
+
+        // Current assets in each vault
+        vars.currentFluidAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
+        vars.currentAaveAssets = aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+        vars.currentEulerAssets = eulerVault.convertToAssets(vars.initialEulerVaultBalance);
+
+        console2.log("Current Fluid Assets:", vars.currentFluidAssets);
+        console2.log("Current Aave Assets:", vars.currentAaveAssets);
+        console2.log("Current Euler Assets:", vars.currentEulerAssets);
+
+        // Set up hooks for reallocation
+        vars.withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        vars.depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        // REFACTORED REALLOCATION ALGORITHM
+        // Calculate the differences between current and target allocations
+        vars.fluidDiff = int256(vars.targetFluidAssets) - int256(vars.currentFluidAssets);
+        vars.aaveDiff = int256(vars.targetAaveAssets) - int256(vars.currentAaveAssets);
+        vars.eulerDiff = int256(vars.targetEulerAssets) - int256(vars.currentEulerAssets);
+
+        console2.log("\n=== Allocation Differences ===");
+        console2.log("Fluid Diff:", vars.fluidDiff);
+        console2.log("Aave Diff:", vars.aaveDiff);
+        console2.log("Euler Diff:", vars.eulerDiff);
+
+        // Identify sources (vaults with excess assets) and destinations (vaults needing assets)
+        vars.sources = new address[](3);
+        vars.sourceAmounts = new uint256[](3);
+        vars.destinations = new address[](3);
+        vars.destinationAmounts = new uint256[](3);
+        vars.sourceCount = 0;
+        vars.destCount = 0;
+
+        if (vars.fluidDiff < 0) {
+            vars.sources[vars.sourceCount] = address(fluidVault);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.fluidDiff);
+            vars.sourceCount++;
+        } else if (vars.fluidDiff > 0) {
+            vars.destinations[vars.destCount] = address(fluidVault);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.fluidDiff);
+            vars.destCount++;
+        }
+
+        if (vars.aaveDiff < 0) {
+            vars.sources[vars.sourceCount] = address(aaveVault);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.aaveDiff);
+            vars.sourceCount++;
+        } else if (vars.aaveDiff > 0) {
+            vars.destinations[vars.destCount] = address(aaveVault);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.aaveDiff);
+            vars.destCount++;
+        }
+
+        if (vars.eulerDiff < 0) {
+            vars.sources[vars.sourceCount] = address(eulerVault);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.eulerDiff);
+            vars.sourceCount++;
+        } else if (vars.eulerDiff > 0) {
+            vars.destinations[vars.destCount] = address(eulerVault);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.eulerDiff);
+            vars.destCount++;
+        }
+
+        // Resize arrays to actual count
+        vars.sources = _resizeAddressArray(vars.sources, vars.sourceCount);
+        vars.sourceAmounts = _resizeUint256Array(vars.sourceAmounts, vars.sourceCount);
+        vars.destinations = _resizeAddressArray(vars.destinations, vars.destCount);
+        vars.destinationAmounts = _resizeUint256Array(vars.destinationAmounts, vars.destCount);
+
+        console2.log("\n=== Sources and Destinations ===");
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            console2.log("Source:", vars.sources[i]);
+            console2.log("Amount:", vars.sourceAmounts[i]);
+        }
+        for (uint256 i = 0; i < vars.destCount; i++) {
+            console2.log("Destination:", vars.destinations[i]);
+            console2.log("Amount:", vars.destinationAmounts[i]);
+        }
+
+        // Iteratively move assets from sources to destinations
+        for (uint256 i = 0; i < vars.sourceCount && i < vars.destCount; i++) {
+            vars.source = vars.sources[i];
+            vars.destination = vars.destinations[i];
+            vars.amountToMove =
+                vars.sourceAmounts[i] < vars.destinationAmounts[i] ? vars.sourceAmounts[i] : vars.destinationAmounts[i];
+
+            if (vars.amountToMove > 0) {
+                console2.log("\nMoving", vars.amountToMove);
+
+                console2.log("from", vars.source, "to", vars.destination);
+
+                // Convert asset amount to shares for the source vault
+                vars.sharesToRedeem;
+                if (vars.source == address(fluidVault)) {
+                    vars.sharesToRedeem = fluidVault.convertToShares(vars.amountToMove);
+                } else if (vars.source == address(aaveVault)) {
+                    vars.sharesToRedeem = aaveVault.convertToShares(vars.amountToMove);
+                } else if (vars.source == address(eulerVault)) {
+                    vars.sharesToRedeem = eulerVault.convertToShares(vars.amountToMove);
+                }
+
+                console2.log("Shares to redeem:", vars.sharesToRedeem);
+
+                vars.hooksAddresses = new address[](2);
+                vars.hooksAddresses[0] = vars.withdrawHookAddress;
+                vars.hooksAddresses[1] = vars.depositHookAddress;
+
+                vars.hooksData = new bytes[](2);
+                vars.hooksData[0] = _createWithdraw4626HookData(
+                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                    vars.source,
+                    address(strategy),
+                    vars.sharesToRedeem,
+                    false,
+                    false
+                );
+                vars.hooksData[1] = _createDeposit4626HookData(
+                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vars.destination, vars.amountToMove, false, false
+                );
+
+                vm.startPrank(STRATEGIST);
+                strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
+                vm.stopPrank();
+
+                // Update remaining amounts
+                vars.sourceAmounts[i] -= vars.amountToMove;
+                vars.destinationAmounts[i] -= vars.amountToMove;
+            }
+        }
+
+        // Handle any remaining sources or destinations by pairing them
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            if (vars.sourceAmounts[i] > 0) {
+                for (uint256 j = 0; j < vars.destCount; j++) {
+                    if (vars.destinationAmounts[j] > 0) {
+                        vars.amountToMove = vars.sourceAmounts[i] < vars.destinationAmounts[j]
+                            ? vars.sourceAmounts[i]
+                            : vars.destinationAmounts[j];
+
+                        if (vars.amountToMove > 0) {
+                            console2.log("\nMoving remaining", vars.amountToMove);
+                            console2.log("from", vars.sources[i], "to", vars.destinations[j]);
+                            // Convert asset amount to shares for the source vault
+                            if (vars.sources[i] == address(fluidVault)) {
+                                vars.sharesToRedeem = fluidVault.convertToShares(vars.amountToMove);
+                            } else if (vars.sources[i] == address(aaveVault)) {
+                                vars.sharesToRedeem = aaveVault.convertToShares(vars.amountToMove);
+                            } else if (vars.sources[i] == address(eulerVault)) {
+                                vars.sharesToRedeem = eulerVault.convertToShares(vars.amountToMove);
+                            }
+
+                            console2.log("Shares to redeem:", vars.sharesToRedeem);
+
+                            vars.hooksAddresses = new address[](2);
+                            vars.hooksAddresses[0] = vars.withdrawHookAddress;
+                            vars.hooksAddresses[1] = vars.depositHookAddress;
+
+                            vars.hooksData = new bytes[](2);
+                            vars.hooksData[0] = _createWithdraw4626HookData(
+                                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                                vars.sources[i],
+                                address(strategy),
+                                vars.sharesToRedeem,
+                                false,
+                                false
+                            );
+                            vars.hooksData[1] = _createDeposit4626HookData(
+                                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                                vars.destinations[j],
+                                vars.amountToMove,
+                                false,
+                                false
+                            );
+
+                            vm.startPrank(STRATEGIST);
+                            strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
+                            vm.stopPrank();
+
+                            // Update remaining amounts
+                            vars.sourceAmounts[i] -= vars.amountToMove;
+                            vars.destinationAmounts[j] -= vars.amountToMove;
+
+                            if (vars.sourceAmounts[i] == 0) {
+                                break; // This source is depleted, move to next source
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check new balances after reallocation
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalEulerVaultBalance = eulerVault.balanceOf(address(strategy));
+
+        console2.log("\n=== Final Balances After First Reallocation ===");
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("Final EulerVault balance:", vars.finalEulerVaultBalance);
+
+        // Calculate final allocation percentages
+        vars.totalFinalBalance = vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalEulerVaultBalance;
+        vars.finalFluidRatio = (vars.finalFluidVaultBalance * 100) / vars.totalFinalBalance;
+        vars.finalAaveRatio = (vars.finalAaveVaultBalance * 100) / vars.totalFinalBalance;
+        vars.finalEulerRatio = (vars.finalEulerVaultBalance * 100) / vars.totalFinalBalance;
+
+        console2.log("\n=== Final Allocation Ratios ===");
+        console2.log("Fluid Vault:", vars.finalFluidRatio, "%");
+        console2.log("Aave Vault:", vars.finalAaveRatio, "%");
+        console2.log("Euler Vault:", vars.finalEulerRatio, "%");
+
+        // Verify the allocation is close to 50/25/25
+        assertApproxEqRel(vars.finalFluidRatio, 50, 0.05e18, "Fluid allocation should be close to 50%");
+        assertApproxEqRel(vars.finalAaveRatio, 25, 0.05e18, "Aave allocation should be close to 25%");
+        assertApproxEqRel(vars.finalEulerRatio, 25, 0.05e18, "Euler allocation should be close to 25%");
+
+        // Second reallocation: Change to 40/30/30 (fluid/aave/euler)
+        console2.log("\n=== Second Reallocation: Target 40/30/30 ===");
+
+        // First, update the vault cap to a lower value to test LIMIT_EXCEEDED error
+        vars.currentFluidAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        vars.currentAaveAssets = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+        vars.currentEulerAssets = eulerVault.convertToAssets(vars.finalEulerVaultBalance);
+
+        // Set the vault cap to be slightly higher than the current assets in the Aave vault
+        // This will cause the next reallocation to fail when trying to increase Aave allocation
+        vars.newVaultCap = vars.currentAaveAssets + (vars.currentAaveAssets * 500 / 10_000); // Current + 5%
+
+        console2.log("Setting new vault cap to:", vars.newVaultCap);
+
+        vm.startPrank(MANAGER);
+        vars.newConfig = ISuperVaultStrategy.GlobalConfig({
+            vaultCap: vars.newVaultCap,
+            superVaultCap: SUPER_VAULT_CAP,
+            vaultThreshold: VAULT_THRESHOLD
+        });
+        strategy.updateGlobalConfig(vars.newConfig);
+        vm.stopPrank();
+
+        // Calculate target balances for 40/30/30 allocation
+        vars.totalAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
+            + eulerVault.convertToAssets(vars.finalEulerVaultBalance);
+
+        vars.targetFluidAssets2 = vars.totalAssets * 4000 / 10_000;
+        vars.targetAaveAssets2 = vars.totalAssets * 3000 / 10_000;
+        vars.targetEulerAssets2 = vars.totalAssets * 3000 / 10_000;
+
+        console2.log("Total Assets:", vars.totalAssets);
+        console2.log("Target Fluid Assets:", vars.targetFluidAssets2);
+        console2.log("Target Aave Assets:", vars.targetAaveAssets2);
+        console2.log("Target Euler Assets:", vars.targetEulerAssets2);
+
+        // Current assets in each vault
+        vars.currentFluidAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        vars.currentAaveAssets = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+        vars.currentEulerAssets = eulerVault.convertToAssets(vars.finalEulerVaultBalance);
+
+        console2.log("Current Fluid Assets:", vars.currentFluidAssets);
+        console2.log("Current Aave Assets:", vars.currentAaveAssets);
+        console2.log("Current Euler Assets:", vars.currentEulerAssets);
+
+        // Check if the target Aave assets would exceed the vault cap
+        if (vars.targetAaveAssets2 > vars.newVaultCap) {
+            console2.log("Target Aave assets would exceed vault cap!");
+            console2.log("Vault Cap:", vars.newVaultCap);
+            console2.log("Target Aave Assets:", vars.targetAaveAssets2);
+
+            // Try to move assets from Fluid to Aave, which should fail with LIMIT_EXCEEDED
+            vars.assetsToMove = vars.targetAaveAssets2 - vars.currentAaveAssets;
+
+            vars.hooksAddresses = new address[](2);
+            vars.hooksAddresses[0] = vars.withdrawHookAddress;
+            vars.hooksAddresses[1] = vars.depositHookAddress;
+
+            vars.hooksData = new bytes[](2);
+            vars.hooksData[0] = _createWithdraw4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(fluidVault),
+                address(strategy),
+                fluidVault.convertToShares(vars.assetsToMove),
+                false,
+                false
+            );
+            vars.hooksData[1] = _createDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), vars.assetsToMove, false, false
+            );
+
+            vm.startPrank(STRATEGIST);
+            vm.expectRevert(ISuperVaultStrategy.LIMIT_EXCEEDED.selector);
+            strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
+            vm.stopPrank();
+
+            // Now increase the vault cap to allow the reallocation
+            console2.log("\nIncreasing vault cap to allow reallocation");
+            vars.newVaultCap = vars.targetAaveAssets2 * 2; // Set to double the target to ensure it works
+
+            vm.startPrank(MANAGER);
+            vars.newConfig = ISuperVaultStrategy.GlobalConfig({
+                vaultCap: vars.newVaultCap,
+                superVaultCap: SUPER_VAULT_CAP,
+                vaultThreshold: VAULT_THRESHOLD
+            });
+            strategy.updateGlobalConfig(vars.newConfig);
+            vm.stopPrank();
+
+            console2.log("New vault cap:", vars.newVaultCap);
+        }
+
+        // REFACTORED SECOND REALLOCATION ALGORITHM
+        // Calculate the differences between current and target allocations
+        vars.fluidDiff = int256(vars.targetFluidAssets2) - int256(vars.currentFluidAssets);
+        vars.aaveDiff = int256(vars.targetAaveAssets2) - int256(vars.currentAaveAssets);
+        vars.eulerDiff = int256(vars.targetEulerAssets2) - int256(vars.currentEulerAssets);
+
+        console2.log("\n=== Second Allocation Differences ===");
+        console2.log("Fluid Diff:", vars.fluidDiff);
+        console2.log("Aave Diff:", vars.aaveDiff);
+        console2.log("Euler Diff:", vars.eulerDiff);
+
+        // Reset arrays
+        vars.sources = new address[](3);
+        vars.sourceAmounts = new uint256[](3);
+        vars.destinations = new address[](3);
+        vars.destinationAmounts = new uint256[](3);
+        vars.sourceCount = 0;
+        vars.destCount = 0;
+
+        if (vars.fluidDiff < 0) {
+            vars.sources[vars.sourceCount] = address(fluidVault);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.fluidDiff);
+            vars.sourceCount++;
+        } else if (vars.fluidDiff > 0) {
+            vars.destinations[vars.destCount] = address(fluidVault);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.fluidDiff);
+            vars.destCount++;
+        }
+
+        if (vars.aaveDiff < 0) {
+            vars.sources[vars.sourceCount] = address(aaveVault);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.aaveDiff);
+            vars.sourceCount++;
+        } else if (vars.aaveDiff > 0) {
+            vars.destinations[vars.destCount] = address(aaveVault);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.aaveDiff);
+            vars.destCount++;
+        }
+
+        if (vars.eulerDiff < 0) {
+            vars.sources[vars.sourceCount] = address(eulerVault);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.eulerDiff);
+            vars.sourceCount++;
+        } else if (vars.eulerDiff > 0) {
+            vars.destinations[vars.destCount] = address(eulerVault);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.eulerDiff);
+            vars.destCount++;
+        }
+
+        // Resize arrays to actual count
+        vars.sources = _resizeAddressArray(vars.sources, vars.sourceCount);
+        vars.sourceAmounts = _resizeUint256Array(vars.sourceAmounts, vars.sourceCount);
+        vars.destinations = _resizeAddressArray(vars.destinations, vars.destCount);
+        vars.destinationAmounts = _resizeUint256Array(vars.destinationAmounts, vars.destCount);
+
+        console2.log("\n=== Second Reallocation Sources and Destinations ===");
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            console2.log("Source:", vars.sources[i]);
+            console2.log("Amount:", vars.sourceAmounts[i]);
+        }
+        for (uint256 i = 0; i < vars.destCount; i++) {
+            console2.log("Destination:", vars.destinations[i]);
+            console2.log("Amount:", vars.destinationAmounts[i]);
+        }
+
+        // Iteratively move assets from sources to destinations
+        for (uint256 i = 0; i < vars.sourceCount && i < vars.destCount; i++) {
+            vars.source = vars.sources[i];
+            vars.destination = vars.destinations[i];
+            vars.amountToMove =
+                vars.sourceAmounts[i] < vars.destinationAmounts[i] ? vars.sourceAmounts[i] : vars.destinationAmounts[i];
+
+            if (vars.amountToMove > 0) {
+                console2.log("\nMoving", vars.amountToMove);
+                console2.log("from", vars.source, "to", vars.destination);
+
+                // Convert asset amount to shares for the source vault
+                if (vars.source == address(fluidVault)) {
+                    vars.sharesToRedeem = fluidVault.convertToShares(vars.amountToMove);
+                } else if (vars.source == address(aaveVault)) {
+                    vars.sharesToRedeem = aaveVault.convertToShares(vars.amountToMove);
+                } else if (vars.source == address(eulerVault)) {
+                    vars.sharesToRedeem = eulerVault.convertToShares(vars.amountToMove);
+                }
+
+                console2.log("Shares to redeem:", vars.sharesToRedeem);
+
+                vars.hooksAddresses = new address[](2);
+                vars.hooksAddresses[0] = vars.withdrawHookAddress;
+                vars.hooksAddresses[1] = vars.depositHookAddress;
+
+                vars.hooksData = new bytes[](2);
+                vars.hooksData[0] = _createWithdraw4626HookData(
+                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                    vars.source,
+                    address(strategy),
+                    vars.sharesToRedeem,
+                    false,
+                    false
+                );
+                vars.hooksData[1] = _createDeposit4626HookData(
+                    bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vars.destination, vars.amountToMove, false, false
+                );
+
+                vm.startPrank(STRATEGIST);
+                strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
+                vm.stopPrank();
+
+                // Update remaining amounts
+                vars.sourceAmounts[i] -= vars.amountToMove;
+                vars.destinationAmounts[i] -= vars.amountToMove;
+            }
+        }
+
+        // Handle any remaining sources or destinations by pairing them
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            if (vars.sourceAmounts[i] > 0) {
+                for (uint256 j = 0; j < vars.destCount; j++) {
+                    if (vars.destinationAmounts[j] > 0) {
+                        vars.amountToMove = vars.sourceAmounts[i] < vars.destinationAmounts[j]
+                            ? vars.sourceAmounts[i]
+                            : vars.destinationAmounts[j];
+
+                        if (vars.amountToMove > 0) {
+                            console2.log("\nMoving remaining", vars.amountToMove);
+                            console2.log("from", vars.sources[i], "to", vars.destinations[j]);
+
+                            // Convert asset amount to shares for the source vault
+                            uint256 sharesToRedeem;
+                            if (vars.sources[i] == address(fluidVault)) {
+                                vars.sharesToRedeem = fluidVault.convertToShares(vars.amountToMove);
+                            } else if (vars.sources[i] == address(aaveVault)) {
+                                vars.sharesToRedeem = aaveVault.convertToShares(vars.amountToMove);
+                            } else if (vars.sources[i] == address(eulerVault)) {
+                                vars.sharesToRedeem = eulerVault.convertToShares(vars.amountToMove);
+                            }
+
+                            console2.log("Shares to redeem:", vars.sharesToRedeem);
+
+                            vars.hooksAddresses = new address[](2);
+                            vars.hooksAddresses[0] = vars.withdrawHookAddress;
+                            vars.hooksAddresses[1] = vars.depositHookAddress;
+
+                            vars.hooksData = new bytes[](2);
+                            vars.hooksData[0] = _createWithdraw4626HookData(
+                                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                                vars.sources[i],
+                                address(strategy),
+                                vars.sharesToRedeem,
+                                false,
+                                false
+                            );
+                            vars.hooksData[1] = _createDeposit4626HookData(
+                                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                                vars.destinations[j],
+                                vars.amountToMove,
+                                false,
+                                false
+                            );
+
+                            vm.startPrank(STRATEGIST);
+                            strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
+                            vm.stopPrank();
+
+                            // Update remaining amounts
+                            vars.sourceAmounts[i] -= vars.amountToMove;
+                            vars.destinationAmounts[j] -= vars.amountToMove;
+
+                            if (vars.sourceAmounts[i] == 0) {
+                                break; // This source is depleted, move to next source
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Check final balances after second reallocation
+        vars.finalFluidVaultBalance2 = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance2 = aaveVault.balanceOf(address(strategy));
+        vars.finalEulerVaultBalance2 = eulerVault.balanceOf(address(strategy));
+
+        console2.log("\n=== Final Balances After Second Reallocation ===");
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance2);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance2);
+        console2.log("Final EulerVault balance:", vars.finalEulerVaultBalance2);
+
+        // Calculate final allocation percentages
+        vars.totalFinalBalance2 =
+            vars.finalFluidVaultBalance2 + vars.finalAaveVaultBalance2 + vars.finalEulerVaultBalance2;
+        vars.finalFluidRatio2 = (vars.finalFluidVaultBalance2 * 100) / vars.totalFinalBalance2;
+        vars.finalAaveRatio2 = (vars.finalAaveVaultBalance2 * 100) / vars.totalFinalBalance2;
+        vars.finalEulerRatio2 = (vars.finalEulerVaultBalance2 * 100) / vars.totalFinalBalance2;
+
+        console2.log("\n=== Final Allocation Ratios ===");
+        console2.log("Fluid Vault:", vars.finalFluidRatio2, "%");
+        console2.log("Aave Vault:", vars.finalAaveRatio2, "%");
+        console2.log("Euler Vault:", vars.finalEulerRatio2, "%");
+
+        // Verify the allocation is close to 40/30/30
+        assertApproxEqRel(vars.finalFluidRatio2, 40, 0.05e18, "Fluid allocation should be close to 40%");
+        assertApproxEqRel(vars.finalAaveRatio2, 30, 0.05e18, "Aave allocation should be close to 30%");
+        assertApproxEqRel(vars.finalEulerRatio2, 30, 0.05e18, "Euler allocation should be close to 30%");
+
+        // Verify total value is preserved
+        vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance2)
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance2)
+            + eulerVault.convertToAssets(vars.finalEulerVaultBalance2);
+
+        assertApproxEqRel(
+            vars.finalTotalValue, vars.totalAssets, 0.01e18, "Total value should be preserved during reallocation"
+        );
+    }
+
     function test_10_RuggableVault_Deposit_No_ExpectedAssetsOrSharesOut() public {
         RugTestVarsDeposit memory vars;
         vars.depositAmount = 1000e6;
@@ -489,7 +1148,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         expectedAssetsOrSharesOut[0] = 0; //10% slippage
-        expectedAssetsOrSharesOut[1] = 0; // this should make the call revert 
+        expectedAssetsOrSharesOut[1] = 0; // this should make the call revert
 
         _fulfillDepositForUsers(
             vars.depositUsers,
@@ -501,7 +1160,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             bytes4(0)
         );
     }
-
 
     function test_10_RuggableVault_Deposit() public {
         RugTestVarsDeposit memory vars;
@@ -562,10 +1220,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         uint256 sharesVault1 = IERC4626(address(fluidVault)).convertToShares(vars.depositAmount * 5 / 2);
         uint256 sharesVault2 = IERC4626(address(vars.ruggableVault)).convertToShares(vars.depositAmount * 5 / 2);
-        
+
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = sharesVault1 - sharesVault1* 1e4/1e5; //10% slippage
-        expectedAssetsOrSharesOut[1] = sharesVault2 * 2; // this should make the call revert 
+        expectedAssetsOrSharesOut[0] = sharesVault1 - sharesVault1 * 1e4 / 1e5; //10% slippage
+        expectedAssetsOrSharesOut[1] = sharesVault2 * 2; // this should make the call revert
 
         // expect revert on this call and try again after
         _fulfillDepositForUsers(
@@ -578,7 +1236,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector
         );
 
-        expectedAssetsOrSharesOut[1] = sharesVault2 - sharesVault2* 1e3/1e5; //1% slippage
+        expectedAssetsOrSharesOut[1] = sharesVault2 - sharesVault2 * 1e3 / 1e5; //1% slippage
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
@@ -1631,25 +2289,36 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
         vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
 
-        
         vars.assetsVault1 = IERC4626(address(fluidVault)).convertToAssets(vars.redeemSharesVault1);
         vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
-        
+
         vars.expectedAssetsOrSharesOut = new uint256[](2);
         vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 - vars.assetsVault1; //10% slippage
-        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2 * 2; // this should make the call revert 
+        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2 * 2; // this should make the call revert
 
         // this should revert
         _fulfillRedeemForUsers(
-            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), vars.ruggableVault, vars.expectedAssetsOrSharesOut, ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector
+            vars.redeemUsers,
+            vars.redeemSharesVault1,
+            vars.redeemSharesVault2,
+            address(fluidVault),
+            vars.ruggableVault,
+            vars.expectedAssetsOrSharesOut,
+            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector
         );
 
-        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1/2;
-        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2/2;
+        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 / 2;
+        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2 / 2;
         _fulfillRedeemForUsers(
-            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), vars.ruggableVault, vars.expectedAssetsOrSharesOut, bytes4(0)
+            vars.redeemUsers,
+            vars.redeemSharesVault1,
+            vars.redeemSharesVault2,
+            address(fluidVault),
+            vars.ruggableVault,
+            vars.expectedAssetsOrSharesOut,
+            bytes4(0)
         );
-        
+
         // Log post-fulfillment state
         console2.log("\n=== Post-Fulfillment State ===");
         uint256 totalAssetsPreClaimTaintedAssets = vault.totalAssets();
@@ -1956,5 +2625,33 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         assertGe(
             vars.finalTotalAssets, targetTotalDeposits, "Total assets should be at least the target deposit amount"
         );
+    }
+
+    /**
+     * @notice Resizes an array of addresses to the specified length
+     * @param array The original array to resize
+     * @param newLength The new length for the array
+     * @return A new array with the specified length containing elements from the original array
+     */
+    function _resizeAddressArray(address[] memory array, uint256 newLength) internal pure returns (address[] memory) {
+        address[] memory newArray = new address[](newLength);
+        for (uint256 i = 0; i < newLength; i++) {
+            newArray[i] = array[i];
+        }
+        return newArray;
+    }
+
+    /**
+     * @notice Resizes an array of uint256 to the specified length
+     * @param array The original array to resize
+     * @param newLength The new length for the array
+     * @return A new array with the specified length containing elements from the original array
+     */
+    function _resizeUint256Array(uint256[] memory array, uint256 newLength) internal pure returns (uint256[] memory) {
+        uint256[] memory newArray = new uint256[](newLength);
+        for (uint256 i = 0; i < newLength; i++) {
+            newArray[i] = array[i];
+        }
+        return newArray;
     }
 }
