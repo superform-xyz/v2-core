@@ -1063,6 +1063,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         address tokenOut,
         uint256 shares,
         uint256 minTokenOut,
+        bool burnFromInternalBalance,
         bool usePrevHookAmount,
         bool lockSP
     )

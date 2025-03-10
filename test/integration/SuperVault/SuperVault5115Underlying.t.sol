@@ -92,6 +92,9 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
         asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
 
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        expectedAssetsOrSharesOut[0] = pendleEthena.previewDeposit(address(asset), BOOTSTRAP_AMOUNT);
+
         // Deploy vault trio
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
@@ -108,7 +111,8 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 initHooksRoot: hookRoot,
                 initYieldSourceOracle: _getContract(ETH, ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHooksData
+                bootstrappingHookCalldata: bootstrapHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.label(vaultAddr, "SuperVaultsUSDE");
@@ -184,7 +188,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(superVaultsUSDE), amount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), account, amount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), amount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -216,8 +220,11 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         address[] memory users = new address[](1);
         users[0] = account;
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](1);
+        minAssetsOrSharesOut[0] = superVaultsUSDE.convertToShares(amount);
+
         vm.startPrank(STRATEGIST);
-        superVaultStrategysUSDE.fulfillRequests(users, hooks_, hookCalldata, true);
+        superVaultStrategysUSDE.fulfillRequests(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
         vm.stopPrank();
     }
 
@@ -227,7 +234,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), account, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), amount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -242,7 +249,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), account, redeemShares, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), redeemShares, false
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
@@ -261,23 +268,29 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
 
-        (, address asset_,) = pendleEthena.assetInfo();
+        address[] memory tokensOut = pendleEthena.getTokensOut();
 
-        uint256 shares = IERC20(asset_).balanceOf(address(superVaultStrategysUSDE));
+        uint256 shares = IERC20(pendleEthena).balanceOf(address(superVaultStrategysUSDE));
+
+        //uint256 shares = 1e9;
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _create5115WithdrawHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             pendleEthenaAddress,
-            account,
+            address(asset),
             shares,
             shares,
+            false,
             false,
             false
         );
 
+        uint256[] memory minAssetsOrSharesOut = new uint256[](1);
+        minAssetsOrSharesOut[0] = superVaultsUSDE.convertToAssets(shares);
+
         vm.startPrank(STRATEGIST);
-        superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
+        superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 

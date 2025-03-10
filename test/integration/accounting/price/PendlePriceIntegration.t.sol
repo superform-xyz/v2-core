@@ -275,7 +275,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_5115_VAULT_HOOK_KEY);
         hooksData[0] = _create5115WithdrawHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false, false
         );
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
