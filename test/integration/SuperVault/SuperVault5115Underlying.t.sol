@@ -269,10 +269,9 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         fulfillHooksAddresses[0] = withdrawHookAddress;
 
         address[] memory tokensOut = pendleEthena.getTokensOut();
+        address asset_ = tokensOut[0];
 
-        uint256 shares = IERC20(pendleEthena).balanceOf(address(superVaultStrategysUSDE));
-
-        //uint256 shares = 1e9;
+        uint256 shares = pendleEthena.balanceOf(address(superVaultStrategysUSDE));
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _create5115WithdrawHookData(
@@ -280,14 +279,14 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             pendleEthenaAddress,
             address(asset),
             shares,
-            shares,
+            0,
             false,
             false,
             false
         );
 
         uint256[] memory minAssetsOrSharesOut = new uint256[](1);
-        minAssetsOrSharesOut[0] = superVaultsUSDE.convertToAssets(shares);
+        minAssetsOrSharesOut[0] = pendleEthena.previewRedeem(address(asset), shares);
 
         vm.startPrank(STRATEGIST);
         superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
