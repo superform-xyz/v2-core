@@ -223,8 +223,14 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             "Shares not transferred to escrow"
         );
 
+        (uint256 recipientFee, uint256 superformFee) = _deriveSuperVaultFees(userShares, _getSuperVaultPricePerShare());
+
         // Step 5: Fulfill Redeem
         _fulfillRedeem_Gearbox_SV();
+
+        uint256 totalFee = recipientFee + superformFee;
+
+        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
 
         uint256 claimableAssets = gearSuperVault.maxWithdraw(accountEth);
 
