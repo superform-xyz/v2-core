@@ -932,11 +932,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
     /// @param expectedHookType The expected type of hook
+    /// @param approvalToken Token to approve (address(0) if no approval needed)
+    /// @param approvalAmount Amount to approve
     function _executeHook(
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        ISuperHook.HookType expectedHookType
+        ISuperHook.HookType expectedHookType,
+        address approvalToken,
+        uint256 approvalAmount,
+        address target
     )
         private
     {
@@ -946,15 +951,27 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
         Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata);
-
         // Validate hook type
         ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
         if (hookType != expectedHookType) revert INVALID_HOOK_TYPE();
 
         for (uint256 i; i < executions.length;) {
+            target = executions[i].target;
+
+            approvalToken = hookType == ISuperHook.HookType.OUTFLOW ? target : approvalToken;
+            // Handle token approvals if needed
+            if (approvalToken != address(0)) {
+                _handleTokenApproval(approvalToken, target, approvalAmount);
+            }
+
             // Execute the transaction
-            (bool success,) = executions[i].target.call{ value: executions[i].value }(executions[i].callData);
+            (bool success,) = target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) revert OPERATION_FAILED();
+
+            // Reset approval if needed
+            if (approvalToken != address(0)) {
+                _resetTokenApproval(approvalToken, target);
+            }
             unchecked {
                 ++i;
             }
@@ -1082,7 +1099,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Execute hook with asset approval
-        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW);
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, address(_asset), amount, target);
         uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
@@ -1136,7 +1153,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
         // Execute hook and track balances
-        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW);
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, address(0), execVars.amount, execVars.target);
 
         execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
