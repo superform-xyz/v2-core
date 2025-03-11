@@ -21,6 +21,7 @@ import { RuggableConvertVault } from "../../mocks/RuggableConvertVault.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
+import { MockFlashloanSVSimulation } from "../../mocks/MockFlashloanSVSimulation.sol";
 
 contract SuperVaultScenariosTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
@@ -164,6 +165,730 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256[] expectedAssetsOrSharesOut;
         uint256 assetsVault1;
         uint256 assetsVault2;
+    }
+
+    function test_3_UnderlyingVaults_StressTest() public {
+        RugTestVarsWithdraw memory vars;
+
+        // A vault that is rugged on deposit and on withdraw; 10% rug
+        vars.depositAmount = 1000e6;
+        vars.rugPercentage = 10; 
+        vars.initialTimestamp = block.timestamp;
+
+        vars.ruggableVault = address(new RuggableVault(
+            IERC20(address(asset)),
+            "Ruggable Vault",
+            "RUG",
+            true, // rug on deposit
+            true, // rug on withdraw
+            vars.rugPercentage
+        ));
+        vm.label(vars.ruggableVault, "Ruggable Vault");
+        vm.label(address(fluidVault), "Fluid Vault");
+
+        console2.log("ruggable vault", vars.ruggableVault);
+        console2.log("fluid vault", address(fluidVault));
+
+        // add some funds to the vault to respect VAULT_THRESHOLD
+        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        asset.approve(address(vars.ruggableVault), type(uint256).max);
+        RuggableVault(vars.ruggableVault).deposit(2 * VAULT_THRESHOLD, address(this));
+
+        // create SV with fluid and this ruggable vault
+        _deployNewSuperVaultWithRuggableVault(address(vars.ruggableVault));
+
+        // users to deposit and withdraw
+        vars.depositUsers = new address[](2);
+        vars.depositAmounts = new uint256[](2);
+
+        for (uint256 i; i < 2;) {
+            vars.depositUsers[i] = accInstances[i].account;
+            vars.depositAmounts[i] = vars.depositAmount;
+            unchecked { ++i; }
+        }
+
+        // perform deposit operations
+        for (uint256 i; i < 2;) {
+            _getTokens(address(asset), vars.depositUsers[i], vars.depositAmounts[i]);
+            vm.startPrank(vars.depositUsers[i]);
+            asset.approve(address(vault), vars.depositAmounts[i]);
+            vault.requestDeposit(vars.depositAmounts[i], vars.depositUsers[i], vars.depositUsers[i]);
+            vm.stopPrank();
+
+            unchecked { ++i;}
+        }
+
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+        console2.log("\n=== Initial State ===");
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
+
+        vm.warp(vars.initialTimestamp + 1 days);
+
+        // put 50-50 in each vault
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = 0;
+        expectedAssetsOrSharesOut[1] = 0; 
+
+        uint256 totalAmount = vars.depositAmount * 2;
+        uint256 allocationAmountVault1 = totalAmount / 2;
+        uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
+
+        _fulfillDepositForUsers(
+            vars.depositUsers,
+            allocationAmountVault1,
+            allocationAmountVault2,
+            address(fluidVault),
+            address(vars.ruggableVault),
+            expectedAssetsOrSharesOut,
+            bytes4(0)
+        );
+        uint256 prevPps = vars.initialPricePerShare;
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
+
+        assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.001e18, "Price per share should be preserved");
+
+        // claim
+        for (uint256 i; i < 2;) {
+            vm.startPrank(vars.depositUsers[i]);
+            uint256 maxDeposit = vault.maxDeposit(vars.depositUsers[i]);
+            vault.deposit(maxDeposit, vars.depositUsers[i], vars.depositUsers[i]);
+            vm.stopPrank();
+            unchecked { ++i;}
+        }
+
+        vm.warp(block.timestamp + 12 weeks);
+
+        prevPps = vars.initialPricePerShare;
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
+        
+        assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.1e18, "Price per share should be preserved");
+
+
+        // redeem from 1 user
+        vars.redeemUsers = new address[](1);
+        vars.redeemAmounts = new uint256[](1);
+        vars.totalRedeemShares = 0;
+
+        vars.redeemUsers[0] = vars.depositUsers[0];
+        vars.redeemAmounts[0] = vault.balanceOf(vars.redeemUsers[0]);
+        assertGt(vars.redeemAmounts[0], 0, "Redeem amount should be greater than 0");
+        vars.totalRedeemShares += vars.redeemAmounts[0];
+
+        vm.startPrank(vars.redeemUsers[0]);
+        vault.requestRedeem(vars.redeemAmounts[0], vars.redeemUsers[0], vars.redeemUsers[0]);
+        vm.stopPrank();
+
+        vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
+        vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
+        
+        vars.assetsVault1 = IERC4626(address(fluidVault)).convertToAssets(vars.redeemSharesVault1);
+        vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
+        
+        vars.expectedAssetsOrSharesOut = new uint256[](2);
+        vars.expectedAssetsOrSharesOut[0] = 0;
+        vars.expectedAssetsOrSharesOut[1] = 0;
+        _fulfillRedeemForUsers(
+            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), vars.ruggableVault, vars.expectedAssetsOrSharesOut, bytes4(0)
+        );
+
+        vm.warp(block.timestamp + 12 weeks);
+        prevPps = vars.initialPricePerShare;
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
+        
+        assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.1e18, "Price per share should be preserved");
+        return;
+
+
+        // deposit again
+        for (uint256 i; i < 2;) {
+            _getTokens(address(asset), vars.depositUsers[i], vars.depositAmounts[i]);
+            vm.startPrank(vars.depositUsers[i]);
+            asset.approve(address(vault), vars.depositAmounts[i]);
+            vault.requestDeposit(vars.depositAmounts[i], vars.depositUsers[i], vars.depositUsers[i]);
+            vm.stopPrank();
+
+            unchecked { ++i;}
+        }
+
+        console2.log("-------- ", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
+        console2.log("-------- Assets", RuggableVault(vars.ruggableVault).convertToAssets(RuggableVault(vars.ruggableVault).balanceOf(address(strategy))));
+
+        vm.warp(vars.initialTimestamp + 1 days);
+
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+        console2.log("\n=== Initial State ===");
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
+        assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.001e18, "Price per share should be preserved");
+
+
+        // put 50-50 in each vault
+        totalAmount = vars.depositAmount * 2;
+        allocationAmountVault1 = totalAmount / 2;
+        allocationAmountVault2 = totalAmount - allocationAmountVault1;
+
+        _fulfillDepositForUsers(
+            vars.depositUsers,
+            allocationAmountVault1,
+            allocationAmountVault2,
+            address(fluidVault),
+            address(vars.ruggableVault),
+            expectedAssetsOrSharesOut,
+            bytes4(0)
+        );
+        prevPps = vars.initialPricePerShare;
+        vars.initialTotalAssets = vault.totalAssets();
+        vars.initialTotalSupply = vault.totalSupply();
+        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+        console2.log("Initial Total Assets:", vars.initialTotalAssets);
+        console2.log("Initial Total Supply:", vars.initialTotalSupply);
+        console2.log("Initial Price per share:", vars.initialPricePerShare);
+        console2.log("Ruggable Vault Balance:", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
+
+        assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.001e18, "Price per share should be preserved");
+
+        // claim
+        for (uint256 i; i < 2;) {
+            vm.startPrank(vars.depositUsers[i]);
+            uint256 maxDeposit = vault.maxDeposit(vars.depositUsers[i]);
+            vault.deposit(maxDeposit, vars.depositUsers[i], vars.depositUsers[i]);
+            vm.stopPrank();
+            unchecked { ++i;}
+        }
+    }
+
+    function test_5_EdgeCases_Small_Amounts() public {
+        uint256 depositAmount = 100; // very small
+
+        // perform deposit operations
+        _completeDepositFlow(depositAmount);
+
+        uint256 totalRedeemShares;
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
+            totalRedeemShares += vaultBalance;
+            unchecked {
+                ++i;
+            }
+        }
+
+       
+        // request redeem for all users
+        _requestRedeemForAllUsers(0);
+
+        // create fullfillment data
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            requestingUsers[i] = accInstances[i].account;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // fulfill redeem
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        // check that all pending requests are cleared
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function test_5_EdgeCases_SmallAmounts_WithAllocation() public {
+        uint256 depositAmount = 100; // very small
+
+        _completeDepositFlow(depositAmount);
+
+        uint256 initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        uint256 initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        
+        uint256 currentFluidVaultAssets = fluidVault.convertToAssets(initialFluidVaultBalance);
+        uint256 currentAaveVaultAssets = aaveVault.convertToAssets(initialAaveVaultBalance);
+        uint256 totalAssets = currentFluidVaultAssets + currentAaveVaultAssets;
+        
+        
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        bytes[] memory hooksData = new bytes[](2);
+        
+        uint256 amountToReallocate = initialFluidVaultBalance * 30 / 100;
+        uint256 assetAmountToReallocate = fluidVault.convertToAssets(amountToReallocate);
+        
+        _rebalanceFromVaultToVault(
+            hooksAddresses,
+            hooksData,
+            address(fluidVault),
+            address(aaveVault),
+            currentAaveVaultAssets + assetAmountToReallocate,
+            currentAaveVaultAssets
+        );
+        
+        uint256 finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        uint256 finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        
+        uint256 finalFluidVaultAssets = fluidVault.convertToAssets(finalFluidVaultBalance);
+        uint256 finalAaveVaultAssets = aaveVault.convertToAssets(finalAaveVaultBalance);
+        uint256 finalTotalAssets = finalFluidVaultAssets + finalAaveVaultAssets;
+        
+        assertApproxEqRel(finalTotalAssets, totalAssets, 0.05e18, "Total value should be preserved");
+        
+        uint256 totalRedeemShares;
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
+            totalRedeemShares += vaultBalance;
+            unchecked {
+                ++i;
+            }
+        }
+        
+        _requestRedeemForAllUsers(0);
+        
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            requestingUsers[i] = accInstances[i].account;
+            unchecked {
+                ++i;
+            }
+        }
+        
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+        
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+    function test_5_EdgeCases_Large_Amounts() public {
+        // update vault cap
+        vm.startPrank(MANAGER);
+        strategy.updateGlobalConfig(
+            ISuperVaultStrategy.GlobalConfig({
+                vaultCap: 900_000_000e6,
+                superVaultCap: 1_000_000_000e6,
+                vaultThreshold: VAULT_THRESHOLD
+            })
+        );
+        vm.stopPrank();
+
+        uint256 depositAmount = 2_000_000e6; // very big
+
+        // perform deposit operations
+        _completeDepositFlow(depositAmount);
+
+        uint256 totalRedeemShares;
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
+            totalRedeemShares += vaultBalance;
+            unchecked {
+                ++i;
+            }
+        }
+
+       
+        // request redeem for all users
+        _requestRedeemForAllUsers(0);
+
+        // create fullfillment data
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            requestingUsers[i] = accInstances[i].account;
+
+            unchecked {
+                ++i;
+            }
+        }
+
+        // fulfill redeem
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        // check that all pending requests are cleared
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
+            assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
+            unchecked {
+                ++i;
+            }
+        }
+    }
+
+        
+    function test_6_yieldAccumulation() public {
+        YieldTestVars memory vars;
+        vars.depositAmount = 1000e6; // 100,000 USDC
+        vars.initialTimestamp = block.timestamp;
+
+        // create yield testing vaults
+        vars.vault1 = new Mock4626Vault(IERC20(address(asset)), "Mock Vault 3%", "MV3");
+        vars.vault2 = new Mock4626Vault(IERC20(address(asset)), "Mock Vault 5%", "MV5");
+        vars.vault3 = new Mock4626Vault(IERC20(address(asset)), "Mock Vault 10%", "MV10");
+        vars.vault1.setYield(3_000); // 3%
+        vars.vault2.setYield(5_000); // 5%
+        vars.vault3.setYield(10_000); // 10%
+
+        // add some funds to each vault to bypass the VAULT_THRESHOLD_EXCEEDED error
+        _getTokens(address(asset), address(this), 10 * VAULT_THRESHOLD);
+        asset.approve(address(vars.vault1), type(uint256).max);
+        asset.approve(address(vars.vault2), type(uint256).max);
+        asset.approve(address(vars.vault3), type(uint256).max);
+        vars.vault1.deposit(2 * VAULT_THRESHOLD, address(this));
+        vars.vault2.deposit(2 * VAULT_THRESHOLD, address(this));
+        vars.vault3.deposit(2 * VAULT_THRESHOLD, address(this));
+
+        // add vaults to SV
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        vm.stopPrank();
+
+        // use 3 users to perform deposits 
+        for (uint256 i; i < 3;) {
+            _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
+            _requestDepositForAccount(accInstances[i], vars.depositAmount);
+            assertEq(strategy.pendingDepositRequest(accInstances[i].account), vars.depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+
+        // fulfill deposits
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](3);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+        fulfillHooksAddresses[2] = depositHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](3);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), vars.depositAmount, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), vars.depositAmount, false, false
+        );
+        fulfillHooksData[2] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), vars.depositAmount, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(vars.vault1)).convertToShares(vars.depositAmount);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(vars.vault2)).convertToShares(vars.depositAmount);
+        expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
+
+        address[] memory requestingUsers = new address[](3);
+        for (uint256 i; i < 3;) {
+            requestingUsers[i] = accInstances[i].account;
+            unchecked {
+                ++i;
+            }
+        }
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        vm.stopPrank();
+
+
+        // claim deposits
+         for (uint256 i; i < 3;) {
+            _claimDepositForAccount(accInstances[i], vars.depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+
+        vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
+        vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
+        vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
+
+        vars.initialVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
+        vars.initialVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
+        vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
+
+        // fast forward time to simulate yield accumulation
+        vm.warp(vars.initialTimestamp + 1 weeks);
+
+        vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
+        vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
+        vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
+
+        vars.finalVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
+        vars.finalVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
+        vars.finalVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
+
+        console2.log("initialVault1Assets", vars.initialVault1Assets);
+        console2.log("finalVault1Assets  ", vars.finalVault1Assets);
+        console2.log("initialVault2Assets", vars.initialVault2Assets);
+        console2.log("finalVault2Assets  ", vars.finalVault2Assets);
+        console2.log("initialVault3Assets", vars.initialVault3Assets);
+        console2.log("finalVault3Assets  ", vars.finalVault3Assets);
+
+        assertGt(vars.finalVault1Assets, vars.initialVault1Assets, "Vault 1 should have gained assets");
+        assertGt(vars.finalVault2Assets, vars.initialVault2Assets, "Vault 2 should have gained assets");
+        assertGt(vars.finalVault3Assets, vars.initialVault3Assets, "Vault 3 should have gained assets");
+
+        uint256 vault1Yield = vars.finalVault1Assets - vars.initialVault1Assets;
+        uint256 vault2Yield = vars.finalVault2Assets - vars.initialVault2Assets;
+        uint256 vault3Yield = vars.finalVault3Assets - vars.initialVault3Assets;
+        console2.log("vault1Yield", vault1Yield);
+        console2.log("vault2Yield", vault2Yield);
+        console2.log("vault3Yield", vault3Yield);
+
+        assertGt(vault1Yield, 0, "Vault 1 should have gained assets");
+        assertGt(vault2Yield, vault1Yield, "Vault 2 should have gained more assets than vault 1");
+        assertGt(vault3Yield, vault2Yield, "Vault 3 should have gained more assets than vault 2");
+    }   
+
+    function test_6_yieldAccumulation_WithRebalancing() public {
+        YieldTestVars memory vars;
+        vars.depositAmount = 1000e6; // 100,000 USDC
+        vars.initialTimestamp = block.timestamp;
+
+        // create yield testing vaults
+        vars.vault1 = new Mock4626Vault(IERC20(address(asset)), "Mock Vault 3%", "MV3");
+        vars.vault2 = new Mock4626Vault(IERC20(address(asset)), "Mock Vault 5%", "MV5");
+        vars.vault3 = new Mock4626Vault(IERC20(address(asset)), "Mock Vault 10%", "MV10");
+        vars.vault1.setYield(3_000); // 3%
+        vars.vault2.setYield(5_000); // 5%
+        vars.vault3.setYield(10_000); // 10%
+
+        // add some funds to each vault to bypass the VAULT_THRESHOLD_EXCEEDED error
+        _getTokens(address(asset), address(this), 10 * VAULT_THRESHOLD);
+        asset.approve(address(vars.vault1), type(uint256).max);
+        asset.approve(address(vars.vault2), type(uint256).max);
+        asset.approve(address(vars.vault3), type(uint256).max);
+        vars.vault1.deposit(2 * VAULT_THRESHOLD, address(this));
+        vars.vault2.deposit(2 * VAULT_THRESHOLD, address(this));
+        vars.vault3.deposit(2 * VAULT_THRESHOLD, address(this));
+
+        // add vaults to SV
+        vm.startPrank(MANAGER);
+        strategy.manageYieldSource(address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        vm.stopPrank();
+
+        // use 3 users to perform deposits 
+        for (uint256 i; i < 3;) {
+            _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
+            _requestDepositForAccount(accInstances[i], vars.depositAmount);
+            assertEq(strategy.pendingDepositRequest(accInstances[i].account), vars.depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+
+        // fulfill deposits
+        {
+            address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+            address[] memory fulfillHooksAddresses = new address[](3);
+            fulfillHooksAddresses[0] = depositHookAddress;
+            fulfillHooksAddresses[1] = depositHookAddress;
+            fulfillHooksAddresses[2] = depositHookAddress;
+
+            bytes[] memory fulfillHooksData = new bytes[](3);
+            // allocate up to the max allocation rate in the two Vaults
+            fulfillHooksData[0] = _createDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), vars.depositAmount, false, false
+            );
+            fulfillHooksData[1] = _createDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), vars.depositAmount, false, false
+            );
+            fulfillHooksData[2] = _createDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), vars.depositAmount, false, false
+            );
+
+            uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
+            expectedAssetsOrSharesOut[0] = IERC4626(address(vars.vault1)).convertToShares(vars.depositAmount);
+            expectedAssetsOrSharesOut[1] = IERC4626(address(vars.vault2)).convertToShares(vars.depositAmount);
+            expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
+
+            address[] memory requestingUsers = new address[](3);
+            for (uint256 i; i < 3;) {
+                requestingUsers[i] = accInstances[i].account;
+                unchecked {
+                    ++i;
+                }
+            }
+
+            vm.startPrank(STRATEGIST);
+            strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+            vm.stopPrank();
+        }
+
+        // claim deposits
+         for (uint256 i; i < 3;) {
+            _claimDepositForAccount(accInstances[i], vars.depositAmount);
+            unchecked {
+                ++i;
+            }
+        }
+
+        {
+            vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
+            vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
+            vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
+            vars.initialVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
+            vars.initialVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
+            vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
+
+            address[] memory hooksAddresses = new address[](2);
+            hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+            hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+            bytes[] memory hooksData = new bytes[](2);
+            
+            uint256 amountToReallocate = vars.initialVault2Balance * 10 / 100; //10%
+            uint256 assetAmountToReallocate = vars.vault2.convertToAssets(amountToReallocate);
+            
+            _rebalanceFixedAmountFromVaultToVault(
+                hooksAddresses,
+                hooksData,
+                address(vars.vault2),
+                address(vars.vault1),
+                assetAmountToReallocate
+            );
+
+            // fast forward time to simulate yield accumulation
+            vm.warp(vars.initialTimestamp + 1 weeks);
+
+            vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
+            vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
+            vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
+            vars.finalVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
+            vars.finalVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
+            vars.finalVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
+
+            assertGt(vars.finalVault1Assets + vars.finalVault2Assets + vars.finalVault3Assets, vars.initialVault1Assets + vars.initialVault2Assets + vars.initialVault3Assets, "Total assets should have increased");
+        }
+    }   
+
+    function test_7_Flashloan_Simulation() public {
+        MockFlashloanSVSimulation flashloanSimulator = new MockFlashloanSVSimulation();
+
+        // add tokens to the flashloan simulator (simulate a flashloan)
+        uint256 flashloanAmount = 1_000_000e6; // 1 million USDC
+        _getTokens(address(asset), address(flashloanSimulator), flashloanAmount);
+        
+        uint256 initialSimulatorBalance = asset.balanceOf(address(flashloanSimulator));
+        uint256 initialVaultBalance = asset.balanceOf(address(vault));
+        uint256 initialVaultTotalAssets = vault.totalAssets();
+
+        uint256 totalAssetsBefore = vault.totalAssets();
+        uint256 pricePerShareBefore = totalAssetsBefore.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+
+        flashloanSimulator.performSuperVaultOperations(address(vault), flashloanAmount);
+
+        uint256 totalAssetsAfter = vault.totalAssets();
+        uint256 pricePerShareAfter = totalAssetsAfter.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+
+
+        assertEq(pricePerShareAfter, pricePerShareBefore, "Price per share should be unchanged");   
+        
+        // checks
+        uint256 finalSimulatorBalance = asset.balanceOf(address(flashloanSimulator));
+        uint256 finalVaultBalance = asset.balanceOf(address(vault));
+        uint256 finalVaultTotalAssets = vault.totalAssets();
+        assertEq(finalSimulatorBalance, initialSimulatorBalance, "Simulator balance should be unchanged");
+        assertEq(finalVaultBalance, initialVaultBalance, "Vault balance should be unchanged");
+        assertEq(finalVaultTotalAssets, initialVaultTotalAssets, "Vault total assets should be unchanged");
+        assertEq(strategy.pendingDepositRequest(address(flashloanSimulator)), 0, "No pending deposit requests should remain");
+    }
+
+    function test_7_Flashloan_Simulation_WithMultipleDeposits() public {
+        uint256 depositAmount = 10_000e6; // very small
+
+        // perform deposit operations
+        _completeDepositFlow(depositAmount);
+
+        uint256 totalRedeemShares;
+        for (uint256 i; i < ACCOUNT_COUNT;) {
+            uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
+            totalRedeemShares += vaultBalance;
+            unchecked {
+                ++i;
+            }
+        }
+
+        uint256 totalAssetsBefore = vault.totalAssets();
+        uint256 pricePerShareBefore = totalAssetsBefore.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+
+
+        MockFlashloanSVSimulation flashloanSimulator = new MockFlashloanSVSimulation();
+
+        // add tokens to the flashloan simulator (simulate a flashloan)
+        uint256 flashloanAmount = 1_000_000e6; // 1 million USDC
+        _getTokens(address(asset), address(flashloanSimulator), flashloanAmount);
+        
+        uint256 initialSimulatorBalance = asset.balanceOf(address(flashloanSimulator));
+        uint256 initialVaultBalance = asset.balanceOf(address(vault));
+        uint256 initialVaultTotalAssets = vault.totalAssets();
+
+        flashloanSimulator.performSuperVaultOperations(address(vault), flashloanAmount);
+
+        uint256 totalAssetsAfter = vault.totalAssets();
+        uint256 pricePerShareAfter = totalAssetsAfter.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+
+
+        assertEq(pricePerShareAfter, pricePerShareBefore, "Price per share should be unchanged");   
+        
+        // checks
+        uint256 finalSimulatorBalance = asset.balanceOf(address(flashloanSimulator));
+        uint256 finalVaultBalance = asset.balanceOf(address(vault));
+        uint256 finalVaultTotalAssets = vault.totalAssets();
+        assertEq(finalSimulatorBalance, initialSimulatorBalance, "Simulator balance should be unchanged");
+        assertEq(finalVaultBalance, initialVaultBalance, "Vault balance should be unchanged");
+        assertEq(finalVaultTotalAssets, initialVaultTotalAssets, "Vault total assets should be unchanged");
+        assertEq(strategy.pendingDepositRequest(address(flashloanSimulator)), 0, "No pending deposit requests should remain");
     }
 
     function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
@@ -502,7 +1227,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
     }
 
-
     function test_10_RuggableVault_Deposit() public {
         RugTestVarsDeposit memory vars;
         vars.depositAmount = 1000e6;
@@ -590,7 +1314,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
     }
 
-    function test_10_RuggableVault_WithdrawX() public {
+    function test_10_RuggableVault_Withdraw() public {
         RugTestVarsWithdraw memory vars;
         vars.depositAmount = 1000e6;
         vars.rugPercentage = 5000; // 50% rug
@@ -1630,7 +2354,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Fulfill redemption requests
         vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
         vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
-
         
         vars.assetsVault1 = IERC4626(address(fluidVault)).convertToAssets(vars.redeemSharesVault1);
         vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
@@ -1957,4 +2680,25 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             vars.finalTotalAssets, targetTotalDeposits, "Total assets should be at least the target deposit amount"
         );
     }
+
+    struct YieldTestVars {
+        uint256 depositAmount;
+        uint256 initialTimestamp;
+        Mock4626Vault vault1; // 3% yield
+        Mock4626Vault vault2; // 5% yield
+        Mock4626Vault vault3; // 10% yield
+        uint256 initialVault1Balance;
+        uint256 initialVault2Balance;
+        uint256 initialVault3Balance;
+        uint256 initialVault1Assets;
+        uint256 initialVault2Assets;
+        uint256 initialVault3Assets;
+        uint256 finalVault1Assets;
+        uint256 finalVault2Assets;
+        uint256 finalVault3Assets;
+        uint256 initialTotalAssets;
+        uint256 initialTotalSupply;
+        uint256 initialPricePerShare;
+    }
+
 }
