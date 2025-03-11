@@ -30,6 +30,7 @@ import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20H
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { ApproveAndDeposit5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
 import { Withdraw5115VaultHook } from "../src/core/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 // --- erc4626
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
@@ -38,24 +39,29 @@ import { Withdraw4626VaultHook } from "../src/core/hooks/vaults/4626/Withdraw462
 // -- erc7540
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { ApproveAndRequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
 
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+
 // Swap hooks
 // --- 1inch
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 
 // --- Odos
 import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
 
 // Stake hooks
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
 import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
 import { ApproveAndGearboxStakeHook } from "../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
+// --- Fluid
+import { ApproveAndFluidStakeHook } from "../src/core/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
 
 // Claim Hooks
 // --- Fluid
@@ -102,7 +108,11 @@ struct Addresses {
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
+    ApproveAndSwapOdosHook approveAndSwapOdosHook;
+    ApproveAndFluidStakeHook approveAndFluidStakeHook;
     ApproveAndDeposit4626VaultHook approveAndDeposit4626VaultHook;
+    ApproveAndDeposit5115VaultHook approveAndDeposit5115VaultHook;
+    ApproveAndRequestDeposit7540VaultHook approveAndRequestDeposit7540VaultHook;
     Withdraw4626VaultHook withdraw4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
     Withdraw5115VaultHook withdraw5115VaultHook;
@@ -665,6 +675,68 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY]
             );
             peripheryRegistry.registerHook(address(Addr.approveAndDeposit4626VaultHook), true);
+
+            Addr.approveAndSwapOdosHook =
+                new ApproveAndSwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOS_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(Addr.approveAndSwapOdosHook);
+            hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = Hook(
+                APPROVE_AND_SWAP_ODOS_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.Swaps,
+                address(Addr.approveAndSwapOdosHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
+            peripheryRegistry.registerHook(address(Addr.approveAndSwapOdosHook), false);
+
+            Addr.approveAndDeposit5115VaultHook =
+                new ApproveAndDeposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndDeposit5115VaultHook), APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY] =
+                address(Addr.approveAndDeposit5115VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultDeposits,
+                address(Addr.approveAndDeposit5115VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY]
+            );
+            peripheryRegistry.registerHook(address(Addr.approveAndDeposit5115VaultHook), true);
+
+            Addr.approveAndFluidStakeHook =
+                new ApproveAndFluidStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndFluidStakeHook), APPROVE_AND_FLUID_STAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY] = address(Addr.approveAndFluidStakeHook);
+            hooks[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY] = Hook(
+                APPROVE_AND_FLUID_STAKE_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.Stakes,
+                address(Addr.approveAndFluidStakeHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY]);
+            peripheryRegistry.registerHook(address(Addr.approveAndFluidStakeHook), false);
+
+            Addr.approveAndRequestDeposit7540VaultHook =
+                new ApproveAndRequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndRequestDeposit7540VaultHook), APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] =
+                address(Addr.approveAndRequestDeposit7540VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultDeposits,
+                address(Addr.approveAndRequestDeposit7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
+            );
+            peripheryRegistry.registerHook(address(Addr.approveAndRequestDeposit7540VaultHook), false);
         }
     }
 
