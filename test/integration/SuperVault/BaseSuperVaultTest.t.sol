@@ -926,9 +926,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
                         // Add deposit hook
                         allHooksAddresses[hookIndex] = args.depositHookAddress;
-                        allHooksData[hookIndex] = _createDeposit4626HookData(
+                        allHooksData[hookIndex] = _createApproveAndDeposit4626HookData(
                             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                             vars.destinations[j],
+                            address(asset),
                             vars.amountToMove,
                             true,
                             false

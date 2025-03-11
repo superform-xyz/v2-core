@@ -342,23 +342,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
     }
 
-    /// @notice Local variables struct for executeHooks to avoid stack too deep
-    struct ExecuteHooksVars {
-        uint256 hooksLength;
-        uint256 initialAssetBalance;
-        uint256 finalAssetBalance;
-        uint256 inflowCount;
-        uint256 amount;
-        uint256 maxDecrease;
-        uint256 actualDecrease;
-        address prevHook;
-        address[] inflowTargets;
-        ISuperHook hookContract;
-        ISuperHook.HookType hookType;
-        Execution[] executions;
-        bool success;
-    }
-
     /// @inheritdoc ISuperVaultStrategy
     function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external {
         _requireRole(STRATEGIST_ROLE);
@@ -388,9 +371,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-            if (!yieldSources[HookDataDecoder.extractYieldSource(hookCalldata[i])].isActive) {
-                revert YIELD_SOURCE_NOT_ACTIVE();
+            if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
+                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+                if (!yieldSources[vars.targetedYieldSource].isActive) {
+                    revert YIELD_SOURCE_NOT_ACTIVE();
+                }
+                if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                    vars.inflowTargets[vars.inflowCount++] = vars.targetedYieldSource;
+                }
             }
+
             uint256 preExecutionTotalAssets;
             for (uint256 j; j < vars.executions.length;) {
                 // Store pre-execution balance for non-accounting hooks
@@ -1183,6 +1173,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Note: This check is gas expensive due to getTVLByOwnerOfShares calls
         for (uint256 i; i < targetedYieldSources.length;) {
             address source = targetedYieldSources[i];
+            if (source == address(0)) revert ZERO_ADDRESS();
+
             uint256 yieldSourceTVL = _getTvlByOwnerOfShares(source);
             if (yieldSourceTVL > globalConfig.vaultCap) revert LIMIT_EXCEEDED();
             unchecked {
@@ -1350,10 +1342,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param newSize The new size (must be smaller than the original array)
     /// @return A new array with the specified size containing the first newSize elements of the original array
     function _resizeAddressArray(address[] memory array, uint256 newSize) private pure returns (address[] memory) {
-        require(newSize <= array.length, RESIZED_ARRAY_LENGTH_ERROR());
+        if (newSize > array.length) revert RESIZED_ARRAY_LENGTH_ERROR();
         address[] memory newArray = new address[](newSize);
-        for (uint256 i = 0; i < newSize; i++) {
+        for (uint256 i; i < newSize;) {
             newArray[i] = array[i];
+            unchecked {
+                ++i;
+            }
         }
         return newArray;
     }
