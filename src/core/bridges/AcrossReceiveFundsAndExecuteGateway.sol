@@ -41,12 +41,9 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-
     address public immutable acrossSpokePool;
     address public immutable entryPointAddress;
     address payable public immutable superBundler;
-
-    error ADDRESS_NOT_VALID();
 
     constructor(address acrossSpokePool_, address entryPointAddress_, address superBundler_) {
         if (acrossSpokePool_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -126,8 +123,12 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
         // Execute the userOp through EntryPoint
-        IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler);
+        try IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler) {
+            emit AcrossFundsReceivedAndExecuted(account);
+        } catch {
+            // no action, as funds are already transferred
+            emit AcrossFundsReceivedButExecutionFailed(account);
+        }
 
-        emit AcrossFundsReceivedAndExecuted(account);
     }
 }
