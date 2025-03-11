@@ -2,14 +2,14 @@
 pragma solidity >=0.8.28;
 
 // Tests
-import { BaseTest } from "../BaseTest.t.sol";
+import { BaseTest } from "../../BaseTest.t.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 // Vault Interfaces
-import { IStandardizedYield } from "../../src/vendor/pendle/IStandardizedYield.sol";
+import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
@@ -63,6 +63,8 @@ contract ApproveAndDeposit5115VaultHook is BaseTest {
           yieldSource5115AddressSUSDe,
           underlyingETH_sUSDe,
           amount,
+          0,
+          false,
           false
         );
 
@@ -75,7 +77,7 @@ contract ApproveAndDeposit5115VaultHook is BaseTest {
         executeOp(userOpData);
 
         // Check asset balances
-        assertEq(IERC20(underlyingETH_sUSDe).balanceOf(accountETH), accountSUSDEStartBalance + amount);
+        assertEq(IERC20(underlyingETH_sUSDe).balanceOf(accountETH), accountSUSDEStartBalance - amount);
 
         // Check vault shares balances
         assertEq(vaultInstance5115ETH.balanceOf(accountETH), amount);
