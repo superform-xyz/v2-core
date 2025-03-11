@@ -388,8 +388,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-            if (!yieldSources[HookDataDecoder.extractYieldSource(hookCalldata[i])].isActive) {
-                revert YIELD_SOURCE_NOT_ACTIVE();
+            if (vars.hookType == ISuperHook.HookType.OUTFLOW || vars.hookType == ISuperHook.HookType.INFLOW) {
+                if (!yieldSources[HookDataDecoder.extractYieldSource(hookCalldata[i])].isActive) {
+                    revert YIELD_SOURCE_NOT_ACTIVE();
+                }
             }
             uint256 preExecutionTotalAssets;
             for (uint256 j; j < vars.executions.length;) {
