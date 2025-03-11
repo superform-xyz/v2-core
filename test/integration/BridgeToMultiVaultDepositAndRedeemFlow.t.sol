@@ -552,11 +552,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSource7540AddressETH_USDC,
-            maxDeposit,
-            false,
-            false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, false
         );
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);

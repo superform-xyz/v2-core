@@ -79,7 +79,14 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         }
     }
 
-    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares) external view virtual returns (uint256);
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        external
+        view
+        virtual
+        returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
     function getTVLByOwnerOfSharesMultiple(

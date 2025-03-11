@@ -60,6 +60,10 @@ abstract contract Constants {
     string public constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
+    string public constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
+    string public constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
+    string public constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
+    string public constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string public constant SOMELIER_STAKE_HOOK_KEY = "SomelierStakeHook";
     string public constant SOMELIER_UNBOND_ALL_HOOK_KEY = "SomelierUnbondAllHook";
     string public constant SOMELIER_UNBOND_HOOK_KEY = "SomelierUnbondHook";
@@ -151,9 +155,8 @@ abstract contract Constants {
     address public constant CHAIN_1_YearnVault = 0x028eC7330ff87667b6dfb0D94b954c820195336c;
     address public constant CHAIN_1_PendleEthena = 0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185;
     address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
-    
+
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
-    
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
@@ -161,7 +164,7 @@ abstract contract Constants {
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
-    address public constant CHAIN_1_GearboxStaking = 	0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2;
+    address public constant CHAIN_1_GearboxStaking = 0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2;
 
     // bridges
     string public constant DEBRIDGE_GATE_ADDRESS_KEY = "DeBridgeGateAddress";

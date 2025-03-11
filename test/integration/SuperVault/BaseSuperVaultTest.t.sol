@@ -1188,6 +1188,28 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    function _rebalanceFixedAmountFromVaultToVault(
+        address[] memory hooksAddresses,
+        bytes[] memory hooksData,
+        address sourceVault,
+        address targetVault,
+        uint256 assetsToMove
+    )
+        internal
+    {
+        uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
+
+        vm.startPrank(STRATEGIST);
+        hooksData[0] = _createWithdraw4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
+        );
+        hooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, address(asset), assetsToMove, true, false
+        );
+        strategy.executeHooks(hooksAddresses, hooksData);
+        vm.stopPrank();
+    }
+
     function _rebalanceFromVaultToVault(
         address[] memory hooksAddresses,
         bytes[] memory hooksData,

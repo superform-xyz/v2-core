@@ -150,11 +150,11 @@ contract PendlePriceIntegration is BaseE2ETest {
     }
 
     function test_ValidateFees_ForFullWithdrawal_AccumulatedFees_Pendle() public {
-        uint256 amount = 1e18; 
+        uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
-        assertEq(config.feePercent, 100); 
+        assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
 
@@ -171,7 +171,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
         _performMultipleDeposits(underlying, IERC4626(underlying).asset(), 50, SMALL);
         uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
-        assertGt(ppsAfter, ppsBefore, "pps after should be higher"); 
+        assertGt(ppsAfter, ppsBefore, "pps after should be higher");
 
         uint256 availableShares = pendleVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares);
@@ -179,13 +179,13 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
-     
+
     function test_ValidateFees_ForFullWithdrawal_NonYieldToken_AccumulatedFees_Pendle() public {
-        uint256 amount = 1e18; 
+        uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
-        assertEq(config.feePercent, 100); 
+        assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
 
@@ -209,7 +209,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
 
-        assertGt(ppsAfter, ppsBefore); 
+        assertGt(ppsAfter, ppsBefore);
 
         uint256 availableShares = pendleVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares);
@@ -217,7 +217,6 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
