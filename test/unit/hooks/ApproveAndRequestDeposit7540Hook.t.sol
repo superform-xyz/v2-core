@@ -72,9 +72,7 @@ contract ApproveAndRequestDeposit7540Hook is BaseTest {
         // Check asset balances
         assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), accountUSDCStartBalance - amount);
 
-        uint256 pendingDepositRequest = vaultInstance7540ETH.pendingDepositRequest(0, accountETH);
-
-        // Check vault shares balances
-        assertGt(pendingDepositRequest, 0);
+        // Check vault has a pending deposit request
+        assertTrue(vaultInstance7540ETH.pendingDepositRequest(0, accountETH));
     }
 }
