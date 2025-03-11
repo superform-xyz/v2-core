@@ -159,10 +159,8 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
 
-        (
-          ISuperLedger.LedgerEntry[] memory entries, 
-          uint256 unconsumedEntries
-        ) = superLedgerETH.getLedger(accountEth, address(vault));
+        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+            superLedgerETH.getLedger(accountEth, address(vault));
 
         uint256 expectedLedgerFee = _deriveExpectedFee(
             FeeParams({

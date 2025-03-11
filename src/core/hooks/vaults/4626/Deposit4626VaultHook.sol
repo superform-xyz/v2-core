@@ -29,6 +29,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
+
     function build(
         address prevHook,
         address account,

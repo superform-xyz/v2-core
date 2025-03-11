@@ -144,7 +144,11 @@ contract SuperVaultFactory is ISuperVaultFactory {
         }
 
         vars.strategyContract.fulfillRequests(
-            vars.users, params.bootstrappingHooks, params.bootstrappingHookCalldata, params.expectedAssetsOrSharesOut, true
+            vars.users,
+            params.bootstrappingHooks,
+            params.bootstrappingHookCalldata,
+            params.expectedAssetsOrSharesOut,
+            true
         );
 
         /// @dev Note: Theoretically this could go to an insurance fund
