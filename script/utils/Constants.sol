@@ -115,6 +115,10 @@ abstract contract Constants {
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
+    string internal constant APPROVE_AND_SWAP_ODOS_HOOK_KEY = "ApproveAndSwapOdosHook";
+    string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
+    string internal constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
+    string internal constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
     string internal constant GEARBOX_APPROVE_AND_STAKE_HOOK_KEY = "GearboxApproveAndStakeHook";
     string internal constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
