@@ -677,7 +677,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             peripheryRegistry.registerHook(address(Addr.approveAndDeposit4626VaultHook), true);
 
             Addr.approveAndSwapOdosHook =
-                new ApproveAndSwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new ApproveAndSwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter));
             vm.label(address(Addr.approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(Addr.approveAndSwapOdosHook);
             hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = Hook(
