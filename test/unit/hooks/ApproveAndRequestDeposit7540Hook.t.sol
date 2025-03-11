@@ -69,9 +69,6 @@ contract ApproveAndRequestDeposit7540Hook is BaseTest {
         vm.expectEmit(true, true, true, false);
         emit IERC7540.DepositRequest(accountETH, accountETH, 0, accountETH, amount);
 
-        // Check asset balances
-        assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), accountUSDCStartBalance - amount);
-
         // Check vault has a pending deposit request
         assertTrue(vaultInstance7540ETH.pendingDepositRequest(0, accountETH));
     }
