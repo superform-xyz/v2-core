@@ -33,6 +33,7 @@ import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115V
 import { Withdraw5115VaultHook } from "../src/core/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 // --- erc4626
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
 import { Withdraw4626VaultHook } from "../src/core/hooks/vaults/4626/Withdraw4626VaultHook.sol";
 // -- erc7540
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
@@ -54,6 +55,7 @@ import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 // --- Gearbox
 import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
 import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
+import { ApproveAndGearboxStakeHook } from "../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
 
 // Claim Hooks
 // --- Fluid
@@ -70,6 +72,7 @@ import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115
 import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
+import { GearboxYieldSourceOracle } from "../src/core/accounting/oracles/GearboxYieldSourceOracle.sol";
 
 // external
 import {
@@ -99,6 +102,7 @@ struct Addresses {
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
+    ApproveAndDeposit4626VaultHook approveAndDeposit4626VaultHook;
     Withdraw4626VaultHook withdraw4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
     Withdraw5115VaultHook withdraw5115VaultHook;
@@ -111,11 +115,13 @@ struct Addresses {
     SwapOdosHook swapOdosHook;
     GearboxStakeHook gearboxStakeHook;
     GearboxUnstakeHook gearboxUnstakeHook;
+    ApproveAndGearboxStakeHook approveAndGearboxStakeHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
     FluidYieldSourceOracle fluidYieldSourceOracle;
+    GearboxYieldSourceOracle gearboxYieldSourceOracle;
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
     PeripheryRegistry peripheryRegistry;
@@ -352,6 +358,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A.fluidYieldSourceOracle = new FluidYieldSourceOracle(address(A.superRegistry));
             vm.label(address(A.fluidYieldSourceOracle), FLUID_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][FLUID_YIELD_SOURCE_ORACLE_KEY] = address(A.fluidYieldSourceOracle);
+
+            A.gearboxYieldSourceOracle = new GearboxYieldSourceOracle(address(A.superRegistry));
+            vm.label(address(A.gearboxYieldSourceOracle), GEARBOX_YIELD_SOURCE_ORACLE_KEY);
+            contractAddresses[chainIds[i]][GEARBOX_YIELD_SOURCE_ORACLE_KEY] = address(A.gearboxYieldSourceOracle);
 
             /// @dev periphery
             A.peripheryRegistry = new PeripheryRegistry(address(this), TREASURY);
@@ -622,6 +632,39 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
             peripheryRegistry.registerHook(address(Addr.yearnClaimOneRewardHook), false);
+
+            Addr.approveAndGearboxStakeHook =
+                new ApproveAndGearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndGearboxStakeHook), GEARBOX_APPROVE_AND_STAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY] = address(Addr.approveAndGearboxStakeHook);
+            hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY] = Hook(
+                GEARBOX_APPROVE_AND_STAKE_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.Stakes,
+                address(Addr.approveAndGearboxStakeHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(
+                hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY]
+            );
+            peripheryRegistry.registerHook(address(Addr.approveAndGearboxStakeHook), false);
+
+            Addr.approveAndDeposit4626VaultHook =
+                new ApproveAndDeposit4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(Addr.approveAndDeposit4626VaultHook), APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] =
+                address(Addr.approveAndDeposit4626VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultDeposits,
+                address(Addr.approveAndDeposit4626VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY]
+            );
+            peripheryRegistry.registerHook(address(Addr.approveAndDeposit4626VaultHook), true);
         }
     }
 
@@ -701,7 +744,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
         existingUnderlyingTokens[OP][WETH_KEY] = CHAIN_10_WETH;
         existingUnderlyingTokens[OP][USDCe_KEY] = CHAIN_10_USDCe;
-        vm.label(existingUnderlyingTokens[OP][USDCe_KEY], "USDCe");
+        existingUnderlyingTokens[ETH][GEAR_KEY] = CHAIN_1_GEAR;
+        existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
 
         // Base tokens
         existingUnderlyingTokens[BASE][DAI_KEY] = CHAIN_8453_DAI;
@@ -729,6 +773,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         /// @dev Optimism 4626vault addresses
         existingVaults[10][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY] = CHAIN_10_AloeUSDC;
         vm.label(existingVaults[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY], ALOE_USDC_VAULT_KEY);
+        existingVaults[1][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY] = CHAIN_1_GearboxVault;
+        vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY], GEARBOX_VAULT_KEY);
+
+        /// @dev Staking real gearbox staking on mainnet
+        existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY] = CHAIN_1_GearboxStaking;
+        vm.label(existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY], "GearboxStaking");
 
         /// @dev Base 4626 vault addresses
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
@@ -812,7 +862,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainIds[i], PERIPHERY_REGISTRY_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -833,6 +883,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 feePercent: 100,
                 feeRecipient: peripheryRegistry.getTreasury(),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
+            });
+            configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracleId: bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceOracle: _getContract(chainIds[i], GEARBOX_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 100,
+                feeRecipient: peripheryRegistry.getTreasury(),
+                ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
                 configs
@@ -1023,6 +1080,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
+    }
+
+    function _createApproveAndDeposit4626HookData(
+        bytes4 yieldSourceOracleId,
+        address vault,
+        address token,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, amount, usePrevHookAmount, lockForSP);
     }
 
     function _create5115DepositHookData(
@@ -1345,5 +1417,48 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             referralCode,
             usePrevHookAmount
         );
+    }
+
+    function _createApproveAndGearboxStakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        address token,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createGearboxStakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createGearboxUnstakeHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
     }
 }

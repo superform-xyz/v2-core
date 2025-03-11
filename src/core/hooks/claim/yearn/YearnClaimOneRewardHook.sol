@@ -44,12 +44,12 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external onlyExecutor {
+    function preExecute(address, address, bytes memory data) external {
         outAmount = _getBalance(data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external onlyExecutor {
+    function postExecute(address, address, bytes memory data) external {
         outAmount = _getBalance(data) - outAmount;
     }
 }

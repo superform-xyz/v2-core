@@ -22,7 +22,7 @@ ftest-vvv :; forge test -vvv
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 
-test-vvv :; forge test --match-test test_MatchRequests_MultiplePairs -vv
+test-vvv :; forge test --match-test test_Allocate_Rebalance -vvvv
 
 test-integration :; forge test --match-test test_SuperVault_5115_Underlying_E2EFlow -vvvv
 

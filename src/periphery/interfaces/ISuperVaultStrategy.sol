@@ -32,7 +32,7 @@ interface ISuperVaultStrategy {
     error INSUFFICIENT_FUNDS();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
-    error INVALID_ARRAY_LENGTH(); 
+    error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
     error ACTION_TYPE_DISALLOWED();
@@ -143,17 +143,22 @@ interface ISuperVaultStrategy {
         uint256 totalAssets; // Total assets across all yield sources
     }
 
-    struct AllocationVars {
-        // Hook execution variables
-        address prevHook;
+    /// @notice Local variables struct for executeHooks to avoid stack too deep
+    struct ExecuteHooksVars {
+        uint256 hooksLength;
+        uint256 initialAssetBalance;
+        uint256 finalAssetBalance;
         uint256 amount;
-        uint256 balanceAssetBefore;
-        uint256 balanceAssetAfter;
-        // Current yield source state
-        uint256 currentYieldSourceAssets;
-        // Hook type and execution
+        uint256 maxDecrease;
+        uint256 inflowCount;
+        uint256 actualDecrease;
+        address targetedYieldSource;
+        address prevHook;
+        address[] inflowTargets;
+        ISuperHook hookContract;
         ISuperHook.HookType hookType;
         Execution[] executions;
+        bool success;
     }
 
     struct YieldSource {
@@ -166,18 +171,6 @@ interface ISuperVaultStrategy {
         uint256 tvl;
     }
 
-    struct ClaimLocalVars {
-        // Initial state tracking
-        uint256 initialAssetBalance;
-        // Claim phase variables
-        uint256[] balanceChanges;
-        // Swap phase variables
-        uint256 assetGained;
-        // Allocation phase variables
-        FulfillmentVars fulfillmentVars;
-        address[] targetedYieldSources;
-    }
-
     struct ProcessHooksLocalVars {
         // Hook execution variables
         uint256 hooksLength;
@@ -187,7 +180,6 @@ interface ISuperVaultStrategy {
         uint256 amount;
         address hookTarget;
         uint256 outAmount;
-        
         // Arrays for tracking
         address[] targetedYieldSources;
         address[] resizedArray;

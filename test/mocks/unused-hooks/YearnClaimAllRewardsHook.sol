@@ -43,8 +43,8 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view onlyExecutor { }
+    function preExecute(address, address, bytes memory) external view { }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view onlyExecutor { }
+    function postExecute(address, address, bytes memory) external view { }
 }
