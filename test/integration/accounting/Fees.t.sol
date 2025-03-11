@@ -42,7 +42,8 @@ contract FeesTest is BaseTest {
         yieldSourceAddress = address(vault);
 
         //SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[0], SUPER_REGISTRY_KEY));
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs = new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),

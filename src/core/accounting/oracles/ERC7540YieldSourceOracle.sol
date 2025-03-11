@@ -57,7 +57,15 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256) {
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 

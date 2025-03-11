@@ -36,7 +36,15 @@ contract GearboxYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256) {
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         return IGearboxFarmingPool(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 

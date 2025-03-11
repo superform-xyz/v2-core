@@ -1170,7 +1170,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Check vault caps for targeted yield sources
     /// @param targetedYieldSources Array of yield sources to check
     function _checkVaultCaps(address[] memory targetedYieldSources) private view {
-        // Note: This check is gas expensive due to getTVLByOwnerOfShares calls
+        // TODO This check is gas expensive due to getTVLByOwnerOfShares calls
         for (uint256 i; i < targetedYieldSources.length;) {
             address source = targetedYieldSources[i];
             if (source == address(0)) revert ZERO_ADDRESS();
