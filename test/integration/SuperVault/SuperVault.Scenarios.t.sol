@@ -527,7 +527,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Set up hooks for reallocation
         vars.withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        vars.depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        vars.depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         // Perform first reallocation to 50/25/25
         (
@@ -606,8 +606,13 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 false,
                 false
             );
-            vars.hooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), vars.assetsToMove, true, false
+            vars.hooksData[1] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(aaveVault),
+                address(asset),
+                vars.assetsToMove,
+                true,
+                false
             );
 
             vm.startPrank(STRATEGIST);
