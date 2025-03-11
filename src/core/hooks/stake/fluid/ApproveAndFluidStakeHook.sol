@@ -54,26 +54,17 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
         }
 
         executions = new Execution[](4);
-        executions[0] = Execution({
-          target: token,
-          value: 0,
-          callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))
-        });
-        executions[1] = Execution({
-          target: token,
-          value: 0,
-          callData: abi.encodeCall(IERC20.approve, (yieldSource, amount))
-        });
+        executions[0] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
+        executions[1] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
         executions[2] = Execution({
             target: yieldSource,
             value: 0,
             callData: abi.encodeCall(IFluidLendingStakingRewards.stake, (amount))
         });
-        executions[3] = Execution({
-          target: token,
-          value: 0,
-          callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))
-        });
+        executions[3] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////

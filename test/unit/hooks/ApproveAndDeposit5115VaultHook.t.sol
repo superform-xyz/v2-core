@@ -51,7 +51,7 @@ contract ApproveAndDeposit5115VaultHook is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         uint256 amount = 1e8;
-        
+
         uint256 accountSUSDEStartBalance = IERC20(underlyingETH_sUSDe).balanceOf(accountETH);
 
         address[] memory hooksAddresses = new address[](1);
@@ -59,13 +59,13 @@ contract ApproveAndDeposit5115VaultHook is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndDeposit5115VaultHookData(
-          bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
-          yieldSource5115AddressSUSDe,
-          underlyingETH_sUSDe,
-          amount,
-          0,
-          false,
-          false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource5115AddressSUSDe,
+            underlyingETH_sUSDe,
+            amount,
+            0,
+            false,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =

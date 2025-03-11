@@ -66,14 +66,14 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
 
         executions = new Execution[](2);
         executions[0] = Execution({
-          target: inputToken,
-          value: 0,
-          callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
+            target: inputToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
         });
         executions[1] = Execution({
-          target: inputToken,
-          value: 0,
-          callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), inputAmount))
+            target: inputToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), inputAmount))
         });
         executions[2] = Execution({
             target: address(odosRouterV2),
@@ -83,9 +83,9 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
             )
         });
         executions[3] = Execution({
-          target: inputToken,
-          value: 0,
-          callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
+            target: inputToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
         });
     }
 
