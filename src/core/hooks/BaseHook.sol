@@ -36,12 +36,6 @@ abstract contract BaseHook is SuperRegistryImplementer {
         hookType = hookType_;
     }
 
-
-    modifier onlyExecutor() {
-        if (_getAddress(keccak256("SUPER_EXECUTOR_ID")) != msg.sender) revert NOT_AUTHORIZED();
-        _;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
