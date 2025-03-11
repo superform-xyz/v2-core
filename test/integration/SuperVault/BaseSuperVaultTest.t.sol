@@ -182,7 +182,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.bootstrapHooks[0] = vars.depositHookAddress;
 
         vars.expectedAssetsOrSharesOut = new uint256[](1);
-        vars.expectedAssetsOrSharesOut[0] = 0; 
+        vars.expectedAssetsOrSharesOut[0] = 0;
 
         vars.bootstrapData = new bytes[](1);
         vars.depositHookData = _createDeposit4626HookData(
@@ -371,7 +371,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fulfillHooksAddresses[0] = depositHookAddress;
         fulfillHooksAddresses[1] = depositHookAddress;
 
-
         bytes[] memory fulfillHooksData = new bytes[](2);
 
         // Split the deposit between two hooks
@@ -388,7 +387,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -418,12 +419,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), aaveSharesOut, false, false
         );
 
-        
-        (uint256 totalSvAssets, ) = strategy.totalAssets();
-        uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION,  vault.totalSupply(), Math.Rounding.Floor);
+        (uint256 totalSvAssets,) = strategy.totalAssets();
+        uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
 
-        uint256 amountForVault1 =  fluidSharesOut * 1e18 / pricePerShare;
-        uint256 amountForVault2 =  aaveSharesOut * 1e18 / pricePerShare;
+        uint256 amountForVault1 = fluidSharesOut * 1e18 / pricePerShare;
+        uint256 amountForVault2 = aaveSharesOut * 1e18 / pricePerShare;
 
         uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
         uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
@@ -433,7 +433,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
@@ -466,7 +468,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -503,7 +507,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -537,7 +543,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -576,7 +584,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
         expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
@@ -606,11 +616,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         {
-            (uint256 totalSvAssets, ) = strategy.totalAssets();
-            uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION,  vault.totalSupply(), Math.Rounding.Floor);
+            (uint256 totalSvAssets,) = strategy.totalAssets();
+            uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
 
-            uint256 amountForVault1 =  redeemSharesVault1 * 1e18 / pricePerShare;
-            uint256 amountForVault2 =  redeemSharesVault2 * 1e18 / pricePerShare;
+            uint256 amountForVault1 = redeemSharesVault1 * 1e18 / pricePerShare;
+            uint256 amountForVault2 = redeemSharesVault2 * 1e18 / pricePerShare;
 
             uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
             uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
@@ -620,7 +630,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
@@ -654,7 +666,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
@@ -716,7 +730,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // fulfill deposits
         _fulfillDepositForUsers(
-            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)  
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
 
         // claim deposits
@@ -726,6 +740,261 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 ++i;
             }
         }
+    }
+
+    /**
+     * @notice Struct to hold local variables for the _reallocate function
+     */
+    struct ReallocateLocalVars {
+        // Current balances
+        uint256 currentVault1Balance;
+        uint256 currentVault2Balance;
+        uint256 currentVault3Balance;
+        uint256 totalBalance;
+        // Target balances
+        uint256 targetVault1Assets;
+        uint256 targetVault2Assets;
+        uint256 targetVault3Assets;
+        // Differences
+        int256 vault1Diff;
+        int256 vault2Diff;
+        int256 vault3Diff;
+        // Sources and destinations
+        address[] sources;
+        uint256[] sourceAmounts;
+        address[] destinations;
+        uint256[] destinationAmounts;
+        uint256 sourceCount;
+        uint256 destCount;
+        // For moving assets
+        address source;
+        address destination;
+        uint256 amountToMove;
+        uint256 sharesToRedeem;
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        // Final balances and ratios
+        uint256 finalVault1Balance;
+        uint256 finalVault2Balance;
+        uint256 finalVault3Balance;
+        uint256 totalFinalBalance;
+        uint256 finalVault1Ratio;
+        uint256 finalVault2Ratio;
+        uint256 finalVault3Ratio;
+    }
+
+    /**
+     * @notice Struct to hold arguments for the _reallocate function
+     */
+    struct ReallocateArgs {
+        IERC4626 vault1;
+        IERC4626 vault2;
+        IERC4626 vault3;
+        uint256 targetVault1Percentage;
+        uint256 targetVault2Percentage;
+        uint256 targetVault3Percentage;
+        address withdrawHookAddress;
+        address depositHookAddress;
+    }
+
+    function _reallocate(ReallocateArgs memory args)
+        internal
+        returns (uint256, uint256, uint256, uint256, uint256, uint256)
+    {
+        ReallocateLocalVars memory vars;
+
+        // Get current balances
+        vars.currentVault1Balance = args.vault1.convertToAssets(args.vault1.balanceOf(address(strategy)));
+        vars.currentVault2Balance = args.vault2.convertToAssets(args.vault2.balanceOf(address(strategy)));
+        vars.currentVault3Balance = args.vault3.convertToAssets(args.vault3.balanceOf(address(strategy)));
+
+        vars.totalBalance = vars.currentVault1Balance + vars.currentVault2Balance + vars.currentVault3Balance;
+
+        // Calculate target balances based on percentages (in basis points)
+        vars.targetVault1Assets = vars.totalBalance * args.targetVault1Percentage / 10_000;
+        vars.targetVault2Assets = vars.totalBalance * args.targetVault2Percentage / 10_000;
+        vars.targetVault3Assets = vars.totalBalance * args.targetVault3Percentage / 10_000;
+
+        console2.log("Total balance:", vars.totalBalance);
+        console2.log("Target Vault1 Assets:", vars.targetVault1Assets);
+        console2.log("Target Vault2 Assets:", vars.targetVault2Assets);
+        console2.log("Target Vault3 Assets:", vars.targetVault3Assets);
+
+        // Calculate the differences between current and target allocations
+        vars.vault1Diff = int256(vars.targetVault1Assets) - int256(vars.currentVault1Balance);
+        vars.vault2Diff = int256(vars.targetVault2Assets) - int256(vars.currentVault2Balance);
+        vars.vault3Diff = int256(vars.targetVault3Assets) - int256(vars.currentVault3Balance);
+
+        console2.log("\n=== Allocation Differences ===");
+        console2.log("Vault1 Diff:", vars.vault1Diff);
+        console2.log("Vault2 Diff:", vars.vault2Diff);
+        console2.log("Vault3 Diff:", vars.vault3Diff);
+
+        // Identify sources (vaults with excess assets) and destinations (vaults needing assets)
+        vars.sources = new address[](3);
+        vars.sourceAmounts = new uint256[](3);
+        vars.destinations = new address[](3);
+        vars.destinationAmounts = new uint256[](3);
+        vars.sourceCount = 0;
+        vars.destCount = 0;
+
+        if (vars.vault1Diff < 0) {
+            vars.sources[vars.sourceCount] = address(args.vault1);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault1Diff);
+            vars.sourceCount++;
+        } else if (vars.vault1Diff > 0) {
+            vars.destinations[vars.destCount] = address(args.vault1);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.vault1Diff);
+            vars.destCount++;
+        }
+
+        if (vars.vault2Diff < 0) {
+            vars.sources[vars.sourceCount] = address(args.vault2);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault2Diff);
+            vars.sourceCount++;
+        } else if (vars.vault2Diff > 0) {
+            vars.destinations[vars.destCount] = address(args.vault2);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.vault2Diff);
+            vars.destCount++;
+        }
+
+        if (vars.vault3Diff < 0) {
+            vars.sources[vars.sourceCount] = address(args.vault3);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault3Diff);
+            vars.sourceCount++;
+        } else if (vars.vault3Diff > 0) {
+            vars.destinations[vars.destCount] = address(args.vault3);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.vault3Diff);
+            vars.destCount++;
+        }
+
+        // Resize arrays to actual count
+        vars.sources = _resizeAddressArray(vars.sources, vars.sourceCount);
+        vars.sourceAmounts = _resizeUint256Array(vars.sourceAmounts, vars.sourceCount);
+        vars.destinations = _resizeAddressArray(vars.destinations, vars.destCount);
+        vars.destinationAmounts = _resizeUint256Array(vars.destinationAmounts, vars.destCount);
+
+        console2.log("\n=== Sources and Destinations ===");
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            console2.log("Source:", vars.sources[i]);
+            console2.log("Amount:", vars.sourceAmounts[i]);
+        }
+        for (uint256 i = 0; i < vars.destCount; i++) {
+            console2.log("Destination:", vars.destinations[i]);
+            console2.log("Amount:", vars.destinationAmounts[i]);
+        }
+
+        // Create a single array of all transfers (source to destination)
+        // Each transfer requires 2 hooks: withdraw and deposit
+        uint256 maxTransfers = vars.sourceCount * vars.destCount;
+        address[] memory allHooksAddresses = new address[](maxTransfers * 2);
+        bytes[] memory allHooksData = new bytes[](maxTransfers * 2);
+        uint256 hookIndex = 0;
+
+        // Create a matrix of transfers from sources to destinations
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            for (uint256 j = 0; j < vars.destCount; j++) {
+                if (vars.sourceAmounts[i] > 0 && vars.destinationAmounts[j] > 0) {
+                    vars.amountToMove = vars.sourceAmounts[i] < vars.destinationAmounts[j]
+                        ? vars.sourceAmounts[i]
+                        : vars.destinationAmounts[j];
+
+                    if (vars.amountToMove > 0) {
+                        console2.log("\nMoving", vars.amountToMove);
+                        console2.log("from", vars.sources[i], "to", vars.destinations[j]);
+
+                        // Convert asset amount to shares for the source vault
+                        if (vars.sources[i] == address(args.vault1)) {
+                            vars.sharesToRedeem = args.vault1.convertToShares(vars.amountToMove);
+                        } else if (vars.sources[i] == address(args.vault2)) {
+                            vars.sharesToRedeem = args.vault2.convertToShares(vars.amountToMove);
+                        } else if (vars.sources[i] == address(args.vault3)) {
+                            vars.sharesToRedeem = args.vault3.convertToShares(vars.amountToMove);
+                        }
+
+                        console2.log("Shares to redeem:", vars.sharesToRedeem);
+
+                        // Add withdraw hook
+                        allHooksAddresses[hookIndex] = args.withdrawHookAddress;
+                        allHooksData[hookIndex] = _createWithdraw4626HookData(
+                            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                            vars.sources[i],
+                            address(strategy),
+                            vars.sharesToRedeem,
+                            false,
+                            false
+                        );
+                        hookIndex++;
+
+                        // Add deposit hook
+                        allHooksAddresses[hookIndex] = args.depositHookAddress;
+                        allHooksData[hookIndex] = _createDeposit4626HookData(
+                            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                            vars.destinations[j],
+                            vars.amountToMove,
+                            true,
+                            false
+                        );
+                        hookIndex++;
+
+                        // Update remaining amounts
+                        vars.sourceAmounts[i] -= vars.amountToMove;
+                        vars.destinationAmounts[j] -= vars.amountToMove;
+
+                        // If source is depleted, break inner loop and move to next source
+                        if (vars.sourceAmounts[i] == 0) {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Resize hook arrays to actual count
+        if (hookIndex > 0) {
+            address[] memory finalHooksAddresses = new address[](hookIndex);
+            bytes[] memory finalHooksData = new bytes[](hookIndex);
+
+            for (uint256 i = 0; i < hookIndex; i++) {
+                finalHooksAddresses[i] = allHooksAddresses[i];
+                finalHooksData[i] = allHooksData[i];
+            }
+
+            // Execute all hooks in a single transaction
+            vm.startPrank(STRATEGIST);
+            strategy.executeHooks(finalHooksAddresses, finalHooksData);
+            vm.stopPrank();
+        }
+
+        // Check new balances after reallocation
+        vars.finalVault1Balance = args.vault1.convertToAssets(args.vault1.balanceOf(address(strategy)));
+        vars.finalVault2Balance = args.vault2.convertToAssets(args.vault2.balanceOf(address(strategy)));
+        vars.finalVault3Balance = args.vault3.convertToAssets(args.vault3.balanceOf(address(strategy)));
+
+        console2.log("\n=== Final Balances After Reallocation ===");
+        console2.log("Final Vault1 balance:", vars.finalVault1Balance);
+        console2.log("Final Vault2 balance:", vars.finalVault2Balance);
+        console2.log("Final Vault3 balance:", vars.finalVault3Balance);
+
+        // Calculate final allocation percentages
+        vars.totalFinalBalance = vars.finalVault1Balance + vars.finalVault2Balance + vars.finalVault3Balance;
+        vars.finalVault1Ratio = (vars.finalVault1Balance * 10_000) / vars.totalFinalBalance;
+        vars.finalVault2Ratio = (vars.finalVault2Balance * 10_000) / vars.totalFinalBalance;
+        vars.finalVault3Ratio = (vars.finalVault3Balance * 10_000) / vars.totalFinalBalance;
+
+        console2.log("\n=== Final Allocation Ratios ===");
+        console2.log("Vault1:", vars.finalVault1Ratio / 100, "%");
+        console2.log("Vault2:", vars.finalVault2Ratio / 100, "%");
+        console2.log("Vault3:", vars.finalVault3Ratio / 100, "%");
+
+        return (
+            vars.finalVault1Balance,
+            vars.finalVault2Balance,
+            vars.finalVault3Balance,
+            vars.finalVault1Ratio,
+            vars.finalVault2Ratio,
+            vars.finalVault3Ratio
+        );
     }
 
     struct DepositVerificationVars {
@@ -1068,11 +1337,31 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         return (fluidSharesOut, aaveSharesOut);
     }
 
-    function _setFeeConfig(uint256 feePercent, address recipient) internal {
-        vm.startPrank(SV_MANAGER);
-        strategy.proposeVaultFeeConfigUpdate(feePercent, recipient);
-        vm.warp(block.timestamp + 7 days);
-        strategy.executeVaultFeeConfigUpdate();
-        vm.stopPrank();
+    /**
+     * @notice Resizes an array of addresses to the specified length
+     * @param array The original array to resize
+     * @param newLength The new length for the array
+     * @return A new array with the specified length containing elements from the original array
+     */
+    function _resizeAddressArray(address[] memory array, uint256 newLength) internal pure returns (address[] memory) {
+        address[] memory newArray = new address[](newLength);
+        for (uint256 i = 0; i < newLength; i++) {
+            newArray[i] = array[i];
+        }
+        return newArray;
+    }
+
+    /**
+     * @notice Resizes an array of uint256 to the specified length
+     * @param array The original array to resize
+     * @param newLength The new length for the array
+     * @return A new array with the specified length containing elements from the original array
+     */
+    function _resizeUint256Array(uint256[] memory array, uint256 newLength) internal pure returns (uint256[] memory) {
+        uint256[] memory newArray = new uint256[](newLength);
+        for (uint256 i = 0; i < newLength; i++) {
+            newArray[i] = array[i];
+        }
+        return newArray;
     }
 }
