@@ -4,6 +4,7 @@ pragma solidity >=0.8.28;
 // external
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 // Superform
 import { Constants } from "./Constants.sol";
@@ -17,7 +18,34 @@ abstract contract Helpers is Test, Constants {
     address public SUPER_BUNDLER;
     address public ACROSS_RELAYER;
     /*//////////////////////////////////////////////////////////////
-                                 HELPER METHODS
+                                 EIP-7702 HELPER METHODS
+    //////////////////////////////////////////////////////////////*/
+
+    modifier add7702Precompile(address eoa_, bytes memory code_) {
+        // https://book.getfoundry.sh/cheatcodes/etch
+        vm.etch(eoa_, code_);
+        _;
+        vm.etch(eoa_, "");
+    }
+
+    modifier is7702StorageCompliant(address eoa_) {
+        //https://book.getfoundry.sh/cheatcodes/start-state-diff-recording?highlight=startStateDiffRecording#startstatediffrecording
+
+        vm.startStateDiffRecording();
+        _;
+        Vm.AccountAccess[] memory records = vm.stopAndReturnStateDiff();
+        //https://book.getfoundry.sh/cheatcodes/stop-and-return-state-diff?highlight=stopAndReturnStateDiff#stopandreturnstatediff
+
+        for (uint256 i = 0; i < records.length; i++) {
+            Vm.AccountAccess memory record = records[i];
+            if (record.account == eoa_) {
+                assertEq(record.storageAccesses.length, 0);
+            }
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 GENERIC HELPER METHODS
     //////////////////////////////////////////////////////////////*/
 
     function _resetCaller(address from_) internal {
