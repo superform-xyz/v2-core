@@ -204,9 +204,9 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
             nonce: 0,
             initCode: "",
             callData: "",
-            accountGasLimits: bytes32(abi.encodePacked(uint128(1e18), uint128(1e18))),
-            preVerificationGas: 1e18,
-            gasFees: bytes32(abi.encodePacked(uint128(1e18), uint128(1e18))),
+            accountGasLimits: bytes32(abi.encodePacked(uint128(2e6), uint128(2e6))),
+            preVerificationGas: 2e6,
+            gasFees: bytes32(abi.encodePacked(uint128(2e6), uint128(2e6))),
             paymasterAndData: bytes(""),
             signature: abi.encodePacked(hex"41414141")
         });
@@ -238,8 +238,8 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
 
         // create SCA
         vars.instance = makeAccountInstance("MockAccount");
-        vm.deal(vars.instance.account, LARGE);
         vm.label(vars.instance.account, "MockAccount");
+        vm.deal(account7702, LARGE);
 
         bytes memory initData = _get7702InitData(); 
 
