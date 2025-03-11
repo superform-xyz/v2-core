@@ -62,6 +62,8 @@ abstract contract Constants {
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
     string public constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
+    string public constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
+    string public constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string public constant SOMELIER_STAKE_HOOK_KEY = "SomelierStakeHook";
     string public constant SOMELIER_UNBOND_ALL_HOOK_KEY = "SomelierUnbondAllHook";
     string public constant SOMELIER_UNBOND_HOOK_KEY = "SomelierUnbondHook";
@@ -71,8 +73,11 @@ abstract contract Constants {
     string public constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";
     string public constant GEARBOX_APPROVE_AND_STAKE_HOOK_KEY = "GearboxApproveAndStakeHook";
     string public constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
-    string public constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
-    string public constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
+    string public constant APPROVE_AND_SWAP_ODOS_HOOK_KEY = "ApproveAndSwapOdosHook";
+    string public constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
+    string public constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
+    string public constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
+
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";

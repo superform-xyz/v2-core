@@ -30,6 +30,7 @@ import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20H
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { ApproveAndDeposit5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
 import { Withdraw5115VaultHook } from "../src/core/hooks/vaults/5115/Withdraw5115VaultHook.sol";
 // --- erc4626
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
@@ -38,18 +39,22 @@ import { Withdraw4626VaultHook } from "../src/core/hooks/vaults/4626/Withdraw462
 // -- erc7540
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { ApproveAndRequestDeposit7540VaultHook } from
+    "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 import { RequestWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
 
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+
 // Swap hooks
 // --- 1inch
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 
 // --- Odos
 import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
 
 // Stake hooks
 // --- Gearbox
@@ -57,6 +62,7 @@ import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHo
 import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
 import { ApproveAndGearboxStakeHook } from "../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
 // --- Fluid
+import { ApproveAndFluidStakeHook } from "../src/core/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
 import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
 import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
 
@@ -106,7 +112,11 @@ struct Addresses {
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
+    ApproveAndSwapOdosHook approveAndSwapOdosHook;
+    ApproveAndFluidStakeHook approveAndFluidStakeHook;
     ApproveAndDeposit4626VaultHook approveAndDeposit4626VaultHook;
+    ApproveAndDeposit5115VaultHook approveAndDeposit5115VaultHook;
+    ApproveAndRequestDeposit7540VaultHook approveAndRequestDeposit7540VaultHook;
     Withdraw4626VaultHook withdraw4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
     Withdraw5115VaultHook withdraw5115VaultHook;
@@ -437,7 +447,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY]
             );
 
-            if (DEBUG) console.log("deposit4626VaultHook deployed", address(A[i].deposit4626VaultHook));
             A[i].withdraw4626VaultHook =
                 new Withdraw4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(A[i].withdraw4626VaultHook), WITHDRAW_4626_VAULT_HOOK_KEY);
@@ -452,8 +461,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_4626_VAULT_HOOK_KEY]
             );
-
-            if (DEBUG) console.log("withdraw4626VaultHook deployed", address(A[i].withdraw4626VaultHook));
 
             A[i].deposit5115VaultHook =
                 new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -470,7 +477,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
             );
 
-            if (DEBUG) console.log("deposit5115VaultHook deployed", address(A[i].deposit5115VaultHook));
+            A[i].approveAndDeposit5115VaultHook =
+                new ApproveAndDeposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(A[i].approveAndDeposit5115VaultHook), APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY] =
+                address(A[i].approveAndDeposit5115VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultDeposits,
+                address(A[i].approveAndDeposit5115VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY]
+            );
+
             A[i].withdraw5115VaultHook =
                 new Withdraw5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(A[i].withdraw5115VaultHook), WITHDRAW_5115_VAULT_HOOK_KEY);
@@ -486,7 +508,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][WITHDRAW_5115_VAULT_HOOK_KEY]
             );
 
-            if (DEBUG) console.log("withdraw5115VaultHook deployed", address(A[i].withdraw5115VaultHook));
             A[i].requestDeposit7540VaultHook =
                 new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(A[i].requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -502,7 +523,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
             );
 
-            if (DEBUG) console.log("requestDeposit7540VaultHook deployed", address(A[i].requestDeposit7540VaultHook));
+            A[i].approveAndRequestDeposit7540VaultHook =
+                new ApproveAndRequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(
+                address(A[i].approveAndRequestDeposit7540VaultHook), APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY
+            );
+            hookAddresses[chainIds[i]][APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] =
+                address(A[i].approveAndRequestDeposit7540VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultDeposits,
+                address(A[i].approveAndRequestDeposit7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
+            );
 
             A[i].requestWithdraw7540VaultHook =
                 new RequestWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -519,8 +556,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY]
             );
-
-            if (DEBUG) console.log("requestWithdraw7540VaultHook deployed", address(A[i].requestWithdraw7540VaultHook));
 
             A[i].deposit7540VaultHook =
                 new Deposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
@@ -573,6 +608,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
 
+            A[i].approveAndSwapOdosHook = new ApproveAndSwapOdosHook(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter)
+            );
+            vm.label(address(A[i].approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOS_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(A[i].approveAndSwapOdosHook);
+            hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = Hook(
+                APPROVE_AND_SWAP_ODOS_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.Swaps,
+                address(A[i].approveAndSwapOdosHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
+
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY),
                 address(this),
@@ -610,6 +659,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hookAddresses[chainIds[i]][FLUID_STAKE_HOOK_KEY] = address(A[i].fluidStakeHook);
             hooks[chainIds[i]][FLUID_STAKE_HOOK_KEY] =
                 Hook(FLUID_STAKE_HOOK_KEY, HookCategory.Stakes, HookCategory.None, address(A[i].fluidStakeHook), "");
+
+            A[i].approveAndFluidStakeHook =
+                new ApproveAndFluidStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(A[i].approveAndFluidStakeHook), APPROVE_AND_FLUID_STAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY] = address(A[i].approveAndFluidStakeHook);
+            hooks[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY] = Hook(
+                APPROVE_AND_FLUID_STAKE_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.Stakes,
+                address(A[i].approveAndFluidStakeHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY]);
 
             A[i].fluidUnstakeHook = new FluidUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(A[i].fluidUnstakeHook), FLUID_UNSTAKE_HOOK_KEY);
@@ -695,23 +757,26 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             // Register fulfillRequests hooks
             peripheryRegistry.registerHook(address(A[i].deposit4626VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].approveAndDeposit4626VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].withdraw4626VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].deposit5115VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].withdraw5115VaultHook), true);
-
+            peripheryRegistry.registerHook(address(A[i].requestDeposit7540VaultHook), true);
+            peripheryRegistry.registerHook(address(A[i].requestWithdraw7540VaultHook), true);
             // Register remaining hooks
+            peripheryRegistry.registerHook(address(A[i].approveAndDeposit4626VaultHook), false);
+            peripheryRegistry.registerHook(address(A[i].approveAndDeposit5115VaultHook), false);
+            peripheryRegistry.registerHook(address(A[i].approveAndRequestDeposit7540VaultHook), false);
             peripheryRegistry.registerHook(address(A[i].approveErc20Hook), false);
             peripheryRegistry.registerHook(address(A[i].transferErc20Hook), false);
-            peripheryRegistry.registerHook(address(A[i].requestDeposit7540VaultHook), false);
-            peripheryRegistry.registerHook(address(A[i].requestWithdraw7540VaultHook), false);
             peripheryRegistry.registerHook(address(A[i].deposit7540VaultHook), false);
             peripheryRegistry.registerHook(address(A[i].withdraw7540VaultHook), false);
             peripheryRegistry.registerHook(address(A[i].swap1InchHook), false);
             peripheryRegistry.registerHook(address(A[i].swapOdosHook), false);
+            peripheryRegistry.registerHook(address(A[i].approveAndSwapOdosHook), false);
             peripheryRegistry.registerHook(address(A[i].acrossSendFundsAndExecuteOnDstHook), false);
             peripheryRegistry.registerHook(address(A[i].fluidClaimRewardHook), false);
             peripheryRegistry.registerHook(address(A[i].fluidStakeHook), false);
+            peripheryRegistry.registerHook(address(A[i].approveAndFluidStakeHook), false);
             peripheryRegistry.registerHook(address(A[i].fluidUnstakeHook), false);
             peripheryRegistry.registerHook(address(A[i].gearboxClaimRewardHook), false);
             peripheryRegistry.registerHook(address(A[i].gearboxStakeHook), false);
@@ -1514,5 +1579,37 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory)
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createApproveAndDeposit5115VaultHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        address tokenIn,
+        uint256 amount,
+        uint256 minSharesOut,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
+        );
+    }
+
+    function _createApproveAndRequestDeposit7540HookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        address token,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
     }
 }
