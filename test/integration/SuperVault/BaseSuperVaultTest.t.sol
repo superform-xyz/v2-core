@@ -926,9 +926,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
                         // Add deposit hook
                         allHooksAddresses[hookIndex] = args.depositHookAddress;
-                        allHooksData[hookIndex] = _createDeposit4626HookData(
+                        allHooksData[hookIndex] = _createApproveAndDeposit4626HookData(
                             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                             vars.destinations[j],
+                            address(asset),
                             vars.amountToMove,
                             true,
                             false
@@ -1212,8 +1213,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         hooksData[0] = _createWithdraw4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
         );
-        hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, assetsToMove - 1, false, false
+        hooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),
+            targetVault,
+            address(asset),
+            assetsToMove,
+            true,
+            false
         );
         strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();

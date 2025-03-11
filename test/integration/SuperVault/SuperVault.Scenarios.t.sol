@@ -341,7 +341,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // allocation
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = withdrawHookAddress;
@@ -368,9 +368,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
         // deposit to PendleVault
-        hooksData[2] = _createDeposit4626HookData(
+        hooksData[2] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(vars.newVault),
+            address(asset),
             vars.assetAmountToReallocateToPendleVault,
             false,
             false
@@ -526,7 +527,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Set up hooks for reallocation
         vars.withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        vars.depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        vars.depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         // Perform first reallocation to 50/25/25
         (
@@ -605,8 +606,13 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 false,
                 false
             );
-            vars.hooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), vars.assetsToMove, true, false
+            vars.hooksData[1] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(aaveVault),
+                address(asset),
+                vars.assetsToMove,
+                true,
+                false
             );
 
             vm.startPrank(STRATEGIST);
@@ -976,7 +982,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // allocation; fluid -> aave
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = withdrawHookAddress;
@@ -993,9 +999,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
         // deposit to aave
-        hooksData[1] = _createDeposit4626HookData(
+        hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
+            address(asset),
             vars.assetAmountToReallocateFromFluidVault,
             false,
             false
@@ -1037,10 +1044,11 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false,
             false
         );
-        // deposit to f;io
-        hooksData[1] = _createDeposit4626HookData(
+        // deposit to fluid
+        hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
+            address(asset),
             vars.assetAmountToReallocateFromAaveVault,
             false,
             false
@@ -1157,7 +1165,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // allocation; fluid -> aave
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = withdrawHookAddress;
@@ -1174,9 +1182,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
         // deposit to aave
-        hooksData[1] = _createDeposit4626HookData(
+        hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
+            address(asset),
             vars.assetAmountToReallocateFromFluidVault,
             false,
             false
@@ -1223,10 +1232,11 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false,
             false
         );
-        // deposit to f;io
-        hooksData[1] = _createDeposit4626HookData(
+        // deposit to fluid
+        hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
+            address(asset),
             vars.assetAmountToReallocateFromAaveVault,
             false,
             false
@@ -1416,7 +1426,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Asset amount to reallocate from MocmVault:", vars.assetAmountToReallocateToMockVault);
 
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](3);
         bytes[] memory hooksData = new bytes[](3);
@@ -1444,9 +1454,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
 
-        hooksData[2] = _createDeposit4626HookData(
+        hooksData[2] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(vars.newVault),
+            address(asset),
             vars.assetAmountToReallocateToMockVault,
             false,
             false
@@ -1521,17 +1532,19 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
 
-        hooksData[1] = _createDeposit4626HookData(
+        hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
+            address(asset),
             vars.assetAmountToReallocateFromFluidVault,
             false,
             false
         );
 
-        hooksData[2] = _createDeposit4626HookData(
+        hooksData[2] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
+            address(asset),
             vars.assetAmountToReallocateFromAaveVault,
             false,
             false
@@ -1950,7 +1963,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         if (vars.amountToReallocate > 0) {
             // Prepare allocation hooks
             address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-            address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+            address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
             address[] memory hooksAddresses = new address[](2);
             hooksAddresses[0] = withdrawHookAddress;
@@ -1969,9 +1982,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             );
 
             // Deposit to Fluid Vault
-            hooksData[1] = _createDeposit4626HookData(
+            hooksData[1] = _createApproveAndDeposit4626HookData(
                 bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 address(fluidVault),
+                address(asset),
                 vars.assetAmountToReallocate,
                 false,
                 false
