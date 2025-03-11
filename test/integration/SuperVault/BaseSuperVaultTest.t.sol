@@ -1191,9 +1191,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function _setFeeConfig(uint256 feePercent, address feeRecipient) internal {
         vm.startPrank(MANAGER);
-        strategy.proposeFeeConfigUpdate(feePercent, feeRecipient);
+        strategy.proposeVaultFeeConfigUpdate(feePercent, feeRecipient);
         vm.warp(block.timestamp + 1 weeks);
-        strategy.executeFeeConfigUpdate();
+        strategy.executeVaultFeeConfigUpdate();
         vm.stopPrank();
     }
 
