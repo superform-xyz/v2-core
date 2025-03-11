@@ -59,16 +59,10 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
         executions[1] =
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
-        executions[2] = Execution({ 
-            target: yieldSource, 
-            value: 0, 
-            callData: abi.encodeCall(IERC4626.deposit, (amount, account)) 
-        });
-        executions[3] = Execution({ 
-            target: token, 
-            value: 0, 
-            callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) 
-        });
+        executions[2] =
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
+        executions[3] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////

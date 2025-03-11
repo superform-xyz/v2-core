@@ -644,13 +644,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 address(Addr.approveAndGearboxStakeHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Stakes].push(
+                hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY]
+            );
             peripheryRegistry.registerHook(address(Addr.approveAndGearboxStakeHook), false);
 
             Addr.approveAndDeposit4626VaultHook =
                 new ApproveAndDeposit4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(Addr.approveAndDeposit4626VaultHook), APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] = address(Addr.approveAndDeposit4626VaultHook);
+            hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] =
+                address(Addr.approveAndDeposit4626VaultHook);
             hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] = Hook(
                 APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
                 HookCategory.TokenApprovals,
@@ -658,7 +661,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 address(Addr.approveAndDeposit4626VaultHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY]
+            );
             peripheryRegistry.registerHook(address(Addr.approveAndDeposit4626VaultHook), true);
         }
     }
@@ -770,13 +775,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         vm.label(existingVaults[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY], ALOE_USDC_VAULT_KEY);
         existingVaults[1][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY] = CHAIN_1_GearboxVault;
         vm.label(existingVaults[ETH][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY], GEARBOX_VAULT_KEY);
-        
+
         /// @dev Staking real gearbox staking on mainnet
         existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY] = CHAIN_1_GearboxStaking;
-        vm.label(
-            existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY], 
-            "GearboxStaking"
-        );
+        vm.label(existingVaults[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY], "GearboxStaking");
 
         /// @dev Base 4626 vault addresses
         existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY] =
@@ -1444,14 +1446,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
     }
-    
+
     function _createGearboxUnstakeHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount,
         bool lockForSP
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
     }
 }

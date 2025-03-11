@@ -195,7 +195,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 60 weeks);
-        
+
         console2.log("ppsBeforeUnStake: ", _getSuperVaultPricePerShare());
 
         uint256 preUnStakeGearboxBalance = gearboxVault.balanceOf(address(strategyGearSuperVault));
@@ -286,7 +286,9 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = gearboxVault.convertToShares(depositAmount);
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true);
+        strategyGearSuperVault.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true
+        );
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -315,7 +317,12 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndGearboxStakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), address(gearboxVault), amountToStake, false, false
+            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxFarmingPool),
+            address(gearboxVault),
+            amountToStake,
+            false,
+            false
         );
 
         vm.prank(STRATEGIST);
@@ -377,7 +384,9 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = underlyingShares;
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
+        strategyGearSuperVault.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
