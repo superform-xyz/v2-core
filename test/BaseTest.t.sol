@@ -524,8 +524,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             Addr.acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY),
                 address(this),
-                SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
-                _getContract(chainIds[i], ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
             vm.label(address(Addr.acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =

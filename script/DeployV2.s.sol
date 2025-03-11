@@ -304,8 +304,7 @@ contract DeployV2 is Script, Configuration {
                 abi.encode(
                     registry,
                     configuration.owner,
-                    configuration.acrossSpokePoolV3s[chainId],
-                    _getContract(chainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY)
+                    configuration.acrossSpokePoolV3s[chainId]
                 )
             )
         );
