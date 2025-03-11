@@ -73,7 +73,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
 
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = withdrawHookAddress;
@@ -127,17 +127,13 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
 
         address[] memory hooksAddresses = new address[](2);
-        bytes32[][] memory proofs = new bytes32[][](2);
         bytes[] memory hooksData = new bytes[](2);
 
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
-
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(depositHookAddress);
 
         vars.currentFluidVaultAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
         vars.currentAaveVaultAssets = aaveVault.convertToAssets(vars.initialAaveVaultBalance);
@@ -213,16 +209,12 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
 
         address[] memory hooksAddresses = new address[](2);
-        bytes32[][] memory proofs = new bytes32[][](2);
         bytes[] memory hooksData = new bytes[](2);
 
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
-
-        proofs[0] = _getMerkleProof(withdrawHookAddress);
-        proofs[1] = _getMerkleProof(depositHookAddress);
 
         vars.currentFluidVaultAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
         vars.currentAaveVaultAssets = aaveVault.convertToAssets(vars.initialAaveVaultBalance);
@@ -334,7 +326,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
 
         // allocation
         address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = withdrawHookAddress;
@@ -361,9 +353,10 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
             false
         );
         // deposit to MockVault
-        hooksData[2] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+        hooksData[2] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),
             address(vars.newVault),
+            address(asset),
             vars.assetAmountToReallocateToMockVault,
             false,
             false

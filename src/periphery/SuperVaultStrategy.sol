@@ -388,14 +388,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
+            if (!yieldSources[HookDataDecoder.extractYieldSource(hookCalldata[i])].isActive) {
+                revert YIELD_SOURCE_NOT_ACTIVE();
+            }
             uint256 preExecutionTotalAssets;
             for (uint256 j; j < vars.executions.length;) {
-                // For inflow/outflow hooks, validate target is an active yield source
-                if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
-                    YieldSource storage source = yieldSources[vars.executions[j].target];
-                    if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-                }
-
                 // Store pre-execution balance for non-accounting hooks
                 preExecutionTotalAssets = postExecutionTotalAssets;
 
@@ -963,7 +960,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (approvalToken != address(0)) {
                 _handleTokenApproval(approvalToken, target, approvalAmount);
             }
-            
+
             // Execute the transaction
             (bool success,) = target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) revert OPERATION_FAILED();
@@ -1047,7 +1044,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 (locals.amount, locals.hookTarget, locals.outAmount) =
                     _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
-            
+
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
             if (
@@ -1146,7 +1143,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
 
         hookCalldata =
-             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
+            ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
         if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
@@ -1154,7 +1151,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
         // Execute hook and track balances
-        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, address(0), amount, execVars.target);
+        _executeHook(
+            hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, address(0), execVars.amount, execVars.target
+        );
 
         execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
