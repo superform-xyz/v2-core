@@ -15,6 +15,10 @@ import { IERC7540 } from "../../../src/vendor/vaults/7540/IERC7540.sol";
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
+interface IRoot {
+    function endorsed(address user) external view returns (bool);
+}
+
 contract ApproveAndRequestDeposit7540Hook is BaseTest {
     IERC7540 public vaultInstance7540ETH;
 
@@ -57,6 +61,12 @@ contract ApproveAndRequestDeposit7540Hook is BaseTest {
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
+        vm.mockCall(
+            0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC,
+            abi.encodeWithSelector(IRoot.endorsed.selector, accountETH),
+            abi.encode(true)
+        );
+
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndRequestDeposit7540HookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressUSDC, underlyingETH_USDC, amount, false
@@ -72,5 +82,7 @@ contract ApproveAndRequestDeposit7540Hook is BaseTest {
 
         // Check vault has a pending deposit request
         assertTrue(vaultInstance7540ETH.pendingDepositRequest(0, accountETH));
+
+        vm.clearMockedCalls();
     }
 }
