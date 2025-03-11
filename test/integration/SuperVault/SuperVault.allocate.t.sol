@@ -188,14 +188,14 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
 
     function test_Allocate_LargeAmounts() public {
         RebalanceVars memory vars;
-        vars.depositAmount = 1_000_000e6; // 1M USD
+        vars.depositAmount = 10_000_000e6; // 10M USD * 30
 
         // update vault cap
         vm.startPrank(MANAGER);
         strategy.updateGlobalConfig(
             ISuperVaultStrategy.GlobalConfig({
-                vaultCap: 50_000_000e6,
-                superVaultCap: 100_000_000e6,
+                vaultCap: 500_000_000e6,
+                superVaultCap: 1_000_000_000e6,
                 vaultThreshold: VAULT_THRESHOLD
             })
         );
