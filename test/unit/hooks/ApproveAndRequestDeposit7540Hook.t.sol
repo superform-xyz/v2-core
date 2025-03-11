@@ -68,6 +68,7 @@ contract ApproveAndRequestDeposit7540Hook is BaseTest {
 
         vm.expectEmit(true, true, true, false);
         emit IERC7540.DepositRequest(accountETH, accountETH, 0, accountETH, amount);
+        executeOp(userOpData);
 
         // Check vault has a pending deposit request
         assertTrue(vaultInstance7540ETH.pendingDepositRequest(0, accountETH));
