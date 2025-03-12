@@ -38,7 +38,7 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperRegistry
-    function getAddress(bytes32 id_) public view override returns (address address_) {
+    function getAddress(bytes32 id_) external view override returns (address address_) {
         address_ = addresses[id_];
         if (address_ == address(0)) revert INVALID_ADDRESS();
     }
