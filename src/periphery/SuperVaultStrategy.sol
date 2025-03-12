@@ -354,7 +354,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
         vars.inflowTargets = new address[](vars.hooksLength);
 
-//        (uint256 postExecutionTotalAssets,) = totalAssets();
         uint256 postExecutionTotalAssets = _minimalTotalAssets();
 
         // Process each hook in sequence
@@ -399,7 +398,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
             // For non-accounting hooks, verify asset balance hasn't decreased
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
-//                (postExecutionTotalAssets,) = totalAssets();
                 postExecutionTotalAssets = _minimalTotalAssets();
                 if (postExecutionTotalAssets < preExecutionTotalAssets) revert CANNOT_CHANGE_TOTAL_ASSETS();
             }
@@ -736,7 +734,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
-            (uint256 totalAssetsValue,) = totalAssets();
+            uint256 totalAssetsValue = _minimalTotalAssets();
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
