@@ -124,7 +124,7 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
 
     /// @inheritdoc IPeripheryRegistry
     function executeFeeSplitUpdate() external {
-        if (block.timestamp < feeSplitEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (feeSplitEffectiveTime == 0 || block.timestamp < feeSplitEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
 
         feeSplit = proposedFeeSplit;
         proposedFeeSplit = 0;
