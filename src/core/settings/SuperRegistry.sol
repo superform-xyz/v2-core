@@ -15,7 +15,6 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
-    mapping(bytes32 => mapping(address => bool)) private roles;
 
     constructor(address owner_) Ownable(owner_) {
         if (owner_ == address(0)) revert INVALID_ACCOUNT();
@@ -24,8 +23,6 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  OWNER
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperRegistry
-
     /// @inheritdoc ISuperRegistry
     function setAddress(bytes32 id_, address address_) external override onlyOwner {
         if (address_ == address(0)) revert INVALID_ADDRESS();
