@@ -442,7 +442,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function totalAssets() public view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
+    function totalAssets() external view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
         uint256 length = yieldSourcesList.length;
         sourceTVLs = new YieldSourceTVL[](length);
         uint256 activeSourceCount;
