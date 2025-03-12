@@ -1143,8 +1143,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
+        console2.log("---amountOfAssets", execVars.amountOfAssets);
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
+        console2.log("---amountConvertedToUnderlyingShares", execVars.amountConvertedToUnderlyingShares);
 
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
