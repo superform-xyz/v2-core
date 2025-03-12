@@ -111,17 +111,21 @@ contract DeployV2 is Script, Configuration {
         address withdraw4626VaultHook;
         address deposit5115VaultHook;
         address withdraw5115VaultHook;
+        address approveAndDeposit5115VaultHook;
         address deposit7540VaultHook;
         address requestDeposit7540VaultHook;
+        address approveAndRequestDeposit7540VaultHook;
         address requestWithdraw7540VaultHook;
         address withdraw7540VaultHook;
         address acrossSendFundsAndExecuteOnDstHook;
         address swap1InchHook;
         address swapOdosHook;
+        address approveAndSwapOdosHook;
         address gearboxStakeHook;
-        address gearboxUnstakeHook;
         address approveAndGearboxStakeHook;
+        address gearboxUnstakeHook;
         address fluidStakeHook;
+        address approveAndFluidStakeHook;
         address fluidUnstakeHook;
         address fluidClaimRewardHook;
         address gearboxClaimRewardHook;
@@ -502,35 +506,43 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[4].name, WITHDRAW_4626_VAULT_HOOK_KEY) ? addresses[4] : address(0);
         hookAddresses.deposit5115VaultHook =
             Strings.equal(hooks[5].name, DEPOSIT_5115_VAULT_HOOK_KEY) ? addresses[5] : address(0);
+        hookAddresses.approveAndDeposit5115VaultHook =
+            Strings.equal(hooks[6].name, APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY) ? addresses[6] : address(0);
         hookAddresses.withdraw5115VaultHook =
-            Strings.equal(hooks[6].name, WITHDRAW_5115_VAULT_HOOK_KEY) ? addresses[6] : address(0);
+            Strings.equal(hooks[7].name, WITHDRAW_5115_VAULT_HOOK_KEY) ? addresses[7] : address(0);
         hookAddresses.requestDeposit7540VaultHook =
-            Strings.equal(hooks[7].name, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[7] : address(0);
+            Strings.equal(hooks[8].name, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[8] : address(0);
+        hookAddresses.approveAndRequestDeposit7540VaultHook =
+            Strings.equal(hooks[9].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[9] : address(0);
         hookAddresses.requestWithdraw7540VaultHook =
-            Strings.equal(hooks[8].name, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[8] : address(0);
+            Strings.equal(hooks[10].name, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[10] : address(0);
         hookAddresses.deposit7540VaultHook =
-            Strings.equal(hooks[9].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[9] : address(0);
+            Strings.equal(hooks[11].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[11] : address(0);
         hookAddresses.withdraw7540VaultHook =
-            Strings.equal(hooks[10].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[10] : address(0);
-        hookAddresses.swap1InchHook = Strings.equal(hooks[11].name, SWAP_1INCH_HOOK_KEY) ? addresses[11] : address(0);
-        hookAddresses.swapOdosHook = Strings.equal(hooks[12].name, SWAP_ODOS_HOOK_KEY) ? addresses[12] : address(0);
+            Strings.equal(hooks[12].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[12] : address(0);
+        hookAddresses.swap1InchHook = Strings.equal(hooks[13].name, SWAP_1INCH_HOOK_KEY) ? addresses[13] : address(0);
+        hookAddresses.swapOdosHook = Strings.equal(hooks[14].name, SWAP_ODOS_HOOK_KEY) ? addresses[14] : address(0);
+        hookAddresses.approveAndSwapOdosHook =
+            Strings.equal(hooks[15].name, APPROVE_AND_SWAP_ODOS_HOOK_KEY) ? addresses[15] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
-            Strings.equal(hooks[13].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[13] : address(0);
+            Strings.equal(hooks[16].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[16] : address(0);
         hookAddresses.fluidClaimRewardHook =
-            Strings.equal(hooks[14].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[14] : address(0);
-        hookAddresses.fluidStakeHook = Strings.equal(hooks[15].name, FLUID_STAKE_HOOK_KEY) ? addresses[15] : address(0);
+            Strings.equal(hooks[17].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[17] : address(0);
+        hookAddresses.fluidStakeHook = Strings.equal(hooks[18].name, FLUID_STAKE_HOOK_KEY) ? addresses[18] : address(0);
+        hookAddresses.approveAndFluidStakeHook =
+            Strings.equal(hooks[19].name, APPROVE_AND_FLUID_STAKE_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.fluidUnstakeHook =
-            Strings.equal(hooks[16].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[16] : address(0);
+            Strings.equal(hooks[20].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.gearboxClaimRewardHook =
-            Strings.equal(hooks[17].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[17] : address(0);
+            Strings.equal(hooks[21].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.gearboxStakeHook =
-            Strings.equal(hooks[18].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[18] : address(0);
+            Strings.equal(hooks[22].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[22] : address(0);
         hookAddresses.approveAndGearboxStakeHook =
-            Strings.equal(hooks[19].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[19] : address(0);
+            Strings.equal(hooks[23].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[23] : address(0);
         hookAddresses.gearboxUnstakeHook =
-            Strings.equal(hooks[20].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[20] : address(0);
+            Strings.equal(hooks[24].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.yearnClaimOneRewardHook =
-            Strings.equal(hooks[21].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[21] : address(0);
+            Strings.equal(hooks[25].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[25] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -541,20 +553,30 @@ contract DeployV2 is Script, Configuration {
         );
         require(hookAddresses.withdraw4626VaultHook != address(0), "withdraw4626VaultHook not assigned");
         require(hookAddresses.deposit5115VaultHook != address(0), "deposit5115VaultHook not assigned");
+        require(
+            hookAddresses.approveAndDeposit5115VaultHook != address(0), "approveAndDeposit5115VaultHook not assigned"
+        );
         require(hookAddresses.withdraw5115VaultHook != address(0), "withdraw5115VaultHook not assigned");
         require(hookAddresses.requestDeposit7540VaultHook != address(0), "requestDeposit7540VaultHook not assigned");
+        require(
+            hookAddresses.approveAndRequestDeposit7540VaultHook != address(0),
+            "approveAndRequestDeposit7540VaultHook not assigned"
+        );
         require(hookAddresses.requestWithdraw7540VaultHook != address(0), "requestWithdraw7540VaultHook not assigned");
         require(hookAddresses.deposit7540VaultHook != address(0), "deposit7540VaultHook not assigned");
         require(hookAddresses.withdraw7540VaultHook != address(0), "withdraw7540VaultHook not assigned");
         require(hookAddresses.swap1InchHook != address(0), "swap1InchHook not assigned");
         require(hookAddresses.swapOdosHook != address(0), "swapOdosHook not assigned");
+        require(hookAddresses.approveAndSwapOdosHook != address(0), "approveAndSwapOdosHook not assigned");
         require(
             hookAddresses.acrossSendFundsAndExecuteOnDstHook != address(0),
             "acrossSendFundsAndExecuteOnDstHook not assigned"
         );
         require(hookAddresses.fluidClaimRewardHook != address(0), "fluidClaimRewardHook not assigned");
         require(hookAddresses.fluidStakeHook != address(0), "fluidStakeHook not assigned");
+        require(hookAddresses.approveAndFluidStakeHook != address(0), "approveAndFluidStakeHook not assigned");
         require(hookAddresses.fluidUnstakeHook != address(0), "fluidUnstakeHook not assigned");
+        require(hookAddresses.fluidClaimRewardHook != address(0), "fluidClaimRewardHook not assigned");
         require(hookAddresses.gearboxClaimRewardHook != address(0), "gearboxClaimRewardHook not assigned");
         require(hookAddresses.gearboxStakeHook != address(0), "gearboxStakeHook not assigned");
         require(hookAddresses.approveAndGearboxStakeHook != address(0), "approveAndGearboxStakeHook not assigned");
