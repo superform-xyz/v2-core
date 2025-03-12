@@ -77,8 +77,6 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
 
     /// @inheritdoc IPeripheryRegistry
     function unregisterHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
-        if (hook_ == address(0)) revert INVALID_ADDRESS();
-
         if (isFulfillRequestsHook_) {
             if (!isFulfillRequestsHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
             isFulfillRequestsHookRegistered[hook_] = false;
