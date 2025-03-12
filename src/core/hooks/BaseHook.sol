@@ -50,9 +50,8 @@ abstract contract BaseHook is SuperRegistryImplementer {
 
     function _replaceCalldataAmount(bytes memory data, uint256 amount, uint256 offset) internal pure returns (bytes memory) {
         bytes memory newAmountEncoded = abi.encodePacked(amount);
-        for (uint256 i; i < 32;) {
+        for (uint256 i; i < 32; ++i) {
             data[offset + i] = newAmountEncoded[i];
-            unchecked { ++i; }
         }
         return data;
     }   

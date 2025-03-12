@@ -475,7 +475,7 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry, configuration.owner))
         );
 
-        for (uint256 i = 0; i < len;) {
+        for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
             addresses[i] = __deployContract(
                 deployer,
@@ -484,10 +484,6 @@ contract DeployV2 is Script, Configuration {
                 __getSalt(configuration.owner, configuration.deployer, hook.name),
                 hook.creationCode
             );
-
-            unchecked {
-                ++i;
-            }
         }
 
         hookAddresses.approveErc20Hook =
@@ -623,7 +619,7 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(GearboxYieldSourceOracle).creationCode, abi.encode(registry))
         );
 
-        for (uint256 i = 0; i < len;) {
+        for (uint256 i = 0; i < len; ++i) {
             OracleDeployment memory oracle = oracles[i];
             oracleAddresses[i] = __deployContract(
                 deployer,
@@ -632,10 +628,6 @@ contract DeployV2 is Script, Configuration {
                 __getSalt(configuration.owner, configuration.deployer, oracle.name),
                 oracle.creationCode
             );
-
-            unchecked {
-                ++i;
-            }
         }
     }
 

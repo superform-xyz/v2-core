@@ -197,13 +197,10 @@ contract PendlePriceIntegration is BaseE2ETest {
         assertEq(feeBalanceBefore, 0);
 
         uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
-        for (uint256 i; i < 50;) {
+        for (uint256 i; i < 50; ++i) {
             _getTokens(CHAIN_1_USDE, address(this), SMALL);
             IERC20(CHAIN_1_USDE).approve(address(pendleVault), SMALL);
             IStandardizedYield(address(pendleVault)).deposit(address(this), CHAIN_1_USDE, SMALL, 0);
-            unchecked {
-                ++i;
-            }
         }
         vm.warp(block.timestamp + (86_400 * 365));
 
@@ -232,13 +229,10 @@ contract PendlePriceIntegration is BaseE2ETest {
          *         return IERC20(asset()).balanceOf(address(this)) - getUnvestedAmount();
          *     }
          */
-        for (uint256 i; i < count;) {
+        for (uint256 i; i < count; ++i) {
             _getTokens(asset, address(this), amountPerDeposit);
             IERC20(asset).approve(vault, amountPerDeposit);
             IERC4626(vault).deposit(amountPerDeposit, address(this));
-            unchecked {
-                ++i;
-            }
         }
         vm.warp(block.timestamp + (86_400 * 365));
     }
