@@ -8,6 +8,7 @@ import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 // Core Interfaces
 import {
@@ -28,7 +29,7 @@ import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
-contract SuperVaultStrategy is ISuperVaultStrategy {
+contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -163,6 +164,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         Operation operation
     )
         external
+        whenNotPaused
         returns (uint256 assetsOrSharesOut)
     {
         if (operation == Operation.DepositRequest) {
@@ -192,7 +194,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256[] memory expectedAssetsOrSharesOut,
         bool isDeposit
     )
-        external
+        external 
+        whenNotPaused
     {
         _requireRole(STRATEGIST_ROLE);
 
@@ -244,7 +247,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
-    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external {
+    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external whenNotPaused {
         _requireRole(STRATEGIST_ROLE);
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
@@ -343,7 +346,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external {
+    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external whenNotPaused {
         _requireRole(STRATEGIST_ROLE);
 
         ExecuteHooksVars memory vars;
@@ -632,6 +635,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         } else {
             revert ACTION_TYPE_DISALLOWED();
         }
+    }
+
+    /// @notice Pauses the strategy
+    function pause() external {
+        _requireRole(MANAGER_ROLE);
+        _pause();
+    }
+
+    /// @notice Unpauses the strategy
+    function unpause() external {
+        _requireRole(MANAGER_ROLE);
+        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
