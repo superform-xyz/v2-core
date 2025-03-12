@@ -309,6 +309,8 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
+
+        console2.log("-------UserShares", gearSuperVault.balanceOf(accountEth));
     }
 
     function _executeStakeHook(uint256 amountToStake) internal {
@@ -378,14 +380,14 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             false
         );
 
-        uint256[] memory minAssetsOrSharesOut = new uint256[](1);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
         uint256 assets = gearSuperVault.convertToAssets(shares);
-        uint256 underlyingShares = gearboxVault.convertToShares(assets);
-        minAssetsOrSharesOut[0] = underlyingShares;
+        uint256 underlyingShares = gearboxVault.previewDeposit(assets);
+        expectedAssetsOrSharesOut[0] = underlyingShares;
 
         vm.startPrank(STRATEGIST);
         strategyGearSuperVault.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
         );
         vm.stopPrank();
     }

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
+
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -215,6 +218,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         /// @dev grab current PPS before processing hooks
         vars.pricePerShare = _getSuperVaultPPS();
+        console2.log("---original pricePerShare", vars.pricePerShare);
 
         // Process hooks and get targeted yield sources
         address[] memory targetedYieldSources;
@@ -729,8 +733,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
+        console2.log("---processDeposit shares", vars.shares);
 
         uint256 newTotalUserShares = state.maxMint + vars.shares;
+        console2.log("---newTotalUserShares", newTotalUserShares);
 
         if (newTotalUserShares > 0) {
             uint256 existingUserAssets = 0;
@@ -739,12 +745,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
 
             uint256 newTotalUserAssets = existingUserAssets + vars.requestedAmount;
+            console2.log("---newTotalUserAssets", newTotalUserAssets);
             state.averageDepositPrice = newTotalUserAssets.mulDiv(PRECISION, newTotalUserShares, Math.Rounding.Floor);
+            console2.log("---newAverageDepositPrice", state.averageDepositPrice);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
+        console2.log("----depositPricePerShare", vars.pricePerShare);
         state.pendingDepositRequest = 0;
         state.maxMint += vars.shares;
+        console2.log("---state.maxMint", state.maxMint);
 
         ISuperVault(_vault).mintShares(vars.shares);
 
@@ -1080,11 +1090,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
+        console2.log("----InflowExecAmount", amount);
+
         target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
         if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
-
+        console2.log("---prcoessInflowHookExec outAmount", outAmount);
         uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Execute hook with asset approval
         _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, address(_asset), amount, target);
@@ -1126,6 +1138,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
+
+        console2.log("---balance", IStandardizedYield(execVars.yieldSource).balanceOf(address(this)));
 
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);

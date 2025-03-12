@@ -178,6 +178,9 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         _fulfillRedeemSV_5115();
 
         uint256 claimableAssets = superVaultsUSDE.maxWithdraw(account);
+
+        // Step 5: Claim Redeem
+        //_claimRedeemSV_5115(claimableAssets);
     }
 
     function _requestSV5115Deposit(uint256 amount) internal {
@@ -226,6 +229,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         vm.startPrank(STRATEGIST);
         superVaultStrategysUSDE.fulfillRequests(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
         vm.stopPrank();
+        console2.log("-------SVShare balance", IStandardizedYield(pendleEthenaAddress).balanceOf(address(superVaultStrategysUSDE)));
     }
 
     function _claimSV_5115Deposit(uint256 amount) internal {
@@ -269,6 +273,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         fulfillHooksAddresses[0] = withdrawHookAddress;
 
         uint256 shares = superVaultStrategysUSDE.pendingRedeemRequest(account);
+        uint256 assetsSV = superVaultsUSDE.convertToAssets(shares);
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _create5115WithdrawHookData(
@@ -282,13 +287,31 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             false
         );
 
-        uint256[] memory minAssetsOrSharesOut = new uint256[](1);
-        minAssetsOrSharesOut[0] = pendleEthena.previewRedeem(address(asset), shares);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        expectedAssetsOrSharesOut[0] = pendleEthena.previewDeposit(address(asset), assetsSV);
 
         vm.startPrank(STRATEGIST);
-        superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, false);
+        superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
         vm.stopPrank();
     }
+
+    function _claimRedeemSV_5115(uint256 claimableAssets) internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createWithdraw7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), claimableAssets, false, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+
+        UserOpData memory claimUserOpData = _getExecOps(instance, superExecutorOnEth, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
+    }
+            
+    
 
     function _set5115FeeConfig(uint256 feePercent, address recipient) internal {
         vm.startPrank(SV_MANAGER);
