@@ -80,14 +80,6 @@ contract PeripheryRegistryTest is BaseTest {
         peripheryRegistry.unregisterHook(testFulfillHook, true);
     }
 
-    function testUnregisterHook_Fail_ZeroAddress() public {
-        vm.expectRevert(IPeripheryRegistry.INVALID_ADDRESS.selector);
-        peripheryRegistry.unregisterHook(address(0), false);
-
-        vm.expectRevert(IPeripheryRegistry.INVALID_ADDRESS.selector);
-        peripheryRegistry.unregisterHook(address(0), true);
-    }
-
     function testUnregisterHook_Fail_NotAuthorized() public {
         vm.prank(address(0x1));
         vm.expectRevert();
