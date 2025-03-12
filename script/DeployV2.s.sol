@@ -14,7 +14,7 @@ import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
+import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
@@ -243,13 +243,13 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
-        // Deploy ERC1155Ledger
+        // Deploy ERC5115Ledger
         deployedContracts.pendleLedger = __deployContract(
             deployer,
             ERC1155_LEDGER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
-            abi.encodePacked(type(ERC1155Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+            abi.encodePacked(type(ERC5115Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
         // Deploy AcrossReceiveFundsAndExecuteGateway

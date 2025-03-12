@@ -3,6 +3,7 @@ pragma solidity >=0.8.28;
 
 import { Helpers } from "./utils/Helpers.sol";
 import { VmSafe } from "forge-std/Vm.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // Superform interfaces
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
@@ -12,7 +13,7 @@ import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISu
 
 // Superform contracts
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { ERC1155Ledger } from "../src/core/accounting/ERC1155Ledger.sol";
+import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
@@ -76,6 +77,12 @@ import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxC
 // --- Yearn
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
+// Experimental hooks
+
+// --- Ethena
+import { EthenaCooldownSharesHook } from "./mocks/unused-hooks/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "./mocks/unused-hooks/EthenaUnstakeHook.sol";
+
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
@@ -135,6 +142,8 @@ struct Addresses {
     FluidClaimRewardHook fluidClaimRewardHook;
     GearboxClaimRewardHook gearboxClaimRewardHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
+    EthenaCooldownSharesHook ethenaCooldownSharesHook;
+    EthenaUnstakeHook ethenaUnstakeHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
@@ -177,7 +186,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     string[] public chainsNames = [ETHEREUM_KEY, OPTIMISM_KEY, BASE_KEY];
 
-    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY, SUSDE_KEY];
+    string[] public underlyingTokens = [DAI_KEY, USDC_KEY, WETH_KEY, SUSDE_KEY, USDE_KEY];
 
     address[] public spokePoolV3Addresses =
         [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
@@ -261,9 +270,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _setupSuperLedger();
 
         // Fund underlying tokens
-        _fundUSDCTokens(10_000);
-
-        _fundSUSDETokens(10_000);
+        _fundUnderlyingTokens(1e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -348,7 +355,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A[i].superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A[i].superLedger);
 
-            A[i].erc1155Ledger = ISuperLedger(address(new ERC1155Ledger(address(A[i].superLedgerConfiguration))));
+            A[i].erc1155Ledger = ISuperLedger(address(new ERC5115Ledger(address(A[i].superLedgerConfiguration))));
             vm.label(address(A[i].erc1155Ledger), ERC1155_LEDGER_KEY);
             contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A[i].erc1155Ledger);
 
@@ -738,6 +745,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
+
+            /// @dev EXPERIMENTAL HOOKS FROM HERE ONWARDS
+            A[i].ethenaCooldownSharesHook =
+                new EthenaCooldownSharesHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(A[i].ethenaCooldownSharesHook), ETHENA_COOLDOWN_SHARES_HOOK_KEY);
+            hookAddresses[chainIds[i]][ETHENA_COOLDOWN_SHARES_HOOK_KEY] = address(A[i].ethenaCooldownSharesHook);
+
+            A[i].ethenaUnstakeHook = new EthenaUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            vm.label(address(A[i].ethenaUnstakeHook), ETHENA_UNSTAKE_HOOK_KEY);
+            hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
         }
 
         return A;
@@ -783,6 +800,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             peripheryRegistry.registerHook(address(A[i].approveAndGearboxStakeHook), false);
             peripheryRegistry.registerHook(address(A[i].gearboxUnstakeHook), false);
             peripheryRegistry.registerHook(address(A[i].yearnClaimOneRewardHook), false);
+
+            // EXPERIMENTAL HOOKS FROM HERE ONWARDS
+            peripheryRegistry.registerHook(address(A[i].ethenaCooldownSharesHook), false);
+            peripheryRegistry.registerHook(address(A[i].ethenaUnstakeHook), true);
         }
 
         return A;
@@ -858,7 +879,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[ETH][USDC_KEY] = CHAIN_1_USDC;
         existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
         existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
-
+        existingUnderlyingTokens[ETH][USDE_KEY] = CHAIN_1_USDE;
         // Optimism tokens
         existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
@@ -921,8 +942,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
 
         /// @dev 5115 real pendle ethena vault on mainnet
-        existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
-        vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY], "PendleEthena");
+        existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
+        vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY], "PendleEthena");
 
         /// wstETH
         /// @dev pendle wrapped st ETH from LDO - market:  SY wstETH
@@ -934,26 +955,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
     }
 
-    function _fundUSDCTokens(uint256 amount) internal {
-        for (uint256 j = 0; j < underlyingTokens.length - 1; ++j) {
+    function _fundUnderlyingTokens(uint256 amount) internal {
+        for (uint256 j = 0; j < underlyingTokens.length; ++j) {
             for (uint256 i = 0; i < chainIds.length; ++i) {
                 vm.selectFork(FORKS[chainIds[i]]);
-                if (keccak256(abi.encodePacked(underlyingTokens[j])) == keccak256(abi.encodePacked(USDC_KEY))) {
-                    address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
-                    deal(token, accountInstances[chainIds[i]].account, 1e18 * amount);
+                address token = existingUnderlyingTokens[chainIds[i]][underlyingTokens[j]];
+                if (token != address(0)) {
+                    deal(
+                        token, accountInstances[chainIds[i]].account, amount * (10 ** IERC20Metadata(token).decimals())
+                    );
                 }
             }
         }
-    }
-
-    function _fundSUSDETokens(uint256 amount) internal {
-        vm.selectFork(FORKS[chainIds[0]]);
-        deal(existingUnderlyingTokens[chainIds[0]][SUSDE_KEY], accountInstances[chainIds[0]].account, 1e18 * amount);
-    }
-
-    function _fundUSDCeTokens(uint256 amount) internal {
-        vm.selectFork(FORKS[OP]);
-        deal(existingUnderlyingTokens[OP][USDCe_KEY], accountInstances[OP].account, 1e18 * amount);
     }
 
     function _setSuperRegistryAddresses() internal {

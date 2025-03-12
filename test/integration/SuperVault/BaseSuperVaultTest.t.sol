@@ -75,6 +75,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function setUp() public virtual override {
         super.setUp();
+        console2.log("--- SETUP BASE SUPERVAULT ---");
 
         vm.selectFork(FORKS[ETH]);
         accInstances = randomAccountInstances[ETH];
@@ -182,7 +183,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.bootstrapHooks[0] = vars.depositHookAddress;
 
         vars.expectedAssetsOrSharesOut = new uint256[](1);
-        vars.expectedAssetsOrSharesOut[0] = 0;
+        vars.expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(_bootstrapAmount);
 
         vars.bootstrapData = new bytes[](1);
         vars.depositHookData = _createDeposit4626HookData(
