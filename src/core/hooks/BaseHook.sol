@@ -30,6 +30,7 @@ abstract contract BaseHook is SuperRegistryImplementer {
     error NOT_AUTHORIZED();
     error AMOUNT_NOT_VALID();
     error ADDRESS_NOT_VALID();
+    error DATA_LENGTH_INSUFFICIENT();
 
     constructor(address registry_, address author_, ISuperHook.HookType hookType_) SuperRegistryImplementer(registry_) {
         author = author_;
@@ -40,7 +41,7 @@ abstract contract BaseHook is SuperRegistryImplementer {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeBool(bytes memory data, uint256 offset) internal pure returns (bool) {
-        require(data.length >= offset + 1, "Data length insufficient");
+        if (data.length < offset + 1) revert DATA_LENGTH_INSUFFICIENT();
         uint8 value;
         assembly {
             value := byte(0, mload(add(data, add(offset, 32))))
@@ -50,9 +51,8 @@ abstract contract BaseHook is SuperRegistryImplementer {
 
     function _replaceCalldataAmount(bytes memory data, uint256 amount, uint256 offset) internal pure returns (bytes memory) {
         bytes memory newAmountEncoded = abi.encodePacked(amount);
-        for (uint256 i; i < 32;) {
+        for (uint256 i; i < 32; ++i) {
             data[offset + i] = newAmountEncoded[i];
-            unchecked { ++i; }
         }
         return data;
     }   

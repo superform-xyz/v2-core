@@ -103,9 +103,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         assertEq(accSharesAfter, vaultInstanceEth.previewDeposit(amount));
 
         hooksAddresses = new address[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         hooksData = new bytes[](2);
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceAddressEth,
             accountEth,

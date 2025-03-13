@@ -5,13 +5,14 @@ interface IAcrossV3Receiver {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event AcrossFundsReceivedButNotEnoughBalance(address indexed account);
     event AcrossFundsReceivedAndExecuted(address indexed account);
+    event AcrossFundsReceivedButExecutionFailed(address indexed account);
+    event AcrossFundsReceivedButNotEnoughBalance(address indexed account);
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-
     error INVALID_SENDER();
+    error ADDRESS_NOT_VALID();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
