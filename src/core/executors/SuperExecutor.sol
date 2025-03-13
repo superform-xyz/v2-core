@@ -67,11 +67,12 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     function _execute(address account, ExecutorEntry memory entry) private {
         // execute each strategy
         address prevHook;
+        address currentHook;
         uint256 hooksLen = entry.hooksAddresses.length;
         for (uint256 i; i < hooksLen; ++i) {
-            address currentHook = entry.hooksAddresses[i];
-            _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
-            prevHook = currentHook;
+        currentHook = entry.hooksAddresses[i];
+        _processHook(account, ISuperHook(currentHook), prevHook, entry.hooksData[i]);
+        prevHook = currentHook;
         }
     }
 
