@@ -164,10 +164,6 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         // Get shares minted to user
         uint256 userShares = IERC20(vault.share()).balanceOf(account);
 
-        // Record balances before redeem
-        uint256 preRedeemUserAssets = asset.balanceOf(account);
-        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
-
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
         (uint256 totalAssets,) = strategy.totalAssets();
@@ -268,7 +264,6 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             tokenOut,
             underlyingSharesOut,
             underlyingAssetsOut,
-            false,
             false,
             false
         );

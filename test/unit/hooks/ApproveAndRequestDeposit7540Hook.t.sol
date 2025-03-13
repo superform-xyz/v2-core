@@ -56,8 +56,6 @@ contract ApproveAndRequestDeposit7540Hook is BaseTest {
 
         uint256 amount = 1e8;
 
-        uint256 accountUSDCStartBalance = IERC20(underlyingETH_USDC).balanceOf(accountETH);
-
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
