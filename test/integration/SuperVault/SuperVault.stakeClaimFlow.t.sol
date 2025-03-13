@@ -151,7 +151,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         vm.startPrank(MANAGER);
-
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -170,6 +169,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         // Record initial balances
         uint256 initialUserAssets = asset.balanceOf(accountEth);
+        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
         // Step 1: Request Deposit
         __requestDeposit_Gearbox_SV(amount);
@@ -201,12 +201,11 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         // Record balances before redeem
         uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
-        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 60 weeks);
 
-        console2.log("ppsBeforeUnStake: ", _getSuperVaultPricePerShare());
+        console2.log("ppsBeforeUnStake: ", _getGearSuperVaultPricePerShare());
 
         uint256 preUnStakeGearboxBalance = gearboxVault.balanceOf(address(strategyGearSuperVault));
 
@@ -220,7 +219,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             "Gearbox vault balance not decreased after unstake"
         );
 
-        console2.log("ppsAfterUnStake: ", _getSuperVaultPricePerShare());
+        console2.log("ppsAfterUnStake: ", _getGearSuperVaultPricePerShare());
 
         // Step 4: Request Redeem
         _requestRedeem_Gearbox_SV(userShares);
@@ -233,25 +232,31 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             "Shares not transferred to escrow"
         );
 
-        (uint256 recipientFee, uint256 superformFee) = _deriveSuperVaultFees(userShares, _getSuperVaultPricePerShare());
+        (uint256 recipientFee, uint256 superformFee) = _deriveSuperVaultFees(userShares, _getGearSuperVaultPricePerShare());
 
         // Step 5: Fulfill Redeem
         _fulfillRedeem_Gearbox_SV();
 
         uint256 totalFee = recipientFee + superformFee;
-
-        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
+        console2.log("totalFee: ", totalFee);
+        console2.log("feeBalanceBefore: ", feeBalanceBefore);
+        console2.log("asset.balanceOf(TREASURY): ", asset.balanceOf(TREASURY));
+        console2.log("recipientFee: ", recipientFee);
+        console2.log("superformFee: ", superformFee);
 
         uint256 claimableAssets = gearSuperVault.maxWithdraw(accountEth);
 
         // Step 6: Claim Withdraw
         _claimWithdraw_Gearbox_SV(claimableAssets);
+
+        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
+
         assertEq(
             asset.balanceOf(accountEth),
             preRedeemUserAssets + claimableAssets,
             "User assets not increased after withdraw"
         );
-        console2.log("ppsAfter: ", _getSuperVaultPricePerShare());
+        console2.log("ppsAfter: ", _getGearSuperVaultPricePerShare());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -301,7 +306,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
         vm.stopPrank();
 
-        (uint256 pricePerShare) = _getSuperVaultPricePerShare();
+        (uint256 pricePerShare) = _getGearSuperVaultPricePerShare();
         uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
         userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
     }
@@ -319,8 +324,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
-
-        console2.log("-------UserShares", gearSuperVault.balanceOf(accountEth));
     }
 
     function _executeStakeHook(uint256 amountToStake) internal {
@@ -415,5 +418,17 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
+    }
+
+    function _getGearSuperVaultPricePerShare() internal view returns (uint256 pricePerShare) {
+        uint256 totalSupplyAmount = gearSuperVault.totalSupply();
+        if (totalSupplyAmount == 0) {
+            // For first deposit, set initial PPS to 1 unit in price decimals
+            pricePerShare = PRECISION;
+        } else {
+            // Calculate current PPS in price decimals
+            (uint256 totalAssetsVault,) = strategyGearSuperVault.totalAssets();
+            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
+        }
     }
 }

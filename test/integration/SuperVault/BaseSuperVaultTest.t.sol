@@ -1273,7 +1273,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 lastConsumedIndex = currentIndex;
 
         // Calculate historicalAssets for each share price point
-        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
+        for (uint256 j = 0; j < sharePricePointsLength && remainingShares > 0;) {
             SharePricePoint memory point = sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
             historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
@@ -1338,9 +1338,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         } else {
             // Calculate current PPS in price decimals
             (uint256 totalAssetsVault,) = strategy.totalAssets();
-            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
-            // Otherwise rounding issues in other places becomes bigger
-            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
+            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
 
