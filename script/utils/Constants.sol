@@ -103,11 +103,11 @@ abstract contract Constants {
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string internal constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
     string internal constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
-    string internal constant WITHDRAW_4626_VAULT_HOOK_KEY = "Withdraw4626VaultHook";
+    string internal constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
     string internal constant DEPOSIT_5115_VAULT_HOOK_KEY = "Deposit5115VaultHook";
-    string internal constant WITHDRAW_5115_VAULT_HOOK_KEY = "Withdraw5115VaultHook";
+    string internal constant REDEEM_5115_VAULT_HOOK_KEY = "Redeem5115VaultHook";
     string internal constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
-    string internal constant REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY = "RequestWithdraw7540VaultHook";
+    string internal constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";

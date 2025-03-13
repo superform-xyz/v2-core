@@ -336,9 +336,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 ++i;
             }
         }
-
-        //check super vault cap
-        _checkSuperVaultCap();
     }
 
     /// @inheritdoc ISuperVaultStrategy
