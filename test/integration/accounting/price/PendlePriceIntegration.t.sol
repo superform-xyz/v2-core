@@ -150,11 +150,11 @@ contract PendlePriceIntegration is BaseE2ETest {
     }
 
     function test_ValidateFees_ForFullWithdrawal_AccumulatedFees_Pendle() public {
-        uint256 amount = 1e18; 
+        uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
-        assertEq(config.feePercent, 100); 
+        assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
 
@@ -171,7 +171,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
         _performMultipleDeposits(underlying, IERC4626(underlying).asset(), 50, SMALL);
         uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
-        assertGt(ppsAfter, ppsBefore, "pps after should be higher"); 
+        assertGt(ppsAfter, ppsBefore, "pps after should be higher");
 
         uint256 availableShares = pendleVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares);
@@ -179,13 +179,13 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
-     
+
     function test_ValidateFees_ForFullWithdrawal_NonYieldToken_AccumulatedFees_Pendle() public {
-        uint256 amount = 1e18; 
+        uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
-        assertEq(config.feePercent, 100); 
+        assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
 
@@ -197,19 +197,16 @@ contract PendlePriceIntegration is BaseE2ETest {
         assertEq(feeBalanceBefore, 0);
 
         uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
-        for (uint256 i; i < 50;) {
+        for (uint256 i; i < 50; ++i) {
             _getTokens(CHAIN_1_USDE, address(this), SMALL);
             IERC20(CHAIN_1_USDE).approve(address(pendleVault), SMALL);
             IStandardizedYield(address(pendleVault)).deposit(address(this), CHAIN_1_USDE, SMALL, 0);
-            unchecked {
-                ++i;
-            }
         }
         vm.warp(block.timestamp + (86_400 * 365));
 
         uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
 
-        assertGt(ppsAfter, ppsBefore); 
+        assertGt(ppsAfter, ppsBefore);
 
         uint256 availableShares = pendleVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares);
@@ -217,7 +214,6 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
@@ -233,13 +229,10 @@ contract PendlePriceIntegration is BaseE2ETest {
          *         return IERC20(asset()).balanceOf(address(this)) - getUnvestedAmount();
          *     }
          */
-        for (uint256 i; i < count;) {
+        for (uint256 i; i < count; ++i) {
             _getTokens(asset, address(this), amountPerDeposit);
             IERC20(asset).approve(vault, amountPerDeposit);
             IERC4626(vault).deposit(amountPerDeposit, address(this));
-            unchecked {
-                ++i;
-            }
         }
         vm.warp(block.timestamp + (86_400 * 365));
     }
@@ -273,8 +266,8 @@ contract PendlePriceIntegration is BaseE2ETest {
     {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_5115_VAULT_HOOK_KEY);
-        hooksData[0] = _create5115WithdrawHookData(
+        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_5115_VAULT_HOOK_KEY);
+        hooksData[0] = _create5115RedeemHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
         );
 

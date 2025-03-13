@@ -25,11 +25,11 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     uint256 private constant AMOUNT_POSITION = 24;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
+
     function build(
         address prevHook,
         address account,

@@ -430,11 +430,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 userBalanceUnderlyingBefore = IERC20(underlyingOP_USDCe).balanceOf(accountOP);
 
         address[] memory opHooksAddresses = new address[](2);
-        opHooksAddresses[0] = _getHookAddress(OP, WITHDRAW_4626_VAULT_HOOK_KEY);
+        opHooksAddresses[0] = _getHookAddress(OP, REDEEM_4626_VAULT_HOOK_KEY);
         opHooksAddresses[1] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
 
         bytes[] memory opHooksData = new bytes[](2);
-        opHooksData[0] = _createWithdraw4626HookData(
+        opHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource4626AddressOP_USDCe,
             accountOP,
@@ -552,11 +552,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSource7540AddressETH_USDC,
-            maxDeposit,
-            false,
-            false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, false
         );
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);
@@ -800,10 +796,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 userBalanceUnderlyingBefore = IERC20(underlyingOP_USDCe).balanceOf(accountOP);
 
         address[] memory opHooksAddresses = new address[](1);
-        opHooksAddresses[0] = _getHookAddress(OP, WITHDRAW_4626_VAULT_HOOK_KEY);
+        opHooksAddresses[0] = _getHookAddress(OP, REDEEM_4626_VAULT_HOOK_KEY);
 
         bytes[] memory opHooksData = new bytes[](1);
-        opHooksData[0] = _createWithdraw4626HookData(
+        opHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource4626AddressOP_USDCe,
             accountOP,

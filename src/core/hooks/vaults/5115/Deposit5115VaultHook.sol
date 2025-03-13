@@ -68,7 +68,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 109);
         spToken = data.extractYieldSource();
@@ -76,7 +76,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
     }
 

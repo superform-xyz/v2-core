@@ -156,7 +156,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         leaf = _createLeaf(userOpData);
 
         // Create message hash
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot, leaf, userOpData.sender, userOpData.nonce);
+        bytes32 messageHash = _createMessageHash(sigData.merkleRoot, leaf, userOpData.sender, userOpData.nonce, sigData.validUntil);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
 
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
@@ -196,13 +196,14 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         bytes32 merkleRoot,
         bytes32 leaf,
         address sender,
-        uint256 nonce
+        uint256 nonce,
+        uint48 validUntil
     )
         private
         pure
         returns (bytes32)
     {
-        return keccak256(abi.encode(namespace(), merkleRoot, leaf, sender, nonce));
+        return keccak256(abi.encode(namespace(), merkleRoot, leaf, sender, nonce, validUntil));
     }
 
     function _isSignatureValid(

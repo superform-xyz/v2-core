@@ -103,23 +103,31 @@ abstract contract Constants {
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string internal constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
     string internal constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
-    string internal constant WITHDRAW_4626_VAULT_HOOK_KEY = "Withdraw4626VaultHook";
+    string internal constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
     string internal constant DEPOSIT_5115_VAULT_HOOK_KEY = "Deposit5115VaultHook";
-    string internal constant WITHDRAW_5115_VAULT_HOOK_KEY = "Withdraw5115VaultHook";
+    string internal constant REDEEM_5115_VAULT_HOOK_KEY = "Redeem5115VaultHook";
     string internal constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
-    string internal constant REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY = "RequestWithdraw7540VaultHook";
+    string internal constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string internal constant FLUID_STAKE_HOOK_KEY = "FluidStakeHook";
-    string internal constant FLUID_STAKE_WITH_PERMIT_HOOK_KEY = "FluidStakeWithPermitHook";
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string internal constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
-
+    string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
+    string internal constant APPROVE_AND_SWAP_ODOS_HOOK_KEY = "ApproveAndSwapOdosHook";
+    string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
+    string internal constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
+    string internal constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
+    string internal constant GEARBOX_APPROVE_AND_STAKE_HOOK_KEY = "GearboxApproveAndStakeHook";
+    string internal constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
+    string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
+    string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string internal constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
+    string internal constant GEARBOX_YIELD_SOURCE_ORACLE_KEY = "GearboxYieldSourceOracle";
 }

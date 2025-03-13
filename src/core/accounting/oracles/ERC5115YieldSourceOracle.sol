@@ -52,7 +52,15 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares) public view override returns (uint256) {
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         return IStandardizedYield(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 
@@ -86,13 +94,10 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         address[] memory tokensIn = IStandardizedYield(yieldSourceAddress).getTokensOut();
         bool isValid = false;
 
-        for (uint256 i = 0; i < tokensIn.length;) {
+        for (uint256 i = 0; i < tokensIn.length; ++i) {
             if (tokensIn[i] == base) {
                 isValid = true;
                 break;
-            }
-            unchecked {
-                ++i;
             }
         }
 

@@ -69,15 +69,11 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
     function _execute(address account, ExecutorEntry memory entry) private {
         // execute each strategy
         uint256 hooksLen = entry.hooksAddresses.length;
-        for (uint256 i; i < hooksLen;) {
+        for (uint256 i; i < hooksLen; ++i) {
             // fill prevHook
             address prevHook = (i != 0) ? entry.hooksAddresses[i - 1] : address(0);
             // execute current hook
             _processHook(account, ISuperHook(entry.hooksAddresses[i]), prevHook, entry.hooksData[i]);
-            // go to next hook
-            unchecked {
-                ++i;
-            }
         }
     }
 
