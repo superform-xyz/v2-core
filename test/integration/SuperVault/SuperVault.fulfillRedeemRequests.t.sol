@@ -47,12 +47,9 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         // request redeem for all users
@@ -62,12 +59,8 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill redeem
@@ -76,12 +69,9 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -135,11 +125,8 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
 
         // store redeem amounts for later verification
         uint256[] memory redeemAmounts = new uint256[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             redeemAmounts[i] = vault.balanceOf(accInstances[i].account);
-            unchecked {
-                ++i;
-            }
         }
 
         // request redeem for all users
@@ -150,19 +137,13 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         uint256 totalRedeemShares;
 
         // calculate total redeem shares for partial users
-        for (uint256 i; i < partialUsersCount;) {
+        for (uint256 i; i < partialUsersCount; ++i) {
             totalRedeemShares += strategy.pendingRedeemRequest(accInstances[i].account);
-            unchecked {
-                ++i;
-            }
         }
 
         address[] memory requestingUsers = new address[](partialUsersCount);
-        for (uint256 i; i < partialUsersCount;) {
+        for (uint256 i; i < partialUsersCount; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         (uint256 allocationAmountVault1, uint256 allocationAmountVault2) = _calculateVaultShares(totalRedeemShares);
@@ -173,21 +154,15 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         );
 
         // check that fulfilled requests are cleared
-        for (uint256 i; i < partialUsersCount;) {
+        for (uint256 i; i < partialUsersCount; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
 
         // check that remaining users still have pending requests
-        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT;) {
+        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), redeemAmounts[i]);
             assertEq(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
 
         // calculate total redeem shares for remaining users

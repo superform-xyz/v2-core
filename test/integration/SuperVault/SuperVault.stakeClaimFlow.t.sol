@@ -76,12 +76,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         vm.label(gearboxStakingAddr, "GearboxStaking");
         gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
 
-        // Deploy vault trio with initial config
-        ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: VAULT_CAP,
-            superVaultCap: SUPER_VAULT_CAP,
-            vaultThreshold: VAULT_THRESHOLD
-        });
         bytes32 hookRoot = _getMerkleRoot();
 
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -111,7 +105,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                config: config,
+                superVaultCap: SUPER_VAULT_CAP,
                 bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: address(gearboxVault),
                 initHooksRoot: hookRoot,
@@ -166,6 +160,10 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
     function test_SuperVault_StakeClaimFlow() public {
         vm.selectFork(FORKS[ETH]);
+
+        vm.startPrank(SV_MANAGER);
+        strategyGearSuperVault.updateSuperVaultCap(type(uint256).max);
+        vm.stopPrank();
 
         // Record initial balances
         uint256 initialUserAssets = asset.balanceOf(accountEth);
@@ -346,10 +344,10 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
     function _requestRedeem_Gearbox_SV(uint256 shares) internal {
         address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createRequestWithdraw7540VaultHookData(
+        hooksData[0] = _createRequestRedeem7540VaultHookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), shares, false
         );
 
@@ -376,7 +374,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         /// @dev with preserve percentages based on USD value allocation
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -384,7 +382,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
 
         bytes[] memory fulfillHooksData = new bytes[](1);
-        fulfillHooksData[0] = _createWithdraw4626HookData(
+        fulfillHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(gearboxVault),
             address(strategyGearSuperVault),

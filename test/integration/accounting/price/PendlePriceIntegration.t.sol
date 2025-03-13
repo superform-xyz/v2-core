@@ -197,13 +197,10 @@ contract PendlePriceIntegration is BaseE2ETest {
         assertEq(feeBalanceBefore, 0);
 
         uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
-        for (uint256 i; i < 50;) {
+        for (uint256 i; i < 50; ++i) {
             _getTokens(CHAIN_1_USDE, address(this), SMALL);
             IERC20(CHAIN_1_USDE).approve(address(pendleVault), SMALL);
             IStandardizedYield(address(pendleVault)).deposit(address(this), CHAIN_1_USDE, SMALL, 0);
-            unchecked {
-                ++i;
-            }
         }
         vm.warp(block.timestamp + (86_400 * 365));
 
@@ -232,13 +229,10 @@ contract PendlePriceIntegration is BaseE2ETest {
          *         return IERC20(asset()).balanceOf(address(this)) - getUnvestedAmount();
          *     }
          */
-        for (uint256 i; i < count;) {
+        for (uint256 i; i < count; ++i) {
             _getTokens(asset, address(this), amountPerDeposit);
             IERC20(asset).approve(vault, amountPerDeposit);
             IERC4626(vault).deposit(amountPerDeposit, address(this));
-            unchecked {
-                ++i;
-            }
         }
         vm.warp(block.timestamp + (86_400 * 365));
     }
@@ -272,15 +266,9 @@ contract PendlePriceIntegration is BaseE2ETest {
     {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_5115_VAULT_HOOK_KEY);
-        hooksData[0] = _create5115WithdrawHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
-            address(pendleVault),
-            underlying,
-            amount,
-            0,
-            false,
-            false
+
+        hooksData[0] = _create5115RedeemHookData(
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
         );
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

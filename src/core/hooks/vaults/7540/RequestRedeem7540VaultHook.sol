@@ -11,14 +11,14 @@ import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title RequestWithdraw7540VaultHook
+/// @title RequestRedeem7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract RequestWithdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;

@@ -54,12 +54,6 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         // Get real yield sources from fork
         pendleEthena = IStandardizedYield(pendleEthenaAddress);
 
-        // Deploy vault trio with initial config
-        ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: VAULT_CAP,
-            superVaultCap: SUPER_VAULT_CAP,
-            vaultThreshold: VAULT_THRESHOLD
-        });
         bytes32 hookRoot = _getMerkleRoot();
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
         console2.log("depositHookAddress", depositHookAddress);
@@ -99,7 +93,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                config: config,
+                superVaultCap: SUPER_VAULT_CAP,
                 bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: pendleEthenaAddress,
                 initHooksRoot: hookRoot,
@@ -241,9 +235,9 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = account;
 
-        address[] memory hooks = new address[](2);
-        hooks[0] = _getHookAddress(ETH, WITHDRAW_5115_VAULT_HOOK_KEY);
-        hooks[1] = _getHookAddress(ETH, ETHENA_COOLDOWN_SHARES_HOOK_KEY);
+        address[] memory hooks_ = new address[](2);
+        hooks_[0] = _getHookAddress(ETH, REDEEM_5115_VAULT_HOOK_KEY);
+        hooks_[1] = _getHookAddress(ETH, ETHENA_COOLDOWN_SHARES_HOOK_KEY);
 
         uint256 shares = strategy.pendingRedeemRequest(account);
         (uint256 totalAssets,) = strategy.totalAssets();
@@ -258,7 +252,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         console2.log("underlyingAssetsOut", underlyingAssetsOut);
 
         bytes[] memory hookCalldata = new bytes[](2);
-        hookCalldata[0] = _create5115WithdrawHookData(
+        hookCalldata[0] = _create5115RedeemHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             pendleEthenaAddress,
             tokenOut,
@@ -272,7 +266,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooks, hookCalldata);
+        strategy.executeHooks(hooks_, hookCalldata);
 
         vm.stopPrank();
     }
