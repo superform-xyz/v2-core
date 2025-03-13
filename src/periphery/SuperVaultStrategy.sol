@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
 import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 
 // External
@@ -216,10 +215,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.availableAmount = _getTokenBalance(address(_asset), address(this));
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
-        console2.log("\n-----FULFILLING REQUESTS-----");
         /// @dev grab current PPS before processing hooks
         vars.pricePerShare = _getSuperVaultPPS();
-        console2.log("---original pricePerShare", vars.pricePerShare);
 
         // Process hooks and get targeted yield sources
         address[] memory targetedYieldSources;
@@ -719,13 +716,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
-        console2.log("\n PROCESSING DEPOSIT");
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
-        console2.log("-- shares", vars.shares);
 
         uint256 newTotalUserShares = state.maxMint + vars.shares;
-        console2.log("---newTotalUserShares", newTotalUserShares);
 
         if (newTotalUserShares > 0) {
             uint256 existingUserAssets = 0;
@@ -734,16 +728,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
 
             uint256 newTotalUserAssets = existingUserAssets + vars.requestedAmount;
-            console2.log("---newTotalUserAssets", newTotalUserAssets);
             state.averageDepositPrice = newTotalUserAssets.mulDiv(PRECISION, newTotalUserShares, Math.Rounding.Floor);
-            console2.log("---newAverageDepositPrice", state.averageDepositPrice);
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
-        console2.log("----depositPricePerShare", vars.pricePerShare);
         state.pendingDepositRequest = 0;
         state.maxMint += vars.shares;
-        console2.log("---state.maxMint", state.maxMint);
 
         ISuperVault(_vault).mintShares(vars.shares);
 
@@ -751,8 +741,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     function _processRedeem(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
-        console2.log("\n PROCESSING REDEEM");
-
         vars.requestedAmount = state.pendingRedeemRequest;
 
         uint256 lastConsumedIndex;
@@ -1025,9 +1013,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
-            console2.log("\n UNBLOCKED HERE------------------------------------------------------------");
-            console2.log("locals.outAmount", locals.outAmount);
-            console2.log("expectedAssetsOrSharesOut[i]", expectedAssetsOrSharesOut[i]);
             if (
                 locals.outAmount * ONE_HUNDRED_PERCENT
                     < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
@@ -1069,10 +1054,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         returns (uint256 amount, address target, uint256 outAmount)
     {
         // Get amount before execution
-        console2.log("\n HOOK INFLOW");
         amount = _decodeHookAmount(hook, hookCalldata);
-
-        console2.log("----InflowExecAmount", amount);
 
         target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
@@ -1111,17 +1093,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         private
         returns (uint256 amount, address target, uint256 outAmount)
     {
-        console2.log("\n HOOK OUTFLOW");
         OutflowExecutionVars memory execVars;
 
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
-        console2.log("---amountOfAssets", execVars.amountOfAssets);
+
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
-        console2.log("---amountConvertedToUnderlyingShares", execVars.amountConvertedToUnderlyingShares);
 
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
@@ -1181,15 +1161,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
-            console2.log("\n FEEEEE TAKING");
-            console2.log("totalFee", totalFee);
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
                 uint256 superformFee =
                     totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 uint256 recipientFee = totalFee - superformFee;
-                console2.log("superformFee", superformFee);
-                console2.log("recipientFee", recipientFee);
 
                 // Transfer fees
                 if (superformFee > 0) {
