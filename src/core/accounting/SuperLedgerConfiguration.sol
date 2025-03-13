@@ -24,7 +24,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
 
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
             _setYieldSourceOracleConfig(
                 config.yieldSourceOracleId,
@@ -33,9 +33,6 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
                 config.feeRecipient,
                 config.ledger
             );
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -62,11 +59,8 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
         uint256 length = yieldSourceOracleIds.length;
 
         configs = new YieldSourceOracleConfig[](length);
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             configs[i] = yieldSourceOracleConfig[yieldSourceOracleIds[i]];
-            unchecked {
-                ++i;
-            }
         }
     }
 
