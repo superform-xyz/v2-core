@@ -2,46 +2,39 @@
 pragma solidity =0.8.28;
 
 // testing
-import { BaseTest } from "../../BaseTest.t.sol";
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
-import { ISuperVault } from "../../../src/periphery/interfaces/ISuperVault.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 
 contract SuperVault5115Underlying is BaseSuperVaultTest {
+    using Math for uint256;
+
     IStandardizedYield public pendleEthena;
     address public pendleEthenaAddress;
 
     address public account;
     AccountInstance public instance;
 
-    SuperVault public superVaultsUSDE;
-    SuperVaultEscrow public superVaultEscrowsUSDE;
-    SuperVaultStrategy public superVaultStrategysUSDE;
-
     uint256 public amountToDeposit;
 
     function setUp() public override {
         super.setUp();
+
+        console2.log("\n--- SETUP 5115 FOCUSED SUPERVAULT ---");
 
         amountToDeposit = 1000e6;
 
@@ -52,10 +45,10 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         instance = accountInstances[ETH];
 
         // Get USDC from fork
-        asset = IERC20Metadata(existingUnderlyingTokens[ETH][SUSDE_KEY]);
-        vm.label(address(asset), "sUSDE");
+        asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDE_KEY]);
+        vm.label(address(asset), "USDE");
 
-        pendleEthenaAddress = realVaultAddresses[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY];
+        pendleEthenaAddress = realVaultAddresses[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY];
         vm.label(pendleEthenaAddress, "PendleEthena");
 
         // Get real yield sources from fork
@@ -79,12 +72,12 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         bytes[] memory bootstrapHooksData = new bytes[](1);
         bootstrapHooksData[0] = _createDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), 
-            pendleEthenaAddress, 
-            address(asset), 
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            pendleEthenaAddress,
+            address(asset),
             BOOTSTRAP_AMOUNT,
-            BOOTSTRAP_AMOUNT,
-            false, 
+            IStandardizedYield(pendleEthenaAddress).previewDeposit(address(asset), BOOTSTRAP_AMOUNT),
+            false,
             false
         );
 
@@ -95,6 +88,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
         expectedAssetsOrSharesOut[0] = pendleEthena.previewDeposit(address(asset), BOOTSTRAP_AMOUNT);
 
+        console2.log("expectedAssetsOrSharesOut", expectedAssetsOrSharesOut[0]);
         // Deploy vault trio
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
@@ -118,86 +112,94 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         vm.label(vaultAddr, "SuperVaultsUSDE");
         vm.label(escrowAddr, "SuperVaultEscrowUSDE");
         vm.label(strategyAddr, "SuperVaultStrategyUSDE");
+        vault = SuperVault(vaultAddr);
+        strategy = SuperVaultStrategy(strategyAddr);
+        escrow = SuperVaultEscrow(escrowAddr);
 
         vm.stopPrank();
 
-        // Cast addresses to contract types
-        superVaultsUSDE = SuperVault(vaultAddr);
-        superVaultEscrowsUSDE = SuperVaultEscrow(escrowAddr);
-        superVaultStrategysUSDE = SuperVaultStrategy(strategyAddr);
-
-        _set5115FeeConfig(100, TREASURY);
+        _setFeeConfig(100, TREASURY);
 
         // Set up hook root (same one as bootstrap, just to test)
         vm.startPrank(SV_MANAGER);
-        superVaultStrategysUSDE.proposeOrExecuteHookRoot(hookRoot);
+        strategy.manageYieldSource(
+            CHAIN_1_SUSDE,
+            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            0,
+            false // addYieldSource
+        );
+
+        strategy.proposeOrExecuteHookRoot(hookRoot);
         vm.warp(block.timestamp + 7 days);
-        superVaultStrategysUSDE.proposeOrExecuteHookRoot(bytes32(0));
+        strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
 
     function test_SuperVault_5115_Underlying_E2EFlow() public {
+        console2.log("\n");
+        console2.log("----test_SuperVault_5115_Underlying_E2EFlow-----");
         vm.selectFork(FORKS[ETH]);
-
         // Record initial balances
         uint256 initialUserAssets = asset.balanceOf(accountEth);
-
         // Step 1: Request Deposit
-        _requestSV5115Deposit(amountToDeposit);
+        _requestDeposit(amountToDeposit);
+
+        uint256 balanceAfterDeposit = asset.balanceOf(account);
 
         // Verify assets transferred from user to vault
         assertEq(
-            asset.balanceOf(account), initialUserAssets - amountToDeposit, "User assets not reduced after deposit request"
+            asset.balanceOf(account),
+            initialUserAssets - amountToDeposit,
+            "User assets not reduced after deposit request"
         );
 
         // Step 2: Fulfill Deposit
         _fulfillSV5115Deposit(amountToDeposit);
 
         // Step 3: Claim Deposit
-        _claimSV_5115Deposit(amountToDeposit);
+        _claimDeposit(amountToDeposit);
 
-        console2.log("----deposit done ---");
+        console2.log("\n Claim deposit done");
 
         // Get shares minted to user
-        uint256 userShares = IERC20(superVaultsUSDE.share()).balanceOf(account);
-
-        // Record balances before redeem
-        uint256 preRedeemUserAssets = asset.balanceOf(account);
-        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
+        uint256 userShares = IERC20(vault.share()).balanceOf(account);
 
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
-
+        (uint256 totalAssets,) = strategy.totalAssets();
+        uint256 pricePerShare = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("\n PPS BEFORE REDEEM", pricePerShare);
         // Step 4: Request Redeem
-        _requestRedeemSV_5115(userShares);
+        _requestRedeem(userShares);
 
         // Verify shares are escrowed
-        assertEq(IERC20(superVaultsUSDE.share()).balanceOf(account), 0, "User shares not transferred from account");
-        assertEq(IERC20(superVaultsUSDE.share()).balanceOf(address(superVaultEscrowsUSDE)), userShares, "Shares not transferred to escrow");
+        assertEq(IERC20(vault.share()).balanceOf(account), 0, "User shares not transferred from account");
+        assertEq(IERC20(vault.share()).balanceOf(address(escrow)), userShares, "Shares not transferred to escrow");
 
-        _fulfillRedeemSV_5115();
+        console2.log("\n REQUESTING REDEEM ON UNDERLYING ETHENA VAULT");
+        _requestRedeem_Async5115(CHAIN_1_SUSDE);
 
-        uint256 claimableAssets = superVaultsUSDE.maxWithdraw(account);
+        (totalAssets,) = strategy.totalAssets();
+        pricePerShare = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("\n PPS AFTER REDEEM START", pricePerShare);
+
+        vm.warp(block.timestamp + 2 weeks);
+
+        _claimRedeem_Async5115(CHAIN_1_SUSDE);
+
+        (totalAssets,) = strategy.totalAssets();
+        pricePerShare = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("\n PPS AFTER FULFILL REQUESTS ASSETS CLAIM", pricePerShare);
+
+        uint256 claimableAssets = vault.maxWithdraw(account);
 
         // Step 5: Claim Redeem
-        //_claimRedeemSV_5115(claimableAssets);
-    }
+        _claimWithdraw(claimableAssets);
 
-    function _requestSV5115Deposit(uint256 amount) internal {
-        address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
-
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(asset), address(superVaultsUSDE), amount, false);
-        hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), amount, false
-        );
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instance, superExecutorOnEth, abi.encode(entry));
-        executeOp(userOpData);
+        uint256 balanceAfterRedeem = asset.balanceOf(account);
+        uint256 amountRedeemed = balanceAfterRedeem - balanceAfterDeposit;
+        console2.log("Balance difference", amountRedeemed);
+        console2.log("LOSS to initial deposit", amountToDeposit - amountRedeemed);
     }
 
     function _fulfillSV5115Deposit(uint256 amount) internal {
@@ -209,13 +211,16 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         bytes32[][] memory proofs = new bytes32[][](1);
         proofs[0] = _getMerkleProof(depositHookAddress);
 
+        uint256 expectedShares = IStandardizedYield(pendleEthenaAddress).previewDeposit(address(asset), amount);
+        console2.log("preview deposit", expectedShares);
+
         bytes[] memory hookCalldata = new bytes[](1);
         hookCalldata[0] = _createDeposit5115VaultHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             pendleEthenaAddress,
             address(asset),
             amount,
-            amount,
+            expectedShares,
             false,
             false
         );
@@ -224,101 +229,85 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         users[0] = account;
 
         uint256[] memory minAssetsOrSharesOut = new uint256[](1);
-        minAssetsOrSharesOut[0] = superVaultsUSDE.convertToShares(amount);
+        minAssetsOrSharesOut[0] = expectedShares;
 
         vm.startPrank(STRATEGIST);
-        superVaultStrategysUSDE.fulfillRequests(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
+        strategy.fulfillRequests(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
         vm.stopPrank();
-        console2.log("-------SVShare balance", IStandardizedYield(pendleEthenaAddress).balanceOf(address(superVaultStrategysUSDE)));
+        console2.log("-------SVShare balance", IStandardizedYield(pendleEthenaAddress).balanceOf(address(strategy)));
     }
 
-    function _claimSV_5115Deposit(uint256 amount) internal {
-        address[] memory claimHooksAddresses = new address[](1);
-        claimHooksAddresses[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
-
-        bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), amount, false, false
-        );
-
-        ISuperExecutor.ExecutorEntry memory claimEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
-        UserOpData memory claimUserOpData = _getExecOps(instance, superExecutorOnEth, abi.encode(claimEntry));
-        executeOp(claimUserOpData);
-    }
-
-    function _requestRedeemSV_5115(uint256 redeemShares) internal {
-        address[] memory redeemHooksAddresses = new address[](1);
-        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
-
-        bytes[] memory redeemHooksData = new bytes[](1);
-        redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), redeemShares, false
-        );
-
-        ISuperExecutor.ExecutorEntry memory redeemEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
-        UserOpData memory redeemUserOpData = _getExecOps(instance, superExecutorOnEth, abi.encode(redeemEntry));
-
-        executeOp(redeemUserOpData);
-    }
-
-    function _fulfillRedeemSV_5115() internal {
+    function _requestRedeem_Async5115(address tokenOut) internal {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = account;
 
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_5115_VAULT_HOOK_KEY);
+        address[] memory hooks = new address[](2);
+        hooks[0] = _getHookAddress(ETH, WITHDRAW_5115_VAULT_HOOK_KEY);
+        hooks[1] = _getHookAddress(ETH, ETHENA_COOLDOWN_SHARES_HOOK_KEY);
 
-        address[] memory fulfillHooksAddresses = new address[](1);
-        fulfillHooksAddresses[0] = withdrawHookAddress;
+        uint256 shares = strategy.pendingRedeemRequest(account);
+        (uint256 totalAssets,) = strategy.totalAssets();
+        uint256 pps = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS BEFORE REDEEM REQUEST", pps);
+        uint256 assetsSV = shares.mulDiv(pps, 1e18, Math.Rounding.Floor);
+        console2.log("USDE FOR REDEEM", assetsSV);
+        console2.log("balance of pendleEthena", pendleEthena.balanceOf(address(strategy)));
+        uint256 underlyingSharesOut = pendleEthena.previewDeposit(address(asset), assetsSV);
+        console2.log("underlyingSharesOut", underlyingSharesOut);
+        uint256 underlyingAssetsOut = pendleEthena.previewRedeem(tokenOut, underlyingSharesOut);
+        console2.log("underlyingAssetsOut", underlyingAssetsOut);
 
-        uint256 shares = superVaultStrategysUSDE.pendingRedeemRequest(account);
-        uint256 assetsSV = superVaultsUSDE.convertToAssets(shares);
-
-        bytes[] memory fulfillHooksData = new bytes[](1);
-        fulfillHooksData[0] = _create5115WithdrawHookData(
+        bytes[] memory hookCalldata = new bytes[](2);
+        hookCalldata[0] = _create5115WithdrawHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             pendleEthenaAddress,
-            address(asset),
-            shares,
-            0,
-            false,
+            tokenOut,
+            underlyingSharesOut,
+            underlyingAssetsOut,
             false,
             false
         );
 
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = pendleEthena.previewDeposit(address(asset), assetsSV);
+        hookCalldata[1] =
+            abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
 
         vm.startPrank(STRATEGIST);
-        superVaultStrategysUSDE.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.executeHooks(hooks, hookCalldata);
+
         vm.stopPrank();
     }
 
-    function _claimRedeemSV_5115(uint256 claimableAssets) internal {
-        address[] memory claimHooksAddresses = new address[](1);
-        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+    function _claimRedeem_Async5115(address tokenOut) internal {
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = account;
 
-        bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(superVaultsUSDE), claimableAssets, false, false
+        address[] memory fulfillHooksAddresses = new address[](1);
+        fulfillHooksAddresses[0] = _getHookAddress(ETH, ETHENA_UNSTAKE_HOOK_KEY);
+
+        uint256 shares = strategy.pendingRedeemRequest(account);
+        (uint256 totalAssets,) = strategy.totalAssets();
+        uint256 pps = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        console2.log("PPS BEFORE CLAIM REDEEM", pps);
+        uint256 assetsSV = shares.mulDiv(pps, 1e18, Math.Rounding.Floor);
+        console2.log("USDE FOR CLAIM REDEEM", assetsSV);
+        uint256 underlyingSharesOut = IERC4626(tokenOut).previewDeposit(assetsSV);
+        console2.log("underlyingSharesOut", underlyingSharesOut);
+        uint256 underlyingAssetsOut = IERC4626(tokenOut).previewRedeem(underlyingSharesOut);
+        console2.log("underlyingAssetsOut", underlyingAssetsOut);
+
+        bytes[] memory fulfillHooksData = new bytes[](1);
+        fulfillHooksData[0] =
+            abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, shares, address(strategy), false);
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        expectedAssetsOrSharesOut[0] = underlyingAssetsOut;
+
+        vm.startPrank(STRATEGIST);
+
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
         );
 
-        ISuperExecutor.ExecutorEntry memory claimEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
-
-        UserOpData memory claimUserOpData = _getExecOps(instance, superExecutorOnEth, abi.encode(claimEntry));
-        executeOp(claimUserOpData);
-    }
-            
-    
-
-    function _set5115FeeConfig(uint256 feePercent, address recipient) internal {
-        vm.startPrank(SV_MANAGER);
-        superVaultStrategysUSDE.proposeVaultFeeConfigUpdate(feePercent, recipient);
-        vm.warp(block.timestamp + 7 days);
-        superVaultStrategysUSDE.executeVaultFeeConfigUpdate();
         vm.stopPrank();
     }
-    
 }
