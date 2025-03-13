@@ -13,21 +13,13 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/ext
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IGearboxFarmingPool } from "../../../src/vendor/gearbox/IGearboxFarmingPool.sol";
 
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modulekit/ModuleKit.sol";
 
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
-import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
-import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
-import { ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
-import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
@@ -152,6 +144,24 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         strategyGearSuperVault.proposeOrExecuteHookRoot(hookRoot);
         vm.warp(block.timestamp + 7 days);
         strategyGearSuperVault.proposeOrExecuteHookRoot(bytes32(0));
+
+        strategyGearSuperVault.proposeVaultFeeConfigUpdate(100, TREASURY);
+        vm.warp(block.timestamp + 1 weeks);
+        strategyGearSuperVault.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
+
+        vm.startPrank(MANAGER);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
+            feePercent: 0,
+            feeRecipient: TREASURY,
+            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
+        });
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
         vm.stopPrank();
     }
 

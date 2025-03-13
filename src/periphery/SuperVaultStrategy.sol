@@ -1025,6 +1025,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
+            console2.log("\n UNBLOCKED HERE------------------------------------------------------------");
+            console2.log("locals.outAmount", locals.outAmount);
+            console2.log("expectedAssetsOrSharesOut[i]", expectedAssetsOrSharesOut[i]);
             if (
                 locals.outAmount * ONE_HUNDRED_PERCENT
                     < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
@@ -1178,11 +1181,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
+            console2.log("\n FEEEEE TAKING");
+            console2.log("totalFee", totalFee);
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
                 uint256 superformFee =
                     totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 uint256 recipientFee = totalFee - superformFee;
+                console2.log("superformFee", superformFee);
+                console2.log("recipientFee", recipientFee);
 
                 // Transfer fees
                 if (superformFee > 0) {

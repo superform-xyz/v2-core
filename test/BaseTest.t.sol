@@ -1181,7 +1181,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         internal
         pure
     {
-        assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee);
+        assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 
     /*//////////////////////////////////////////////////////////////
