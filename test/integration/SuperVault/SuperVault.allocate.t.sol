@@ -72,7 +72,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         console2.log("Target FluidVault assets:", vars.targetFluidVaultAssets);
         console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
 
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
@@ -129,7 +129,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         hooksAddresses[0] = withdrawHookAddress;
@@ -211,7 +211,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
@@ -325,7 +325,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
 
         // allocation
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](3);
@@ -335,7 +335,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
 
         bytes[] memory hooksData = new bytes[](3);
         // redeem from FluidVault
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
@@ -344,7 +344,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
             false
         );
         // redeem from AaveVault
-        hooksData[1] = _createWithdraw4626HookData(
+        hooksData[1] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(strategy),
