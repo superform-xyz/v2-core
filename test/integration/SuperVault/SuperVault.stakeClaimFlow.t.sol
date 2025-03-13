@@ -84,12 +84,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         vm.label(gearboxStakingAddr, "GearboxStaking");
         gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
 
-        // Deploy vault trio with initial config
-        ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: VAULT_CAP,
-            superVaultCap: SUPER_VAULT_CAP,
-            vaultThreshold: VAULT_THRESHOLD
-        });
         bytes32 hookRoot = _getMerkleRoot();
 
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -119,7 +113,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                config: config,
+                superVaultCap: SUPER_VAULT_CAP,
                 bootstrapAmount: BOOTSTRAP_AMOUNT,
                 initYieldSource: address(gearboxVault),
                 initHooksRoot: hookRoot,
@@ -157,6 +151,10 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
     function test_SuperVault_StakeClaimFlow() public {
         vm.selectFork(FORKS[ETH]);
+
+        vm.startPrank(SV_MANAGER);
+        strategyGearSuperVault.updateSuperVaultCap(type(uint256).max);
+        vm.stopPrank();
 
         // Record initial balances
         uint256 initialUserAssets = asset.balanceOf(accountEth);

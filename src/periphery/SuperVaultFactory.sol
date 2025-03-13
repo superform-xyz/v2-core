@@ -79,7 +79,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
             address(this),
             params.emergencyAdmin,
             peripheryRegistry,
-            params.config,
+            params.superVaultCap,
             params.initYieldSource,
             params.initHooksRoot,
             params.initYieldSourceOracle
@@ -96,7 +96,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
                 bootstrappingHooks: params.bootstrappingHooks,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
                 expectedAssetsOrSharesOut: params.expectedAssetsOrSharesOut,
-                config: params.config,
+                superVaultCap: params.superVaultCap,
                 bootstrapAmount: params.bootstrapAmount
             })
         );

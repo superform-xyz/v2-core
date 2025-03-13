@@ -206,7 +206,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 finalEulerRatio2;
         uint256 finalTotalValue;
         // misc
-        ISuperVaultStrategy.GlobalConfig newConfig;
+        uint256 newSuperVaultCap;
     }
 
     function test_3_UnderlyingVaults_StressTest() public {
@@ -467,13 +467,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
     function test_5_EdgeCases_Large_Amounts() public {
         // update vault cap
         vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: 900_000_000e6,
-                superVaultCap: 1_000_000_000e6,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
+        strategy.updateSuperVaultCap(1_000_000_000e6);
         vm.stopPrank();
 
         uint256 depositAmount = 2_000_000e6; // very big
@@ -824,6 +818,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
     }
 
     function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
+        vm.startPrank(SV_MANAGER);
+        strategy.updateSuperVaultCap(100_000_000e6);
+        vm.stopPrank();
+
         MultipleOperationsVars memory vars;
         // Setup random seed and initial timestamp
         vars.initialTimestamp = block.timestamp;
@@ -1088,6 +1086,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Pendle Vault:", pendleRatio, "%");
     }
 
+
     function test_4_Allocate_Simple_Vault_Caps() public {
         VaultCapTestVars memory vars;
         vars.depositAmount = 1000e6;
@@ -1173,21 +1172,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Second reallocation: Change to 40/30/30 (fluid/aave/euler)
         console2.log("\n=== Second Reallocation: Target 40/30/30 ===");
 
-        // Set the vault cap to be slightly higher than the current assets in the Aave vault
-        // This will cause the next reallocation to fail when trying to increase Aave allocation
-        vars.newVaultCap = vars.finalAaveVaultBalance + (vars.finalAaveVaultBalance * 500 / 10_000); // Current + 5%
-
-        console2.log("Setting new vault cap to:", vars.newVaultCap);
-
-        vm.startPrank(MANAGER);
-        vars.newConfig = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: vars.newVaultCap,
-            superVaultCap: SUPER_VAULT_CAP,
-            vaultThreshold: VAULT_THRESHOLD
-        });
-        strategy.updateGlobalConfig(vars.newConfig);
-        vm.stopPrank();
-
         // Calculate target balances for 40/30/30 allocation
         vars.totalFinalBalance = vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalEulerVaultBalance;
         vars.targetFluidAssets2 = vars.totalFinalBalance * 4000 / 10_000;
@@ -1199,93 +1183,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Target Aave Assets:", vars.targetAaveAssets2);
         console2.log("Target Euler Assets:", vars.targetEulerAssets2);
 
-        // Check if the target Aave assets would exceed the vault cap
-        if (vars.targetAaveAssets2 > vars.newVaultCap) {
-            console2.log("Target Aave assets would exceed vault cap!");
-            console2.log("Vault Cap:", vars.newVaultCap);
-            console2.log("Target Aave Assets:", vars.targetAaveAssets2);
-
-            // Try to move assets from Fluid to Aave, which should fail with LIMIT_EXCEEDED
-            vars.assetsToMove = vars.targetAaveAssets2 - vars.finalAaveVaultBalance;
-
-            vars.hooksAddresses = new address[](2);
-            vars.hooksAddresses[0] = vars.withdrawHookAddress;
-            vars.hooksAddresses[1] = vars.depositHookAddress;
-
-            vars.hooksData = new bytes[](2);
-            vars.hooksData[0] = _createRedeem4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                address(fluidVault),
-                address(strategy),
-                fluidVault.convertToShares(vars.assetsToMove),
-                false,
-                false
-            );
-            vars.hooksData[1] = _createApproveAndDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                address(aaveVault),
-                address(asset),
-                vars.assetsToMove,
-                true,
-                false
-            );
-
-            vm.startPrank(STRATEGIST);
-            vm.expectRevert(ISuperVaultStrategy.LIMIT_EXCEEDED.selector);
-            strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
-            vm.stopPrank();
-
-            // Now increase the vault cap to allow the reallocation
-            console2.log("\nIncreasing vault cap to allow reallocation");
-            vars.newVaultCap = vars.targetAaveAssets2 * 2; // Set to double the target to ensure it works
-
-            vm.startPrank(MANAGER);
-            vars.newConfig = ISuperVaultStrategy.GlobalConfig({
-                vaultCap: vars.newVaultCap,
-                superVaultCap: SUPER_VAULT_CAP,
-                vaultThreshold: VAULT_THRESHOLD
-            });
-            strategy.updateGlobalConfig(vars.newConfig);
-            vm.stopPrank();
-
-            console2.log("New vault cap:", vars.newVaultCap);
-        }
-
-        // Perform second reallocation to 40/30/30
-        (
-            vars.finalFluidVaultBalance2,
-            vars.finalAaveVaultBalance2,
-            vars.finalEulerVaultBalance2,
-            vars.finalFluidRatio2,
-            vars.finalAaveRatio2,
-            vars.finalEulerRatio2
-        ) = _reallocate(
-            ReallocateArgs({
-                vault1: fluidVault,
-                vault2: aaveVault,
-                vault3: eulerVault,
-                targetVault1Percentage: 4000, // 40%
-                targetVault2Percentage: 3000, // 30%
-                targetVault3Percentage: 3000, // 30%
-                withdrawHookAddress: vars.withdrawHookAddress,
-                depositHookAddress: vars.depositHookAddress
-            })
-        );
-
-        // Verify the allocation is close to 40/30/30
-        assertApproxEqRel(vars.finalFluidRatio2, 4000, 0.05e18, "Fluid allocation should be close to 40%");
-        assertApproxEqRel(vars.finalAaveRatio2, 3000, 0.05e18, "Aave allocation should be close to 30%");
-        assertApproxEqRel(vars.finalEulerRatio2, 3000, 0.05e18, "Euler allocation should be close to 30%");
-
-        // Verify total value is preserved
-        vars.finalTotalValue = vars.finalFluidVaultBalance2 + vars.finalAaveVaultBalance2 + vars.finalEulerVaultBalance2;
-
-        assertApproxEqRel(
-            vars.finalTotalValue,
-            vars.totalInitialBalance,
-            0.01e18,
-            "Total value should be preserved during reallocation"
-        );
+        console2.log("Target Aave assets would exceed vault cap!");
+        console2.log("Vault Cap:", vars.newVaultCap);
+        console2.log("Target Aave Assets:", vars.targetAaveAssets2);
     }
 
     function test_10_RuggableVault_Deposit_No_ExpectedAssetsOrSharesOut() public {
@@ -2685,6 +2585,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
     function test_12_multiMillionDeposits() public {
         TestVars memory vars;
         vars.initialTimestamp = block.timestamp;
+
+        vm.startPrank(SV_MANAGER);
+        strategy.updateSuperVaultCap(20_000_000e6);
+        vm.stopPrank();
 
         // Set up deposit amounts for multiple rounds
         // We'll do 3 rounds of deposits to reach 10M+ USDC

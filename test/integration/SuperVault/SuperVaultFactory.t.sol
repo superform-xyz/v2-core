@@ -11,7 +11,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     function test_DeployVault() public {
         // Deploy a new vault
         (address vaultAddr, address strategyAddr, address escrowAddr) =
-            _deployVault(address(asset), 1_000_000e6, 5_000_000e6, 100_000e6, 1e6, "SV");
+            _deployVault(address(asset), 5_000_000e6, 1e6, "SV");
         // Verify addresses are not zero
         assertTrue(vaultAddr != address(0), "Vault address should not be zero");
         assertTrue(strategyAddr != address(0), "Strategy address should not be zero");
@@ -50,9 +50,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
             // Deploy a new vault with custom configuration
             (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(
                 address(asset),
-                1_000_000e6, // vaultCap
                 5_000_000e6, // superVaultCap
-                100_000e6, // vaultThreshold
                 1e6, // bootstrapAmount
                 symbols[i] // symbol
             );
@@ -188,11 +186,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         internal
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
-        ISuperVaultStrategy.GlobalConfig memory globalConfig = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: params.vaultCap,
-            superVaultCap: params.superVaultCap,
-            vaultThreshold: params.vaultThreshold
-        });
         (vaultAddr, strategyAddr, escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
                 asset: params.asset,
@@ -202,7 +195,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 strategist: params.strategist,
                 emergencyAdmin: params.emergencyAdmin,
                 feeRecipient: params.feeRecipient,
-                config: globalConfig,
+                superVaultCap: params.superVaultCap,
                 bootstrapAmount: params.bootstrapAmount,
                 initYieldSource: params.initYieldSource,
                 initHooksRoot: params.initHooksRoot,
