@@ -192,13 +192,7 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
 
         // update vault cap
         vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: 500_000_000e6,
-                superVaultCap: 1_000_000_000e6,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
+        strategy.updateSuperVaultCap(1_000_000_000e6);
         vm.stopPrank();
 
         _completeDepositFlow(vars.depositAmount);

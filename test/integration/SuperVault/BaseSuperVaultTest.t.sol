@@ -135,7 +135,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
      * @notice Struct to hold local variables for _deployVault to avoid stack too deep errors
      */
     struct DeployVaultVars {
-        ISuperVaultStrategy.GlobalConfig globalConfig;
+        uint256 superVaultCap;
         bytes32 hookRoot;
         address depositHookAddress;
         bytes32[] depositProof;
@@ -154,9 +154,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
      */
     function _deployVault(
         address _asset,
-        uint256 _vaultCap,
         uint256 _superVaultCap,
-        uint256 _vaultThreshold,
         uint256 _bootstrapAmount,
         string memory _superVaultSymbol
     )
@@ -165,12 +163,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     {
         DeployVaultVars memory vars;
 
-        // Initialize GlobalConfig with provided parameters
-        vars.globalConfig = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: _vaultCap,
-            superVaultCap: _superVaultCap,
-            vaultThreshold: _vaultThreshold
-        });
+        vars.superVaultCap = _superVaultCap;
         vars.hookRoot = _getMerkleRoot();
         vars.depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         vars.depositProof = _getMerkleProof(vars.depositHookAddress);
@@ -200,7 +193,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                config: vars.globalConfig,
+                superVaultCap: vars.superVaultCap,
                 bootstrapAmount: _bootstrapAmount,
                 initYieldSource: address(fluidVault),
                 initHooksRoot: vars.hookRoot,
@@ -233,7 +226,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
         return _deployVault(
-            address(asset), VAULT_CAP, SUPER_VAULT_CAP, VAULT_THRESHOLD, BOOTSTRAP_AMOUNT, _superVaultSymbol
+            address(asset), SUPER_VAULT_CAP, BOOTSTRAP_AMOUNT, _superVaultSymbol
         );
     }
 

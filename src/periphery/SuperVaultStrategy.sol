@@ -57,7 +57,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     mapping(bytes32 role => address roleAddress) public addresses;
 
     // Global configuration
-    GlobalConfig private globalConfig;
+    uint256 private superVaultCap;
 
     // Fee configuration
     FeeConfig private feeConfig;
@@ -107,7 +107,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address strategist_,
         address emergencyAdmin_,
         address peripheryRegistry_,
-        GlobalConfig memory config_,
+        uint256 superVaultCap_,
         address initYieldSource_,
         bytes32 initHooksRoot_,
         address initYieldSourceOracle_
@@ -120,22 +120,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
         if (peripheryRegistry_ == address(0)) revert INVALID_PERIPHERY_REGISTRY();
-        if (config_.vaultCap == 0) revert INVALID_VAULT_CAP();
-        if (config_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
-
-        if (config_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
+        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
 
         _initialized = true;
         _vault = vault_;
         _asset = IERC20(IERC4626(vault_).asset());
         _vaultDecimals = IERC20Metadata(vault_).decimals();
 
+        superVaultCap = superVaultCap_;
+
         // Initialize roles
         addresses[MANAGER_ROLE] = manager_;
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
         peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
-        globalConfig = config_;
 
         // Initialize first yield source and hook root to bootstrap the vault
         if (initHooksRoot_ == bytes32(0)) revert INVALID_HOOK_ROOT();
@@ -220,11 +218,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address[] memory targetedYieldSources;
         (vars, targetedYieldSources) = _processHooks(hooks, hookCalldata, vars, expectedAssetsOrSharesOut, isDeposit);
 
-        // Check vault caps after hooks processing (only for deposits)
-        if (isDeposit) {
-            _checkVaultCaps(targetedYieldSources);
-        }
-
         // Process requests
         for (uint256 i; i < usersLength;) {
             address user = users[i];
@@ -240,6 +233,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 ++i;
             }
         }
+
+        //check super vault cap
+        _checkSuperVaultCap();
     }
 
     /// @param redeemUsers Array of users with pending redeem requests
@@ -340,6 +336,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 ++i;
             }
         }
+
+        //check super vault cap
+        _checkSuperVaultCap();
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -413,16 +412,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
         }
 
-        // Check vault caps for all inflow targets
-        if (vars.inflowCount > 0) {
-            _checkVaultCaps(vars.inflowTargets);
-        }
-
         // Validate final state based on hook types
         vars.finalAssetBalance = _getTokenBalance(address(_asset), address(this));
 
         // Always ensure we have enough to cover assetsInRequest
         if (vars.finalAssetBalance < assetsInRequest) revert INVALID_AMOUNT();
+
+        //check super vault cap
+        _checkSuperVaultCap();
 
         emit HooksExecuted(hooks, vars.initialAssetBalance, vars.finalAssetBalance);
     }
@@ -498,10 +495,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (oracle == address(0)) revert ZERO_ADDRESS();
             if (yieldSource.oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-            if (IYieldSourceOracle(oracle).getTVL(source) < globalConfig.vaultThreshold) {
-                revert VAULT_THRESHOLD_EXCEEDED();
-            }
-
             yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
             yieldSourcesList.push(source);
             emit YieldSourceAdded(source, oracle);
@@ -517,9 +510,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_ORACLE_NOT_FOUND();
                 if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_ACTIVE();
 
-                if (IYieldSourceOracle(oracle).getTVL(source) < globalConfig.vaultThreshold) {
-                    revert VAULT_THRESHOLD_EXCEEDED();
-                }
 
                 yieldSource.isActive = true;
                 emit YieldSourceReactivated(source);
@@ -538,14 +528,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function updateGlobalConfig(GlobalConfig calldata config) external {
+    function updateSuperVaultCap(uint256 superVaultCap_) external {
         _requireRole(MANAGER_ROLE);
-        if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
-        if (config.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
-        if (config.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
+        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
 
-        globalConfig = config;
-        emit GlobalConfigUpdated(config.vaultCap, config.superVaultCap, config.vaultThreshold);
+        superVaultCap = superVaultCap_;
+        emit SuperVaultCapUpdated(superVaultCap_);
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -662,8 +650,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function getConfigInfo() external view returns (GlobalConfig memory globalConfig_, FeeConfig memory feeConfig_) {
-        globalConfig_ = globalConfig;
+    function getConfigInfo() external view returns (uint256 superVaultCap_, FeeConfig memory feeConfig_) {
+        superVaultCap_ = superVaultCap;
         feeConfig_ = feeConfig;
     }
 
@@ -690,6 +678,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    function _checkSuperVaultCap() internal view {
+        if (superVaultCap > 0) {
+            (uint256 totalAssets_,) = totalAssets();
+            if (totalAssets_ > superVaultCap) revert SUPER_VAULT_CAP_EXCEEDED();
+        }
+    }
+
     function _isFulfillRequestsHook(address hook) private view returns (bool) {
         return peripheryRegistry.isFulfillRequestsHookRegistered(hook);
     }
@@ -1165,22 +1160,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     {
         amount = _decodeHookAmount(hook, hookCalldata);
         yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
-    }
-
-    /// @notice Check vault caps for targeted yield sources
-    /// @param targetedYieldSources Array of yield sources to check
-    function _checkVaultCaps(address[] memory targetedYieldSources) private view {
-        // TODO This check is gas expensive due to getTVLByOwnerOfShares calls
-        for (uint256 i; i < targetedYieldSources.length;) {
-            address source = targetedYieldSources[i];
-            if (source == address(0)) revert ZERO_ADDRESS();
-
-            uint256 yieldSourceTVL = _getTvlByOwnerOfShares(source);
-            if (yieldSourceTVL > globalConfig.vaultCap) revert LIMIT_EXCEEDED();
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     /// @notice Calculate fee on profit and transfer to recipient
