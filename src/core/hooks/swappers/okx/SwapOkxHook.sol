@@ -128,8 +128,6 @@ contract SwapOkxHook is BaseHook, ISuperHook {
         uint256 batchCount = batches.length;
         if (batchCount != batchesAmount.length) revert INVALID_BATCH_LENGTH();
 
-        // maybe we skip this as it should be validated on the router contract
-        // might consume too much gas comparing with the gain
         bool found;
         for (uint256 i; i < batchCount; ++i) {
             IOkxSwapRouter.RouterPath[] memory _batches = batches[i];

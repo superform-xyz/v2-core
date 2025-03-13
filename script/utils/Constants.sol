@@ -84,8 +84,8 @@ abstract contract Constants {
         // the real one
 
     address internal constant OKX_ROUTER_MAINNET = 0x1Ef032a3c471a99CC31578c8007F256D95E89896;
-    address internal constant OKX_ROUTER_BASE = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
-    address internal constant OKX_ROUTER_OPTIMISM = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
+    address internal constant OKX_ROUTER_BASE = 0x6b2C0c7be2048Daa9b5527982C29f48062B34D58; 
+    address internal constant OKX_ROUTER_OPTIMISM = 0xf332761c673b59B21fF6dfa8adA44d78c12dEF09;
     address internal constant OKX_ROUTER_ARB_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
     address internal constant OKX_ROUTER_BASE_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
     address internal constant OKX_ROUTER_OP_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
