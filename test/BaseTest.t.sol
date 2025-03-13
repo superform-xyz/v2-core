@@ -270,7 +270,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         _setupSuperLedger();
 
         // Fund underlying tokens
-        _fundUnderlyingTokens(1e18);
+        _fundUnderlyingTokens(10_000);
     }
 
     /*//////////////////////////////////////////////////////////////

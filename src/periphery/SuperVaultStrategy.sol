@@ -458,14 +458,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Manage yield sources: add, update oracle, and toggle activation.
-    /// @param source Address of the yield source.
-    /// @param oracle Address of the oracle (used for adding/updating).
-    /// @param actionType Type of action:
-    ///        0 - Add new yield source,
-    ///        1 - Update oracle,
-    ///        2 - Toggle activation (oracle param ignored).
-    /// @param activate Boolean flag for activation when actionType is 2.
+
+    /// @inheritdoc ISuperVaultStrategy
     function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external {
         _requireRole(MANAGER_ROLE);
         YieldSource storage yieldSource = yieldSources[source];
