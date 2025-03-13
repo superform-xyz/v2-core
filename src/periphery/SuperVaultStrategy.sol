@@ -27,13 +27,6 @@ import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 
-// 10000 assets requested deposit
-// request Deposit called to centrifuge
-// 10000 assets gone into the request. PPS didn't increase, TVL didn't increase, the vault
-// may look as if assets were gone
-// strategist needs to wait for the fulfill to happen
-// then he can call deposit() via fulfillRequests to mint shares to users so they can claim
-
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -226,11 +219,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (isDeposit) {
             _checkVaultCaps(targetedYieldSources);
         }
-
-        // TODO: for 5115s where underlying share is the only tokenOut or 7540s
-        // we can't fulfill a users claim (but we are doing so)
-        // If we do fulfill  and all users try to claim/exit, there wouldn't be enough assets to give out
-        // to everyone
 
         // Process requests
         for (uint256 i; i < usersLength;) {
