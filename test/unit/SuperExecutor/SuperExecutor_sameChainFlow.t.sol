@@ -292,7 +292,7 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
         // retrieve logs and mint SP
         {
-            for (uint256 i; i < executionReturnData.logs.length;) {
+            for (uint256 i; i < executionReturnData.logs.length; ++i) {
                 if (executionReturnData.logs[i].emitter == address(superExecutor)) {
                     if (address(uint160(uint256((executionReturnData.logs[i].topics[1])))) == account) {
                         console.log("\n SuperExecutor logs");
@@ -317,9 +317,6 @@ contract SuperExecutor_sameChainFlow is BaseTest {
 
                         assertNotEq(mockSuperPositionFactory.createdSPs(precomputedId), address(0));
                     }
-                }
-                unchecked {
-                    ++i;
                 }
             }
         }

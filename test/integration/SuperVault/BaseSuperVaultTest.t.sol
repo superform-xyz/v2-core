@@ -305,13 +305,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _requestDepositForAllUsers(uint256 depositAmount) internal {
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _getTokens(address(asset), accInstances[i].account, depositAmount);
             _requestDepositForAccount(accInstances[i], depositAmount);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -336,12 +333,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _requestRedeemForAllUsers(uint256 redeemAmount) internal {
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 redeemShares = redeemAmount > 0 ? redeemAmount : vault.balanceOf(accInstances[i].account);
             _requestRedeemForAccount(accInstances[i], redeemShares);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -672,11 +666,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -685,11 +676,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], depositAmount);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -698,25 +686,19 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // Calculate total amount for allocation
         uint256 totalAmount;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _getTokens(address(asset), accInstances[i].account, depositAmounts[i]);
             _requestDepositForAccount(accInstances[i], depositAmounts[i]);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmounts[i]);
             totalAmount += depositAmounts[i];
-            unchecked {
-                ++i;
-            }
         }
 
         // create fullfillment data
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -725,11 +707,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], depositAmounts[i]);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -1059,17 +1038,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _verifySharesAndAssets(DepositVerificationVars memory vars) internal {
         uint256[] memory initialUserShareBalances = new uint256[](ACCOUNT_COUNT);
         uint256[] memory maxDepositAmounts = new uint256[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             initialUserShareBalances[i] = vault.balanceOf(accInstances[i].account);
             maxDepositAmounts[i] = vault.maxDeposit(accInstances[i].account);
             _claimDepositForAccount(accInstances[i], maxDepositAmounts[i]);
-            unchecked {
-                ++i;
-            }
         }
 
         vars.totalSharesMinted = 0;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             console2.log("initialUserShareBalances", initialUserShareBalances[i]);
             console2.log("i", i);
             uint256 userSharesReceived = vault.balanceOf(accInstances[i].account) - initialUserShareBalances[i];
@@ -1085,9 +1061,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             console2.log("maxDepositAmounts", maxDepositAmounts[i]);
             assertApproxEqRel(assetsFromShares, maxDepositAmounts[i], 0.01e18); // Allow 1% deviation
             console2.log("--------------------------------");
-            unchecked {
-                ++i;
-            }
         }
 
         vars.totalAssetsFromShares = vault.convertToAssets(vars.totalSharesMinted);
@@ -1255,7 +1228,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 lastConsumedIndex = currentIndex;
 
         // Calculate historicalAssets for each share price point
-        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
+        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0; ++j) {
             SharePricePoint memory point = sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
             historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
@@ -1271,9 +1244,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             }
 
             remainingShares -= sharesFromPoint;
-            unchecked {
-                ++j;
-            }
         }
 
         // Calculate current value and process fees

@@ -45,11 +45,8 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         if (owner_ == address(0)) revert ZERO_ADDRESS();
         uint256 length = initialProviders.length;
         // Set default staleness for initial providers
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             providerMaxStaleness[initialProviders[i]] = 1 days;
-            unchecked {
-                ++i;
-            }
         }
         _configureOracles(initialBases, initialProviders, initialOracleAddresses);
     }
@@ -76,7 +73,7 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
             uint256 count;
 
             // Start from index 1 to skip the average provider
-            for (uint256 i = 1; i < MAX_PROVIDERS;) {
+            for (uint256 i = 1; i < MAX_PROVIDERS; ++i) {
                 address providerOracle = usdQuotedOracle[base][i];
                 if (providerOracle == address(0)) break; // Stop if we hit an empty slot
 
@@ -87,10 +84,6 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
                     unchecked {
                         ++count;
                     }
-                }
-
-                unchecked {
-                    ++i;
                 }
             }
 
@@ -181,14 +174,11 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         uint256 length = bases.length;
         if (length != providers.length || length != oracleAddresses.length) revert ARRAY_LENGTH_MISMATCH();
 
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; ++i) {
             usdQuotedOracle[bases[i]][providers[i]] = oracleAddresses[i];
             // Set default staleness if not already set
             if (providerMaxStaleness[providers[i]] == 0) {
                 providerMaxStaleness[providers[i]] = 1 days;
-            }
-            unchecked {
-                ++i;
             }
         }
 
