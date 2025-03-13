@@ -245,25 +245,18 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.depositUsers = new address[](2);
         vars.depositAmounts = new uint256[](2);
 
-        for (uint256 i; i < 2;) {
+        for (uint256 i; i < 2; ++i) {
             vars.depositUsers[i] = accInstances[i].account;
             vars.depositAmounts[i] = vars.depositAmount;
-            unchecked {
-                ++i;
-            }
         }
 
         // perform deposit operations
-        for (uint256 i; i < 2;) {
+        for (uint256 i; i < 2; ++i) {
             _getTokens(address(asset), vars.depositUsers[i], vars.depositAmounts[i]);
             vm.startPrank(vars.depositUsers[i]);
             asset.approve(address(vault), vars.depositAmounts[i]);
             vault.requestDeposit(vars.depositAmounts[i], vars.depositUsers[i], vars.depositUsers[i]);
             vm.stopPrank();
-
-            unchecked {
-                ++i;
-            }
         }
 
         vars.initialTotalAssets = vault.totalAssets();
@@ -307,14 +300,11 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.001e18, "Price per share should be preserved");
 
         // claim
-        for (uint256 i; i < 2;) {
+        for (uint256 i; i < 2; ++i) {
             vm.startPrank(vars.depositUsers[i]);
             uint256 maxDeposit = vault.maxDeposit(vars.depositUsers[i]);
             vault.deposit(maxDeposit, vars.depositUsers[i], vars.depositUsers[i]);
             vm.stopPrank();
-            unchecked {
-                ++i;
-            }
         }
 
         vm.warp(block.timestamp + 12 weeks);
@@ -383,12 +373,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         // request redeem for all users
@@ -398,12 +385,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill redeem
@@ -412,12 +395,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -460,12 +440,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         assertApproxEqRel(finalTotalAssets, totalAssets, 0.05e18, "Total value should be preserved");
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         _requestRedeemForAllUsers(0);
@@ -473,23 +450,17 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         _fulfillRedeemForUsers(
             requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
 
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -511,12 +482,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         // request redeem for all users
@@ -526,12 +494,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill redeem
@@ -540,12 +504,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -579,13 +540,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // use 3 users to perform deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
             _requestDepositForAccount(accInstances[i], vars.depositAmount);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -614,11 +572,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
 
         address[] memory requestingUsers = new address[](3);
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         vm.startPrank(STRATEGIST);
@@ -628,11 +583,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // claim deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
@@ -707,13 +659,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // use 3 users to perform deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
             _requestDepositForAccount(accInstances[i], vars.depositAmount);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -743,11 +692,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
 
             address[] memory requestingUsers = new address[](3);
-            for (uint256 i; i < 3;) {
+            for (uint256 i; i < 3; ++i) {
                 requestingUsers[i] = accInstances[i].account;
-                unchecked {
-                    ++i;
-                }
             }
 
             vm.startPrank(STRATEGIST);
@@ -758,11 +704,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // claim deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         {
@@ -843,12 +786,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         uint256 totalAssetsBefore = vault.totalAssets();
@@ -1997,11 +1937,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault3 = totalAmount * 30 / 100;
 
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -2016,11 +1953,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));

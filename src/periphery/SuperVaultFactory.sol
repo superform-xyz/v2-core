@@ -134,12 +134,9 @@ contract SuperVaultFactory is ISuperVaultFactory {
         vars.hookCount = params.bootstrappingHooks.length;
 
         // Only core hooks are allowed to be used for bootstrapping
-        for (uint256 i; i < vars.hookCount;) {
+        for (uint256 i; i < vars.hookCount; ++i) {
             if (!IPeripheryRegistry(peripheryRegistry).isHookRegistered(params.bootstrappingHooks[i])) {
                 revert HOOK_NOT_REGISTERED();
-            }
-            unchecked {
-                ++i;
             }
         }
 
