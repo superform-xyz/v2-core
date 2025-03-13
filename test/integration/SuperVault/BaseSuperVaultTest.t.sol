@@ -271,10 +271,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) internal {
         address[] memory redeemHooksAddresses = new address[](1);
-        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
 
         bytes[] memory redeemHooksData = new bytes[](1);
-        redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
+        redeemHooksData[0] = _createRequestRedeem7540VaultHookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), redeemShares, false
         );
 
@@ -399,7 +399,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         /// @dev with preserve percentages based on USD value allocation
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -409,11 +409,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults based on USD value allocation
-        fulfillHooksData[0] = _createWithdraw4626HookData(
+        fulfillHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), fluidSharesOut, false, false
         );
 
-        fulfillHooksData[1] = _createWithdraw4626HookData(
+        fulfillHooksData[1] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), aaveSharesOut, false, false
         );
 
@@ -597,7 +597,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     )
         internal
     {
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -605,10 +605,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
-        fulfillHooksData[0] = _createWithdraw4626HookData(
+        fulfillHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), redeemSharesVault1, false, false
         );
-        fulfillHooksData[1] = _createWithdraw4626HookData(
+        fulfillHooksData[1] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), redeemSharesVault2, false, false
         );
 
@@ -645,7 +645,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     )
         internal
     {
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -653,10 +653,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
-        fulfillHooksData[0] = _createWithdraw4626HookData(
+        fulfillHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), redeemSharesVault1, false, false
         );
-        fulfillHooksData[1] = _createWithdraw4626HookData(
+        fulfillHooksData[1] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), redeemSharesVault2, false, false
         );
 
@@ -914,7 +914,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
                         // Add withdraw hook
                         allHooksAddresses[hookIndex] = args.withdrawHookAddress;
-                        allHooksData[hookIndex] = _createWithdraw4626HookData(
+                        allHooksData[hookIndex] = _createRedeem4626HookData(
                             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                             vars.sources[i],
                             address(strategy),
@@ -1200,7 +1200,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
 
         vm.startPrank(STRATEGIST);
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
@@ -1232,7 +1232,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         console2.log("Shares to redeem:", sharesToRedeem);
 
         vm.startPrank(STRATEGIST);
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
