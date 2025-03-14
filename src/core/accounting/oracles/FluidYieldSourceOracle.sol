@@ -36,6 +36,19 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
+        return IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares

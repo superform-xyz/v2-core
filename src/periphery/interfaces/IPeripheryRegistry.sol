@@ -10,11 +10,12 @@ interface IPeripheryRegistry {
     //////////////////////////////////////////////////////////////*/
     error NOT_AUTHORIZED();
     error INVALID_ACCOUNT();
+    error INVALID_ADDRESS();
     error INVALID_FEE_SPLIT();
     error HOOK_NOT_REGISTERED();
     error TIMELOCK_NOT_EXPIRED();
     error HOOK_ALREADY_REGISTERED();
-    error INVALID_ADDRESS();
+    error INVALID_SLIPPAGE_TOLERANCE();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -26,6 +27,7 @@ interface IPeripheryRegistry {
     event FeeSplitUpdated(uint256 superformFeeSplit);
     event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime);
     event TreasuryUpdated(address indexed treasury);
+    event SvSlippageToleranceUpdated(uint256 svSlippageTolerance);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -37,14 +39,22 @@ interface IPeripheryRegistry {
     /// @notice Get all registered hooks
     function getRegisteredHooks() external view returns (address[] memory);
 
-    /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-
     /// @notice Check if a hook is registered
     /// @param hook_ The hook to check
     /// @return True if the hook is registered, false otherwise
     function isHookRegistered(address hook_) external view returns (bool);
+
+
+    /// @notice Get the current SuperVault slippage tolerance.
+    /// @return The slippage tolerance in basis points (0-10000).
+    function svSlippageTolerance() external view returns (uint256);
+
+    /*//////////////////////////////////////////////////////////////
+                                 EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @dev Set the SuperVault slippage tolerance.
+    /// @param svSlippageTolerance_ The new slippage tolerance in basis points (0-10000).
+    function setSvSlippageTolerance(uint256 svSlippageTolerance_) external;
 
     /// @notice Check if a fulfill requests hook is registered
     /// @param hook_ The hook to check

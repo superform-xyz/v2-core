@@ -25,11 +25,11 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     uint256 private constant AMOUNT_POSITION = 24;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
+
     function build(
         address prevHook,
         address account,
@@ -60,7 +60,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         // store current balance
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 57);
@@ -68,7 +68,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
     }
 

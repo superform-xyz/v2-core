@@ -116,11 +116,11 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
     function test_ReplaceCalldataAmount() public view {
         uint256 amount = LARGE;
-        bytes memory hookData = _createWithdraw4626HookData(
+        bytes memory hookData = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, SMALL, false, false
         );
 
-        address hook = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address hook = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         bytes memory replacedData = ISuperHookOutflow(hook).replaceCalldataAmount(hookData, amount);
         uint256 finalAmount = BytesLib.toUint256(BytesLib.slice(replacedData, 44, 32), 0);
         assertEq(finalAmount, amount);
@@ -133,14 +133,14 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        hooksAddresses[2] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        hooksAddresses[2] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
-        hooksData[2] = _createWithdraw4626HookData(
+        hooksData[2] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, false
         );
         // assure account has tokens
@@ -326,7 +326,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         // retrieve logs and mint SP
         {
-            for (uint256 i; i < executionReturnData.logs.length;) {
+            for (uint256 i; i < executionReturnData.logs.length; ++i) {
                 if (executionReturnData.logs[i].emitter == address(superExecutor)) {
                     if (address(uint160(uint256((executionReturnData.logs[i].topics[1])))) == account) {
                         console.log("\n SuperExecutor logs");
@@ -351,9 +351,6 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
                         assertNotEq(mockSuperPositionFactory.createdSPs(precomputedId), address(0));
                     }
-                }
-                unchecked {
-                    ++i;
                 }
             }
         }

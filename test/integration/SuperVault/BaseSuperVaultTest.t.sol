@@ -22,10 +22,7 @@ import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
-import { ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
@@ -49,11 +46,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     SuperVaultStrategy public strategy;
     PeripheryRegistry public peripheryRegistry;
 
-    // Roles
-    address public SV_MANAGER;
-    address public STRATEGIST;
-    address public EMERGENCY_ADMIN;
-
     // Tokens and yield sources
     IERC20Metadata public asset;
     IERC4626 public fluidVault;
@@ -63,7 +55,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     uint256 constant VAULT_CAP = type(uint256).max;
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
-    uint256 constant MAX_ALLOCATION_RATE = 6000; // 60%
+    uint256 constant MAX_ALLOCATION_RATE = 10_000; // 60%
     uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
@@ -83,6 +75,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function setUp() public virtual override {
         super.setUp();
+        console2.log("--- SETUP BASE SUPERVAULT ---");
 
         vm.selectFork(FORKS[ETH]);
         accInstances = randomAccountInstances[ETH];
@@ -101,11 +94,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Deploy factory
         factory = new SuperVaultFactory(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
 
-        // Set up roles
-        SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
-        STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
-        EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
 
@@ -118,80 +106,134 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         fluidVault = IERC4626(fluidVaultAddr);
         aaveVault = IERC4626(aaveVaultAddr);
 
-        // Deploy vault trio with initial config
-        ISuperVaultStrategy.GlobalConfig memory config = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: VAULT_CAP,
-            superVaultCap: SUPER_VAULT_CAP,
-            maxAllocationRate: ONE_HUNDRED_PERCENT,
-            vaultThreshold: VAULT_THRESHOLD
-        });
-        bytes32 hookRoot = _getMerkleRoot();
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory bootstrapHooks = new address[](1);
-        bootstrapHooks[0] = depositHookAddress;
-
-        bytes[] memory bootstrapHooksData = new bytes[](1);
-        bootstrapHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), BOOTSTRAP_AMOUNT, false, false
-        );
-        vm.startPrank(SV_MANAGER);
-        deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
-        asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
-
-        // Deploy vault trio
-        (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
-            ISuperVaultFactory.VaultCreationParams({
-                asset: address(asset),
-                name: "SuperVault USDC",
-                symbol: "svUSDC",
-                manager: SV_MANAGER,
-                strategist: STRATEGIST,
-                emergencyAdmin: EMERGENCY_ADMIN,
-                feeRecipient: TREASURY,
-                config: config,
-                finalMaxAllocationRate: MAX_ALLOCATION_RATE,
-                bootstrapAmount: BOOTSTRAP_AMOUNT,
-                initYieldSource: address(fluidVault),
-                initHooksRoot: hookRoot,
-                initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-                bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHooksData
-            })
-        );
-        vm.label(vaultAddr, "SuperVault");
-        vm.label(strategyAddr, "SuperVaultStrategy");
-        vm.label(escrowAddr, "SuperVaultEscrow");
+        // Deploy vault using the new _deployVault function
+        (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault("SV_USDC");
 
         // Cast addresses to contract types
         vault = SuperVault(vaultAddr);
         strategy = SuperVaultStrategy(strategyAddr);
         escrow = SuperVaultEscrow(escrowAddr);
 
-        // Add a new yield source as manager
+        _setFeeConfig(100, TREASURY);
 
+        vm.startPrank(SV_MANAGER);
         strategy.manageYieldSource(
             address(aaveVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
             false // addYieldSource
         );
-        vm.stopPrank();
-
-        _setFeeConfig(100, TREASURY);
-
-        // Set up hook root (same one as bootstrap, just to test)
-        vm.startPrank(SV_MANAGER);
-        strategy.proposeOrExecuteHookRoot(hookRoot);
+        /// for testing purposes
+        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
-                        PRIVATE FUNCTIONS
+                        INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
-    function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) private {
+
+    /**
+     * @notice Struct to hold local variables for _deployVault to avoid stack too deep errors
+     */
+    struct DeployVaultVars {
+        uint256 superVaultCap;
+        bytes32 hookRoot;
+        address depositHookAddress;
+        bytes32[] depositProof;
+        bytes depositHookData;
+        address[] bootstrapHooks;
+        bytes32[][] bootstrapProofs;
+        bytes[] bootstrapData;
+        uint256[] expectedAssetsOrSharesOut;
+    }
+
+    /**
+     * @notice Deploys a new SuperVault with default configuration
+     * @return vaultAddr The address of the deployed SuperVault
+     * @return strategyAddr The address of the deployed SuperVaultStrategy
+     * @return escrowAddr The address of the deployed SuperVaultEscrow
+     */
+    function _deployVault(
+        address _asset,
+        uint256 _superVaultCap,
+        uint256 _bootstrapAmount,
+        string memory _superVaultSymbol
+    )
+        internal
+        returns (address vaultAddr, address strategyAddr, address escrowAddr)
+    {
+        DeployVaultVars memory vars;
+
+        vars.superVaultCap = _superVaultCap;
+        vars.hookRoot = _getMerkleRoot();
+        vars.depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        vars.depositProof = _getMerkleProof(vars.depositHookAddress);
+
+        // Prepare bootstrap hooks
+        vars.bootstrapHooks = new address[](1);
+        vars.bootstrapHooks[0] = vars.depositHookAddress;
+
+        vars.expectedAssetsOrSharesOut = new uint256[](1);
+        vars.expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(_bootstrapAmount);
+
+        vars.bootstrapData = new bytes[](1);
+        vars.depositHookData = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), _bootstrapAmount, false, false
+        );
+        vars.bootstrapData[0] = vars.depositHookData;
+        vm.startPrank(SV_MANAGER);
+        deal(_asset, SV_MANAGER, BOOTSTRAP_AMOUNT);
+        IERC20(_asset).approve(address(factory), BOOTSTRAP_AMOUNT);
+        // Deploy the vault trio
+        (vaultAddr, strategyAddr, escrowAddr) = factory.createVault(
+            ISuperVaultFactory.VaultCreationParams({
+                asset: _asset,
+                name: "SuperVault",
+                symbol: _superVaultSymbol,
+                manager: SV_MANAGER,
+                strategist: STRATEGIST,
+                emergencyAdmin: EMERGENCY_ADMIN,
+                feeRecipient: TREASURY,
+                superVaultCap: vars.superVaultCap,
+                bootstrapAmount: _bootstrapAmount,
+                initYieldSource: address(fluidVault),
+                initHooksRoot: vars.hookRoot,
+                initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                bootstrappingHooks: vars.bootstrapHooks,
+                bootstrappingHookCalldata: vars.bootstrapData,
+                expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
+            })
+        );
+
+        // Label the contracts for easier identification
+        vm.label(vaultAddr, string.concat("SuperVault ", _superVaultSymbol));
+        vm.label(strategyAddr, string.concat("SuperVaultStrategy ", _superVaultSymbol));
+        vm.label(escrowAddr, string.concat("SuperVaultEscrow ", _superVaultSymbol));
+
+        vm.stopPrank();
+
+        return (vaultAddr, strategyAddr, escrowAddr);
+    }
+
+    /**
+     * @notice Deploys a new SuperVault with default configuration
+     * @param _superVaultSymbol The symbol for the SuperVault
+     * @return vaultAddr The address of the deployed SuperVault
+     * @return strategyAddr The address of the deployed SuperVaultStrategy
+     * @return escrowAddr The address of the deployed SuperVaultEscrow
+     */
+    function _deployVault(string memory _superVaultSymbol)
+        internal
+        returns (address vaultAddr, address strategyAddr, address escrowAddr)
+    {
+        return _deployVault(
+            address(asset), SUPER_VAULT_CAP, BOOTSTRAP_AMOUNT, _superVaultSymbol
+        );
+    }
+
+    function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -199,7 +241,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, depositAmount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -208,13 +250,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(userOpData);
     }
 
-    function __claimDeposit(AccountInstance memory accInst, uint256 depositAmount) private {
+    function __claimDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {
         address[] memory claimHooksAddresses = new address[](1);
         claimHooksAddresses[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, depositAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -223,13 +265,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(claimUserOpData);
     }
 
-    function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) private {
+    function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) internal {
         address[] memory redeemHooksAddresses = new address[](1);
-        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
+        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
 
         bytes[] memory redeemHooksData = new bytes[](1);
-        redeemHooksData[0] = _createRequestWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, redeemShares, false
+        redeemHooksData[0] = _createRequestRedeem7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), redeemShares, false
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
@@ -242,59 +284,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(redeemUserOpData);
     }
 
-    function __fulfillDepositRequest(AccountInstance memory accInst, uint256 depositAmount) internal {
-        console2.log("\n::::");
-
-        console2.log("Starting fulfill deposit request for amount:", depositAmount);
-
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        console2.log("Using deposit hook:", depositHookAddress);
-
-        // Split the deposit between two hooks
-        uint256 halfAmount = depositAmount / 2;
-
-        address[] memory hooks_ = new address[](2);
-        hooks_[0] = depositHookAddress;
-        hooks_[1] = depositHookAddress;
-
-        bytes[] memory hookCalldata = new bytes[](2);
-        // First half to fluid vault
-        hookCalldata[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(fluidVault),
-            halfAmount, // Use half amount
-            false,
-            false
-        );
-        // Second half to aave vault
-        hookCalldata[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(aaveVault),
-            depositAmount - halfAmount, // Use remaining amount to handle odd numbers
-            false,
-            false
-        );
-
-        address[] memory users = new address[](1);
-        users[0] = accInst.account;
-        console2.log("\n---");
-
-        console2.log("Strategy balance before fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(users, hooks_, hookCalldata, true);
-        vm.stopPrank();
-
-        console2.log("Strategy balance after fulfill:", IERC20(address(asset)).balanceOf(address(strategy)));
-    }
-
     function __claimWithdraw(AccountInstance memory accInst, uint256 assets) internal {
         address[] memory claimHooksAddresses = new address[](1);
         claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), accInst.account, assets, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -303,9 +299,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(claimUserOpData);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        INTERNAL HELPER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
     function _requestDeposit(uint256 depositAmount) internal {
         __requestDeposit(instanceOnEth, depositAmount);
     }
@@ -314,60 +307,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         __requestDeposit(accInst, depositAmount);
     }
 
-    function _fulfillDeposit(uint256 depositAmount) internal {
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accountEth;
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = depositHookAddress;
-        fulfillHooksAddresses[1] = depositHookAddress;
-
-
-        bytes[] memory fulfillHooksData = new bytes[](2);
-        // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
-        );
-
-        fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
-        );
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
-        vm.stopPrank();
-
-        (uint256 pricePerShare) = _getSuperVaultPricePerShare();
-        uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
-        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
-    }
-
-    function _fulfillDepositForInitialDeposit(uint256 depositAmount) internal {
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = address(this);
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = depositHookAddress;
-        fulfillHooksAddresses[1] = depositHookAddress;
-
-        bytes[] memory fulfillHooksData = new bytes[](2);
-        // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), depositAmount / 2, false, false
-        );
-        fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount / 2, false, false
-        );
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
-        vm.stopPrank();
-
-        (uint256 pricePerShare) = _getSuperVaultPricePerShare();
-        uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
-        userSharePricePoints[address(this)].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
+    function _requestDepositForAllUsers(uint256 depositAmount) internal {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
+            _getTokens(address(asset), accInstances[i].account, depositAmount);
+            _requestDepositForAccount(accInstances[i], depositAmount);
+            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
+        }
     }
 
     function _claimDeposit(uint256 depositAmount) internal {
@@ -390,42 +335,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         __requestRedeem(accInst, redeemShares, true);
     }
 
-    function _fulfillRedeem(uint256 redeemShares) internal {
-        /// @dev with preserve percentages based on USD value allocation
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accountEth;
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-
-        address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = withdrawHookAddress;
-        fulfillHooksAddresses[1] = withdrawHookAddress;
-
-
-        (uint256 fluidSharesOut, uint256 aaveSharesOut) = _calculateVaultShares(redeemShares);
-
-        bytes[] memory fulfillHooksData = new bytes[](2);
-        // Withdraw proportionally from both vaults based on USD value allocation
-        fulfillHooksData[0] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(fluidVault),
-            address(strategy),
-            fluidSharesOut,
-            false,
-            false
-        );
-
-        fulfillHooksData[1] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(aaveVault),
-            address(strategy),
-            aaveSharesOut,
-            false,
-            false
-        );
-
-        vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
-        vm.stopPrank();
+    function _requestRedeemForAllUsers(uint256 redeemAmount) internal {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
+            uint256 redeemShares = redeemAmount > 0 ? redeemAmount : vault.balanceOf(accInstances[i].account);
+            _requestRedeemForAccount(accInstances[i], redeemShares);
+        }
     }
 
     function _claimWithdrawForAccount(AccountInstance memory accInst, uint256 assets) internal {
@@ -435,23 +349,90 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _claimWithdraw(uint256 assets) internal {
         __claimWithdraw(instanceOnEth, assets);
     }
-    // Define a struct to hold test variables to avoid stack too deep errors
 
-    function _requestDepositForAllUsers(uint256 depositAmount) internal {
-        for (uint256 i; i < ACCOUNT_COUNT;) {
-            _getTokens(address(asset), accInstances[i].account, depositAmount);
-            _requestDepositForAccount(accInstances[i], depositAmount);
-            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
-            unchecked {
-                ++i;
-            }
-        }
+    function _fulfillDeposit(uint256 depositAmount, address userAccount, address vault1, address vault2) internal {
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = userAccount;
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+
+        // Split the deposit between two hooks
+        uint256 halfAmount = depositAmount / 2;
+        fulfillHooksData[0] =
+            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, halfAmount, false, false);
+
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, depositAmount - halfAmount, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToShares(halfAmount);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
+        vm.stopPrank();
+
+        (uint256 pricePerShare) = _getSuperVaultPricePerShare();
+        uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
+        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
+    }
+
+    function _fulfillRedeem(uint256 redeemShares, address vault1, address vault2) internal {
+        /// @dev with preserve percentages based on USD value allocation
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountEth;
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = withdrawHookAddress;
+        fulfillHooksAddresses[1] = withdrawHookAddress;
+
+        (uint256 fluidSharesOut, uint256 aaveSharesOut) = _calculateVaultShares(redeemShares);
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // Withdraw proportionally from both vaults based on USD value allocation
+        fulfillHooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), fluidSharesOut, false, false
+        );
+
+        fulfillHooksData[1] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), aaveSharesOut, false, false
+        );
+
+        (uint256 totalSvAssets,) = strategy.totalAssets();
+        uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
+
+        uint256 amountForVault1 = fluidSharesOut * 1e18 / pricePerShare;
+        uint256 amountForVault2 = aaveSharesOut * 1e18 / pricePerShare;
+
+        uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
+        uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToAssets(underlyingSharesForVault1);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
+        vm.stopPrank();
     }
 
     function _fulfillDepositForUsers(
         address[] memory requestingUsers,
         uint256 allocationAmountVault1,
-        uint256 allocationAmountVault2
+        uint256 allocationAmountVault2,
+        address vault1,
+        address vault2
     )
         internal
     {
@@ -464,25 +445,149 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), allocationAmountVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, allocationAmountVault1, false, false
         );
         fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), allocationAmountVault2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, allocationAmountVault2, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToShares(allocationAmountVault1);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
+        vm.stopPrank();
+    }
+
+    function _fulfillDepositForUsers(
+        address[] memory requestingUsers,
+        uint256 allocationAmountVault1,
+        uint256 allocationAmountVault2,
+        address vault1,
+        address vault2,
+        bytes4 revertSelector
+    )
+        internal
+    {
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, allocationAmountVault1, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, allocationAmountVault2, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToShares(allocationAmountVault1);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
+
+        vm.startPrank(STRATEGIST);
+        if (revertSelector != bytes4(0)) {
+            vm.expectRevert(revertSelector);
+        }
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
+        vm.stopPrank();
+    }
+
+    function _fulfillDepositForUsers(
+        address[] memory requestingUsers,
+        uint256 allocationAmountVault1,
+        uint256 allocationAmountVault2,
+        address vault1,
+        address vault2,
+        uint256[] memory expectedAssetsOrSharesOut,
+        bytes4 revertSelector
+    )
+        internal
+    {
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, allocationAmountVault1, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, allocationAmountVault2, false, false
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, true);
+        if (revertSelector != bytes4(0)) {
+            vm.expectRevert(revertSelector);
+        }
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
+        vm.stopPrank();
+    }
+
+    function _fulfillDepositForUsers(
+        address[] memory requestingUsers,
+        address vault1,
+        address vault2,
+        address vault3,
+        uint256 allocationAmountVault1,
+        uint256 allocationAmountVault2,
+        uint256 allocationAmountVault3
+    )
+        internal
+    {
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](3);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+        fulfillHooksAddresses[2] = depositHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](3);
+        // allocate up to the max allocation rate in the two Vaults
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault1), allocationAmountVault1, false, false
+        );
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault2), allocationAmountVault2, false, false
+        );
+        fulfillHooksData[2] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault3), allocationAmountVault3, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToShares(allocationAmountVault1);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
+        expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
         vm.stopPrank();
     }
 
     function _fulfillRedeemForUsers(
         address[] memory requestingUsers,
         uint256 redeemSharesVault1,
-        uint256 redeemSharesVault2
+        uint256 redeemSharesVault2,
+        address vault1,
+        address vault2
     )
         internal
     {
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -490,38 +595,69 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
-        fulfillHooksData[0] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(fluidVault),
-            address(strategy),
-            redeemSharesVault1,
-            false,
-            false
+        fulfillHooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), redeemSharesVault1, false, false
         );
-        fulfillHooksData[1] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(aaveVault),
-            address(strategy),
-            redeemSharesVault2,
-            false,
-            false
+        fulfillHooksData[1] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), redeemSharesVault2, false, false
         );
 
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        {
+            (uint256 totalSvAssets,) = strategy.totalAssets();
+            uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
+
+            uint256 amountForVault1 = redeemSharesVault1 * 1e18 / pricePerShare;
+            uint256 amountForVault2 = redeemSharesVault2 * 1e18 / pricePerShare;
+
+            uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
+            uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
+
+            expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToAssets(underlyingSharesForVault1);
+            expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
+        }
+
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(requestingUsers, fulfillHooksAddresses, fulfillHooksData, false);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
         vm.stopPrank();
     }
 
-    function _claimRedeemForUsers(address[] memory redeemUsers) internal {
-        for (uint256 i; i < redeemUsers.length; i++) {
-            address user = redeemUsers[i];
-            uint256 maxWithdrawAmount = vault.maxWithdraw(user);
-            if (maxWithdrawAmount > 0) {
-                vm.startPrank(user);
-                vault.withdraw(maxWithdrawAmount, user, user);
-                vm.stopPrank();
-            }
+    function _fulfillRedeemForUsers(
+        address[] memory requestingUsers,
+        uint256 redeemSharesVault1,
+        uint256 redeemSharesVault2,
+        address vault1,
+        address vault2,
+        uint256[] memory expectedAssetsOrSharesOut,
+        bytes4 revertSelector
+    )
+        internal
+    {
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = withdrawHookAddress;
+        fulfillHooksAddresses[1] = withdrawHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        // Withdraw proportionally from both vaults
+        fulfillHooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), redeemSharesVault1, false, false
+        );
+        fulfillHooksData[1] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(strategy), redeemSharesVault2, false, false
+        );
+
+        vm.startPrank(STRATEGIST);
+        if (revertSelector != bytes4(0)) {
+            vm.expectRevert(revertSelector);
         }
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
+        vm.stopPrank();
     }
 
     function _completeDepositFlow(uint256 depositAmount) internal {
@@ -533,21 +669,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
+
         // fulfill deposits
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], depositAmount);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -556,47 +689,286 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // Calculate total amount for allocation
         uint256 totalAmount;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _getTokens(address(asset), accInstances[i].account, depositAmounts[i]);
             _requestDepositForAccount(accInstances[i], depositAmounts[i]);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmounts[i]);
             totalAmount += depositAmounts[i];
-            unchecked {
-                ++i;
-            }
         }
 
         // create fullfillment data
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], depositAmounts[i]);
-            unchecked {
-                ++i;
-            }
         }
     }
 
-    function _requestRedeemForAllUsers(uint256 redeemAmount) internal {
-        for (uint256 i; i < ACCOUNT_COUNT;) {
-            uint256 redeemShares = redeemAmount > 0 ? redeemAmount : vault.balanceOf(accInstances[i].account);
-            _requestRedeemForAccount(accInstances[i], redeemShares);
-            unchecked {
-                ++i;
+    /**
+     * @notice Struct to hold local variables for the _reallocate function
+     */
+    struct ReallocateLocalVars {
+        // Current balances
+        uint256 currentVault1Balance;
+        uint256 currentVault2Balance;
+        uint256 currentVault3Balance;
+        uint256 totalBalance;
+        // Target balances
+        uint256 targetVault1Assets;
+        uint256 targetVault2Assets;
+        uint256 targetVault3Assets;
+        // Differences
+        int256 vault1Diff;
+        int256 vault2Diff;
+        int256 vault3Diff;
+        // Sources and destinations
+        address[] sources;
+        uint256[] sourceAmounts;
+        address[] destinations;
+        uint256[] destinationAmounts;
+        uint256 sourceCount;
+        uint256 destCount;
+        // For moving assets
+        address source;
+        address destination;
+        uint256 amountToMove;
+        uint256 sharesToRedeem;
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        // Final balances and ratios
+        uint256 finalVault1Balance;
+        uint256 finalVault2Balance;
+        uint256 finalVault3Balance;
+        uint256 totalFinalBalance;
+        uint256 finalVault1Ratio;
+        uint256 finalVault2Ratio;
+        uint256 finalVault3Ratio;
+    }
+
+    /**
+     * @notice Struct to hold arguments for the _reallocate function
+     */
+    struct ReallocateArgs {
+        IERC4626 vault1;
+        IERC4626 vault2;
+        IERC4626 vault3;
+        uint256 targetVault1Percentage;
+        uint256 targetVault2Percentage;
+        uint256 targetVault3Percentage;
+        address withdrawHookAddress;
+        address depositHookAddress;
+    }
+
+    function _reallocate(ReallocateArgs memory args)
+        internal
+        returns (uint256, uint256, uint256, uint256, uint256, uint256)
+    {
+        ReallocateLocalVars memory vars;
+
+        // Get current balances
+        vars.currentVault1Balance = args.vault1.convertToAssets(args.vault1.balanceOf(address(strategy)));
+        vars.currentVault2Balance = args.vault2.convertToAssets(args.vault2.balanceOf(address(strategy)));
+        vars.currentVault3Balance = args.vault3.convertToAssets(args.vault3.balanceOf(address(strategy)));
+
+        vars.totalBalance = vars.currentVault1Balance + vars.currentVault2Balance + vars.currentVault3Balance;
+
+        // Calculate target balances based on percentages (in basis points)
+        vars.targetVault1Assets = vars.totalBalance * args.targetVault1Percentage / 10_000;
+        vars.targetVault2Assets = vars.totalBalance * args.targetVault2Percentage / 10_000;
+        vars.targetVault3Assets = vars.totalBalance * args.targetVault3Percentage / 10_000;
+
+        console2.log("Total balance:", vars.totalBalance);
+        console2.log("Target Vault1 Assets:", vars.targetVault1Assets);
+        console2.log("Target Vault2 Assets:", vars.targetVault2Assets);
+        console2.log("Target Vault3 Assets:", vars.targetVault3Assets);
+
+        // Calculate the differences between current and target allocations
+        vars.vault1Diff = int256(vars.targetVault1Assets) - int256(vars.currentVault1Balance);
+        vars.vault2Diff = int256(vars.targetVault2Assets) - int256(vars.currentVault2Balance);
+        vars.vault3Diff = int256(vars.targetVault3Assets) - int256(vars.currentVault3Balance);
+
+        console2.log("\n=== Allocation Differences ===");
+        console2.log("Vault1 Diff:", vars.vault1Diff);
+        console2.log("Vault2 Diff:", vars.vault2Diff);
+        console2.log("Vault3 Diff:", vars.vault3Diff);
+
+        // Identify sources (vaults with excess assets) and destinations (vaults needing assets)
+        vars.sources = new address[](3);
+        vars.sourceAmounts = new uint256[](3);
+        vars.destinations = new address[](3);
+        vars.destinationAmounts = new uint256[](3);
+        vars.sourceCount = 0;
+        vars.destCount = 0;
+
+        if (vars.vault1Diff < 0) {
+            vars.sources[vars.sourceCount] = address(args.vault1);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault1Diff);
+            vars.sourceCount++;
+        } else if (vars.vault1Diff > 0) {
+            vars.destinations[vars.destCount] = address(args.vault1);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.vault1Diff);
+            vars.destCount++;
+        }
+
+        if (vars.vault2Diff < 0) {
+            vars.sources[vars.sourceCount] = address(args.vault2);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault2Diff);
+            vars.sourceCount++;
+        } else if (vars.vault2Diff > 0) {
+            vars.destinations[vars.destCount] = address(args.vault2);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.vault2Diff);
+            vars.destCount++;
+        }
+
+        if (vars.vault3Diff < 0) {
+            vars.sources[vars.sourceCount] = address(args.vault3);
+            vars.sourceAmounts[vars.sourceCount] = uint256(-vars.vault3Diff);
+            vars.sourceCount++;
+        } else if (vars.vault3Diff > 0) {
+            vars.destinations[vars.destCount] = address(args.vault3);
+            vars.destinationAmounts[vars.destCount] = uint256(vars.vault3Diff);
+            vars.destCount++;
+        }
+
+        // Resize arrays to actual count
+        vars.sources = _resizeAddressArray(vars.sources, vars.sourceCount);
+        vars.sourceAmounts = _resizeUint256Array(vars.sourceAmounts, vars.sourceCount);
+        vars.destinations = _resizeAddressArray(vars.destinations, vars.destCount);
+        vars.destinationAmounts = _resizeUint256Array(vars.destinationAmounts, vars.destCount);
+
+        console2.log("\n=== Sources and Destinations ===");
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            console2.log("Source:", vars.sources[i]);
+            console2.log("Amount:", vars.sourceAmounts[i]);
+        }
+        for (uint256 i = 0; i < vars.destCount; i++) {
+            console2.log("Destination:", vars.destinations[i]);
+            console2.log("Amount:", vars.destinationAmounts[i]);
+        }
+
+        // Create a single array of all transfers (source to destination)
+        // Each transfer requires 2 hooks: withdraw and deposit
+        uint256 maxTransfers = vars.sourceCount * vars.destCount;
+        address[] memory allHooksAddresses = new address[](maxTransfers * 2);
+        bytes[] memory allHooksData = new bytes[](maxTransfers * 2);
+        uint256 hookIndex = 0;
+
+        // Create a matrix of transfers from sources to destinations
+        for (uint256 i = 0; i < vars.sourceCount; i++) {
+            for (uint256 j = 0; j < vars.destCount; j++) {
+                if (vars.sourceAmounts[i] > 0 && vars.destinationAmounts[j] > 0) {
+                    vars.amountToMove = vars.sourceAmounts[i] < vars.destinationAmounts[j]
+                        ? vars.sourceAmounts[i]
+                        : vars.destinationAmounts[j];
+
+                    if (vars.amountToMove > 0) {
+                        console2.log("\nMoving", vars.amountToMove);
+                        console2.log("from", vars.sources[i], "to", vars.destinations[j]);
+
+                        // Convert asset amount to shares for the source vault
+                        if (vars.sources[i] == address(args.vault1)) {
+                            vars.sharesToRedeem = args.vault1.convertToShares(vars.amountToMove);
+                        } else if (vars.sources[i] == address(args.vault2)) {
+                            vars.sharesToRedeem = args.vault2.convertToShares(vars.amountToMove);
+                        } else if (vars.sources[i] == address(args.vault3)) {
+                            vars.sharesToRedeem = args.vault3.convertToShares(vars.amountToMove);
+                        }
+
+                        console2.log("Shares to redeem:", vars.sharesToRedeem);
+
+                        // Add withdraw hook
+                        allHooksAddresses[hookIndex] = args.withdrawHookAddress;
+                        allHooksData[hookIndex] = _createRedeem4626HookData(
+                            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                            vars.sources[i],
+                            address(strategy),
+                            vars.sharesToRedeem,
+                            false,
+                            false
+                        );
+                        hookIndex++;
+
+                        // Add deposit hook
+                        allHooksAddresses[hookIndex] = args.depositHookAddress;
+                        allHooksData[hookIndex] = _createApproveAndDeposit4626HookData(
+                            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                            vars.destinations[j],
+                            address(asset),
+                            vars.amountToMove,
+                            true,
+                            false
+                        );
+                        hookIndex++;
+
+                        // Update remaining amounts
+                        vars.sourceAmounts[i] -= vars.amountToMove;
+                        vars.destinationAmounts[j] -= vars.amountToMove;
+
+                        // If source is depleted, break inner loop and move to next source
+                        if (vars.sourceAmounts[i] == 0) {
+                            break;
+                        }
+                    }
+                }
             }
         }
+
+        // Resize hook arrays to actual count
+        if (hookIndex > 0) {
+            address[] memory finalHooksAddresses = new address[](hookIndex);
+            bytes[] memory finalHooksData = new bytes[](hookIndex);
+
+            for (uint256 i = 0; i < hookIndex; i++) {
+                finalHooksAddresses[i] = allHooksAddresses[i];
+                finalHooksData[i] = allHooksData[i];
+            }
+
+            // Execute all hooks in a single transaction
+            vm.startPrank(STRATEGIST);
+            strategy.executeHooks(finalHooksAddresses, finalHooksData);
+            vm.stopPrank();
+        }
+
+        // Check new balances after reallocation
+        vars.finalVault1Balance = args.vault1.convertToAssets(args.vault1.balanceOf(address(strategy)));
+        vars.finalVault2Balance = args.vault2.convertToAssets(args.vault2.balanceOf(address(strategy)));
+        vars.finalVault3Balance = args.vault3.convertToAssets(args.vault3.balanceOf(address(strategy)));
+
+        console2.log("\n=== Final Balances After Reallocation ===");
+        console2.log("Final Vault1 balance:", vars.finalVault1Balance);
+        console2.log("Final Vault2 balance:", vars.finalVault2Balance);
+        console2.log("Final Vault3 balance:", vars.finalVault3Balance);
+
+        // Calculate final allocation percentages
+        vars.totalFinalBalance = vars.finalVault1Balance + vars.finalVault2Balance + vars.finalVault3Balance;
+        vars.finalVault1Ratio = (vars.finalVault1Balance * 10_000) / vars.totalFinalBalance;
+        vars.finalVault2Ratio = (vars.finalVault2Balance * 10_000) / vars.totalFinalBalance;
+        vars.finalVault3Ratio = (vars.finalVault3Balance * 10_000) / vars.totalFinalBalance;
+
+        console2.log("\n=== Final Allocation Ratios ===");
+        console2.log("Vault1:", vars.finalVault1Ratio / 100, "%");
+        console2.log("Vault2:", vars.finalVault2Ratio / 100, "%");
+        console2.log("Vault3:", vars.finalVault3Ratio / 100, "%");
+
+        return (
+            vars.finalVault1Balance,
+            vars.finalVault2Balance,
+            vars.finalVault3Balance,
+            vars.finalVault1Ratio,
+            vars.finalVault2Ratio,
+            vars.finalVault3Ratio
+        );
     }
 
     struct DepositVerificationVars {
@@ -669,17 +1041,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _verifySharesAndAssets(DepositVerificationVars memory vars) internal {
         uint256[] memory initialUserShareBalances = new uint256[](ACCOUNT_COUNT);
         uint256[] memory maxDepositAmounts = new uint256[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             initialUserShareBalances[i] = vault.balanceOf(accInstances[i].account);
             maxDepositAmounts[i] = vault.maxDeposit(accInstances[i].account);
             _claimDepositForAccount(accInstances[i], maxDepositAmounts[i]);
-            unchecked {
-                ++i;
-            }
         }
 
         vars.totalSharesMinted = 0;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             console2.log("initialUserShareBalances", initialUserShareBalances[i]);
             console2.log("i", i);
             uint256 userSharesReceived = vault.balanceOf(accInstances[i].account) - initialUserShareBalances[i];
@@ -695,9 +1064,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             console2.log("maxDepositAmounts", maxDepositAmounts[i]);
             assertApproxEqRel(assetsFromShares, maxDepositAmounts[i], 0.01e18); // Allow 1% deviation
             console2.log("--------------------------------");
-            unchecked {
-                ++i;
-            }
         }
 
         vars.totalAssetsFromShares = vault.convertToAssets(vars.totalSharesMinted);
@@ -757,18 +1123,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         assertApproxEqRel(assetsFromTotalSharesBurned, totalAssetsReceived, 0.01e18);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                      INTERNAL HELPER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    function _setFeeConfig(uint256 performanceFeeBps, address recipient) internal {
-        vm.startPrank(SV_MANAGER);
-        strategy.proposeVaultFeeConfigUpdate(performanceFeeBps, recipient);
-        vm.warp(block.timestamp + 7 days);
-        strategy.executeVaultFeeConfigUpdate();
-        vm.stopPrank();
-    }
-
     // 0% fee is required for Ledger entries where the SuperVault is the target so that we don't double charge fees
     function _setUpSuperLedgerForVault() internal {
         vm.selectFork(FORKS[ETH]);
@@ -786,6 +1140,53 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    // 0.1% fee for Ledger entries where the SuperVault is the target so that we can test the fee derivation
+    function _setUpSuperLedgerForVault_With_Ledger_Fees() internal {
+        vm.selectFork(FORKS[ETH]);
+        vm.startPrank(MANAGER);
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
+            feePercent: 100,
+            feeRecipient: TREASURY,
+            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
+        });
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+        vm.stopPrank();
+    }
+
+    function _setFeeConfig(uint256 feePercent, address feeRecipient) internal {
+        vm.startPrank(MANAGER);
+        strategy.proposeVaultFeeConfigUpdate(feePercent, feeRecipient);
+        vm.warp(block.timestamp + 1 weeks);
+        strategy.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
+    }
+
+    function _rebalanceFixedAmountFromVaultToVault(
+        address[] memory hooksAddresses,
+        bytes[] memory hooksData,
+        address sourceVault,
+        address targetVault,
+        uint256 assetsToMove
+    )
+        internal
+    {
+        uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
+
+        vm.startPrank(STRATEGIST);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
+        );
+        hooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, address(asset), assetsToMove, true, false
+        );
+        strategy.executeHooks(hooksAddresses, hooksData);
+        vm.stopPrank();
+    }
+
     function _rebalanceFromVaultToVault(
         address[] memory hooksAddresses,
         bytes[] memory hooksData,
@@ -793,7 +1194,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         address targetVault,
         uint256 targetAssets,
         uint256 currentAssets
-    ) internal {
+    )
+        internal
+    {
         uint256 assetsToMove = targetAssets - currentAssets;
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
 
@@ -806,29 +1209,20 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         console2.log("Shares to redeem:", sharesToRedeem);
 
         vm.startPrank(STRATEGIST);
-        hooksData[0] = _createWithdraw4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            sourceVault,
-            address(strategy),
-            sharesToRedeem,
-            false,
-            false
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
         );
-        hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+        hooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),
             targetVault,
-            assetsToMove - 1,
-            false,
+            address(asset),
+            assetsToMove,
+            true,
             false
         );
-        strategy.allocate(hooksAddresses, hooksData);
+        strategy.executeHooks(hooksAddresses, hooksData);
         vm.stopPrank();
     }
-    
-
-    /*//////////////////////////////////////////////////////////////
-                        FEE DERIVATION FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
 
     function _deriveSuperVaultFees(
         uint256 requestedShares,
@@ -845,10 +1239,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 lastConsumedIndex = currentIndex;
 
         // Calculate historicalAssets for each share price point
-        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
+        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0; ++j) {
             SharePricePoint memory point = sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION);
+            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
 
             // Update point's remaining shares or mark for deletion
             if (sharesFromPoint == point.shares) {
@@ -861,9 +1255,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             }
 
             remainingShares -= sharesFromPoint;
-            unchecked {
-                ++j;
-            }
         }
 
         // Calculate current value and process fees
@@ -890,11 +1281,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
-            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT);
+            uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
 
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
-                superformFee = totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT);
+                superformFee =
+                    totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 recipientFee = totalFee - superformFee;
             }
         }
@@ -909,9 +1301,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         } else {
             // Calculate current PPS in price decimals
             (uint256 totalAssetsVault,) = strategy.totalAssets();
-            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
-            // Otherwise rounding issues in other places becomes bigger
-            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
+            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
 
@@ -943,5 +1333,33 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
 
         return (fluidSharesOut, aaveSharesOut);
+    }
+
+    /**
+     * @notice Resizes an array of addresses to the specified length
+     * @param array The original array to resize
+     * @param newLength The new length for the array
+     * @return A new array with the specified length containing elements from the original array
+     */
+    function _resizeAddressArray(address[] memory array, uint256 newLength) internal pure returns (address[] memory) {
+        address[] memory newArray = new address[](newLength);
+        for (uint256 i = 0; i < newLength; i++) {
+            newArray[i] = array[i];
+        }
+        return newArray;
+    }
+
+    /**
+     * @notice Resizes an array of uint256 to the specified length
+     * @param array The original array to resize
+     * @param newLength The new length for the array
+     * @return A new array with the specified length containing elements from the original array
+     */
+    function _resizeUint256Array(uint256[] memory array, uint256 newLength) internal pure returns (uint256[] memory) {
+        uint256[] memory newArray = new uint256[](newLength);
+        for (uint256 i = 0; i < newLength; i++) {
+            newArray[i] = array[i];
+        }
+        return newArray;
     }
 }

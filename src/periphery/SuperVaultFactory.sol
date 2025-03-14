@@ -79,7 +79,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
             address(this),
             params.emergencyAdmin,
             peripheryRegistry,
-            params.config,
+            params.superVaultCap,
             params.initYieldSource,
             params.initHooksRoot,
             params.initYieldSourceOracle
@@ -95,8 +95,8 @@ contract SuperVaultFactory is ISuperVaultFactory {
                 recipient: params.feeRecipient,
                 bootstrappingHooks: params.bootstrappingHooks,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
-                config: params.config,
-                finalMaxAllocationRate: params.finalMaxAllocationRate,
+                expectedAssetsOrSharesOut: params.expectedAssetsOrSharesOut,
+                superVaultCap: params.superVaultCap,
                 bootstrapAmount: params.bootstrapAmount
             })
         );
@@ -134,12 +134,9 @@ contract SuperVaultFactory is ISuperVaultFactory {
         vars.hookCount = params.bootstrappingHooks.length;
 
         // Only core hooks are allowed to be used for bootstrapping
-        for (uint256 i; i < vars.hookCount;) {
+        for (uint256 i; i < vars.hookCount; ++i) {
             if (!IPeripheryRegistry(peripheryRegistry).isHookRegistered(params.bootstrappingHooks[i])) {
                 revert HOOK_NOT_REGISTERED();
-            }
-            unchecked {
-                ++i;
             }
         }
 
@@ -147,20 +144,13 @@ contract SuperVaultFactory is ISuperVaultFactory {
             vars.users,
             params.bootstrappingHooks,
             params.bootstrappingHookCalldata,
+            params.expectedAssetsOrSharesOut,
             true
         );
 
         /// @dev Note: Theoretically this could go to an insurance fund
         vars.superVaultContract.deposit(params.bootstrapAmount, params.recipient, address(this));
 
-        vars.strategyContract.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: params.config.vaultCap,
-                superVaultCap: params.config.superVaultCap,
-                maxAllocationRate: params.finalMaxAllocationRate,
-                vaultThreshold: params.config.vaultThreshold
-            })
-        );
         vars.strategyContract.setAddress(vars.STRATEGIST_ROLE, params.strategist);
         vars.strategyContract.setAddress(vars.MANAGER_ROLE, params.manager);
     }

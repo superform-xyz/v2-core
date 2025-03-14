@@ -80,14 +80,6 @@ contract PeripheryRegistryTest is BaseTest {
         peripheryRegistry.unregisterHook(testFulfillHook, true);
     }
 
-    function testUnregisterHook_Fail_ZeroAddress() public {
-        vm.expectRevert(IPeripheryRegistry.INVALID_ADDRESS.selector);
-        peripheryRegistry.unregisterHook(address(0), false);
-
-        vm.expectRevert(IPeripheryRegistry.INVALID_ADDRESS.selector);
-        peripheryRegistry.unregisterHook(address(0), true);
-    }
-
     function testUnregisterHook_Fail_NotAuthorized() public {
         vm.prank(address(0x1));
         vm.expectRevert();
@@ -105,11 +97,11 @@ contract PeripheryRegistryTest is BaseTest {
         // Register multiple hooks of each type
         address[] memory regularHooks = new address[](3);
         address[] memory fulfillHooks = new address[](3);
-        
+
         for (uint256 i = 0; i < 3; i++) {
             regularHooks[i] = address(uint160(0x100 + i));
             fulfillHooks[i] = address(uint160(0x200 + i));
-            
+
             peripheryRegistry.registerHook(regularHooks[i], false);
             peripheryRegistry.registerHook(fulfillHooks[i], true);
         }
@@ -124,7 +116,8 @@ contract PeripheryRegistryTest is BaseTest {
         // Verify fulfill hooks
         for (uint256 i = 0; i < 3; i++) {
             assertTrue(peripheryRegistry.isFulfillRequestsHookRegistered(fulfillHooks[i]));
-            assertTrue(peripheryRegistry.isHookRegistered(fulfillHooks[i])); // Fulfill hooks should also be registered as regular hooks
+            assertTrue(peripheryRegistry.isHookRegistered(fulfillHooks[i])); // Fulfill hooks should also be registered
+                // as regular hooks
         }
 
         // Test unregistering hooks

@@ -52,7 +52,10 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
 
     function test_MatchRequests_MultiplePairs(uint256 amount) public {
         amount = bound(amount, 100e6, 200e6);
+        uint256 nDepositors = 10;
 
+        /// @dev 1 more redeemer than depositors to test partial matching and guarantee matching
+        uint256 nRedeemers = 11;
         // Initial setup with much larger funds to handle all redemptions
         console2.log("\n=== Initializing with funds ===");
         _sendFundsToStrategy(amount * 100);
@@ -62,12 +65,12 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
 
         // Setup depositors with deposit requests
         console2.log("\n=== Setting up depositors ===");
-        address[] memory redeemUsers = new address[](10);
-        address[] memory depositUsers = new address[](10);
+        address[] memory redeemUsers = new address[](nRedeemers);
+        address[] memory depositUsers = new address[](nDepositors);
         uint256 pendingDeposit;
 
         // First set up all depositor requests
-        for (uint256 i = 0; i < 10; i++) {
+        for (uint256 i = 0; i < nDepositors; i++) {
             console2.log("\n--- Setting up depositor", i, "---");
             _getTokens(address(asset), accInstances[i].account, amount);
             _requestDepositForAccount(accInstances[i], amount);
@@ -80,30 +83,27 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
 
         // Process all redeemers first, then do all redemption requests together
         console2.log("\n=== Setting up and processing redeemers ===");
-        for (uint256 i = 0; i < 10; i++) {
-            uint256 redeemIndex = i + 10;
-            console2.log("\n--- Processing redeemer", redeemIndex, "---");
+        for (uint256 i = 0; i < nRedeemers; i++) {
+            uint256 redeemIndex = i + nDepositors;
+            console2.log("\n--- Processing redeemer's deposit", redeemIndex, "---");
 
             // Complete deposit flow for each redeemer
             _getTokens(address(asset), accInstances[redeemIndex].account, amount);
             _requestDepositForAccount(accInstances[redeemIndex], amount);
 
-            vm.startPrank(STRATEGIST);
-            __fulfillDepositRequest(accInstances[redeemIndex], amount);
-            vm.stopPrank();
+            _fulfillDeposit(amount, accInstances[redeemIndex].account, address(fluidVault), address(aaveVault));
 
             _claimDepositForAccount(accInstances[redeemIndex], amount);
             redeemUsers[i] = accInstances[redeemIndex].account;
         }
 
-        // Get stable price per share after all deposits are processed
-        uint256 stablePricePerShare = vault.convertToAssets(1e18);
-        console2.log("Stable price per share:", stablePricePerShare);
-
         // Now do all redemption requests with same price
-        for (uint256 i = 0; i < 10; i++) {
-            uint256 sharesToRedeem = Math.mulDiv(amount, 1e18, stablePricePerShare, Math.Rounding.Floor);
-            _requestRedeemForAccount(accInstances[i + 10], sharesToRedeem);
+        for (uint256 i = 0; i < nRedeemers; i++) {
+            console2.log("\n--- Processing redeemer's redeem", i, "---");
+
+            _requestRedeemForAccount(
+                accInstances[i + nDepositors], vault.balanceOf(accInstances[i + nDepositors].account)
+            );
         }
 
         // Match the requests
@@ -115,7 +115,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         vm.stopPrank();
 
         // Verify all matches
-        for (uint256 i = 0; i < 10; i++) {
+        for (uint256 i = 0; i < nDepositors; i++) {
             console2.log("\n--- Verifying pair", i, "---");
 
             // Verify depositor state
@@ -133,6 +133,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
             uint256 pendingRedeem = strategy.pendingRedeemRequest(redeemUsers[i]);
             assertEq(pendingRedeem, 0, "Redeem request not matched");
         }
+        assertGt(strategy.pendingRedeemRequest(redeemUsers[nRedeemers - 1]), 0, "Last redeemer has pending redeem");
     }
 
     function test_RevertWhen_MatchRequests_EmptyArrays() public {
@@ -287,8 +288,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         _requestDepositForAccount(accInstances[0], amount);
 
         uint256 redeemShares = vault.balanceOf(accInstances[1].account);
-        _requestRedeemForAccount(accInstances[1], redeemShares / 2);
-        _requestRedeemForAccount(accInstances[1], redeemShares / 2);
+        _requestRedeemForAccount(accInstances[1], redeemShares);
 
         address[] memory redeemUsers = new address[](2);
         address[] memory depositUsers = new address[](2);
@@ -346,61 +346,6 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         assertGt(strategy.getSuperVaultState(accInstances[1].account, 2), 0, "No assets to withdraw");
     }
 
-    function test_RevertWhen_MatchRequests_UnequalArrayLengths() public {
-        uint256 amount = 1000e6;
-        _completeDepositFlow(amount);
-
-        _getTokens(address(asset), accInstances[0].account, amount);
-        _requestDepositForAccount(accInstances[0], amount);
-        _getTokens(address(asset), accInstances[2].account, amount);
-        _requestDepositForAccount(accInstances[2], amount);
-
-        uint256 redeemShares = vault.balanceOf(accInstances[1].account);
-        _requestRedeemForAccount(accInstances[1], redeemShares);
-
-        address[] memory redeemUsers = new address[](1);
-        address[] memory depositUsers = new address[](2);
-        redeemUsers[0] = accInstances[1].account;
-        depositUsers[0] = accInstances[0].account;
-        depositUsers[1] = accInstances[2].account;
-
-        vm.startPrank(STRATEGIST);
-        vm.expectRevert(ISuperVaultStrategy.LENGTH_MISMATCH.selector);
-        strategy.matchRequests(redeemUsers, depositUsers);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_MatchRequests_UnequalRequests(uint256 amount) public {
-        amount = bound(amount, 100e6, 10_000e6);
-
-        _completeDepositFlow(amount);
-
-        for (uint256 i = 0; i < 10; i++) {
-            _getTokens(address(asset), accInstances[i].account, amount);
-            _requestDepositForAccount(accInstances[i], amount);
-        }
-
-        for (uint256 i = 10; i < 18; i++) {
-            uint256 redeemShares = vault.balanceOf(accInstances[i].account);
-            _requestRedeemForAccount(accInstances[i], redeemShares);
-        }
-
-        address[] memory redeemUsers = new address[](8);
-        address[] memory depositUsers = new address[](10);
-
-        for (uint256 i = 0; i < 8; i++) {
-            redeemUsers[i] = accInstances[i + 10].account;
-        }
-        for (uint256 i = 0; i < 10; i++) {
-            depositUsers[i] = accInstances[i].account;
-        }
-
-        vm.startPrank(STRATEGIST);
-        vm.expectRevert(ISuperVaultStrategy.LENGTH_MISMATCH.selector);
-        strategy.matchRequests(redeemUsers, depositUsers);
-        vm.stopPrank();
-    }
-
     function _completeDepositFlow(uint256 amount, AccountInstance memory acc) internal {
         _getTokens(address(asset), acc.account, amount);
 
@@ -423,7 +368,7 @@ contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
         uint256 strategyBalanceBefore = IERC20(address(asset)).balanceOf(address(strategy));
         console2.log("Strategy balance before fulfill:", strategyBalanceBefore);
 
-        __fulfillDepositRequest(acc, amount);
+        _fulfillDeposit(amount, acc.account, address(fluidVault), address(aaveVault));
 
         uint256 strategyBalanceAfter = IERC20(address(asset)).balanceOf(address(strategy));
         console2.log("Strategy balance after fulfill:", strategyBalanceAfter);

@@ -4,6 +4,7 @@ pragma solidity >=0.8.28;
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
@@ -56,6 +57,19 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
+        return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
     function getTVLByOwnerOfShares(
         address yieldSourceAddress,
         address ownerOfShares
@@ -65,17 +79,14 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        uint256 shares = IERC7540(yieldSourceAddress).balanceOf(ownerOfShares);
+        uint256 shares = IERC20(IERC7540(yieldSourceAddress).share()).balanceOf(ownerOfShares);
         if (shares == 0) return 0;
         return IERC7540(yieldSourceAddress).convertToAssets(shares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        address share = IERC7540(yieldSourceAddress).share();
-        uint256 totalShares = IERC20Metadata(share).totalSupply();
-        if (totalShares == 0) return 0;
-        return IERC7540(yieldSourceAddress).convertToAssets(totalShares);
+        return IERC7540(yieldSourceAddress).totalAssets();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

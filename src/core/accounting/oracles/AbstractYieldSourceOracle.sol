@@ -71,13 +71,19 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         uint256 length = yieldSourceAddresses.length;
         pricesPerShare = new uint256[](length);
 
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; ++i) {
             pricesPerShare[i] = getPricePerShare(yieldSourceAddresses[i]);
-            unchecked {
-                ++i;
-            }
         }
     }
+
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        external
+        view
+        virtual
+        returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
     function getTVLByOwnerOfSharesMultiple(
@@ -93,22 +99,16 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
         userTvls = new uint256[][](length);
 
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; ++i) {
             address yieldSource = yieldSourceAddresses[i];
             address[] memory owners = ownersOfShares[i];
             uint256 ownersLength = owners.length;
 
             userTvls[i] = new uint256[](ownersLength);
 
-            for (uint256 j = 0; j < ownersLength;) {
+            for (uint256 j = 0; j < ownersLength; ++j) {
                 uint256 userTvl = getTVLByOwnerOfShares(yieldSource, owners[j]);
                 userTvls[i][j] = userTvl;
-                unchecked {
-                    ++j;
-                }
-            }
-            unchecked {
-                ++i;
             }
         }
     }
@@ -118,11 +118,8 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         uint256 length = yieldSourceAddresses.length;
         tvls = new uint256[](length);
 
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; ++i) {
             tvls[i] = getTVL(yieldSourceAddresses[i]);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -203,7 +200,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         pricesPerShareUSD = new uint256[](length);
         IOracle registry = oracleRegistry;
 
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; ++i) {
             // Validate base asset - this is implemented by child contracts
             _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
 
@@ -212,10 +209,6 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
             // Convert to USD using oracle registry with specified provider
             pricesPerShareUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
-
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -243,7 +236,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         totalTvlsUSD = new uint256[](vars.length);
         vars.registry = oracleRegistry;
 
-        for (uint256 i = 0; i < vars.length;) {
+        for (uint256 i = 0; i < vars.length; ++i) {
             // Validate base asset - this is implemented by child contracts
             _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
 
@@ -254,7 +247,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
             userTvlsUSD[i] = new uint256[](vars.ownersLength);
 
-            for (uint256 j = 0; j < vars.ownersLength;) {
+            for (uint256 j = 0; j < vars.ownersLength; ++j) {
                 // Get TVL in base asset terms
                 vars.baseAmount = getTVLByOwnerOfShares(vars.yieldSource, vars.owners[j]);
 
@@ -263,16 +256,9 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
                     vars.registry.getQuote(vars.baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
                 userTvlsUSD[i][j] = vars.userTvlUSD;
                 vars.totalTvlUSD += vars.userTvlUSD;
-
-                unchecked {
-                    ++j;
-                }
             }
 
             totalTvlsUSD[i] = vars.totalTvlUSD;
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -292,7 +278,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         tvlsUSD = new uint256[](length);
         IOracle registry = oracleRegistry;
 
-        for (uint256 i = 0; i < length;) {
+        for (uint256 i = 0; i < length; ++i) {
             // Validate base asset
             _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
 
@@ -301,10 +287,6 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
             // Convert to USD using oracle registry with specified provider
             tvlsUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
-
-            unchecked {
-                ++i;
-            }
         }
     }
 

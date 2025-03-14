@@ -25,6 +25,8 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
     uint256 private proposedFeeSplit;
     uint256 private feeSplitEffectiveTime;
 
+    uint256 public svSlippageTolerance;
+
     // Fee split configuration
     uint256 private constant ONE_WEEK = 7 days;
     uint256 private constant MAX_FEE_SPLIT = 10_000;
@@ -38,11 +40,20 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
 
         treasury = treasury_;
         emit TreasuryUpdated(treasury_);
+
+        svSlippageTolerance = 100; // 1%
     }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc IPeripheryRegistry
+    function setSvSlippageTolerance(uint256 svSlippageTolerance_) external onlyOwner {
+        if (svSlippageTolerance_ > 10_000) revert INVALID_SLIPPAGE_TOLERANCE();
+        svSlippageTolerance = svSlippageTolerance_;
+        emit SvSlippageToleranceUpdated(svSlippageTolerance_);
+    }
+
     /// @inheritdoc IPeripheryRegistry
     function registerHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
         if (hook_ == address(0)) revert INVALID_ADDRESS();
@@ -66,8 +77,6 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
 
     /// @inheritdoc IPeripheryRegistry
     function unregisterHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
-        if (hook_ == address(0)) revert INVALID_ADDRESS();
-
         if (isFulfillRequestsHook_) {
             if (!isFulfillRequestsHookRegistered[hook_]) revert HOOK_NOT_REGISTERED();
             isFulfillRequestsHookRegistered[hook_] = false;
@@ -113,7 +122,7 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
 
     /// @inheritdoc IPeripheryRegistry
     function executeFeeSplitUpdate() external {
-        if (block.timestamp < feeSplitEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (feeSplitEffectiveTime == 0 || block.timestamp < feeSplitEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
 
         feeSplit = proposedFeeSplit;
         proposedFeeSplit = 0;

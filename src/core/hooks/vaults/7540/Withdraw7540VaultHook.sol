@@ -22,14 +22,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-/// @notice         bool lockForSP = _decodeBool(data, 77);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+/// @notice         bool lockForSP = _decodeBool(data, 57);
 contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
+    uint256 private constant AMOUNT_POSITION = 24;
 
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
 
@@ -48,22 +47,21 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow,
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 76);
+        bool usePrevHookAmount = _decodeBool(data, 56);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.withdraw, (amount, account, owner))
+            callData: abi.encodeCall(IERC7540.withdraw, (amount, account, account))
         });
     }
 
@@ -71,17 +69,17 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow,
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 77);
+        lockForSP = _decodeBool(data, 57);
         spToken = yieldSource;
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
         usedShares = usedShares - _getSharesBalance(account, data);
     }

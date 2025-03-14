@@ -39,23 +39,19 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -72,32 +68,25 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](partialUsersCount);
-        for (uint256 i; i < partialUsersCount;) {
+        for (uint256 i; i < partialUsersCount; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < partialUsersCount;) {
+        for (uint256 i; i < partialUsersCount; ++i) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
-            unchecked {
-                ++i;
-            }
         }
 
         // check that the remaining users have not been affected
-        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT;) {
+        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
             assertEq(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
-            unchecked {
-                ++i;
-            }
         }
 
         // try to fullfil the rest of the users in 1 vault
@@ -109,11 +98,11 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
                 ++j;
             }
         }
-        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        _fulfillDepositForUsers(requestingUsers, totalAmount, 0);
 
         // fullfill the rest of the users in 2 vaults
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
     }
 
     function test_RequestDeposit_SingleUser_MultipleRequests(uint256 depositAmount) public {
@@ -136,7 +125,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
 
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0);
         assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0);
@@ -164,7 +155,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
 
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // Verify all deposits were fulfilled
         for (uint256 i; i < ACCOUNT_COUNT; i++) {
@@ -189,8 +182,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         }
 
         // Should revert when trying to fulfill with insufficient allocation
-        vm.expectRevert();
-        _fulfillDepositForUsers(requestingUsers, invalidAmount, invalidAmount);
+        _fulfillDepositForUsers(requestingUsers, invalidAmount, invalidAmount, address(fluidVault), address(aaveVault), ISuperVaultStrategy.INVALID_AMOUNT.selector);
     }
 
     function test_RequestDeposit_UnorderedFulfillment(uint256 depositAmount) public {
@@ -211,7 +203,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
 
         // Fulfill deposits with unordered user array
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // Verify all deposits were fulfilled correctly
         for (uint256 i; i < ACCOUNT_COUNT; i++) {
@@ -244,7 +238,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
 
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
     }
 
     function test_RequestDeposit_MultipleUsers_DifferentTimestamps() public {
@@ -267,26 +263,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
 
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
-    }
-
-    function test_RequestDeposit_FullAllocationInOneVault() public {
-        uint256 depositAmount = 1000e6;
-
-        // Create deposit requests for all users
-        _requestDepositForAllUsers(depositAmount);
-
-        // Try to fulfill all requests using only one vault
-        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT; i++) {
-            requestingUsers[i] = accInstances[i].account;
-        }
-
-        uint256 totalAmount = depositAmount * ACCOUNT_COUNT;
-
-        // Should revert when trying to allocate everything to one vault
-        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        _fulfillDepositForUsers(requestingUsers, totalAmount, 0);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
     }
 
     function test_RequestDeposit_VerifyAmounts() public {
@@ -303,14 +282,17 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         vars.allocationAmountVault1 = vars.totalAmount / 2;
         vars.allocationAmountVault2 = vars.totalAmount - vars.allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
-        _fulfillDepositForUsers(requestingUsers, vars.allocationAmountVault1, vars.allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers,
+            vars.allocationAmountVault1,
+            vars.allocationAmountVault2,
+            address(fluidVault),
+            address(aaveVault)
+        );
 
         vars.fluidVaultSharesIncrease = fluidVault.balanceOf(address(strategy)) - vars.initialFluidVaultBalance;
         vars.aaveVaultSharesIncrease = aaveVault.balanceOf(address(strategy)) - vars.initialAaveVaultBalance;
@@ -339,12 +321,7 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            address(vault),
-            accInstances[0].account,
-            depositAmount,
-            false,
-            false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -357,7 +334,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accInstances[0].account;
 
-        _fulfillDepositForUsers(requestingUsers, depositAmount / 2, depositAmount / 2);
+        _fulfillDepositForUsers(
+            requestingUsers, depositAmount / 2, depositAmount / 2, address(fluidVault), address(aaveVault)
+        );
 
         assertEq(strategy.pendingDepositRequest(accInstances[0].account), 0);
         assertGt(strategy.getSuperVaultState(accInstances[0].account, 1), 0);
@@ -376,7 +355,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accInstances[0].account;
 
-        _fulfillDepositForUsers(requestingUsers, depositAmount / 2, depositAmount / 2);
+        _fulfillDepositForUsers(
+            requestingUsers, depositAmount / 2, depositAmount / 2, address(fluidVault), address(aaveVault)
+        );
 
         uint256 initialSharePrice = vault.convertToAssets(1e18);
 
@@ -422,43 +403,32 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
-        _fulfillDepositForUsers(requestingUsers, allocationAmountVault1, allocationAmountVault2);
+        _fulfillDepositForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         uint256[] memory initialShareBalances = new uint256[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             initialShareBalances[i] = vault.balanceOf(accInstances[i].account);
-            unchecked {
-                ++i;
-            }
         }
 
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         uint256 firstUserShares = vault.balanceOf(accInstances[0].account) - initialShareBalances[0];
         uint256 sharesPerAsset = firstUserShares * 1e18 / depositAmount;
 
         /// this test compares the shares of the first user
-        for (uint256 i = 1; i < ACCOUNT_COUNT;) {
+        for (uint256 i = 1; i < ACCOUNT_COUNT; ++i) {
             uint256 userShares = vault.balanceOf(accInstances[i].account) - initialShareBalances[i];
             uint256 userSharesPerAsset = userShares * 1e18 / depositAmount;
             assertEq(userSharesPerAsset, sharesPerAsset);
             assertEq(userShares, firstUserShares);
-
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -472,7 +442,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accInstances[0].account;
 
-        _fulfillDepositForUsers(requestingUsers, firstDepositAmount / 2, firstDepositAmount / 2);
+        _fulfillDepositForUsers(
+            requestingUsers, firstDepositAmount / 2, firstDepositAmount / 2, address(fluidVault), address(aaveVault)
+        );
 
         uint256 initialShareBalance = vault.balanceOf(accInstances[0].account);
         _claimDepositForAccount(accInstances[0], firstDepositAmount);
@@ -480,7 +452,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 firstDepositSharePrice = firstDepositShares * 1e18 / firstDepositAmount;
 
         _requestDepositForAccount(accInstances[0], secondDepositAmount);
-        _fulfillDepositForUsers(requestingUsers, secondDepositAmount / 2, secondDepositAmount / 2);
+        _fulfillDepositForUsers(
+            requestingUsers, secondDepositAmount / 2, secondDepositAmount / 2, address(fluidVault), address(aaveVault)
+        );
 
         uint256 shareBalanceAfterFirstDeposit = vault.balanceOf(accInstances[0].account);
         _claimDepositForAccount(accInstances[0], secondDepositAmount);
@@ -516,29 +490,30 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
 
         vars.firstAllocationVault1 = vars.firstDepositAmount / 2;
         vars.firstAllocationVault2 = vars.firstDepositAmount - vars.firstAllocationVault1;
-        _fulfillDepositForUsers(requestingUsers, vars.firstAllocationVault1, vars.firstAllocationVault2);
+        _fulfillDepositForUsers(
+            requestingUsers,
+            vars.firstAllocationVault1,
+            vars.firstAllocationVault2,
+            address(fluidVault),
+            address(aaveVault)
+        );
 
         vars.initialShareBalance = vault.balanceOf(accInstances[0].account);
         _claimDepositForAccount(accInstances[0], vars.firstDepositAmount);
         vars.firstDepositShares = vault.balanceOf(accInstances[0].account) - vars.initialShareBalance;
         vars.firstDepositSharePrice = vars.firstDepositShares * 1e18 / vars.firstDepositAmount;
 
-        vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: VAULT_CAP,
-                superVaultCap: SUPER_VAULT_CAP,
-                maxAllocationRate: 9000,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
-        vm.stopPrank();
-
         _requestDepositForAccount(accInstances[0], vars.secondDepositAmount);
 
         vars.secondAllocationVault1 = vars.secondDepositAmount * 90 / 100;
         vars.secondAllocationVault2 = vars.secondDepositAmount - vars.secondAllocationVault1;
-        _fulfillDepositForUsers(requestingUsers, vars.secondAllocationVault1, vars.secondAllocationVault2);
+        _fulfillDepositForUsers(
+            requestingUsers,
+            vars.secondAllocationVault1,
+            vars.secondAllocationVault2,
+            address(fluidVault),
+            address(aaveVault)
+        );
 
         vars.shareBalanceAfterFirstDeposit = vault.balanceOf(accInstances[0].account);
         _claimDepositForAccount(accInstances[0], vars.secondDepositAmount);
@@ -546,21 +521,5 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         vars.secondDepositSharePrice = vars.secondDepositShares * 1e18 / vars.secondDepositAmount;
 
         _verifyAndLogChangingAllocation(vars);
-    }
-
-    function test_SingleUser_HighAllocation_RevertWithoutConfigUpdate() public {
-        uint256 depositAmount = 1000e6;
-
-        _getTokens(address(asset), accInstances[0].account, depositAmount);
-        _requestDepositForAccount(accInstances[0], depositAmount);
-
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accInstances[0].account;
-
-        uint256 highAllocationAmount = depositAmount * 90 / 100;
-        uint256 lowAllocationAmount = depositAmount - highAllocationAmount;
-
-        vm.expectRevert(ISuperVaultStrategy.MAX_ALLOCATION_RATE_EXCEEDED.selector);
-        _fulfillDepositForUsers(requestingUsers, highAllocationAmount, lowAllocationAmount);
     }
 }

@@ -85,6 +85,12 @@ interface IYieldSourceOracle {
     /// @return tvl The TVL of the yield source by the owner of the shares
     function getTVLByOwnerOfShares(address yieldSourceAddress, address ownerOfShares) external view returns (uint256);
 
+    /// @notice Derives the balance for a given owner of shares
+    /// @param yieldSourceAddress The yield source to derive balance for
+    /// @param ownerOfShares The owner of the shares
+    /// @return balance The balance of the owner of the shares
+    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares) external view returns (uint256);
+
     /// @notice Derives the total TVL in a yield source
     /// @param yieldSourceAddress The yield source to derive TVL for
     /// @return tvl The total TVL of the yield source

@@ -71,16 +71,12 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
         uint256 offset = 117; // Start of PermitDetails array
 
         permitBatch.details = new IAllowanceTransfer.PermitDetails[](detailsCount);
-        for (uint256 i = 0; i < detailsCount;) {
+        for (uint256 i = 0; i < detailsCount; ++i) {
             permitBatch.details[i].token = BytesLib.toAddress(BytesLib.slice(data, offset, 20), 0);
             permitBatch.details[i].amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 20, 32), 0));
             permitBatch.details[i].expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 52, 32), 0));
             permitBatch.details[i].nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 84, 32), 0));
             offset += 116; // Each PermitDetails struct takes 116 bytes
-
-            unchecked {
-                ++i;
-            }
         }
 
         uint256 signatureOffset = offset;

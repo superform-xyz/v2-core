@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
+
 // External
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -52,12 +54,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     address private _vault;
     IERC20 private _asset;
     uint8 private _vaultDecimals;
-    
+
     // Role-based access control
     mapping(bytes32 role => address roleAddress) public addresses;
 
     // Global configuration
-    GlobalConfig private globalConfig;
+    uint256 private superVaultCap;
 
     // Fee configuration
     FeeConfig private feeConfig;
@@ -86,9 +88,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     IPeripheryRegistry private peripheryRegistry;
 
-    // Track the last known total assets (free assets available)
-    uint256 private _lastTotalAssets;
-
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
     }
@@ -107,37 +106,33 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address strategist_,
         address emergencyAdmin_,
         address peripheryRegistry_,
-        GlobalConfig memory config_,
+        uint256 superVaultCap_,
         address initYieldSource_,
         bytes32 initHooksRoot_,
         address initYieldSourceOracle_
     )
         external
     {
-        if (_initialized) revert NOT_INITIALIZED();
+        if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
         if (manager_ == address(0)) revert INVALID_MANAGER();
         if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
         if (peripheryRegistry_ == address(0)) revert INVALID_PERIPHERY_REGISTRY();
-        if (config_.vaultCap == 0) revert INVALID_VAULT_CAP();
-        if (config_.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
-        if (config_.maxAllocationRate == 0 || config_.maxAllocationRate > ONE_HUNDRED_PERCENT) {
-            revert INVALID_MAX_ALLOCATION_RATE();
-        }
-        if (config_.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
+        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
 
         _initialized = true;
         _vault = vault_;
         _asset = IERC20(IERC4626(vault_).asset());
         _vaultDecimals = IERC20Metadata(vault_).decimals();
 
+        superVaultCap = superVaultCap_;
+
         // Initialize roles
         addresses[MANAGER_ROLE] = manager_;
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
         peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
-        globalConfig = config_;
 
         // Initialize first yield source and hook root to bootstrap the vault
         if (initHooksRoot_ == bytes32(0)) revert INVALID_HOOK_ROOT();
@@ -150,9 +145,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         yieldSources[initYieldSource_] = YieldSource({ oracle: initYieldSourceOracle_, isActive: true });
         yieldSourcesList.push(initYieldSource_);
         emit YieldSourceAdded(initYieldSource_, initYieldSourceOracle_);
-
-        // Initialize _lastTotalAssets to 0
-        _lastTotalAssets = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -191,14 +183,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address[] calldata users,
         address[] calldata hooks,
         bytes[] memory hookCalldata,
+        uint256[] memory expectedAssetsOrSharesOut,
         bool isDeposit
     )
         external
     {
         _requireRole(STRATEGIST_ROLE);
+
         uint256 usersLength = users.length;
         if (usersLength == 0) revert ZERO_LENGTH();
         uint256 hooksLength = hooks.length;
+        if (hooksLength != expectedAssetsOrSharesOut.length) revert INVALID_ARRAY_LENGTH();
 
         _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
 
@@ -206,38 +201,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Validate requests and determine total amount (assets for deposits, shares for redeem)
         vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
-
         // If deposit, check available balance
         if (isDeposit) {
             vars.availableAmount = _getTokenBalance(address(_asset), address(this));
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
+        /// @dev grab current PPS before processing hooks
+        vars.pricePerShare = _getSuperVaultPPS();
 
         // Process hooks and get targeted yield sources
         address[] memory targetedYieldSources;
-        bytes32[][] memory hookProofs = new bytes32[][](hooksLength);
-        (vars, targetedYieldSources) = _processHooks(hooks, hookProofs, hookCalldata, vars, isDeposit, true);
-
-        // Check vault caps after hooks processing (only for deposits)
-        if (isDeposit) {
-            _checkVaultCaps(targetedYieldSources);
-        }
-
-        /// @dev pps obtained here is just to forward to _processRedeem, not used in deposits
-        (vars.pricePerShare, vars.totalAssets, vars.totalSupplyAmount) = _getSuperVaultAssetInfo();
-
-        if (vars.totalSupplyAmount > 0 && isDeposit) {
-            /// @dev calculate total supply increase based on total requested amount variation
-            uint256 totalSupplyIncrease = vars.totalRequestedAmount.mulDiv(
-                vars.totalSupplyAmount, vars.totalAssets - vars.totalRequestedAmount, Math.Rounding.Floor
-            );
-            /// @dev determine the global new PPS for all depositors being fulfilled with the total supply increase
-            vars.pricePerShare =
-                vars.totalAssets.mulDiv(PRECISION, vars.totalSupplyAmount + totalSupplyIncrease, Math.Rounding.Floor);
-        }
+        (vars, targetedYieldSources) = _processHooks(hooks, hookCalldata, vars, expectedAssetsOrSharesOut, isDeposit);
 
         // Process requests
-        for (uint256 i; i < usersLength;) {
+        for (uint256 i; i < usersLength; ++i) {
             address user = users[i];
             SuperVaultState storage state = superVaultState[user];
 
@@ -246,11 +223,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             } else {
                 _processRedeem(user, state, vars);
             }
-
-            unchecked {
-                ++i;
-            }
         }
+
+        //check super vault cap
+        _checkSuperVaultCap();
     }
 
     /// @param redeemUsers Array of users with pending redeem requests
@@ -260,17 +236,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
         if (redeemLength == 0 || depositLength == 0) revert ZERO_LENGTH();
-        if (redeemLength != depositLength) revert LENGTH_MISMATCH();
 
         MatchVars memory vars;
-        (vars.currentPricePerShare,,) = _getSuperVaultAssetInfo();
+        vars.currentPricePerShare = _getSuperVaultPPS();
 
         // Track shares used from each redeemer in memory
         uint256[] memory sharesUsedByRedeemer = new uint256[](redeemLength);
-
         // Process deposits first, matching with redeem requests
         // Full deposit fulfilment is prioritized vs outflows from the SuperVault (which can be partially matched)
-        for (uint256 i; i < depositLength;) {
+        for (uint256 i; i < depositLength; ++i) {
             address depositor = depositUsers[i];
             SuperVaultState storage depositState = superVaultState[depositor];
             vars.depositAssets = depositState.pendingDepositRequest;
@@ -281,14 +255,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.remainingShares = vars.sharesNeeded;
 
             // Try to fulfill with redeem requests
-            for (uint256 j; j < redeemLength && vars.remainingShares > 0;) {
+            for (uint256 j; j < redeemLength && vars.remainingShares > 0; ++j) {
                 address redeemer = redeemUsers[j];
                 SuperVaultState storage redeemState = superVaultState[redeemer];
                 vars.redeemShares = redeemState.pendingRedeemRequest;
                 if (vars.redeemShares == 0) {
-                    unchecked {
-                        ++j;
-                    }
                     continue;
                 }
 
@@ -300,10 +271,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 sharesUsedByRedeemer[j] += vars.sharesToUse;
 
                 vars.remainingShares -= vars.sharesToUse;
-
-                unchecked {
-                    ++j;
-                }
             }
 
             // Verify deposit was fully matched
@@ -320,14 +287,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
             // Call vault callback instead of emitting event directly
             _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded);
-
-            unchecked {
-                ++i;
-            }
         }
 
         // Process accumulated shares for redeemers
-        for (uint256 i; i < redeemLength;) {
+        for (uint256 i; i < redeemLength; ++i) {
             uint256 sharesUsed = sharesUsedByRedeemer[i];
 
             if (sharesUsed > 0) {
@@ -348,214 +311,66 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 // Call vault callback instead of emitting event directly
                 _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed);
             }
-
-            unchecked {
-                ++i;
-            }
         }
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function allocate(
-        address[] calldata hooks,
-        bytes[] calldata hookCalldata
-    )
-        external
-    {
+    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external {
         _requireRole(STRATEGIST_ROLE);
-        uint256 hooksLength = hooks.length;
-        _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
 
-        AllocationVars memory vars;
-        address[] memory inflowTargets = new address[](hooksLength);
-        uint256 inflowCount;
+        ExecuteHooksVars memory vars;
+        vars.hooksLength = hooks.length;
+        _validateFulfillHooksArrays(vars.hooksLength, hookCalldata.length);
 
-        // Get all TVLs in one call at the start
-        (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
+        vars.inflowTargets = new address[](vars.hooksLength);
 
-        vars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Process each hook in sequence
-        for (uint256 i; i < hooksLength;) {
-            // Validate hook via merkle proof
-            if (!_isFulfillRequestsHook(hooks[i])) revert INVALID_HOOK();
+        for (uint256 i = 0; i < vars.hooksLength; ++i) {
+            // Validate hook via periphery registry
+            if (!peripheryRegistry.isHookRegistered(hooks[i])) revert INVALID_HOOK();
+
+            // Get hook type
+            vars.hookContract = ISuperHook(hooks[i]);
+            vars.hookType = ISuperHookResult(hooks[i]).hookType();
+
+            // Call preExecute to initialize outAmount tracking
+            vars.hookContract.preExecute(vars.prevHook, address(this), hookCalldata[i]);
 
             // Build executions for this hook
-            ISuperHook hookContract = ISuperHook(hooks[i]);
-            vars.executions = hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
-            // prevent any hooks with more than one execution
-            if (vars.executions.length > 1) revert INVALID_HOOK();
+            vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-            // Get amount from hook
-            vars.amount = _decodeHookAmount(hooks[i], hookCalldata[i]);
-
-            // Validate target is an active yield source
-            YieldSource storage source = yieldSources[vars.executions[0].target];
-            if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-
-            vars.hookType = ISuperHookResult(hooks[i]).hookType();
-            // For inflows, check allocation rates and track targets
-            if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                // Find TVL for target yield source
-                uint256 currentYieldSourceAssets;
-                bool found;
-                for (uint256 j; j < sourceTVLs.length;) {
-                    if (sourceTVLs[j].source == vars.executions[0].target) {
-                        currentYieldSourceAssets = sourceTVLs[j].tvl;
-                        found = true;
-                        break;
-                    }
-                    unchecked {
-                        ++j;
-                    }
+            if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
+                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+                if (!yieldSources[vars.targetedYieldSource].isActive) {
+                    revert YIELD_SOURCE_NOT_ACTIVE();
                 }
-                if (!found) revert YIELD_SOURCE_NOT_FOUND();
-                // Check allocation rate using the same totalAssets value
-                if (
-                    (currentYieldSourceAssets + vars.amount).mulDiv(
-                        ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor
-                    ) > globalConfig.maxAllocationRate
-                ) {
-                    revert MAX_ALLOCATION_RATE_EXCEEDED();
+                if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                    vars.inflowTargets[vars.inflowCount++] = vars.targetedYieldSource;
                 }
-
-                // Track inflow target
-                inflowTargets[inflowCount++] = vars.executions[0].target;
-
-                // Approve spending
-                _handleTokenApproval(address(_asset), vars.executions[0].target, vars.amount);
             }
 
-            // Execute the transaction
-            (bool success,) =
-                vars.executions[0].target.call{ value: vars.executions[0].value }(vars.executions[0].callData);
-            if (!success) revert OPERATION_FAILED();
-
-            // Reset approval if it was an inflow
-            if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                _resetTokenApproval(address(_asset), vars.executions[0].target);
+            for (uint256 j = 0; j < vars.executions.length; ++j) {
+                // Execute the transaction
+                (vars.success,) =
+                    vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
+                if (!vars.success) revert OPERATION_FAILED();
             }
+            // Call postExecute to update outAmount tracking
+            vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
+
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
-
-            unchecked {
-                ++i;
-            }
-        }
-        vars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
-        // inflows increase totalAssets, outflows decrease totalAssets
-        if (vars.balanceAssetAfter > vars.balanceAssetBefore) {
-            _updateLastTotalAssets(_lastTotalAssets + (vars.balanceAssetAfter - vars.balanceAssetBefore));
-        } else {
-            _updateLastTotalAssets(_lastTotalAssets - (vars.balanceAssetBefore - vars.balanceAssetAfter));
         }
 
-        // Resize array to actual count if needed
-        if (inflowCount < hooksLength) {
-            assembly {
-                mstore(inflowTargets, inflowCount)
-            }
+        // Resize array if needed
+        if (vars.inflowCount < vars.hooksLength && vars.inflowCount > 0) {
+            vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
         }
 
-        // Check vault caps for all inflow targets after processing
-        _checkVaultCaps(inflowTargets);
-    }
+        //check super vault cap
+        _checkSuperVaultCap();
 
-    /// @inheritdoc ISuperVaultStrategy
-    function claim(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external
-    {
-        _requireRole(STRATEGIST_ROLE);
-
-        // Validate hook arrays
-        _validateHookArrayLengths(hooks, hookProofs, hookCalldata);
-        uint256 expectedTokensLength = expectedTokensOut.length;
-        if (expectedTokensLength == 0) revert ZERO_LENGTH();
-
-        // Execute claim hooks and get balance changes
-        uint256[] memory balanceChanges = _processClaimHookExecution(hooks, hookProofs, hookCalldata, expectedTokensOut);
-
-        // Store claimed tokens in state
-        for (uint256 i; i < expectedTokensLength;) {
-            if (balanceChanges[i] > 0) {
-                claimedTokens[expectedTokensOut[i]] += balanceChanges[i];
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        emit RewardsClaimed(expectedTokensOut, balanceChanges);
-    }
-
-    /// @inheritdoc ISuperVaultStrategy
-    function compoundClaimedTokens(
-        address[][] calldata hooks,
-        bytes32[][] memory swapHookProofs,
-        bytes32[][] memory allocateHookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata claimedTokensToCompound
-    )
-        external
-    {
-        _requireRole(STRATEGIST_ROLE);
-
-        // Validate overall hook sets
-        _validateHookSets(hooks, hookCalldata, 2); // Must have exactly 2 arrays: swap and allocate
-
-        // Validate individual hook arrays
-        _validateHookArrayLengths(hooks[0], swapHookProofs, hookCalldata[0]);
-        _validateHookArrayLengths(hooks[1], allocateHookProofs, hookCalldata[1]);
-
-        uint256 claimedTokensLength = claimedTokensToCompound.length;
-        if (claimedTokensLength == 0) revert ZERO_LENGTH();
-
-        ClaimLocalVars memory vars;
-
-        // Get initial asset balance
-        vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
-
-        // Get balance changes for claimed tokens
-        vars.balanceChanges = new uint256[](claimedTokensLength);
-        for (uint256 i; i < claimedTokensLength;) {
-            vars.balanceChanges[i] = claimedTokens[claimedTokensToCompound[i]];
-            // Reset claimed tokens amount
-            if (vars.balanceChanges[i] > 0) {
-                claimedTokens[claimedTokensToCompound[i]] = 0;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-
-        // Step 1: Execute swap hooks and get asset gained
-        vars.assetGained = _processSwapHookExecution(
-            hooks[0],
-            swapHookProofs,
-            hookCalldata[0],
-            claimedTokensToCompound,
-            vars.balanceChanges,
-            vars.initialAssetBalance
-        );
-
-        // Step 2: Execute inflow hooks to allocate gained assets
-        vars.fulfillmentVars.totalRequestedAmount = vars.assetGained;
-
-        (vars.fulfillmentVars, vars.targetedYieldSources) =
-            _processHooks(hooks[1], allocateHookProofs, hookCalldata[1], vars.fulfillmentVars, true, false);
-
-        // Check vault caps after all hooks are processed
-        _checkVaultCaps(vars.targetedYieldSources);
-
-        // Verify all assets were allocated
-        if (vars.fulfillmentVars.spentAmount != vars.assetGained) revert INVALID_AMOUNT();
-
-        emit RewardsClaimedAndCompounded(vars.assetGained);
+        emit HooksExecuted(hooks);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -578,16 +393,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         sourceTVLs = new YieldSourceTVL[](length);
         uint256 activeSourceCount;
 
-        totalAssets_ = _lastTotalAssets;
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
                 uint256 tvl = _getTvlByOwnerOfShares(source);
                 totalAssets_ += tvl;
                 sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
-            }
-            unchecked {
-                ++i;
             }
         }
 
@@ -613,14 +424,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Manage yield sources: add, update oracle, and toggle activation.
-    /// @param source Address of the yield source.
-    /// @param oracle Address of the oracle (used for adding/updating).
-    /// @param actionType Type of action:
-    ///        0 - Add new yield source,
-    ///        1 - Update oracle,
-    ///        2 - Toggle activation (oracle param ignored).
-    /// @param activate Boolean flag for activation when actionType is 2.
+
+    /// @inheritdoc ISuperVaultStrategy
     function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external {
         _requireRole(MANAGER_ROLE);
         YieldSource storage yieldSource = yieldSources[source];
@@ -629,8 +434,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (source == address(0)) revert ZERO_ADDRESS();
             if (oracle == address(0)) revert ZERO_ADDRESS();
             if (yieldSource.oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
-
-            if (IYieldSourceOracle(oracle).getTVL(source) < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_EXCEEDED();
 
             yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
             yieldSourcesList.push(source);
@@ -647,13 +450,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_ORACLE_NOT_FOUND();
                 if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_ACTIVE();
 
-                if (IYieldSourceOracle(oracle).getTVL(source) < globalConfig.vaultThreshold) revert VAULT_THRESHOLD_EXCEEDED();
-
                 yieldSource.isActive = true;
                 emit YieldSourceReactivated(source);
             } else {
                 if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-                if (IYieldSourceOracle(oracle).getTVLByOwnerOfShares(source, address(this)) > 0) revert INVALID_AMOUNT();
+                if (IYieldSourceOracle(oracle).getTVLByOwnerOfShares(source, address(this)) > 0) {
+                    revert INVALID_AMOUNT();
+                }
 
                 yieldSource.isActive = false;
                 emit YieldSourceDeactivated(source);
@@ -664,17 +467,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function updateGlobalConfig(GlobalConfig calldata config) external {
+    function updateSuperVaultCap(uint256 superVaultCap_) external {
         _requireRole(MANAGER_ROLE);
-        if (config.vaultCap == 0) revert INVALID_VAULT_CAP();
-        if (config.superVaultCap == 0) revert INVALID_SUPER_VAULT_CAP();
-        if (config.maxAllocationRate == 0 || config.maxAllocationRate > ONE_HUNDRED_PERCENT) {
-            revert INVALID_MAX_ALLOCATION_RATE();
-        }
-        if (config.vaultThreshold == 0) revert INVALID_VAULT_THRESHOLD();
+        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
 
-        globalConfig = config;
-        emit GlobalConfigUpdated(config.vaultCap, config.superVaultCap, config.maxAllocationRate, config.vaultThreshold);
+        superVaultCap = superVaultCap_;
+        emit SuperVaultCapUpdated(superVaultCap_);
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -756,9 +554,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             uint256 freeAssets = _getTokenBalance(address(_asset), address(this));
             if (amount > freeAssets) revert INSUFFICIENT_FUNDS();
 
-            // Update _lastTotalAssets
-            _updateLastTotalAssets(_lastTotalAssets - amount);
-
             _safeTokenTransfer(address(_asset), recipient, amount);
             emit EmergencyWithdrawal(recipient, amount);
         } else {
@@ -794,8 +589,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function getConfigInfo() external view returns (GlobalConfig memory globalConfig_, FeeConfig memory feeConfig_) {
-        globalConfig_ = globalConfig;
+    function getConfigInfo() external view returns (uint256 superVaultCap_, FeeConfig memory feeConfig_) {
+        superVaultCap_ = superVaultCap;
         feeConfig_ = feeConfig;
     }
 
@@ -822,6 +617,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    function _checkSuperVaultCap() internal view {
+        if (superVaultCap > 0) {
+            (uint256 totalAssets_,) = totalAssets();
+            if (totalAssets_ > superVaultCap) revert SUPER_VAULT_CAP_EXCEEDED();
+        }
+    }
+
     function _isFulfillRequestsHook(address hook) private view returns (bool) {
         return peripheryRegistry.isFulfillRequestsHookRegistered(hook);
     }
@@ -846,28 +648,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         return IYieldSourceOracle(yieldSources[source].oracle).getTVLByOwnerOfShares(source, address(this));
     }
 
-    function _getSuperVaultAssetInfo()
-        private
-        view
-        returns (uint256 pricePerShare, uint256 totalAssetsValue, uint256 totalSupplyAmount)
-    {
-        totalSupplyAmount = IERC4626(_vault).totalSupply();
-        totalAssetsValue = _lastTotalAssets;
+    function _getSuperVaultPPS() private view returns (uint256 pricePerShare) {
+        uint256 totalSupplyAmount = IERC4626(_vault).totalSupply();
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
             pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
-            (totalAssetsValue,) = totalAssets();
+            (uint256 totalAssetsValue,) = totalAssets();
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
 
     function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.totalSupplyAmount == 0
-            ? vars.requestedAmount
-            : vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
+        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
 
         uint256 newTotalUserShares = state.maxMint + vars.shares;
 
@@ -902,6 +697,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         state.pendingRedeemRequest = 0;
 
         state.maxWithdraw += finalAssets;
+
+        ISuperVault(_vault).burnShares(vars.requestedAmount);
+
         _onRedeemClaimable(user, finalAssets, vars.requestedAmount);
     }
 
@@ -914,9 +712,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         SuperVaultState storage state = superVaultState[controller];
         state.pendingDepositRequest = state.pendingDepositRequest + assets;
 
-        // Update _lastTotalAssets
-        _updateLastTotalAssets(_lastTotalAssets + assets);
-
         return assets;
     }
 
@@ -926,9 +721,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         SuperVaultState storage state = superVaultState[controller];
         state.pendingDepositRequest = 0;
-
-        // Update _lastTotalAssets
-        _updateLastTotalAssets(_lastTotalAssets - assets);
 
         _safeTokenTransfer(address(_asset), _vault, assets);
         return assets;
@@ -940,7 +732,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         SuperVaultState storage state = superVaultState[controller];
         if (state.maxMint < shares) revert INVALID_AMOUNT();
-
         // Update state
         state.maxMint -= shares;
         return shares;
@@ -951,6 +742,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         if (shares == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
+
         state.pendingRedeemRequest = state.pendingRedeemRequest + shares;
         return shares;
     }
@@ -973,22 +765,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         // Update state
         state.maxWithdraw -= assets;
 
-        // Get actual balance and ensure we don't underflow _lastTotalAssets
+        // Get actual balance and ensure we don't underflow
         uint256 currentBalance = _getTokenBalance(address(_asset), address(this));
         uint256 assetsToWithdraw = assets > currentBalance ? currentBalance : assets;
-        
-        // Update _lastTotalAssets based on actual withdrawal amount
-        _updateLastTotalAssets(currentBalance - assetsToWithdraw);
 
         // Transfer assets to vault
         _safeTokenTransfer(address(_asset), _vault, assetsToWithdraw);
         return assetsToWithdraw;
-    }
-
-    /// @notice Update the last total assets value
-    /// @param updatedTotalAssets The new total assets value
-    function _updateLastTotalAssets(uint256 updatedTotalAssets) internal {
-        _lastTotalAssets = updatedTotalAssets;
     }
 
     //--Fulfilment and allocation helpers--
@@ -1016,13 +799,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @notice Validate array lengths for fulfill functions
     /// @param hooksLength Length of hooks array
     /// @param hookCalldataLength Length of hook calldata array
-    function _validateFulfillHooksArrays(
-        uint256 hooksLength,
-        uint256 hookCalldataLength
-    )
-        private
-        pure
-    {
+    function _validateFulfillHooksArrays(uint256 hooksLength, uint256 hookCalldataLength) private pure {
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (hooksLength != hookCalldataLength) {
             revert LENGTH_MISMATCH();
@@ -1043,16 +820,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         view
         returns (uint256 totalRequested)
     {
-        for (uint256 i; i < usersLength;) {
+        for (uint256 i; i < usersLength; ++i) {
             uint256 pendingRequest = isDeposit
                 ? superVaultState[users[i]].pendingDepositRequest
                 : superVaultState[users[i]].pendingRedeemRequest;
 
             if (pendingRequest == 0) revert REQUEST_NOT_FOUND();
             totalRequested += pendingRequest;
-            unchecked {
-                i++;
-            }
         }
     }
 
@@ -1060,59 +834,43 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hook The hook to execute
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param hookProof The merkle proof for the hook
     /// @param expectedHookType The expected type of hook
-    /// @param validateYieldSource Whether to validate the yield source
     /// @param approvalToken Token to approve (address(0) if no approval needed)
     /// @param approvalAmount Amount to approve
-    /// @return target The target address from the execution
     function _executeHook(
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] memory hookProof,
         ISuperHook.HookType expectedHookType,
-        bool validateYieldSource,
         address approvalToken,
         uint256 approvalAmount,
-        bool isFulfillRequestsHook
+        address target
     )
         private
-        returns (address target)
     {
         // Validate hook via merkle proof
-        if  (isFulfillRequestsHook) {
-            if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
-        } else {
-            if (!isHookAllowed(hook, hookProof)) revert INVALID_HOOK();
-        }
+        if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
 
         // Build executions for this hook
         ISuperHook hookContract = ISuperHook(hook);
         Execution[] memory executions = hookContract.build(prevHook, address(this), hookCalldata);
-        // prevent any hooks with more than one execution
-        if (executions.length > 1) revert INVALID_HOOK();
-
         // Validate hook type
         ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
         if (hookType != expectedHookType) revert INVALID_HOOK_TYPE();
 
-        target = executions[0].target;
+        for (uint256 i; i < executions.length; ++i) {
+            target = executions[i].target;
 
-        // Validate target is an active yield source if needed
-        if (validateYieldSource) {
-            YieldSource storage source = yieldSources[target];
-            if (!source.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-        }
-        approvalToken = hookType == ISuperHook.HookType.OUTFLOW ? target : approvalToken;
-        // Handle token approvals if needed
-        if (approvalToken != address(0)) {
-            _handleTokenApproval(approvalToken, target, approvalAmount);
-        }
+            approvalToken = hookType == ISuperHook.HookType.OUTFLOW ? target : approvalToken;
+            // Handle token approvals if needed
+            if (approvalToken != address(0)) {
+                _handleTokenApproval(approvalToken, target, approvalAmount);
+            }
 
-        // Execute the transaction
-        (bool success,) = target.call{ value: executions[0].value }(executions[0].callData);
-        if (!success) revert OPERATION_FAILED();
+            // Execute the transaction
+            (bool success,) = target.call{ value: executions[i].value }(executions[i].callData);
+            if (!success) revert OPERATION_FAILED();
+        }
 
         // Reset approval if needed
         if (approvalToken != address(0)) {
@@ -1137,7 +895,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 length = tokens.length;
         changes = new uint256[](length);
 
-        for (uint256 i; i < length;) {
+        for (uint256 i; i < length; ++i) {
             uint256 finalBalance = _getTokenBalance(tokens[i], address(this));
 
             if (requireZeroBalance) {
@@ -1146,16 +904,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 if (finalBalance < initialBalances[i]) revert INVALID_AMOUNT();
                 changes[i] = finalBalance - initialBalances[i];
             }
-
-            unchecked {
-                ++i;
-            }
         }
     }
 
     /// @notice Process hooks for both deposit and redeem fulfillment
     /// @param hooks Array of hook addresses
-    /// @param hookProofs Array of merkle proofs for hooks
     /// @param hookCalldata Array of calldata for hooks
     /// @param vars Fulfillment variables
     /// @param isDeposit Whether this is a deposit fulfillment
@@ -1163,11 +916,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @return targetedYieldSources Array of yield sources targeted by inflow hooks
     function _processHooks(
         address[] calldata hooks,
-        bytes32[][] memory hookProofs,
         bytes[] memory hookCalldata,
         FulfillmentVars memory vars,
-        bool isDeposit,
-        bool isFulfillRequestsHookCheck
+        uint256[] memory expectedAssetsOrSharesOut,
+        bool isDeposit
     )
         private
         returns (FulfillmentVars memory, address[] memory)
@@ -1178,32 +930,30 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         locals.targetedYieldSources = new address[](locals.hooksLength);
 
         // Process each hook in sequence
-        for (uint256 i; i < locals.hooksLength;) {
+        for (uint256 i; i < locals.hooksLength; ++i) {
             // Process hook executions
             if (isDeposit) {
-                (locals.amount, locals.hookTarget) =
-                    _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], hookProofs[i], isFulfillRequestsHookCheck);
-                vars.prevHook = hooks[i];
-                vars.spentAmount += locals.amount;
+                (locals.amount, locals.hookTarget, locals.outAmount) =
+                    _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
                 locals.target = locals.hookTarget;
-            } else {
-                (locals.amount, locals.hookTarget) =
-                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], hookProofs[i], isFulfillRequestsHookCheck);
-                vars.prevHook = hooks[i];
-                vars.spentAmount += locals.amount;
-            }
-
-            // Track targeted yield source for inflow operations
-            if (isDeposit) {
+                // Track targeted yield source for inflow operations
                 locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
+            } else {
+                (locals.amount, locals.hookTarget, locals.outAmount) =
+                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
 
-            unchecked {
-                ++i;
-            }
+            if (expectedAssetsOrSharesOut[i] == 0) revert INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
+
+            vars.prevHook = hooks[i];
+            vars.spentAmount += locals.amount;
+            if (
+                locals.outAmount * ONE_HUNDRED_PERCENT
+                    < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+            ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
         }
 
-        // Verify all amounts were spent
+        // Verify hook spent assets or SuperVault shares in full
         if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
         // Resize array to actual count if needed
@@ -1223,64 +973,33 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param hookProof The merkle proof for the hook
     /// @return amount The amount from the hook
     /// @return target The target address from the execution
     function _processInflowHookExecution(
         address hook,
         address prevHook,
-        bytes memory hookCalldata,
-        bytes32[] memory hookProof,
-        bool isFulfillRequestsHookCheck
+        bytes memory hookCalldata
     )
         private
-        returns (uint256 amount, address target)
+        returns (uint256 amount, address target, uint256 outAmount)
     {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
-        uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
+        target = HookDataDecoder.extractYieldSource(hookCalldata);
+        YieldSource storage yieldSource = yieldSources[target];
+        if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+        outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
 
-        // Get all TVLs in one call
-        (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) = totalAssets();
         // Execute hook with asset approval
-        target = _executeHook(
-            hook, prevHook, hookCalldata, hookProof, ISuperHook.HookType.INFLOW, true, address(_asset), amount, isFulfillRequestsHookCheck
-        );
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, address(_asset), amount, target);
 
-        uint256 balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
-
-        // Update _lastTotalAssets to account for assets being moved in
-        _updateLastTotalAssets(_lastTotalAssets - (balanceAssetBefore - balanceAssetAfter));
-
-        // Find TVL for target yield source
-        uint256 currentYieldSourceAssets;
-        bool found;
-        for (uint256 i; i < sourceTVLs.length;) {
-            if (sourceTVLs[i].source == target) {
-                currentYieldSourceAssets = sourceTVLs[i].tvl;
-                found = true;
-                break;
-            }
-            unchecked {
-                ++i;
-            }
-        }
-        if (!found) revert YIELD_SOURCE_NOT_FOUND();
-
-        // Check allocation rate using the same totalAssets value
-        if (
-            (currentYieldSourceAssets + amount).mulDiv(ONE_HUNDRED_PERCENT, totalAssets_, Math.Rounding.Floor)
-                > globalConfig.maxAllocationRate
-        ) {
-            revert MAX_ALLOCATION_RATE_EXCEEDED();
-        }
+        outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
     }
 
     /// @notice Struct for outflow execution variables
     struct OutflowExecutionVars {
         uint256 amount;
-        uint256 pricePerShare;
         uint256 amountOfAssets;
         uint256 amountConvertedToUnderlyingShares;
         uint256 balanceAssetBefore;
@@ -1293,197 +1012,58 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @param hookProof The merkle proof for the hook
     /// @return amount The amount from the hook
     /// @return target The target address from the execution
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
         bytes memory hookCalldata,
-        bytes32[] memory hookProof,
-        bool isFulfillRequestsHookCheck
+        uint256 pricePerShare
     )
         private
-        returns (uint256 amount, address target)
+        returns (uint256 amount, address target, uint256 outAmount)
     {
         OutflowExecutionVars memory execVars;
-        
+
         // Get amount and convert to underlying shares
-        (execVars.amount, execVars.pricePerShare, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
-        
+        (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
         // Calculate underlying shares and update hook calldata
-        execVars.amountOfAssets = execVars.amount.mulDiv(execVars.pricePerShare, PRECISION, Math.Rounding.Floor);
+        execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
+
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
-        
-        hookCalldata = ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
-        
+
+        hookCalldata =
+            ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
+
+        execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+
+        execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
+
         // Execute hook and track balances
-        (execVars.target, execVars.balanceAssetBefore, execVars.balanceAssetAfter) = _executeOutflowHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            hookProof,
-            execVars.amount,
-            isFulfillRequestsHookCheck
+        _executeHook(
+            hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, address(0), execVars.amount, execVars.target
         );
-        
-        // Update total assets and return values
-        _updateLastTotalAssets(_lastTotalAssets + (execVars.balanceAssetAfter - execVars.balanceAssetBefore));
-        
-        return (execVars.amount, execVars.target);
+
+        execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
+
+        outAmount = execVars.balanceAssetAfter - execVars.balanceAssetBefore;
+
+        return (execVars.amount, execVars.target, outAmount);
     }
 
     /// @notice Prepare variables for outflow execution
-    function _prepareOutflowExecution(address hook, bytes memory hookCalldata)
+    function _prepareOutflowExecution(
+        address hook,
+        bytes memory hookCalldata
+    )
         private
-        view
-        returns (uint256 amount, uint256 pricePerShare, address yieldSource)
+        pure
+        returns (uint256 amount, address yieldSource)
     {
         amount = _decodeHookAmount(hook, hookCalldata);
-        (pricePerShare,,) = _getSuperVaultAssetInfo();
         yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
-    }
-
-    /// @notice Execute outflow hook and track balances
-    function _executeOutflowHook(
-        address hook,
-        address prevHook,
-        bytes memory hookCalldata,
-        bytes32[] memory hookProof,
-        uint256 amount,
-        bool isFulfillRequestsHookCheck
-    )
-        private
-        returns (address target, uint256 balanceAssetBefore, uint256 balanceAssetAfter)
-    {
-        balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
-
-        target = _executeHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            hookProof,
-            ISuperHook.HookType.OUTFLOW,
-            true,
-            address(0),
-            amount,
-            isFulfillRequestsHookCheck
-        );
-
-        balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
-    }
-
-    /// @notice Process claim hook execution
-    /// @param hooks Array of hooks to process
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    /// @return balanceChanges Array of balance changes for each token
-    function _processClaimHookExecution(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        private
-        returns (uint256[] memory balanceChanges)
-    {
-        // Get initial balances
-        uint256[] memory initialBalances = new uint256[](expectedTokensOut.length);
-        for (uint256 i = 0; i < expectedTokensOut.length;) {
-            initialBalances[i] = _getTokenBalance(expectedTokensOut[i], address(this));
-            unchecked {
-                ++i;
-            }
-        }
-
-        // Process hooks
-        address prevHook;
-        for (uint256 i = 0; i < hooks.length;) {
-            // Execute hook with no approval needed
-            _executeHook(
-                hooks[i],
-                prevHook,
-                hookCalldata[i],
-                hookProofs[i],
-                ISuperHook.HookType.NONACCOUNTING,
-                false,
-                address(0), // no approval needed
-                0,
-                false
-            );
-            prevHook = hooks[i];
-            unchecked {
-                ++i;
-            }
-        }
-
-        // Track balance changes
-        balanceChanges = _trackBalanceChanges(expectedTokensOut, initialBalances, false);
-    }
-
-    /// @notice Process swap hook execution
-    /// @param hooks Array of hooks to process
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    /// @param initialBalances Array of initial balances for each token
-    /// @param initialAssetBalance Initial balance of the asset
-    /// @return assetGained Amount of asset gained from swaps
-    function _processSwapHookExecution(
-        address[] calldata hooks,
-        bytes32[][] memory hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut,
-        uint256[] memory initialBalances,
-        uint256 initialAssetBalance
-    )
-        private
-        returns (uint256 assetGained)
-    {
-        // Process hooks
-        address prevHook;
-        for (uint256 i = 0; i < hooks.length;) {
-            // Execute hook with expected token approval
-            _executeHook(
-                hooks[i],
-                prevHook,
-                hookCalldata[i],
-                hookProofs[i],
-                ISuperHook.HookType.NONACCOUNTING,
-                false,
-                expectedTokensOut[i],
-                initialBalances[i],
-                false
-            );
-            prevHook = hooks[i];
-            unchecked {
-                ++i;
-            }
-        }
-
-        // Verify all initial token balances are now zero
-        _trackBalanceChanges(expectedTokensOut, initialBalances, true);
-
-        // Calculate asset gained by comparing final balance with initial
-        uint256 finalAssetBalance = _getTokenBalance(address(_asset), address(this));
-        if (finalAssetBalance <= initialAssetBalance) revert INVALID_BALANCE_CHANGE();
-        assetGained = finalAssetBalance - initialAssetBalance;
-    }
-
-    /// @notice Check vault caps for targeted yield sources
-    /// @param targetedYieldSources Array of yield sources to check
-    function _checkVaultCaps(address[] memory targetedYieldSources) private view {
-        // Note: This check is gas expensive due to getTVLByOwnerOfShares calls
-        for (uint256 i; i < targetedYieldSources.length;) {
-            address source = targetedYieldSources[i];
-            uint256 yieldSourceTVL = _getTvlByOwnerOfShares(source);
-            if (yieldSourceTVL > globalConfig.vaultCap) revert LIMIT_EXCEEDED();
-            unchecked {
-                ++i;
-            }
-        }
     }
 
     /// @notice Calculate fee on profit and transfer to recipient
@@ -1532,9 +1112,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         returns (uint256 finalAssets, uint256 lastConsumedIndex)
     {
         // Calculate historical assets and update share price points
-        (finalAssets, lastConsumedIndex) = _calculateHistoricalAssetsAndUpdatePoints(
-            state, requestedShares, state.sharePricePointCursor
-        );
+        (finalAssets, lastConsumedIndex) =
+            _calculateHistoricalAssetsAndUpdatePoints(state, requestedShares, state.sharePricePointCursor);
 
         // Process fees and get final assets
         finalAssets = _processFees(requestedShares, currentPricePerShare, finalAssets);
@@ -1557,7 +1136,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         lastConsumedIndex = currentIndex;
         uint256 sharePricePointsLength = state.sharePricePoints.length;
 
-        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0;) {
+        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0; ++j) {
             SharePricePoint memory point = state.sharePricePoints[j];
             uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
             historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
@@ -1569,9 +1148,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
 
             remainingShares -= sharesFromPoint;
-            unchecked {
-                ++j;
-            }
         }
     }
 
@@ -1584,11 +1160,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         returns (uint256 finalAssets)
     {
         uint256 currentValue = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
-        
+
         finalAssets = _calculateAndTransferFee(currentValue, historicalAssets);
 
         uint256 balanceOfStrategy = _getTokenBalance(address(_asset), address(this));
-        
+
         finalAssets = finalAssets > balanceOfStrategy ? balanceOfStrategy : finalAssets;
     }
 
@@ -1612,42 +1188,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         if (newTotalShares > 0) {
             state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
-        }
-    }
-
-    /// @notice Validates that the hooks array has the expected number of hook sets
-    /// @param hooks Array of hook arrays
-    /// @param hookCalldata Array of hook calldata arrays
-    /// @param expectedLength Expected number of hook sets
-    function _validateHookSets(
-        address[][] calldata hooks,
-        bytes[][] calldata hookCalldata,
-        uint256 expectedLength
-    )
-        private
-        pure
-    {
-        if (hooks.length != expectedLength || hookCalldata.length != expectedLength) {
-            revert LENGTH_MISMATCH();
-        }
-    }
-
-    /// @notice Validates that a hook array's length matches its proofs and calldata
-    /// @param hooks Array of hooks
-    /// @param hookProofs Array of hook proofs
-    /// @param hookCalldata Array of hook calldata
-    function _validateHookArrayLengths(
-        address[] calldata hooks,
-        bytes32[][] memory hookProofs,
-        bytes[] calldata hookCalldata
-    )
-        private
-        pure
-    {
-        uint256 hooksLength = hooks.length;
-        if (hooksLength == 0) revert ZERO_LENGTH();
-        if (hooksLength != hookProofs.length || hooksLength != hookCalldata.length) {
-            revert LENGTH_MISMATCH();
         }
     }
 
@@ -1675,5 +1215,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     function _getTokenBalance(address token, address account) private view returns (uint256) {
         return IERC20(token).balanceOf(account);
+    }
+
+    /// @notice Resize an address array to a smaller size
+    /// @param array The original array
+    /// @param newSize The new size (must be smaller than the original array)
+    /// @return A new array with the specified size containing the first newSize elements of the original array
+    function _resizeAddressArray(address[] memory array, uint256 newSize) private pure returns (address[] memory) {
+        if (newSize > array.length) revert RESIZED_ARRAY_LENGTH_ERROR();
+        address[] memory newArray = new address[](newSize);
+        for (uint256 i; i < newSize; ++i) {
+            newArray[i] = array[i];
+        }
+        return newArray;
+    }
+
+    function _getSlippageTolerance() private view returns (uint256) {
+        return peripheryRegistry.svSlippageTolerance();
     }
 }

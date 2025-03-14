@@ -69,7 +69,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISup
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external onlyExecutor {
+    function preExecute(address, address account, bytes memory data) external {
         asset = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 57);
@@ -77,7 +77,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISup
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external onlyExecutor {
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
     }
 

@@ -22,7 +22,7 @@ interface ISuperVaultStrategy {
     error LIMIT_EXCEEDED();
     error LENGTH_MISMATCH();
     error INVALID_MANAGER();
-    error NOT_INITIALIZED();
+    error ALREADY_INITIALIZED();
     error OPERATION_FAILED();
     error INVALID_TIMESTAMP();
     error REQUEST_NOT_FOUND();
@@ -32,9 +32,9 @@ interface ISuperVaultStrategy {
     error INSUFFICIENT_FUNDS();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
+    error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
-    error INVALID_PERIPHERY_REGISTRY();
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
     error INVALID_VAULT_THRESHOLD();
@@ -43,15 +43,19 @@ interface ISuperVaultStrategy {
     error INVALID_EMERGENCY_ADMIN();
     error VAULT_THRESHOLD_EXCEEDED();
     error INCOMPLETE_DEPOSIT_MATCH();
+    error SUPER_VAULT_CAP_EXCEEDED();
+    error RESIZED_ARRAY_LENGTH_ERROR();
+    error INVALID_PERIPHERY_REGISTRY();
+    error CANNOT_CHANGE_TOTAL_ASSETS();
     error YIELD_SOURCE_ALREADY_EXISTS();
     error INVALID_MAX_ALLOCATION_RATE();
     error YIELD_SOURCE_ALREADY_ACTIVE();
     error INVALID_PERFORMANCE_FEE_BPS();
     error INVALID_EMERGENCY_WITHDRAWAL();
-    error MAX_ALLOCATION_RATE_EXCEEDED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
-    error INSUFFICIENT_BALANCE_AFTER_TRANSFER();
-
+    error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
+    error DEPOSIT_FAILURE_INVALID_TARGET();
+    error INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -61,15 +65,13 @@ interface ISuperVaultStrategy {
         address indexed manager,
         address indexed strategist,
         address emergencyAdmin,
-        GlobalConfig config
+        uint256 superVaultCap
     );
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceDeactivated(address indexed source);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
     event YieldSourceReactivated(address indexed source);
-    event GlobalConfigUpdated(
-        uint256 vaultCap, uint256 superVaultCap, uint256 maxAllocationRate, uint256 vaultThreshold
-    );
+    event SuperVaultCapUpdated(uint256 superVaultCap);
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
@@ -79,22 +81,11 @@ interface ISuperVaultStrategy {
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
-    event RewardsClaimedAndCompounded(uint256 amount);
-    event RewardsDistributorSet(address indexed rewardsDistributor);
-    event RewardsDistributed(address[] tokens, uint256[] amounts);
-    event RewardsClaimed(address[] tokens, uint256[] amounts);
+    event HooksExecuted(address[] hooks);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
-
-    struct GlobalConfig {
-        uint256 vaultCap; // Maximum assets per individual yield source
-        uint256 superVaultCap; // Maximum total assets across all yield sources
-        uint256 maxAllocationRate; // Maximum allocation percentage per yield source (in basis points)
-        uint256 vaultThreshold; // Minimum TVL of a yield source that can be interacted with
-    }
-
     struct FeeConfig {
         uint256 performanceFeeBps; // Fee in basis points
         address recipient; // Fee recipient address
@@ -121,7 +112,6 @@ interface ISuperVaultStrategy {
     struct FulfillmentVars {
         // Common variables used in both deposit and redeem flows
         uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
-        uint256 totalSupplyAmount; // Base total amount of shares in the vault
         uint256 spentAmount; // Running total of assets/shares spent in hooks
         uint256 pricePerShare; // Current price per share, used for calculations
         uint256 requestedAmount; // Individual user's requested amount
@@ -130,7 +120,6 @@ interface ISuperVaultStrategy {
         uint256 availableAmount; // Only used in deposit to check initial balance
         // Variables for share calculations
         uint256 shares; // Used in deposit for minting shares
-        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct MatchVars {
@@ -149,17 +138,22 @@ interface ISuperVaultStrategy {
         uint256 totalAssets; // Total assets across all yield sources
     }
 
-    struct AllocationVars {
-        // Hook execution variables
-        address prevHook;
+    /// @notice Local variables struct for executeHooks to avoid stack too deep
+    struct ExecuteHooksVars {
+        uint256 hooksLength;
+        uint256 initialAssetBalance;
+        uint256 finalAssetBalance;
         uint256 amount;
-        uint256 balanceAssetBefore;
-        uint256 balanceAssetAfter;
-        // Current yield source state
-        uint256 currentYieldSourceAssets;
-        // Hook type and execution
+        uint256 maxDecrease;
+        uint256 inflowCount;
+        uint256 actualDecrease;
+        address targetedYieldSource;
+        address prevHook;
+        address[] inflowTargets;
+        ISuperHook hookContract;
         ISuperHook.HookType hookType;
         Execution[] executions;
+        bool success;
     }
 
     struct YieldSource {
@@ -172,18 +166,6 @@ interface ISuperVaultStrategy {
         uint256 tvl;
     }
 
-    struct ClaimLocalVars {
-        // Initial state tracking
-        uint256 initialAssetBalance;
-        // Claim phase variables
-        uint256[] balanceChanges;
-        // Swap phase variables
-        uint256 assetGained;
-        // Allocation phase variables
-        FulfillmentVars fulfillmentVars;
-        address[] targetedYieldSources;
-    }
-
     struct ProcessHooksLocalVars {
         // Hook execution variables
         uint256 hooksLength;
@@ -192,6 +174,7 @@ interface ISuperVaultStrategy {
         // Hook execution results
         uint256 amount;
         address hookTarget;
+        uint256 outAmount;
         // Arrays for tracking
         address[] targetedYieldSources;
         address[] resizedArray;
@@ -232,11 +215,13 @@ interface ISuperVaultStrategy {
     /// @param users Array of users with pending deposit requests
     /// @param hooks Array of hooks to use for deposits
     /// @param hookCalldata Array of calldata for hooks
+    /// @param minAssetsOrSharesOut Array of minimum assets or shares out for each hook
     /// @param isDeposit Whether the requests are deposits or redeems
     function fulfillRequests(
         address[] calldata users,
         address[] calldata hooks,
         bytes[] calldata hookCalldata,
+        uint256[] calldata minAssetsOrSharesOut,
         bool isDeposit
     )
         external;
@@ -246,50 +231,18 @@ interface ISuperVaultStrategy {
     /// @param depositUsers Array of users with pending deposit requests
     function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external;
 
-    /// @notice Allocate funds between yield sources
-    /// @param hooks Array of hooks to use for allocations
-    /// @param hookCalldata Array of calldata for hooks
-    function allocate(
-        address[] calldata hooks,
-        bytes[] calldata hookCalldata
-    )
-        external;
-
-    /// @notice Claims rewards from yield sources and stores them for later use
-    /// @param hooks Array of hooks to use for claiming rewards
-    /// @param hookProofs Array of merkle proofs for hooks
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param expectedTokensOut Array of tokens expected from hooks
-    function claim(
-        address[] calldata hooks,
-        bytes32[][] calldata hookProofs,
-        bytes[] calldata hookCalldata,
-        address[] calldata expectedTokensOut
-    )
-        external;
-
-    /// @notice Compounds previously claimed tokens by swapping them to the asset and allocating to yield sources
-    /// @param hooks Array of arrays of hooks to use for swapping and allocating [swapHooks, allocateHooks]
-    /// @param swapHookProofs Array of merkle proofs for swap hooks
-    /// @param allocateHookProofs Array of merkle proofs for allocate hooks
-    /// @param hookCalldata Array of arrays of calldata for hooks [swapHookCalldata, allocateHookCalldata]
-    /// @param claimedTokensToCompound Array of claimed token addresses to compound
-    function compoundClaimedTokens(
-        address[][] calldata hooks,
-        bytes32[][] calldata swapHookProofs,
-        bytes32[][] calldata allocateHookProofs,
-        bytes[][] calldata hookCalldata,
-        address[] calldata claimedTokensToCompound
-    )
-        external;
+    /// @notice Execute arbitrary hooks with proper validation based on hook type
+    /// @param hooks Array of hooks to execute in sequence
+    /// @param hookCalldata Array of calldata for each hook
+    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Update global configuration
-    /// @param config New global configuration
-    function updateGlobalConfig(GlobalConfig calldata config) external;
+    /// @notice Update super vault cap
+    /// @param superVaultCap New super vault cap
+    function updateSuperVaultCap(uint256 superVaultCap) external;
 
     /// @notice Manage yield sources: add, update oracle, and toggle activation.
     /// @param source Address of the yield source.
@@ -348,8 +301,8 @@ interface ISuperVaultStrategy {
         view
         returns (bytes32 hookRoot, bytes32 proposedHookRoot, uint256 hookRootEffectiveTime);
 
-    /// @notice Get the global and fee configurations
-    function getConfigInfo() external view returns (GlobalConfig memory globalConfig, FeeConfig memory feeConfig);
+    /// @notice Get the super vault cap and fee configurations
+    function getConfigInfo() external view returns (uint256 superVaultCap, FeeConfig memory feeConfig);
 
     /// @notice Get total assets managed by the strategy
     /// @return totalAssets_ Total assets across all yield sources and idle assets
