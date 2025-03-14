@@ -224,25 +224,15 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         return abi.encodePacked(r, s, v);
     }
 
-    function _toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32 result) {
-        /// @solidity memory-safe-assembly
-        assembly {
-            mstore(0x20, hash) // Store into scratch space for keccak256.
-            mstore(0x00, "\x00\x00\x00\x00\x19Ethereum Signed Message:\n32") // 28 bytes.
-            result := keccak256(0x04, 0x3c) // `32 * 2 - (32 - 28) = 60 = 0x3c`.
-        }
-    }
-    function test_7579methods_on_7702_compliant_account() external {
+    function test_7579methods_on_7702_compliant_account() external add7702Precompile(account7702, address(erc7579account).code) {
         Test7579MethodsVars memory vars;
         vars.amount = 1e18;
 
         // create SCA
         vars.instance = makeAccountInstance("MockAccount");
         vm.label(vars.instance.account, "MockAccount");
-        vm.deal(account7702, LARGE);
 
         bytes memory initData = _get7702InitData(); 
-
         vars.setValueCalldata = abi.encodeCall(this.setValue, vars.amount);
 
         Execution[] memory executions = new Execution[](2);
@@ -262,7 +252,6 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         vars.key = uint192(bytes24(bytes20(address(_defaultValidator))));
         vars.nonce = vars.instance.aux.entrypoint.getNonce(address(account7702), vars.key);
 
-
         // prepare PackedUserOperation
         vars.userOps = new PackedUserOperation[](1);
         vars.userOps[0] = _getDefaultUserOp();
@@ -272,14 +261,11 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         vars.userOps[0].signature = _getSignature(vars.userOps[0], vars.instance.aux.entrypoint);
 
 
-        vm.etch(account7702, address(erc7579account).code);
         assertGt(account7702.code.length, 0);
         
         vars.instance.aux.entrypoint.handleOps(vars.userOps, payable(address(0x69)));
         assertEq(val, vars.amount);
     }
-
-
 
 
     function setValue(uint256 value) external {

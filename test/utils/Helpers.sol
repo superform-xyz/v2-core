@@ -47,7 +47,6 @@ abstract contract Helpers is Test, Constants {
     /*//////////////////////////////////////////////////////////////
                                  GENERIC HELPER METHODS
     //////////////////////////////////////////////////////////////*/
-
     function _resetCaller(address from_) internal {
         vm.stopPrank();
         vm.startPrank(from_);
@@ -62,6 +61,14 @@ abstract contract Helpers is Test, Constants {
         deal(token_, to_, amount_);
     }
 
+    function _toEthSignedMessageHash(bytes32 hash) internal pure returns (bytes32 result) {
+        /// @solidity memory-safe-assembly
+        assembly {
+            mstore(0x20, hash) // Store into scratch space for keccak256.
+            mstore(0x00, "\x00\x00\x00\x00\x19Ethereum Signed Message:\n32") // 28 bytes.
+            result := keccak256(0x04, 0x3c) // `32 * 2 - (32 - 28) = 60 = 0x3c`.
+        }
+    }
     /*//////////////////////////////////////////////////////////////
                                  DEPLOYERS
     //////////////////////////////////////////////////////////////*/
