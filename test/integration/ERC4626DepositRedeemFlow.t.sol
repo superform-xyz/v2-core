@@ -206,6 +206,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // BASE IS DST
         vm.selectFork(FORKS[BASE]);
 
+        // force account on dst to have 0 balance
+        deal(underlyingBase_USDC, accountBase, 0);
+
         // PREPARE DST DATA
         vars.dstHooksAddresses = new address[](2);
         vars.dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
@@ -213,9 +216,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         vars.dstHooksData = new bytes[](2);
         vars.dstHooksData[0] =
-            _createApproveHookData(underlyingBase_WETH, yieldSourceAddressBaseWeth, vars.intentAmount, false);
+            _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, vars.intentAmount, false);
         vars.dstHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBaseWeth, vars.intentAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, vars.intentAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecuteOnDst =
@@ -236,7 +239,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             existingUnderlyingTokens[ETH][USDC_KEY],
-            existingUnderlyingTokens[BASE][WETH_KEY],
+            existingUnderlyingTokens[BASE][USDC_KEY],
             vars.intentAmount / 2,
             vars.intentAmount / 2,
             BASE,
@@ -264,7 +267,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             _createApproveHookData(underlyingOp_USDC, SPOKE_POOL_V3_ADDRESSES[OP], vars.intentAmount / 2, false);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             existingUnderlyingTokens[OP][USDC_KEY],
-            existingUnderlyingTokens[BASE][WETH_KEY],
+            existingUnderlyingTokens[BASE][USDC_KEY],
             vars.intentAmount / 2,
             vars.intentAmount / 2,
             BASE,

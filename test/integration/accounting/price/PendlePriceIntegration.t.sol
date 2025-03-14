@@ -8,7 +8,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
 import { MockRegistry } from "../../../mocks/MockRegistry.sol";
 import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
-import { ERC1155Ledger } from "../../../../src/core/accounting/ERC1155Ledger.sol";
+import { ERC5115Ledger } from "../../../../src/core/accounting/ERC5115Ledger.sol";
 import { SuperExecutor } from "../../../../src/core/executors/SuperExecutor.sol";
 import { SuperLedgerConfiguration } from "../../../../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
@@ -28,7 +28,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
     ERC5115YieldSourceOracle oracle;
     SuperExecutor superExecutor;
-    ERC1155Ledger pendleLedger;
+    ERC5115Ledger pendleLedger;
     SuperLedgerConfiguration superLedgerConfiguration;
     bytes mockSignature;
 
@@ -51,7 +51,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superLedgerConfiguration = SuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
-        pendleLedger = ERC1155Ledger(_getContract(ETH, ERC1155_LEDGER_KEY));
+        pendleLedger = ERC5115Ledger(_getContract(ETH, ERC1155_LEDGER_KEY));
 
         pendleVault = IStandardizedYield(CHAIN_1_PendleEthena);
         underlying = CHAIN_1_SUSDE;

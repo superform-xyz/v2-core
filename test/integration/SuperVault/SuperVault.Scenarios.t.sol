@@ -270,14 +270,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.warp(vars.initialTimestamp + 1 days);
 
-        // put 50-50 in each vault
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = 0;
-        expectedAssetsOrSharesOut[1] = 0;
-
         uint256 totalAmount = vars.depositAmount * 2;
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
+
+        // put 50-50 in each vault
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(allocationAmountVault1);
+        expectedAssetsOrSharesOut[1] = IERC4626(vars.ruggableVault).previewDeposit(allocationAmountVault2);
 
         _fulfillDepositForUsers(
             vars.depositUsers,
@@ -337,12 +337,12 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
         vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
 
-        vars.assetsVault1 = IERC4626(address(fluidVault)).convertToAssets(vars.redeemSharesVault1);
-        vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
+        vars.assetsVault1 = vault.convertToAssets(vars.redeemSharesVault1);
+        vars.assetsVault2 = vault.convertToAssets(vars.redeemSharesVault2);
 
         vars.expectedAssetsOrSharesOut = new uint256[](2);
-        vars.expectedAssetsOrSharesOut[0] = 0;
-        vars.expectedAssetsOrSharesOut[1] = 0;
+        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1;
+        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2;
         _fulfillRedeemForUsers(
             vars.redeemUsers,
             vars.redeemSharesVault1,
@@ -1246,9 +1246,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.warp(vars.initialTimestamp + 1 days);
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = 0; //10% slippage
-        expectedAssetsOrSharesOut[1] = 0; // this should make the call revert
-
+        expectedAssetsOrSharesOut[0] = 1; //99% slippage
+        expectedAssetsOrSharesOut[1] = 1; // 99% slippage
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
@@ -2393,8 +2392,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
 
         vars.expectedAssetsOrSharesOut = new uint256[](2);
-        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 - vars.assetsVault1; //10% slippage
-        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2 * 2; // this should make the call revert
+        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1;
+        vars.expectedAssetsOrSharesOut[1] = !vars.convertVault ? 1 : vars.assetsVault2; // this should make the call
+            // revert
 
         // this should revert
         _fulfillRedeemForUsers(

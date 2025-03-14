@@ -75,6 +75,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function setUp() public virtual override {
         super.setUp();
+        console2.log("--- SETUP BASE SUPERVAULT ---");
 
         vm.selectFork(FORKS[ETH]);
         accInstances = randomAccountInstances[ETH];
@@ -112,6 +113,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vault = SuperVault(vaultAddr);
         strategy = SuperVaultStrategy(strategyAddr);
         escrow = SuperVaultEscrow(escrowAddr);
+
+        _setFeeConfig(100, TREASURY);
 
         vm.startPrank(SV_MANAGER);
         strategy.manageYieldSource(
@@ -173,7 +176,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.bootstrapHooks[0] = vars.depositHookAddress;
 
         vars.expectedAssetsOrSharesOut = new uint256[](1);
-        vars.expectedAssetsOrSharesOut[0] = 0;
+        vars.expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(_bootstrapAmount);
 
         vars.bootstrapData = new bytes[](1);
         vars.depositHookData = _createDeposit4626HookData(
@@ -1154,6 +1157,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
+    function _setFeeConfig(uint256 feePercent, address feeRecipient) internal {
+        vm.startPrank(MANAGER);
+        strategy.proposeVaultFeeConfigUpdate(feePercent, feeRecipient);
+        vm.warp(block.timestamp + 1 weeks);
+        strategy.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
+    }
+
     function _rebalanceFixedAmountFromVaultToVault(
         address[] memory hooksAddresses,
         bytes[] memory hooksData,
@@ -1290,9 +1301,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         } else {
             // Calculate current PPS in price decimals
             (uint256 totalAssetsVault,) = strategy.totalAssets();
-            // We should use Ceil to make PPS as close to 1 as possible (in case it's < 1).
-            // Otherwise rounding issues in other places becomes bigger
-            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Ceil);
+            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
 
