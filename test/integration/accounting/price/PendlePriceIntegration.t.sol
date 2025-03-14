@@ -266,7 +266,7 @@ contract PendlePriceIntegration is BaseE2ETest {
     {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-
+        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_5115_VAULT_HOOK_KEY);
         hooksData[0] = _create5115RedeemHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
         );
