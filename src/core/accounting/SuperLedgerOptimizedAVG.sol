@@ -30,7 +30,10 @@ contract SuperLedgerOptimizedAVG is BaseLedger {
 
     constructor(address registry_) BaseLedger(registry_) { }
 
-    mapping(address user => mapping(address yieldSource => LedgerAlternative ledger)) internal userLedgerAlternative;
+//    mapping(address user => mapping(address yieldSource => LedgerAlternative ledger)) internal userLedgerAlternative;
+
+    mapping(address user => uint256) public usersAccumulatorShares;
+    mapping(address user => uint256) public usersAccumulatorCostBasis;
 
 
     /*//////////////////////////////////////////////////////////////
@@ -44,19 +47,22 @@ contract SuperLedgerOptimizedAVG is BaseLedger {
         uint256 pps,
         uint256 decimals
     ) override internal {
-        // Always inscribe in the ledger, even if feePercent is set to 0
-        // NOTE: Assuming `amountSharesOrAssets` is actually an amount of shares like in the original code
-        uint256 prevAccumulatorShares = userLedgerAlternative[user][yieldSource].entries.length == 0 ? 0 : userLedgerAlternative[user][yieldSource].entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares;
+        usersAccumulatorShares[user] += amountShares;
+        usersAccumulatorCostBasis[user] += amountShares * pps / (10 ** decimals);
 
-        uint256 prevAccumulatorCostBasis = userLedgerAlternative[user][yieldSource].entries.length == 0 ? 0 : userLedgerAlternative[user][yieldSource].entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis;
-
-//        uint256 costBasis = amountSharesOrAssets * pps / (10 ** IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource));
-
-        uint256 costBasis = amountShares * pps / (10 ** decimals);
-
-        userLedgerAlternative[user][yieldSource].entries.push(
-            LedgerEntryAlternative({ accumulatorShares: prevAccumulatorShares + amountShares, accumulatorCostBasis: prevAccumulatorCostBasis + costBasis })
-        );
+//        // Always inscribe in the ledger, even if feePercent is set to 0
+//        // NOTE: Assuming `amountSharesOrAssets` is actually an amount of shares like in the original code
+//        uint256 prevAccumulatorShares = userLedgerAlternative[user][yieldSource].entries.length == 0 ? 0 : userLedgerAlternative[user][yieldSource].entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares;
+//
+//        uint256 prevAccumulatorCostBasis = userLedgerAlternative[user][yieldSource].entries.length == 0 ? 0 : userLedgerAlternative[user][yieldSource].entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis;
+//
+////        uint256 costBasis = amountSharesOrAssets * pps / (10 ** IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource));
+//
+//        uint256 costBasis = amountShares * pps / (10 ** decimals);
+//
+//        userLedgerAlternative[user][yieldSource].entries.push(
+//            LedgerEntryAlternative({ accumulatorShares: prevAccumulatorShares + amountShares, accumulatorCostBasis: prevAccumulatorCostBasis + costBasis })
+//        );
     }
 
     function _calculateAvgCostBasisView(
@@ -66,12 +72,15 @@ contract SuperLedgerOptimizedAVG is BaseLedger {
         uint256 usedShares,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) internal view returns (uint256 costBasis) {
-        LedgerAlternative storage ledger = userLedgerAlternative[user][yieldSource];
-        if (ledger.entries.length == 0) {
-            return 0;
-        }
-        uint256 accumulatorShares = ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares;
-        uint256 accumulatorCostBasis = ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis;
+        uint256 accumulatorShares = usersAccumulatorShares[user];
+        uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user];
+
+//        LedgerAlternative storage ledger = userLedgerAlternative[user][yieldSource];
+//        if (ledger.entries.length == 0) {
+//            return 0;
+//        }
+//        uint256 accumulatorShares = ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares;
+//        uint256 accumulatorCostBasis = ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis;
 
         // TODO: Check if good error message
         if(usedShares > accumulatorShares) revert("INSUFFICIENT_SHARES");
@@ -90,14 +99,17 @@ contract SuperLedgerOptimizedAVG is BaseLedger {
     ) internal returns (uint256 costBasis) {
         costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares, config);
 
-        // Update the ledger if necessary
-        if (userLedgerAlternative[user][yieldSource].entries.length > 0) {
-            LedgerAlternative storage ledger = userLedgerAlternative[user][yieldSource];
+        usersAccumulatorShares[user] -= usedShares;
+        usersAccumulatorCostBasis[user] -= costBasis;
 
-            ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares -= usedShares;
-
-            ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis -= costBasis;
-        }
+//        // Update the ledger if necessary
+//        if (userLedgerAlternative[user][yieldSource].entries.length > 0) {
+//            LedgerAlternative storage ledger = userLedgerAlternative[user][yieldSource];
+//
+//            ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares -= usedShares;
+//
+//            ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis -= costBasis;
+//        }
     }
 
     function calculateCostBasisView(
