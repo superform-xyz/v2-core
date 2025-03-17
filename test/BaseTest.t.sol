@@ -1133,6 +1133,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 decimals;
     }
 
+    // NOTE: This assumes FIFO
     function _deriveExpectedFee(FeeParams memory params) internal pure returns (uint256 feeAmount) {
         uint256 remainingShares = params.usedShares;
         uint256 costBasis;
@@ -1172,6 +1173,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             }
         }
 
+        console.log("_deriveExpectedFee() remainingShares = ", remainingShares);
+
         uint256 profit = params.amountAssets > costBasis ? params.amountAssets - costBasis : 0;
         if (profit > 0) {
             // Calculate fee in assets but don't transfer - let the executor handle it
@@ -1187,6 +1190,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         internal
         pure
     {
+        console.log("feeBalanceAfter = ", feeBalanceAfter);
+        console.log("feeBalanceBefore = ", feeBalanceBefore);
+        console.log("expectedFee = ", expectedFee);
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 
