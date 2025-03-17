@@ -220,6 +220,9 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         view
         returns (bool)
     {
+        if (proof.length == 0) return false;
+        if (leaf == merkleRoot) return false;
+        
         // Verify merkle proof
         bool isValid = MerkleProof.verify(proof, merkleRoot, leaf);
         return isValid && signer == sender && validUntil >= block.timestamp;
