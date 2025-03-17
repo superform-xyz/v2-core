@@ -354,7 +354,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
         vars.inflowTargets = new address[](vars.hooksLength);
 
-        uint256 postExecutionTotalAssets = _minimalTotalAssets();
+        uint256 postExecutionTotalAssets = totalAssets();
 
         // Process each hook in sequence
         for (uint256 i; i < vars.hooksLength;) {
@@ -398,7 +398,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
             // For non-accounting hooks, verify asset balance hasn't decreased
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
-                postExecutionTotalAssets = _minimalTotalAssets();
+                postExecutionTotalAssets = totalAssets();
                 if (postExecutionTotalAssets < preExecutionTotalAssets) revert CANNOT_CHANGE_TOTAL_ASSETS();
             }
             // Update prevHook for next iteration
