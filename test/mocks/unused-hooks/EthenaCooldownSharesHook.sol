@@ -4,8 +4,8 @@ pragma solidity >=0.8.28;
 // external
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IStakedUSDeCooldown } from "../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
-
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
@@ -62,13 +62,13 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view { 
-        outAmount = _getBalance(account, data);
+    function preExecute(address, address account, bytes memory data) external { 
+        outAmount = _getSharesBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view {
-        outAmount = _getBalance(account, data) - outAmount;
+    function postExecute(address, address account, bytes memory data) external {
+        outAmount = outAmount - _getSharesBalance(account, data);
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -81,5 +81,9 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
+    function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
+        return IERC20(data.extractYieldSource()).balanceOf(account);
     }
 }
