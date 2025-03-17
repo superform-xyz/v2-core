@@ -49,20 +49,6 @@ contract SuperLedgerOptimizedAVG is BaseLedger {
     ) override internal {
         usersAccumulatorShares[user] += amountShares;
         usersAccumulatorCostBasis[user] += amountShares * pps / (10 ** decimals);
-
-//        // Always inscribe in the ledger, even if feePercent is set to 0
-//        // NOTE: Assuming `amountSharesOrAssets` is actually an amount of shares like in the original code
-//        uint256 prevAccumulatorShares = userLedgerAlternative[user][yieldSource].entries.length == 0 ? 0 : userLedgerAlternative[user][yieldSource].entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares;
-//
-//        uint256 prevAccumulatorCostBasis = userLedgerAlternative[user][yieldSource].entries.length == 0 ? 0 : userLedgerAlternative[user][yieldSource].entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis;
-//
-////        uint256 costBasis = amountSharesOrAssets * pps / (10 ** IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource));
-//
-//        uint256 costBasis = amountShares * pps / (10 ** decimals);
-//
-//        userLedgerAlternative[user][yieldSource].entries.push(
-//            LedgerEntryAlternative({ accumulatorShares: prevAccumulatorShares + amountShares, accumulatorCostBasis: prevAccumulatorCostBasis + costBasis })
-//        );
     }
 
     function _calculateAvgCostBasisView(
@@ -75,14 +61,7 @@ contract SuperLedgerOptimizedAVG is BaseLedger {
         uint256 accumulatorShares = usersAccumulatorShares[user];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user];
 
-//        LedgerAlternative storage ledger = userLedgerAlternative[user][yieldSource];
-//        if (ledger.entries.length == 0) {
-//            return 0;
-//        }
-//        uint256 accumulatorShares = ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares;
-//        uint256 accumulatorCostBasis = ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis;
-
-        // TODO: Check if good error message
+        // TODO: Check if this is a good error message
         if(usedShares > accumulatorShares) revert("INSUFFICIENT_SHARES");
 
         // avgEntryPrice = accumulatorCostBasis / accumulatorShares
@@ -101,15 +80,6 @@ contract SuperLedgerOptimizedAVG is BaseLedger {
 
         usersAccumulatorShares[user] -= usedShares;
         usersAccumulatorCostBasis[user] -= costBasis;
-
-//        // Update the ledger if necessary
-//        if (userLedgerAlternative[user][yieldSource].entries.length > 0) {
-//            LedgerAlternative storage ledger = userLedgerAlternative[user][yieldSource];
-//
-//            ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorShares -= usedShares;
-//
-//            ledger.entries[userLedgerAlternative[user][yieldSource].entries.length - 1].accumulatorCostBasis -= costBasis;
-//        }
     }
 
     function calculateCostBasisView(
