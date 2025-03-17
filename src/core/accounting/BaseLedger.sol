@@ -12,6 +12,8 @@ import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
+import "forge-std/console.sol";
+
 /// @title BaseLedger
 /// @author Superform Labs
 /// @notice Base ledger contract for managing user ledger entries
@@ -22,6 +24,10 @@ abstract contract BaseLedger is ISuperLedger {
 
     /// @notice Tracks user's ledger entries for each yield source address
     mapping(address user => mapping(address yieldSource => Ledger ledger)) internal userLedger;
+
+    mapping(address user => uint256) public usersAccumulatorShares;
+    mapping(address user => uint256) public usersAccumulatorCostBasis;
+
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -87,17 +93,221 @@ abstract contract BaseLedger is ISuperLedger {
                             PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+
+
+
+
+    ///// AVG Implementation /////
     function _takeSnapshot(
-    address user,
-    address yieldSource,
-    uint256 amountShares,
-    uint256 pps, uint256 decimals
+        address user,
+        address yieldSource,
+        uint256 amountShares,
+        uint256 pps,
+        uint256 decimals
     ) virtual internal {
-        // Always inscribe in the ledger, even if feePercent is set to 0
-        userLedger[user][yieldSource].entries.push(
-            LedgerEntry({ amountSharesAvailableToConsume: amountShares, price: pps })
-        );
+        usersAccumulatorShares[user] += amountShares;
+        usersAccumulatorCostBasis[user] += amountShares * pps / (10 ** decimals);
     }
+
+    function _calculateAvgCostBasisView(
+        address user,
+        address yieldSource,
+        uint256 amountAssets,
+        uint256 usedShares,
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+    ) internal view returns (uint256 costBasis) {
+        uint256 accumulatorShares = usersAccumulatorShares[user];
+        uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user];
+
+        // TODO: Check if this is a good error message
+        if(usedShares > accumulatorShares) revert("INSUFFICIENT_SHARES");
+
+        // avgEntryPrice = accumulatorCostBasis / accumulatorShares
+        // TODO: Adjust precision?
+        costBasis = accumulatorCostBasis * usedShares / accumulatorShares;
+    }
+
+    function _calculateAvgCostBasis(
+        address user,
+        address yieldSource,
+        uint256 amountAssets,
+        uint256 usedShares,
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+    ) internal returns (uint256 costBasis) {
+        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares, config);
+        console.log("_calculateAvgCostBasis() costBasis", costBasis);
+
+        usersAccumulatorShares[user] -= usedShares;
+        usersAccumulatorCostBasis[user] -= costBasis;
+    }
+
+    function calculateCostBasisView(
+        address user,
+        address yieldSource,
+        uint256 amountAssets,
+        uint256 usedShares,
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+    ) virtual public view
+    returns (uint256 costBasis) {
+        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares, config);
+    }
+
+    function _calculateCostBasis(
+        address user,
+        address yieldSource,
+        uint256 amountAssets,
+        uint256 usedShares,
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+    ) virtual internal
+    returns (uint256 costBasis) {
+        costBasis = _calculateAvgCostBasis(user, yieldSource, amountAssets, usedShares, config);
+    }
+
+
+    ///// FIFO Implementation /////
+//    function _takeSnapshot(
+//    address user,
+//    address yieldSource,
+//    uint256 amountShares,
+//    uint256 pps, uint256 decimals
+//    ) virtual internal {
+//        // Always inscribe in the ledger, even if feePercent is set to 0
+//        userLedger[user][yieldSource].entries.push(
+//            LedgerEntry({ amountSharesAvailableToConsume: amountShares, price: pps })
+//        );
+//    }
+//
+//    struct OutflowVars {
+//        uint256 remainingShares;
+//        uint256 costBasis;
+//        uint256 len;
+//        uint256 currentIndex;
+//        uint256 lastIndex;
+//        uint256 lastSharesConsumed;
+//        uint256 decimals;
+//    }
+//
+//    function _calculateFIFOCostBasisView(
+//        address user,
+//        address yieldSource,
+//        uint256 amountAssets,
+//        uint256 usedShares,
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+//    ) internal view
+//    returns (OutflowVars memory vars) {
+//        Ledger storage ledger = userLedger[user][yieldSource];
+//
+//        vars = OutflowVars({
+//            remainingShares: usedShares,
+//            costBasis: 0,
+//            len: ledger.entries.length,
+//            currentIndex: userLedger[user][yieldSource].unconsumedEntries,
+//            lastIndex: 0,
+//            lastSharesConsumed: 0,
+//            decimals: IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
+//        });
+//
+//        if (vars.len == 0) return vars;
+//        vars.lastIndex = vars.currentIndex;
+//
+//        while (vars.remainingShares > 0) {
+//            if (vars.currentIndex >= vars.len) revert INSUFFICIENT_SHARES();
+//
+//            LedgerEntry storage entry = ledger.entries[vars.currentIndex];
+//            uint256 availableShares = entry.amountSharesAvailableToConsume;
+//
+//            if (availableShares == 0) {
+//                unchecked {
+//                    ++vars.currentIndex;
+//                }
+//                continue;
+//            }
+//
+//            uint256 sharesConsumed = availableShares > vars.remainingShares ? vars.remainingShares : availableShares;
+//
+//            vars.lastIndex = vars.currentIndex;
+//            vars.lastSharesConsumed = sharesConsumed;
+//            vars.remainingShares -= sharesConsumed;
+//
+//            vars.costBasis += sharesConsumed * entry.price / (10 ** vars.decimals);
+//
+//            if (sharesConsumed == availableShares) {
+//                unchecked {
+//                    ++vars.currentIndex;
+//                }
+//            }
+//        }
+//    }
+//
+//    function _calculateFIFOCostBasis(
+//        address user,
+//        address yieldSource,
+//        uint256 amountAssets,
+//        uint256 usedShares,
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+//    ) internal
+//    returns (uint256 costBasis) {
+//        OutflowVars memory vars = _calculateFIFOCostBasisView(user, yieldSource, amountAssets, usedShares, config);
+//
+//        costBasis = vars.costBasis;
+//        console.log("_calculateFIFOCostBasis() costBasis = ", costBasis);
+//
+//        if(vars.len > 0) {
+//            Ledger storage ledger = userLedger[user][yieldSource];
+//
+//            ledger.entries[vars.lastIndex].amountSharesAvailableToConsume -= vars.lastSharesConsumed;
+//            userLedger[user][yieldSource].unconsumedEntries = vars.currentIndex;
+//        }
+//    }
+//
+//    function calculateCostBasisView(
+//        address user,
+//        address yieldSource,
+//        uint256 amountAssets,
+//        uint256 usedShares,
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+//    ) virtual public view
+//    returns (uint256 costBasis) {
+//        costBasis = _calculateFIFOCostBasisView(user, yieldSource, amountAssets, usedShares, config).costBasis;
+//    }
+//
+//    function _calculateCostBasis(
+//        address user,
+//        address yieldSource,
+//        uint256 amountAssets,
+//        uint256 usedShares,
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+//    ) virtual internal
+//    returns (uint256 costBasis) {
+//        costBasis = _calculateFIFOCostBasis(user, yieldSource, amountAssets, usedShares, config);
+//    }
+
+
+    //////////////////// Fees ////////////////////
+
+    function _calculateFees(
+        uint256 costBasis,
+        uint256 amountAssets,
+        uint256 feePercent
+    ) internal pure returns(uint256 feeAmount) {
+        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+        if (profit > 0) {
+            if (feePercent == 0) revert FEE_NOT_SET();
+            feeAmount = (profit * feePercent) / 10_000;
+        }
+    }
+
+    function previewFees(
+        address user,
+        address yieldSource,
+        uint256 amountAssets,
+        uint256 usedShares,
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+    ) public view returns(uint256 feeAmount) {
+        uint256 costBasis = calculateCostBasisView(user, yieldSource, amountAssets, usedShares, config);
+        feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+    }
+
 
     function _updateAccounting(
         address user,
@@ -107,13 +317,13 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 amountSharesOrAssets,
         uint256 usedShares
     )
-        internal
-        virtual
-        onlyExecutor
-        returns (uint256 feeAmount)
+    internal
+    virtual
+    onlyExecutor
+    returns (uint256 feeAmount)
     {
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+                            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
@@ -142,136 +352,6 @@ abstract contract BaseLedger is ISuperLedger {
                 return 0;
             }
         }
-    }
-
-    struct OutflowVars {
-        uint256 remainingShares;
-        uint256 costBasis;
-        uint256 len;
-        uint256 currentIndex;
-        uint256 lastIndex;
-        uint256 lastSharesConsumed;
-        uint256 decimals;
-    }
-
-    function _calculateFIFOCostBasisView(
-        address user,
-        address yieldSource,
-        uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    ) internal view
-    returns (OutflowVars memory vars) {
-        Ledger storage ledger = userLedger[user][yieldSource];
-
-        vars = OutflowVars({
-            remainingShares: usedShares,
-            costBasis: 0,
-            len: ledger.entries.length,
-            currentIndex: userLedger[user][yieldSource].unconsumedEntries,
-            lastIndex: 0,
-            lastSharesConsumed: 0,
-            decimals: IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
-        });
-
-        if (vars.len == 0) return vars;
-        vars.lastIndex = vars.currentIndex;
-
-        while (vars.remainingShares > 0) {
-            if (vars.currentIndex >= vars.len) revert INSUFFICIENT_SHARES();
-
-            LedgerEntry storage entry = ledger.entries[vars.currentIndex];
-            uint256 availableShares = entry.amountSharesAvailableToConsume;
-
-            if (availableShares == 0) {
-                unchecked {
-                    ++vars.currentIndex;
-                }
-                continue;
-            }
-
-            uint256 sharesConsumed = availableShares > vars.remainingShares ? vars.remainingShares : availableShares;
-
-            vars.lastIndex = vars.currentIndex;
-            vars.lastSharesConsumed = sharesConsumed;
-            vars.remainingShares -= sharesConsumed;
-
-            vars.costBasis += sharesConsumed * entry.price / (10 ** vars.decimals);
-
-            if (sharesConsumed == availableShares) {
-                unchecked {
-                    ++vars.currentIndex;
-                }
-            }
-        }
-
-//        ledger.entries[vars.lastIndex].amountSharesAvailableToConsume -= vars.lastSharesConsumed;
-//        userLedger[user][yieldSource].unconsumedEntries = vars.currentIndex;
-    }
-
-    function _calculateFIFOCostBasis(
-        address user,
-        address yieldSource,
-        uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    ) internal
-    returns (uint256 costBasis) {
-        OutflowVars memory vars = _calculateFIFOCostBasisView(user, yieldSource, amountAssets, usedShares, config);
-
-        costBasis = vars.costBasis;
-
-        if(vars.len > 0) {
-            Ledger storage ledger = userLedger[user][yieldSource];
-
-            ledger.entries[vars.lastIndex].amountSharesAvailableToConsume -= vars.lastSharesConsumed;
-            userLedger[user][yieldSource].unconsumedEntries = vars.currentIndex;
-        }
-    }
-
-    function calculateCostBasisView(
-        address user,
-        address yieldSource,
-        uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    ) virtual public view
-    returns (uint256 costBasis) {
-        costBasis = _calculateFIFOCostBasisView(user, yieldSource, amountAssets, usedShares, config).costBasis;
-    }
-
-    function _calculateFees(
-        uint256 costBasis,
-        uint256 amountAssets,
-        uint256 feePercent
-    ) internal pure returns(uint256 feeAmount) {
-        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-        if (profit > 0) {
-            if (feePercent == 0) revert FEE_NOT_SET();
-            feeAmount = (profit * feePercent) / 10_000;
-        }
-    }
-
-    function previewFees(
-        address user,
-        address yieldSource,
-        uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    ) public view returns(uint256 feeAmount) {
-        uint256 costBasis = calculateCostBasisView(user, yieldSource, amountAssets, usedShares, config);
-        feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
-    }
-
-    function _calculateCostBasis(
-        address user,
-        address yieldSource,
-        uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    ) virtual internal
-    returns (uint256 costBasis) {
-        costBasis = _calculateFIFOCostBasis(user, yieldSource, amountAssets, usedShares, config);
     }
 
     function _processOutflow(
