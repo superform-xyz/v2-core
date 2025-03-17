@@ -26,6 +26,10 @@ test-vvv :; forge test --match-test test_Allocate_Rebalance -vvvv
 
 test-integration :; forge test --match-test test_ValidateFees_ForPartialWithdrawal_NoExtraFees_Pendle -vvv
 
+test-gas-report-user :; forge test --match-test test_gasReport --gas-report
+test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report
+test-gas-report-3vaults :; forge test --match-test test_gasReport_ThreeVaults --gas-report
+
 
 .PHONY: generate
 generate:
