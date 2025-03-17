@@ -62,10 +62,14 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view { }
+    function preExecute(address, address, bytes memory) external view { 
+        outAmount = _getBalance(account, data);
+    }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view { }
+    function postExecute(address, address, bytes memory) external view {
+        outAmount = _getBalance(account, data) - outAmount;
+    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
