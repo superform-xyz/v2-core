@@ -1068,7 +1068,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
 
             if (hookType == ISuperHook.HookType.OUTFLOW || hookType == ISuperHook.HookType.NONACCOUNTING) {
-                if (yieldSourceAssetsInTransit[execVars.target] > outAmount) {
+                if (yieldSourceAssetsInTransit[execVars.target] >= outAmount) {
                     yieldSourceAssetsInTransit[execVars.target] -= outAmount;
                 }
             }
