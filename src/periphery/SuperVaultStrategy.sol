@@ -11,11 +11,11 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/ext
 
 // Core Interfaces
 import {
-ISuperHook,
-ISuperHookResult,
-Execution,
-ISuperHookInflowOutflow,
-ISuperHookOutflow
+    ISuperHook,
+    ISuperHookResult,
+    Execution,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow
 } from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -112,7 +112,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         bytes32 initHooksRoot_,
         address initYieldSourceOracle_
     )
-    external
+        external
     {
         if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
@@ -162,8 +162,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 amount,
         Operation operation
     )
-    external
-    returns (uint256 assetsOrSharesOut)
+        external
+        returns (uint256 assetsOrSharesOut)
     {
         if (operation == Operation.DepositRequest) {
             assetsOrSharesOut = _handleRequestDeposit(controller, amount);
@@ -192,7 +192,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256[] memory expectedAssetsOrSharesOut,
         bool isDeposit
     )
-    external
+        external
     {
         _requireRole(STRATEGIST_ROLE);
 
@@ -323,7 +323,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                 // Calculate historical assets and process fees once for total shares used
                 (vars.finalAssets, vars.lastConsumedIndex) =
-                _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
+                    _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
                 // Update share price point cursor
                 if (vars.lastConsumedIndex > redeemState.sharePricePointCursor) {
                     redeemState.sharePricePointCursor = vars.lastConsumedIndex;
@@ -354,7 +354,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         vars.initialAssetBalance = _getTokenBalance(address(_asset), address(this));
         vars.inflowTargets = new address[](vars.hooksLength);
 
-        uint256 postExecutionTotalAssets = totalAssets();
+        (uint256 postExecutionTotalAssets,) = totalAssets();
 
         // Process each hook in sequence
         for (uint256 i; i < vars.hooksLength;) {
@@ -388,7 +388,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
                 // Execute the transaction
                 (vars.success,) =
-                vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
+                    vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
                 if (!vars.success) revert OPERATION_FAILED();
                 unchecked {
                     ++j;
@@ -398,7 +398,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
             // For non-accounting hooks, verify asset balance hasn't decreased
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
-                postExecutionTotalAssets = totalAssets();
+                (postExecutionTotalAssets,) = totalAssets();
                 if (postExecutionTotalAssets < preExecutionTotalAssets) revert CANNOT_CHANGE_TOTAL_ASSETS();
             }
             // Update prevHook for next iteration
@@ -442,7 +442,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function totalAssets() external view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
+    function totalAssets() public view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs) {
         uint256 length = yieldSourcesList.length;
         sourceTVLs = new YieldSourceTVL[](length);
         uint256 activeSourceCount;
@@ -465,19 +465,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             }
         }
     }
-
-    function _minimalTotalAssets() internal view returns (uint256 totalAssets_) {
-        uint256 length = yieldSourcesList.length;
-
-        for (uint256 i; i < length;) {
-            address source = yieldSourcesList[i];
-            totalAssets_ += yieldSources[source].isActive ? _getTvlByOwnerOfShares(source) : 0;
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
 
     /// @inheritdoc ISuperVaultStrategy
     function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256) {
@@ -665,9 +652,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
     /// @inheritdoc ISuperVaultStrategy
     function getHookInfo()
-    external
-    view
-    returns (bytes32 hookRoot_, bytes32 proposedHookRoot_, uint256 hookRootEffectiveTime_)
+        external
+        view
+        returns (bytes32 hookRoot_, bytes32 proposedHookRoot_, uint256 hookRootEffectiveTime_)
     {
         hookRoot_ = hookRoot;
         proposedHookRoot_ = proposedHookRoot;
@@ -734,7 +721,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
-            uint256 totalAssetsValue = _minimalTotalAssets();
+            (uint256 totalAssetsValue,) = totalAssets();
             pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
@@ -770,7 +757,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 lastConsumedIndex;
         uint256 finalAssets;
         (finalAssets, lastConsumedIndex) =
-        _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
+            _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
 
         state.sharePricePointCursor = lastConsumedIndex;
         state.pendingRedeemRequest = 0;
@@ -879,8 +866,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 hookProofsLength,
         uint256 hookCalldataLength
     )
-    private
-    pure
+        private
+        pure
     {
         if (hooksLength == 0) revert ZERO_LENGTH();
 
@@ -910,9 +897,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address[] calldata users,
         bool isDeposit
     )
-    private
-    view
-    returns (uint256 totalRequested)
+        private
+        view
+        returns (uint256 totalRequested)
     {
         for (uint256 i; i < usersLength;) {
             uint256 pendingRequest = isDeposit
@@ -943,7 +930,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 approvalAmount,
         address target
     )
-    private
+        private
     {
         // Validate hook via merkle proof
         if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
@@ -989,9 +976,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256[] memory initialBalances,
         bool requireZeroBalance
     )
-    private
-    view
-    returns (uint256[] memory changes)
+        private
+        view
+        returns (uint256[] memory changes)
     {
         uint256 length = tokens.length;
         changes = new uint256[](length);
@@ -1026,8 +1013,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256[] memory expectedAssetsOrSharesOut,
         bool isDeposit
     )
-    private
-    returns (FulfillmentVars memory, address[] memory)
+        private
+        returns (FulfillmentVars memory, address[] memory)
     {
         ProcessHooksLocalVars memory locals;
         locals.hooksLength = hooks.length;
@@ -1039,20 +1026,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Process hook executions
             if (isDeposit) {
                 (locals.amount, locals.hookTarget, locals.outAmount) =
-                _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
+                    _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
                 locals.target = locals.hookTarget;
                 // Track targeted yield source for inflow operations
                 locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
             } else {
                 (locals.amount, locals.hookTarget, locals.outAmount) =
-                _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
+                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
             if (
                 locals.outAmount * ONE_HUNDRED_PERCENT
-                < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+                    < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
             ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
 
             unchecked {
@@ -1087,8 +1074,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address prevHook,
         bytes memory hookCalldata
     )
-    private
-    returns (uint256 amount, address target, uint256 outAmount)
+        private
+        returns (uint256 amount, address target, uint256 outAmount)
     {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
@@ -1132,8 +1119,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         bytes memory hookCalldata,
         uint256 pricePerShare
     )
-    private
-    returns (uint256 amount, address target, uint256 outAmount)
+        private
+        returns (uint256 amount, address target, uint256 outAmount)
     {
         OutflowExecutionVars memory execVars;
 
@@ -1146,7 +1133,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
 
         hookCalldata =
-                                ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
+            ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
         if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
@@ -1172,9 +1159,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         address hook,
         bytes memory hookCalldata
     )
-    private
-    pure
-    returns (uint256 amount, address yieldSource)
+        private
+        pure
+        returns (uint256 amount, address yieldSource)
     {
         amount = _decodeHookAmount(hook, hookCalldata);
         yieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
@@ -1208,7 +1195,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee
                 uint256 superformFee =
-                                    totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
+                    totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees
@@ -1238,12 +1225,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 requestedShares,
         uint256 currentPricePerShare
     )
-    private
-    returns (uint256 finalAssets, uint256 lastConsumedIndex)
+        private
+        returns (uint256 finalAssets, uint256 lastConsumedIndex)
     {
         // Calculate historical assets and update share price points
         (finalAssets, lastConsumedIndex) =
-        _calculateHistoricalAssetsAndUpdatePoints(state, requestedShares, state.sharePricePointCursor);
+            _calculateHistoricalAssetsAndUpdatePoints(state, requestedShares, state.sharePricePointCursor);
 
         // Process fees and get final assets
         finalAssets = _processFees(requestedShares, currentPricePerShare, finalAssets);
@@ -1259,8 +1246,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 requestedShares,
         uint256 currentIndex
     )
-    private
-    returns (uint256 historicalAssets, uint256 lastConsumedIndex)
+        private
+        returns (uint256 historicalAssets, uint256 lastConsumedIndex)
     {
         uint256 remainingShares = requestedShares;
         lastConsumedIndex = currentIndex;
@@ -1289,8 +1276,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 currentPricePerShare,
         uint256 historicalAssets
     )
-    private
-    returns (uint256 finalAssets)
+        private
+        returns (uint256 finalAssets)
     {
         uint256 currentValue = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
 
@@ -1306,7 +1293,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         uint256 requestedShares,
         uint256 finalAssets
     )
-    private
+        private
     {
         uint256 existingShares;
         uint256 existingAssets;
