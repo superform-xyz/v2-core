@@ -39,11 +39,8 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -52,12 +49,9 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -74,11 +68,8 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](partialUsersCount);
-        for (uint256 i; i < partialUsersCount;) {
+        for (uint256 i; i < partialUsersCount; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -87,21 +78,15 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < partialUsersCount;) {
+        for (uint256 i; i < partialUsersCount; ++i) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
-            unchecked {
-                ++i;
-            }
         }
 
         // check that the remaining users have not been affected
-        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT;) {
+        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
             assertEq(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
-            unchecked {
-                ++i;
-            }
         }
 
         // try to fullfil the rest of the users in 1 vault
@@ -297,11 +282,8 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         vars.allocationAmountVault1 = vars.totalAmount / 2;
         vars.allocationAmountVault2 = vars.totalAmount - vars.allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         _fulfillDepositForUsers(
@@ -421,11 +403,8 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         _fulfillDepositForUsers(
@@ -433,33 +412,23 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         );
 
         uint256[] memory initialShareBalances = new uint256[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             initialShareBalances[i] = vault.balanceOf(accInstances[i].account);
-            unchecked {
-                ++i;
-            }
         }
 
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         uint256 firstUserShares = vault.balanceOf(accInstances[0].account) - initialShareBalances[0];
         uint256 sharesPerAsset = firstUserShares * 1e18 / depositAmount;
 
         /// this test compares the shares of the first user
-        for (uint256 i = 1; i < ACCOUNT_COUNT;) {
+        for (uint256 i = 1; i < ACCOUNT_COUNT; ++i) {
             uint256 userShares = vault.balanceOf(accInstances[i].account) - initialShareBalances[i];
             uint256 userSharesPerAsset = userShares * 1e18 / depositAmount;
             assertEq(userSharesPerAsset, sharesPerAsset);
             assertEq(userShares, firstUserShares);
-
-            unchecked {
-                ++i;
-            }
         }
     }
 

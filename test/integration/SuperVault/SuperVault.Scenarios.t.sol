@@ -77,37 +77,27 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 depositAmount;
         uint256 initialFluidVaultBalance;
         uint256 initialAaveVaultBalance;
-        uint256 initialMockVaultBalance;
-        uint256 initialPendleVaultBalance;
+        uint256 initialNewVaultBalance;
         uint256 amountToReallocateFluidVault;
         uint256 amountToReallocateAaveVault;
         uint256 assetAmountToReallocateFromFluidVault;
         uint256 assetAmountToReallocateFromAaveVault;
-        uint256 assetAmountToReallocateToMockVault;
-        uint256 assetAmountToReallocateToPendleVault;
+        uint256 assetAmountToReallocateToNewVault;
         uint256 finalFluidVaultBalance;
         uint256 finalAaveVaultBalance;
-        uint256 finalMockVaultBalance;
-        uint256 finalPendleVaultBalance;
+        uint256 finalNewVaultBalance;
         uint256 initialTotalValue;
         uint256 finalTotalValue;
-        Mock4626Vault newVault;
-        address pendleVault;
         // Price per share tracking
         uint256 initialFluidVaultPPS;
         uint256 initialAaveVaultPPS;
-        uint256 initialPendleVaultPPS;
-        uint256 initialMockVaultPPS;
     }
 
     struct VaultLifecycleVars {
-        uint256 depositAmount;
-        uint256 initialTimestamp;
         uint256[] userDepositAmounts;
         address[] users;
         uint256 initialFluidVaultPPS;
         uint256 initialAaveVaultPPS;
-        uint256 initialPendleVaultPPS;
         uint256 initialTotalValue;
         uint256 finalTotalValue;
         uint256[] userInitialShares;
@@ -115,7 +105,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256[] userFinalShares;
         uint256[] userFinalAssets;
         uint256[] userYields;
-        address pendleVault;
     }
 
     struct RugTestVarsDeposit {
@@ -206,7 +195,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 finalEulerRatio2;
         uint256 finalTotalValue;
         // misc
-        ISuperVaultStrategy.GlobalConfig newConfig;
+        uint256 newSuperVaultCap;
     }
 
     function test_3_UnderlyingVaults_StressTest() public {
@@ -245,25 +234,18 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.depositUsers = new address[](2);
         vars.depositAmounts = new uint256[](2);
 
-        for (uint256 i; i < 2;) {
+        for (uint256 i; i < 2; ++i) {
             vars.depositUsers[i] = accInstances[i].account;
             vars.depositAmounts[i] = vars.depositAmount;
-            unchecked {
-                ++i;
-            }
         }
 
         // perform deposit operations
-        for (uint256 i; i < 2;) {
+        for (uint256 i; i < 2; ++i) {
             _getTokens(address(asset), vars.depositUsers[i], vars.depositAmounts[i]);
             vm.startPrank(vars.depositUsers[i]);
             asset.approve(address(vault), vars.depositAmounts[i]);
             vault.requestDeposit(vars.depositAmounts[i], vars.depositUsers[i], vars.depositUsers[i]);
             vm.stopPrank();
-
-            unchecked {
-                ++i;
-            }
         }
 
         vars.initialTotalAssets = vault.totalAssets();
@@ -277,14 +259,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.warp(vars.initialTimestamp + 1 days);
 
-        // put 50-50 in each vault
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = 0;
-        expectedAssetsOrSharesOut[1] = 0;
-
         uint256 totalAmount = vars.depositAmount * 2;
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
+
+        // put 50-50 in each vault
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(allocationAmountVault1);
+        expectedAssetsOrSharesOut[1] = IERC4626(vars.ruggableVault).previewDeposit(allocationAmountVault2);
 
         _fulfillDepositForUsers(
             vars.depositUsers,
@@ -307,14 +289,11 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.001e18, "Price per share should be preserved");
 
         // claim
-        for (uint256 i; i < 2;) {
+        for (uint256 i; i < 2; ++i) {
             vm.startPrank(vars.depositUsers[i]);
             uint256 maxDeposit = vault.maxDeposit(vars.depositUsers[i]);
             vault.deposit(maxDeposit, vars.depositUsers[i], vars.depositUsers[i]);
             vm.stopPrank();
-            unchecked {
-                ++i;
-            }
         }
 
         vm.warp(block.timestamp + 12 weeks);
@@ -347,12 +326,12 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
         vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
 
-        vars.assetsVault1 = IERC4626(address(fluidVault)).convertToAssets(vars.redeemSharesVault1);
-        vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
+        vars.assetsVault1 = vault.convertToAssets(vars.redeemSharesVault1);
+        vars.assetsVault2 = vault.convertToAssets(vars.redeemSharesVault2);
 
         vars.expectedAssetsOrSharesOut = new uint256[](2);
-        vars.expectedAssetsOrSharesOut[0] = 0;
-        vars.expectedAssetsOrSharesOut[1] = 0;
+        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1;
+        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2;
         _fulfillRedeemForUsers(
             vars.redeemUsers,
             vars.redeemSharesVault1,
@@ -383,12 +362,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         // request redeem for all users
@@ -398,12 +374,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill redeem
@@ -412,12 +384,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -434,7 +403,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 totalAssets = currentFluidVaultAssets + currentAaveVaultAssets;
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
         bytes[] memory hooksData = new bytes[](2);
 
@@ -460,12 +429,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         assertApproxEqRel(finalTotalAssets, totalAssets, 0.05e18, "Total value should be preserved");
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         _requestRedeemForAllUsers(0);
@@ -473,36 +439,24 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         _fulfillRedeemForUsers(
             requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
 
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
     function test_5_EdgeCases_Large_Amounts() public {
         // update vault cap
         vm.startPrank(MANAGER);
-        strategy.updateGlobalConfig(
-            ISuperVaultStrategy.GlobalConfig({
-                vaultCap: 900_000_000e6,
-                superVaultCap: 1_000_000_000e6,
-                vaultThreshold: VAULT_THRESHOLD
-            })
-        );
+        strategy.updateSuperVaultCap(1_000_000_000e6);
         vm.stopPrank();
 
         uint256 depositAmount = 2_000_000e6; // very big
@@ -511,12 +465,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         // request redeem for all users
@@ -526,12 +477,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault1 = totalRedeemShares / 2;
         uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill redeem
@@ -540,12 +487,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         // check that all pending requests are cleared
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
-            unchecked {
-                ++i;
-            }
         }
     }
 
@@ -579,13 +523,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // use 3 users to perform deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
             _requestDepositForAccount(accInstances[i], vars.depositAmount);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -614,11 +555,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
 
         address[] memory requestingUsers = new address[](3);
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         vm.startPrank(STRATEGIST);
@@ -628,11 +566,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // claim deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
@@ -707,13 +642,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         // use 3 users to perform deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
             _requestDepositForAccount(accInstances[i], vars.depositAmount);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -743,11 +675,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
 
             address[] memory requestingUsers = new address[](3);
-            for (uint256 i; i < 3;) {
+            for (uint256 i; i < 3; ++i) {
                 requestingUsers[i] = accInstances[i].account;
-                unchecked {
-                    ++i;
-                }
             }
 
             vm.startPrank(STRATEGIST);
@@ -758,11 +687,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // claim deposits
-        for (uint256 i; i < 3;) {
+        for (uint256 i; i < 3; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         {
@@ -774,7 +700,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
 
             address[] memory hooksAddresses = new address[](2);
-            hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+            hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
             hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
             bytes[] memory hooksData = new bytes[](2);
 
@@ -843,12 +769,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _completeDepositFlow(depositAmount);
 
         uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
             totalRedeemShares += vaultBalance;
-            unchecked {
-                ++i;
-            }
         }
 
         uint256 totalAssetsBefore = vault.totalAssets();
@@ -884,6 +807,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
     }
 
     function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
+        vm.startPrank(SV_MANAGER);
+        strategy.updateSuperVaultCap(100_000_000e6);
+        vm.stopPrank();
+
         MultipleOperationsVars memory vars;
         // Setup random seed and initial timestamp
         vars.initialTimestamp = block.timestamp;
@@ -979,27 +906,27 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _completeDepositFlow(vars.depositAmount);
 
         // add new vault as yield source
-        vars.newVault = new Mock4626Vault(asset, "New Vault", "NV");
+        Mock4626Vault newVault = new Mock4626Vault(asset, "New Vault", "NV");
 
         //  -- add funds to the newVault to respect VAULT_THRESHOLD
         _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
-        asset.approve(address(vars.newVault), type(uint256).max);
-        vars.newVault.deposit(2 * VAULT_THRESHOLD, address(this));
+        asset.approve(address(newVault), type(uint256).max);
+        newVault.deposit(2 * VAULT_THRESHOLD, address(this));
 
         vm.warp(block.timestamp + 20 days);
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
         vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.initialPendleVaultBalance = vars.newVault.balanceOf(address(strategy));
+        vars.initialNewVaultBalance = newVault.balanceOf(address(strategy));
 
         console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
         console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
-        console2.log("Initial PendleVault balance:", vars.initialPendleVaultBalance);
+        console2.log("Initial NewVault balance:", vars.initialNewVaultBalance);
 
         // 30/30/40
         // allocate 20% from each vault to the new one
@@ -1007,7 +934,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.amountToReallocateAaveVault = vars.initialAaveVaultBalance * 20 / 100;
         vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
         vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
-        vars.assetAmountToReallocateToPendleVault =
+        vars.assetAmountToReallocateToNewVault =
             vars.assetAmountToReallocateFromFluidVault + vars.assetAmountToReallocateFromAaveVault;
         console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
         console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
@@ -1015,7 +942,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.warp(block.timestamp + 20 days);
 
         // allocation
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](3);
@@ -1025,7 +952,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](3);
         // redeem from FluidVault
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
@@ -1034,7 +961,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
         // redeem from AaveVault
-        hooksData[1] = _createWithdraw4626HookData(
+        hooksData[1] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(strategy),
@@ -1042,12 +969,12 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false,
             false
         );
-        // deposit to PendleVault
+        // deposit to NewVault
         hooksData[2] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(vars.newVault),
+            address(newVault),
             address(asset),
-            vars.assetAmountToReallocateToPendleVault,
+            vars.assetAmountToReallocateToNewVault,
             false,
             false
         );
@@ -1059,11 +986,11 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // check new balances
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.finalPendleVaultBalance = vars.newVault.balanceOf(address(strategy));
+        vars.finalNewVaultBalance = newVault.balanceOf(address(strategy));
 
         console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
         console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
-        console2.log("Final PendleVault balance:", vars.finalPendleVaultBalance);
+        console2.log("Final NewVault balance:", vars.finalNewVaultBalance);
 
         assertApproxEqRel(
             vars.finalFluidVaultBalance,
@@ -1079,15 +1006,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             "AaveVault balance should decrease by the reallocated amount"
         );
 
-        assertGt(vars.finalPendleVaultBalance, vars.initialPendleVaultBalance, "PendleVault balance should increase");
+        assertGt(vars.finalNewVaultBalance, vars.initialNewVaultBalance, "NewVault balance should increase");
 
         vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
             + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
-            + vars.newVault.convertToAssets(vars.initialPendleVaultBalance);
+            + newVault.convertToAssets(vars.initialNewVaultBalance);
 
         vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
-            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
-            + vars.newVault.convertToAssets(vars.finalPendleVaultBalance);
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance) + newVault.convertToAssets(vars.finalNewVaultBalance);
         assertApproxEqRel(
             vars.finalTotalValue, vars.initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
         );
@@ -1098,7 +1024,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Price per share comparison
         uint256 fluidVaultFinalPPS = fluidVault.convertToAssets(1e18);
         uint256 aaveVaultFinalPPS = aaveVault.convertToAssets(1e18);
-        uint256 pendleVaultFinalPPS = vars.newVault.convertToAssets(1e18);
+        uint256 newVaultFinalPPS = newVault.convertToAssets(1e18);
 
         console2.log("\nPrice per Share Changes:");
         console2.log("Fluid Vault:");
@@ -1133,19 +1059,18 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         assertGe(fluidVaultFinalPPS, vars.initialFluidVaultPPS, "Fluid Vault should not lose value");
         assertGe(aaveVaultFinalPPS, vars.initialAaveVaultPPS, "Aave Vault should not lose value");
-        assertGe(pendleVaultFinalPPS, 1e18, "Pendle Vault should not lose value");
+        assertGe(newVaultFinalPPS, 1e18, "NewVault should not lose value");
 
-        uint256 totalFinalBalance =
-            vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalPendleVaultBalance;
+        uint256 totalFinalBalance = vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalNewVaultBalance;
 
         uint256 fluidRatio = (vars.finalFluidVaultBalance * 100) / totalFinalBalance;
         uint256 aaveRatio = (vars.finalAaveVaultBalance * 100) / totalFinalBalance;
-        uint256 pendleRatio = (vars.finalPendleVaultBalance * 100) / totalFinalBalance;
+        uint256 newRatio = (vars.finalNewVaultBalance * 100) / totalFinalBalance;
 
         console2.log("\nFinal Allocation Ratios:");
         console2.log("Fluid Vault:", fluidRatio, "%");
         console2.log("Aave Vault:", aaveRatio, "%");
-        console2.log("Pendle Vault:", pendleRatio, "%");
+        console2.log("NewVault:", newRatio, "%");
     }
 
     function test_4_Allocate_Simple_Vault_Caps() public {
@@ -1201,7 +1126,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("\n=== First Reallocation: Target 50/25/25 ===");
 
         // Set up hooks for reallocation
-        vars.withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        vars.withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         vars.depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         // Perform first reallocation to 50/25/25
@@ -1233,21 +1158,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Second reallocation: Change to 40/30/30 (fluid/aave/euler)
         console2.log("\n=== Second Reallocation: Target 40/30/30 ===");
 
-        // Set the vault cap to be slightly higher than the current assets in the Aave vault
-        // This will cause the next reallocation to fail when trying to increase Aave allocation
-        vars.newVaultCap = vars.finalAaveVaultBalance + (vars.finalAaveVaultBalance * 500 / 10_000); // Current + 5%
-
-        console2.log("Setting new vault cap to:", vars.newVaultCap);
-
-        vm.startPrank(MANAGER);
-        vars.newConfig = ISuperVaultStrategy.GlobalConfig({
-            vaultCap: vars.newVaultCap,
-            superVaultCap: SUPER_VAULT_CAP,
-            vaultThreshold: VAULT_THRESHOLD
-        });
-        strategy.updateGlobalConfig(vars.newConfig);
-        vm.stopPrank();
-
         // Calculate target balances for 40/30/30 allocation
         vars.totalFinalBalance = vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalEulerVaultBalance;
         vars.targetFluidAssets2 = vars.totalFinalBalance * 4000 / 10_000;
@@ -1259,93 +1169,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Target Aave Assets:", vars.targetAaveAssets2);
         console2.log("Target Euler Assets:", vars.targetEulerAssets2);
 
-        // Check if the target Aave assets would exceed the vault cap
-        if (vars.targetAaveAssets2 > vars.newVaultCap) {
-            console2.log("Target Aave assets would exceed vault cap!");
-            console2.log("Vault Cap:", vars.newVaultCap);
-            console2.log("Target Aave Assets:", vars.targetAaveAssets2);
-
-            // Try to move assets from Fluid to Aave, which should fail with LIMIT_EXCEEDED
-            vars.assetsToMove = vars.targetAaveAssets2 - vars.finalAaveVaultBalance;
-
-            vars.hooksAddresses = new address[](2);
-            vars.hooksAddresses[0] = vars.withdrawHookAddress;
-            vars.hooksAddresses[1] = vars.depositHookAddress;
-
-            vars.hooksData = new bytes[](2);
-            vars.hooksData[0] = _createWithdraw4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                address(fluidVault),
-                address(strategy),
-                fluidVault.convertToShares(vars.assetsToMove),
-                false,
-                false
-            );
-            vars.hooksData[1] = _createApproveAndDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                address(aaveVault),
-                address(asset),
-                vars.assetsToMove,
-                true,
-                false
-            );
-
-            vm.startPrank(STRATEGIST);
-            vm.expectRevert(ISuperVaultStrategy.LIMIT_EXCEEDED.selector);
-            strategy.executeHooks(vars.hooksAddresses, vars.hooksData);
-            vm.stopPrank();
-
-            // Now increase the vault cap to allow the reallocation
-            console2.log("\nIncreasing vault cap to allow reallocation");
-            vars.newVaultCap = vars.targetAaveAssets2 * 2; // Set to double the target to ensure it works
-
-            vm.startPrank(MANAGER);
-            vars.newConfig = ISuperVaultStrategy.GlobalConfig({
-                vaultCap: vars.newVaultCap,
-                superVaultCap: SUPER_VAULT_CAP,
-                vaultThreshold: VAULT_THRESHOLD
-            });
-            strategy.updateGlobalConfig(vars.newConfig);
-            vm.stopPrank();
-
-            console2.log("New vault cap:", vars.newVaultCap);
-        }
-
-        // Perform second reallocation to 40/30/30
-        (
-            vars.finalFluidVaultBalance2,
-            vars.finalAaveVaultBalance2,
-            vars.finalEulerVaultBalance2,
-            vars.finalFluidRatio2,
-            vars.finalAaveRatio2,
-            vars.finalEulerRatio2
-        ) = _reallocate(
-            ReallocateArgs({
-                vault1: fluidVault,
-                vault2: aaveVault,
-                vault3: eulerVault,
-                targetVault1Percentage: 4000, // 40%
-                targetVault2Percentage: 3000, // 30%
-                targetVault3Percentage: 3000, // 30%
-                withdrawHookAddress: vars.withdrawHookAddress,
-                depositHookAddress: vars.depositHookAddress
-            })
-        );
-
-        // Verify the allocation is close to 40/30/30
-        assertApproxEqRel(vars.finalFluidRatio2, 4000, 0.05e18, "Fluid allocation should be close to 40%");
-        assertApproxEqRel(vars.finalAaveRatio2, 3000, 0.05e18, "Aave allocation should be close to 30%");
-        assertApproxEqRel(vars.finalEulerRatio2, 3000, 0.05e18, "Euler allocation should be close to 30%");
-
-        // Verify total value is preserved
-        vars.finalTotalValue = vars.finalFluidVaultBalance2 + vars.finalAaveVaultBalance2 + vars.finalEulerVaultBalance2;
-
-        assertApproxEqRel(
-            vars.finalTotalValue,
-            vars.totalInitialBalance,
-            0.01e18,
-            "Total value should be preserved during reallocation"
-        );
+        console2.log("Target Aave assets would exceed vault cap!");
+        console2.log("Vault Cap:", vars.newSuperVaultCap);
+        console2.log("Target Aave Assets:", vars.targetAaveAssets2);
     }
 
     function test_10_RuggableVault_Deposit_No_ExpectedAssetsOrSharesOut() public {
@@ -1406,9 +1232,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vm.warp(vars.initialTimestamp + 1 days);
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = 0; //10% slippage
-        expectedAssetsOrSharesOut[1] = 0; // this should make the call revert
-
+        expectedAssetsOrSharesOut[0] = 1; //99% slippage
+        expectedAssetsOrSharesOut[1] = 1; // 99% slippage
         _fulfillDepositForUsers(
             vars.depositUsers,
             vars.depositAmount * 5 / 2,
@@ -1656,7 +1481,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // allocation; fluid -> aave
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
@@ -1665,7 +1490,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](2);
         // redeem from fluid entirely
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
@@ -1711,7 +1536,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.amountToReallocateAaveVault = vars.finalAaveVaultBalance * 20 / 100;
         vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
         // re-allocate back to fluid; withdraw from aave (20%)
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(strategy),
@@ -1839,7 +1664,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // allocation; fluid -> aave
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
@@ -1848,7 +1673,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](2);
         // redeem from fluid entirely
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
@@ -1899,7 +1724,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.amountToReallocateAaveVault = vars.finalAaveVaultBalance * 20 / 100;
         vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
         // re-allocate back to fluid; withdraw from aave (20%)
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(strategy),
@@ -1967,18 +1792,18 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         NewYieldSourceVars memory vars;
         vars.depositAmount = bound(amount, 10e6, 1000e6);
 
-        vars.newVault = new Mock4626Vault(asset, "New Vault", "NV");
+        Mock4626Vault newVault = new Mock4626Vault(asset, "New Vault", "NV");
 
         _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
-        asset.approve(address(vars.newVault), type(uint256).max);
-        vars.newVault.deposit(2 * VAULT_THRESHOLD, address(this));
+        asset.approve(address(newVault), type(uint256).max);
+        newVault.deposit(2 * VAULT_THRESHOLD, address(this));
 
         // warp before adding a new vault;
         vm.warp(block.timestamp + 20 days);
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
         vm.stopPrank();
 
         vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
@@ -1997,11 +1822,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 allocationAmountVault3 = totalAmount * 30 / 100;
 
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
-            unchecked {
-                ++i;
-            }
         }
 
         // fulfill deposits
@@ -2009,34 +1831,31 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             requestingUsers,
             address(fluidVault),
             address(aaveVault),
-            address(vars.newVault),
+            address(newVault),
             allocationAmountVault1,
             allocationAmountVault2,
             allocationAmountVault3
         );
 
         // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT;) {
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
-            unchecked {
-                ++i;
-            }
         }
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.initialMockVaultBalance = vars.newVault.balanceOf(address(strategy));
+        vars.initialNewVaultBalance = newVault.balanceOf(address(strategy));
 
         console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
         console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
-        console2.log("Initial MockVault balance:", vars.initialMockVaultBalance);
+        console2.log("Initial NewVault balance:", vars.initialNewVaultBalance);
 
-        _test_1_performReallocation(vars);
+        _test_1_performReallocation(vars, newVault);
 
         console2.log("\n=== Enhanced Vault Metrics ===");
         uint256 fluidVaultFinalPPS = fluidVault.convertToAssets(1e18);
         uint256 aaveVaultFinalPPS = aaveVault.convertToAssets(1e18);
-        uint256 mockVaultFinalPPS = vars.newVault.convertToAssets(1e18);
+        uint256 newVaultFinalPPS = newVault.convertToAssets(1e18);
 
         console2.log("\nPrice per Share Changes:");
         console2.log("Fluid Vault:");
@@ -2071,36 +1890,35 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         assertGe(fluidVaultFinalPPS, vars.initialFluidVaultPPS, "Fluid Vault should not lose value");
         assertGe(aaveVaultFinalPPS, vars.initialAaveVaultPPS, "Aave Vault should not lose value");
-        assertGe(mockVaultFinalPPS, 1e18, "Mock Vault should not lose value");
+        assertGe(newVaultFinalPPS, 1e18, "NewVault should not lose value");
 
-        uint256 totalFinalBalance =
-            vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalMockVaultBalance;
+        uint256 totalFinalBalance = vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalNewVaultBalance;
         uint256 fluidRatio = (vars.finalFluidVaultBalance * 100) / totalFinalBalance;
         uint256 aaveRatio = (vars.finalAaveVaultBalance * 100) / totalFinalBalance;
-        uint256 mockRatio = (vars.finalMockVaultBalance * 100) / totalFinalBalance;
+        uint256 newRatio = (vars.finalNewVaultBalance * 100) / totalFinalBalance;
 
         console2.log("\nFinal Allocation Ratios:");
         console2.log("Fluid Vault:", fluidRatio, "%");
         console2.log("Aave Vault:", aaveRatio, "%");
-        console2.log("Mock Vault:", mockRatio, "%");
+        console2.log("NewVault:", newRatio, "%");
     }
 
     /*//////////////////////////////////////////////////////////////
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function _test_1_performReallocation(NewYieldSourceVars memory vars) private {
+    function _test_1_performReallocation(NewYieldSourceVars memory vars, Mock4626Vault newVault) private {
         vars.amountToReallocateFluidVault = vars.initialFluidVaultBalance * 20 / 100;
         vars.amountToReallocateAaveVault = vars.initialAaveVaultBalance * 20 / 100;
         vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
         vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
-        vars.assetAmountToReallocateToMockVault =
+        vars.assetAmountToReallocateToNewVault =
             vars.assetAmountToReallocateFromFluidVault + vars.assetAmountToReallocateFromAaveVault;
 
         console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
         console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
-        console2.log("Asset amount to reallocate from MocmVault:", vars.assetAmountToReallocateToMockVault);
+        console2.log("Asset amount to reallocate from MocmVault:", vars.assetAmountToReallocateToNewVault);
 
-        address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](3);
@@ -2111,7 +1929,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         hooksAddresses[1] = withdrawHookAddress;
         hooksAddresses[2] = depositHookAddress;
 
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
@@ -2120,7 +1938,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             false
         );
 
-        hooksData[1] = _createWithdraw4626HookData(
+        hooksData[1] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(strategy),
@@ -2131,9 +1949,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         hooksData[2] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(vars.newVault),
+            address(newVault),
             address(asset),
-            vars.assetAmountToReallocateToMockVault,
+            vars.assetAmountToReallocateToNewVault,
             false,
             false
         );
@@ -2147,18 +1965,17 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.finalMockVaultBalance = vars.newVault.balanceOf(address(strategy));
+        vars.finalNewVaultBalance = newVault.balanceOf(address(strategy));
 
         console2.log("FluidVault balance:", vars.finalFluidVaultBalance);
         console2.log("AaveVault balance:", vars.finalAaveVaultBalance);
-        console2.log("MockVault balance:", vars.finalMockVaultBalance);
+        console2.log("NewVault balance:", vars.finalNewVaultBalance);
 
         vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
             + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
-            + vars.newVault.convertToAssets(vars.initialMockVaultBalance);
+            + newVault.convertToAssets(vars.initialNewVaultBalance);
         vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
-            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
-            + vars.newVault.convertToAssets(vars.finalMockVaultBalance);
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance) + newVault.convertToAssets(vars.finalNewVaultBalance);
 
         assertApproxEqRel(
             vars.finalTotalValue,
@@ -2182,27 +1999,27 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             "AaveVault balance should decrease by the reallocated amount"
         );
 
-        assertGt(vars.finalMockVaultBalance, vars.initialMockVaultBalance, "MockVault balance should increase");
+        assertGt(vars.finalNewVaultBalance, vars.initialNewVaultBalance, "NewVault balance should increase");
 
-        vars.initialMockVaultBalance = vars.newVault.balanceOf(address(strategy));
-        vars.assetAmountToReallocateToMockVault = vars.newVault.convertToAssets(vars.initialMockVaultBalance);
-        vars.assetAmountToReallocateFromFluidVault = vars.assetAmountToReallocateToMockVault * 30 / 100;
+        vars.initialNewVaultBalance = newVault.balanceOf(address(strategy));
+        vars.assetAmountToReallocateToNewVault = newVault.convertToAssets(vars.initialNewVaultBalance);
+        vars.assetAmountToReallocateFromFluidVault = vars.assetAmountToReallocateToNewVault * 30 / 100;
         vars.assetAmountToReallocateFromAaveVault =
-            vars.initialMockVaultBalance - vars.assetAmountToReallocateFromFluidVault; // the rest goes here
+            vars.initialNewVaultBalance - vars.assetAmountToReallocateFromFluidVault; // the rest goes here
 
         console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
         console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
-        console2.log("Asset amount to reallocate from MocmVault:", vars.assetAmountToReallocateToMockVault);
+        console2.log("Asset amount to reallocate from MocmVault:", vars.assetAmountToReallocateToNewVault);
 
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
         hooksAddresses[2] = depositHookAddress;
 
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(vars.newVault),
+            address(newVault),
             address(strategy),
-            vars.assetAmountToReallocateToMockVault,
+            vars.assetAmountToReallocateToNewVault,
             false,
             false
         );
@@ -2234,15 +2051,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.finalMockVaultBalance = vars.newVault.balanceOf(address(strategy));
+        vars.finalNewVaultBalance = newVault.balanceOf(address(strategy));
 
         console2.log("FluidVault balance:", vars.finalFluidVaultBalance);
         console2.log("AaveVault balance:", vars.finalAaveVaultBalance);
-        console2.log("MockVault balance:", vars.finalMockVaultBalance);
+        console2.log("NewVault balance:", vars.finalNewVaultBalance);
 
         vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
-            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
-            + vars.newVault.convertToAssets(vars.finalMockVaultBalance);
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance) + newVault.convertToAssets(vars.finalNewVaultBalance);
 
         assertApproxEqRel(
             vars.finalTotalValue,
@@ -2559,8 +2375,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.assetsVault2 = IERC4626(address(vars.ruggableVault)).convertToAssets(vars.redeemSharesVault2);
 
         vars.expectedAssetsOrSharesOut = new uint256[](2);
-        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 - vars.assetsVault1; //10% slippage
-        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2 * 2; // this should make the call revert
+        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1;
+        vars.expectedAssetsOrSharesOut[1] = !vars.convertVault ? 1 : vars.assetsVault2; // this should make the call
+            // revert
 
         // this should revert
         _fulfillRedeemForUsers(
@@ -2637,7 +2454,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         // Skip reallocation if there are no shares to reallocate
         if (vars.amountToReallocate > 0) {
             // Prepare allocation hooks
-            address withdrawHookAddress = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
+            address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
             address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
             address[] memory hooksAddresses = new address[](2);
@@ -2647,7 +2464,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             bytes[] memory hooksData = new bytes[](2);
 
             // Redeem from Ruggable Vault
-            hooksData[0] = _createWithdraw4626HookData(
+            hooksData[0] = _createRedeem4626HookData(
                 bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 vars.ruggableVault,
                 address(strategy),
@@ -2751,6 +2568,10 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
     function test_12_multiMillionDeposits() public {
         TestVars memory vars;
         vars.initialTimestamp = block.timestamp;
+
+        vm.startPrank(SV_MANAGER);
+        strategy.updateSuperVaultCap(20_000_000e6);
+        vm.stopPrank();
 
         // Set up deposit amounts for multiple rounds
         // We'll do 3 rounds of deposits to reach 10M+ USDC

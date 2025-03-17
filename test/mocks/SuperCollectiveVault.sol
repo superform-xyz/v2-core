@@ -129,20 +129,14 @@ contract SuperCollectiveVault is Ownable, SuperRegistryImplementer, ISuperCollec
     {
         uint256 totalValue;
         uint256 len = targets.length;
-        for (uint256 i = 0; i < len;) {
+        for (uint256 i = 0; i < len; ++i) {
             totalValue += val[i];
-            unchecked {
-                ++i;
-            }
         }
         if (msg.value < totalValue) revert INVALID_VALUE();
 
-        for (uint256 i = 0; i < len;) {
+        for (uint256 i = 0; i < len; ++i) {
             bytes memory result = _claim(targets[i], gasLimit[i], val[i], maxReturnDataCopy, data);
             emit ClaimRewards(targets[i], result);
-            unchecked {
-                ++i;
-            }
         }
 
         emit BatchClaimRewards(targets);
@@ -199,15 +193,11 @@ contract SuperCollectiveVault is Ownable, SuperRegistryImplementer, ISuperCollec
 
         uint256 index;
         bool found = false;
-        for (uint256 i = 0; i < len;) {
+        for (uint256 i = 0; i < len; ++i) {
             if (_lockedAssets[account][i] == token) {
                 index = i;
                 found = true;
                 break;
-            }
-
-            unchecked {
-                ++i;
             }
         }
 
