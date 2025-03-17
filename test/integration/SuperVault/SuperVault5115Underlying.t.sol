@@ -30,6 +30,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
     AccountInstance public instance;
 
     uint256 public amountToDeposit;
+    uint256 public constant PRECISION = 1e18;
 
     function setUp() public override {
         super.setUp();
@@ -133,8 +134,10 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         console2.log("\n");
         console2.log("----test_SuperVault_5115_Underlying_E2EFlow-----");
         vm.selectFork(FORKS[ETH]);
+
         // Record initial balances
         uint256 initialUserAssets = asset.balanceOf(accountEth);
+
         // Step 1: Request Deposit
         _requestDeposit(amountToDeposit);
 
@@ -160,9 +163,9 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         // Fast forward time to simulate yield on underlying vaults
         vm.warp(block.timestamp + 50 weeks);
-        (uint256 totalAssets,) = strategy.totalAssets();
-        uint256 pricePerShare = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        uint256 pricePerShare = _getPPS();
         console2.log("\n PPS BEFORE REDEEM", pricePerShare);
+        
         // Step 4: Request Redeem
         _requestRedeem(userShares);
 
@@ -173,16 +176,14 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         console2.log("\n REQUESTING REDEEM ON UNDERLYING ETHENA VAULT");
         _requestRedeem_Async5115(CHAIN_1_SUSDE);
 
-        (totalAssets,) = strategy.totalAssets();
-        pricePerShare = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        pricePerShare = _getPPS();
         console2.log("\n PPS AFTER REDEEM START", pricePerShare);
 
         vm.warp(block.timestamp + 2 weeks);
 
         _claimRedeem_Async5115(CHAIN_1_SUSDE);
 
-        (totalAssets,) = strategy.totalAssets();
-        pricePerShare = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        pricePerShare = _getPPS();
         console2.log("\n PPS AFTER FULFILL REQUESTS ASSETS CLAIM", pricePerShare);
 
         uint256 claimableAssets = vault.maxWithdraw(account);
@@ -229,6 +230,9 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         strategy.fulfillRequests(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
         vm.stopPrank();
         console2.log("-------SVShare balance", IStandardizedYield(pendleEthenaAddress).balanceOf(address(strategy)));
+
+        uint256 pps = _getPPS();
+        console2.log("PPS AFTER FULFILL DEPOSIT", pps);
     }
 
     function _requestRedeem_Async5115(address tokenOut) internal {
@@ -240,8 +244,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         hooks_[1] = _getHookAddress(ETH, ETHENA_COOLDOWN_SHARES_HOOK_KEY);
 
         uint256 shares = strategy.pendingRedeemRequest(account);
-        (uint256 totalAssets,) = strategy.totalAssets();
-        uint256 pps = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        uint256 pps = _getPPS();
         console2.log("PPS BEFORE REDEEM REQUEST", pps);
         uint256 assetsSV = shares.mulDiv(pps, 1e18, Math.Rounding.Floor);
         console2.log("USDE FOR REDEEM", assetsSV);
@@ -279,8 +282,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         fulfillHooksAddresses[0] = _getHookAddress(ETH, ETHENA_UNSTAKE_HOOK_KEY);
 
         uint256 shares = strategy.pendingRedeemRequest(account);
-        (uint256 totalAssets,) = strategy.totalAssets();
-        uint256 pps = totalAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
+        uint256 pps = _getPPS();
         console2.log("PPS BEFORE CLAIM REDEEM", pps);
         uint256 assetsSV = shares.mulDiv(pps, 1e18, Math.Rounding.Floor);
         console2.log("USDE FOR CLAIM REDEEM", assetsSV);
@@ -303,5 +305,17 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         );
 
         vm.stopPrank();
+    }
+
+    function _getPPS() internal view returns (uint256 pricePerShare) {
+        uint256 totalSupplyAmount = vault.totalSupply();
+        if (totalSupplyAmount == 0) {
+            // For first deposit, set initial PPS to 1 unit in price decimals
+            pricePerShare = PRECISION;
+        } else {
+            // Calculate current PPS in price decimals
+            (uint256 totalAssetsValue,) = strategy.totalAssets();
+            pricePerShare = totalAssetsValue.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
+        }
     }
 }
