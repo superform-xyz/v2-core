@@ -240,6 +240,29 @@ abstract contract BaseLedger is ISuperLedger {
         costBasis = _calculateFIFOCostBasisView(user, yieldSource, amountAssets, usedShares, config).costBasis;
     }
 
+    function _calculateFees(
+        uint256 costBasis,
+        uint256 amountAssets,
+        uint256 feePercent
+    ) internal pure returns(uint256 feeAmount) {
+        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+        if (profit > 0) {
+            if (feePercent == 0) revert FEE_NOT_SET();
+            feeAmount = (profit * feePercent) / 10_000;
+        }
+    }
+
+    function previewFees(
+        address user,
+        address yieldSource,
+        uint256 amountAssets,
+        uint256 usedShares,
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+    ) public view returns(uint256 feeAmount) {
+        uint256 costBasis = calculateCostBasisView(user, yieldSource, amountAssets, usedShares, config);
+        feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+    }
+
     function _calculateCostBasis(
         address user,
         address yieldSource,
@@ -262,81 +285,6 @@ abstract contract BaseLedger is ISuperLedger {
     internal
     returns (uint256 feeAmount) {
         uint256 costBasis = _calculateCostBasis(user, yieldSource, amountAssets, usedShares, config);
-
-        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
-
-        if (profit > 0) {
-            if (config.feePercent == 0) revert FEE_NOT_SET();
-
-            feeAmount = (profit * config.feePercent) / 10_000;
-        }
+            feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
     }
-
-
-
-//    function _processOutflow(
-//        address user,
-//        address yieldSource,
-//        uint256 amountAssets,
-//        uint256 usedShares,
-//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-//    )
-//        internal
-//        virtual
-//        returns (uint256 feeAmount)
-//    {
-//        Ledger storage ledger = userLedger[user][yieldSource];
-//
-//        OutflowVars memory vars = OutflowVars({
-//            remainingShares: usedShares,
-//            costBasis: 0,
-//            len: ledger.entries.length,
-//            currentIndex: userLedger[user][yieldSource].unconsumedEntries,
-//            lastIndex: 0,
-//            lastSharesConsumed: 0,
-//            decimals: IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
-//        });
-//
-//        if (vars.len == 0) return 0;
-//        vars.lastIndex = vars.currentIndex;
-//
-//        while (vars.remainingShares > 0) {
-//            if (vars.currentIndex >= vars.len) revert INSUFFICIENT_SHARES();
-//
-//            LedgerEntry storage entry = ledger.entries[vars.currentIndex];
-//            uint256 availableShares = entry.amountSharesAvailableToConsume;
-//
-//            if (availableShares == 0) {
-//                unchecked {
-//                    ++vars.currentIndex;
-//                }
-//                continue;
-//            }
-//
-//            uint256 sharesConsumed = availableShares > vars.remainingShares ? vars.remainingShares : availableShares;
-//
-//            vars.lastIndex = vars.currentIndex;
-//            vars.lastSharesConsumed = sharesConsumed;
-//            vars.remainingShares -= sharesConsumed;
-//
-//            vars.costBasis += sharesConsumed * entry.price / (10 ** vars.decimals);
-//
-//            if (sharesConsumed == availableShares) {
-//                unchecked {
-//                    ++vars.currentIndex;
-//                }
-//            }
-//        }
-//
-//        ledger.entries[vars.lastIndex].amountSharesAvailableToConsume -= vars.lastSharesConsumed;
-//        userLedger[user][yieldSource].unconsumedEntries = vars.currentIndex;
-//
-//        uint256 profit = amountAssets > vars.costBasis ? amountAssets - vars.costBasis : 0;
-//
-//        if (profit > 0) {
-//            if (config.feePercent == 0) revert FEE_NOT_SET();
-//
-//            feeAmount = (profit * config.feePercent) / 10_000;
-//        }
-//    }
 }
