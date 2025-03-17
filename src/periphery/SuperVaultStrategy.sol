@@ -367,7 +367,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
                 uint256 outAmount = ISuperHookResult(hooks[i]).outAmount();
 
-                yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
+                uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(vars.targetedYieldSource, address(this), outAmount);
+
+                yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
             }
 
             // Update prevHook for next iteration
