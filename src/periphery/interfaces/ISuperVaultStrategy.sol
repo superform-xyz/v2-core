@@ -43,6 +43,7 @@ interface ISuperVaultStrategy {
     error INVALID_EMERGENCY_ADMIN();
     error VAULT_THRESHOLD_EXCEEDED();
     error INCOMPLETE_DEPOSIT_MATCH();
+    error SUPER_VAULT_CAP_EXCEEDED();
     error RESIZED_ARRAY_LENGTH_ERROR();
     error INVALID_PERIPHERY_REGISTRY();
     error CANNOT_CHANGE_TOTAL_ASSETS();
@@ -54,6 +55,7 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
     error DEPOSIT_FAILURE_INVALID_TARGET();
+    error INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -63,13 +65,13 @@ interface ISuperVaultStrategy {
         address indexed manager,
         address indexed strategist,
         address emergencyAdmin,
-        GlobalConfig config
+        uint256 superVaultCap
     );
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceDeactivated(address indexed source);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
     event YieldSourceReactivated(address indexed source);
-    event GlobalConfigUpdated(uint256 vaultCap, uint256 superVaultCap, uint256 vaultThreshold);
+    event SuperVaultCapUpdated(uint256 superVaultCap);
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
@@ -79,18 +81,11 @@ interface ISuperVaultStrategy {
     event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
-    event HooksExecuted(address[] hooks, uint256 initialBalance, uint256 finalBalance);
+    event HooksExecuted(address[] hooks);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
-
-    struct GlobalConfig {
-        uint256 vaultCap; // Maximum assets per individual yield source
-        uint256 superVaultCap; // Maximum total assets across all yield sources
-        uint256 vaultThreshold; // Minimum TVL of a yield source that can be interacted with
-    }
-
     struct FeeConfig {
         uint256 performanceFeeBps; // Fee in basis points
         address recipient; // Fee recipient address
@@ -245,9 +240,9 @@ interface ISuperVaultStrategy {
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Update global configuration
-    /// @param config New global configuration
-    function updateGlobalConfig(GlobalConfig calldata config) external;
+    /// @notice Update super vault cap
+    /// @param superVaultCap New super vault cap
+    function updateSuperVaultCap(uint256 superVaultCap) external;
 
     /// @notice Manage yield sources: add, update oracle, and toggle activation.
     /// @param source Address of the yield source.
@@ -306,8 +301,8 @@ interface ISuperVaultStrategy {
         view
         returns (bytes32 hookRoot, bytes32 proposedHookRoot, uint256 hookRootEffectiveTime);
 
-    /// @notice Get the global and fee configurations
-    function getConfigInfo() external view returns (GlobalConfig memory globalConfig, FeeConfig memory feeConfig);
+    /// @notice Get the super vault cap and fee configurations
+    function getConfigInfo() external view returns (uint256 superVaultCap, FeeConfig memory feeConfig);
 
     /// @notice Get total assets managed by the strategy
     /// @return totalAssets_ Total assets across all yield sources and idle assets

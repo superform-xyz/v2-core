@@ -205,3 +205,40 @@ jobs:
           echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
           cat ./script/output/10/Optimism-latest.json | jq . >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  coverage:
+    runs-on: SuperformCore3
+    needs: ["test"]
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Install Foundry dependencies"
+        run: forge install
+
+      - name: "Install pnpm"
+        run: npm install -g pnpm
+
+      - name: "Install ModuleKit"
+        working-directory: ./lib/modulekit
+        run: pnpm install
+
+      - name: "Generate the coverage report using unit and integration tests"
+        run: "make coverage"
+
+      - name: "Upload coverage report to Codecov"
+        uses: "codecov/codecov-action@v5"
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: "./lcov.info"
+
+      - name: "Add coverage summary"
+        run: |
+          echo "## Coverage result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Uploaded to Codecov" >> $GITHUB_STEP_SUMMARY

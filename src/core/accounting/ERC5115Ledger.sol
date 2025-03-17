@@ -5,10 +5,10 @@ import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { BaseLedger } from "./BaseLedger.sol";
 
-/// @title ERC1155Ledger
+/// @title ERC5115Ledger
 /// @author Superform Labs
 /// @notice 5115 vaults ledger implementation
-contract ERC1155Ledger is BaseLedger {
+contract ERC5115Ledger is BaseLedger {
     constructor(address registry_) BaseLedger(registry_) { }
 
     /*//////////////////////////////////////////////////////////////

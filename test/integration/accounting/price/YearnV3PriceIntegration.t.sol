@@ -270,8 +270,8 @@ contract YearnV3PriceIntegration is BaseE2ETest {
     {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_4626_VAULT_HOOK_KEY);
-        hooksData[0] = _createWithdraw4626HookData(
+        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false, false
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

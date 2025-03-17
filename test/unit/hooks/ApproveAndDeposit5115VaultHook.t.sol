@@ -34,7 +34,7 @@ contract ApproveAndDeposit5115VaultHook is BaseTest {
 
         underlyingETH_sUSDe = existingUnderlyingTokens[ETH][SUSDE_KEY];
 
-        yieldSource5115AddressSUSDe = realVaultAddresses[ETH][ERC5115_VAULT_KEY][PENDLE_ETHEANA_KEY][SUSDE_KEY];
+        yieldSource5115AddressSUSDe = realVaultAddresses[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY];
 
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
 

@@ -45,12 +45,11 @@ abstract contract Constants {
     string public constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string public constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string public constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
-    string public constant WITHDRAW_4626_VAULT_HOOK_KEY = "Withdraw4626VaultHook";
     string public constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
     string public constant DEPOSIT_5115_VAULT_HOOK_KEY = "Deposit5115VaultHook";
-    string public constant WITHDRAW_5115_VAULT_HOOK_KEY = "Withdraw5115VaultHook";
+    string public constant REDEEM_5115_VAULT_HOOK_KEY = "Redeem5115VaultHook";
     string public constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
-    string public constant REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY = "RequestWithdraw7540VaultHook";
+    string public constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
     string public constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string public constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
@@ -77,13 +76,14 @@ abstract contract Constants {
     string public constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
     string public constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string public constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
-
+    string public constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
+    string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
     string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
-    string public constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
+    string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
@@ -103,6 +103,7 @@ abstract contract Constants {
     string public constant USDC_KEY = "USDC";
     string public constant WETH_KEY = "WETH";
     string public constant SUSDE_KEY = "SUSDe";
+    string public constant USDE_KEY = "USDe";
     string public constant USDCe_KEY = "USDCe";
     string public constant GEAR_KEY = "GEAR";
 
@@ -142,7 +143,7 @@ abstract contract Constants {
     string public constant MORPHO_GAUNTLET_USDC_PRIME_KEY = "MorphoGauntletUSDCPrime";
     string public constant MORPHO_GAUNTLET_WETH_CORE_KEY = "MorphoGauntletWETHCore";
     string public constant ERC7540FullyAsync_KEY = "ERC7540FullyAsync";
-    string public constant PENDLE_ETHEANA_KEY = "PendleEthena";
+    string public constant PENDLE_ETHENA_KEY = "PendleEthena";
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_ID";
     string public constant PERIPHERY_REGISTRY_ID = "PERIPHERY_REGISTRY_ID";
