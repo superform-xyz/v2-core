@@ -327,8 +327,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         vars.inflowTargets = new address[](vars.hooksLength);
 
-        uint256 assetBalanceBefore = _getTokenBalance(address(_asset), address(this));
-
         // Process each hook in sequence
         for (uint256 i = 0; i < vars.hooksLength; ++i) {
             // Validate hook via periphery registry
@@ -365,14 +363,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Call postExecute to update outAmount tracking
             vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
 
-            uint256 assetBalanceAfter = _getTokenBalance(address(_asset), address(this));
-            uint256 assetBalanceChange = assetBalanceAfter - assetBalanceBefore;
-
             // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield source's assets in transit
-            if (assetBalanceChange > 0) {
-                if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
-                    yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetBalanceChange;
-                }
+            if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
+                uint256 outAmount = ISuperHookResult(hooks[i]).outAmount();
+
+                yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
             }
 
             // Update prevHook for next iteration
@@ -414,13 +409,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             if (yieldSources[source].isActive) {
                 // Add yield source's TVL to total assets
                 uint256 tvl = _getTvlByOwnerOfShares(source);
-                totalAssets_ += tvl;
-                sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
-
-                // Add assets in two-step yield sources to total assets
-                if (yieldSourceAssetsInTransit[source] > 0) {
-                    totalAssets_ += yieldSourceAssetsInTransit[source];
-                }
+                totalAssets_ += tvl + yieldSourceAssetsInTransit[source];
+                sourceTVLs[activeSourceCount++] = 
+                YieldSourceTVL({ source: source, tvl: tvl + yieldSourceAssetsInTransit[source] });
             }
         }
 
@@ -1076,8 +1067,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             // Get hook type
             ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
 
-            if (hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[execVars.target].isActive) {
-                yieldSourceAssetsInTransit[execVars.target] -= outAmount;
+            if (hookType == ISuperHook.HookType.OUTFLOW) {
+                if (yieldSourceAssetsInTransit[execVars.target] > outAmount) {
+                    yieldSourceAssetsInTransit[execVars.target] -= outAmount;
+                }
             }
         }
 
