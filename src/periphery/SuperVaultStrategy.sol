@@ -692,7 +692,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
-        state.pendingDepositRequest = vars.requestedAmount - vars.spentAmount;
+        state.pendingDepositRequest = vars.requestedAmount >= vars.spentAmount ? vars.requestedAmount - vars.spentAmount : 0;
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
@@ -709,7 +709,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
 
         state.sharePricePointCursor = lastConsumedIndex;
-        state.pendingRedeemRequest = state.pendingRedeemRequest - vars.spentAmount;
+        state.pendingRedeemRequest = state.pendingRedeemRequest >= vars.spentAmount ? state.pendingRedeemRequest - vars.spentAmount : 0;
 
         state.maxWithdraw += finalAssets;
 
@@ -955,7 +955,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
             } else {
                 (locals.amount, locals.hookTarget, locals.outAmount) =
-                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
+                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
 
             if (expectedAssetsOrSharesOut[i] == 0) revert INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
@@ -1029,7 +1029,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
-        bytes memory hookCalldata
+        bytes memory hookCalldata,
+        uint256 pricePerShare
     )
         private
         returns (uint256 amount, address target, uint256 outAmount)
@@ -1038,6 +1039,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
+
+        // Calculate underlying shares and update hook calldata
+        execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
+
+        execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
+            .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
+
+        hookCalldata =
+            ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
         if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
