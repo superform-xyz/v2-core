@@ -692,7 +692,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
-        state.pendingDepositRequest = 0;
+        state.pendingDepositRequest = vars.requestedAmount - vars.spentAmount;
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
