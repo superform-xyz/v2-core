@@ -83,12 +83,12 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
         // assert price per share
         // Ledger test no more relevant
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            superLedger.getLedger(nexusAccount, address(yearnVault));
-//        assertEq(entries.length, 1);
-//        assertEq(entries[0].price, pricePerShareOne);
-//        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-//        assertEq(unconsumedEntries, 0);
+        //        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+        //            superLedger.getLedger(nexusAccount, address(yearnVault));
+        //        assertEq(entries.length, 1);
+        //        assertEq(entries[0].price, pricePerShareOne);
+        //        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
+        //        assertEq(unconsumedEntries, 0);
 
         // re-execute the same entrypoint
         _getTokens(underlying, nexusAccount, amount);
@@ -99,13 +99,13 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
         // assert price per share
         // Ledger test no more relevant
-//        (entries, unconsumedEntries) = superLedger.getLedger(nexusAccount, address(yearnVault));
-//        assertEq(entries.length, 2);
-//        assertEq(entries[0].price, pricePerShareOne);
-//        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-//        assertEq(entries[1].price, pricePerShareTwo);
-//        assertEq(entries[1].amountSharesAvailableToConsume, sharesTwo);
-//        assertEq(unconsumedEntries, 0);
+        //        (entries, unconsumedEntries) = superLedger.getLedger(nexusAccount, address(yearnVault));
+        //        assertEq(entries.length, 2);
+        //        assertEq(entries[0].price, pricePerShareOne);
+        //        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
+        //        assertEq(entries[1].price, pricePerShareTwo);
+        //        assertEq(entries[1].amountSharesAvailableToConsume, sharesTwo);
+        //        assertEq(unconsumedEntries, 0);
     }
 
     function test_ValidateFees_ForPartialWithdrawal_Yearn() public {
@@ -293,13 +293,13 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         // Ledger test no more relevant
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            superLedger.getLedger(nexusAccount, address(yearnVault));
-//
-//        assertEq(entries.length, expectedEntriesCount);
-//        assertEq(entries[entries.length - 1].price, pricePerShare);
-//        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, shares);
-//        assertEq(unconsumedEntries, 0);
+        //        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+        //            superLedger.getLedger(nexusAccount, address(yearnVault));
+        //
+        //        assertEq(entries.length, expectedEntriesCount);
+        //        assertEq(entries[entries.length - 1].price, pricePerShare);
+        //        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, shares);
+        //        assertEq(unconsumedEntries, 0);
     }
 
     function _executeAndValidateWithdraw(
@@ -313,11 +313,11 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         // Ledger test no more relevant
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            superLedger.getLedger(nexusAccount, address(yearnVault));
-//
-//        assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
-//        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
+        //        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+        //            superLedger.getLedger(nexusAccount, address(yearnVault));
+        //
+        //        assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
+        //        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
     }
 
     function _mockPricePerShareDouble() private {

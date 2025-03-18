@@ -228,9 +228,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         internal
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
-        return _deployVault(
-            address(asset), SUPER_VAULT_CAP, BOOTSTRAP_AMOUNT, _superVaultSymbol
-        );
+        return _deployVault(address(asset), SUPER_VAULT_CAP, BOOTSTRAP_AMOUNT, _superVaultSymbol);
     }
 
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {

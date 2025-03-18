@@ -112,7 +112,7 @@ import "forge-std/console.sol";
 
 struct Addresses {
     ISuperLedger superLedger;
-//    ISuperLedger superLedgerOptimizedAvg;
+    //    ISuperLedger superLedgerOptimizedAvg;
     ISuperLedger erc1155Ledger;
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
@@ -236,7 +236,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     bool constant DEBUG = false;
 
-
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
@@ -358,9 +357,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A[i].superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A[i].superLedger);
 
-//            A[i].superLedgerOptimizedAvg = ISuperLedger(address(new SuperLedgerOptimizedAVG(address(A[i].superLedgerConfiguration))));
-//            vm.label(address(A[i].superLedger), SUPER_LEDGER_OPTIMIZED_AVG_KEY);
-//            contractAddresses[chainIds[i]][SUPER_LEDGER_OPTIMIZED_AVG_KEY] = address(A[i].superLedgerOptimizedAvg);
+            //            A[i].superLedgerOptimizedAvg = ISuperLedger(address(new
+            // SuperLedgerOptimizedAVG(address(A[i].superLedgerConfiguration))));
+            //            vm.label(address(A[i].superLedger), SUPER_LEDGER_OPTIMIZED_AVG_KEY);
+            //            contractAddresses[chainIds[i]][SUPER_LEDGER_OPTIMIZED_AVG_KEY] =
+            // address(A[i].superLedgerOptimizedAvg);
 
             A[i].erc1155Ledger = ISuperLedger(address(new ERC5115Ledger(address(A[i].superLedgerConfiguration))));
             vm.label(address(A[i].erc1155Ledger), ERC1155_LEDGER_KEY);
@@ -558,8 +559,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].requestRedeem7540VaultHook =
                 new RequestRedeem7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
             vm.label(address(A[i].requestRedeem7540VaultHook), REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][REQUEST_REDEEM_7540_VAULT_HOOK_KEY] =
-                address(A[i].requestRedeem7540VaultHook);
+            hookAddresses[chainIds[i]][REQUEST_REDEEM_7540_VAULT_HOOK_KEY] = address(A[i].requestRedeem7540VaultHook);
             hooks[chainIds[i]][REQUEST_REDEEM_7540_VAULT_HOOK_KEY] = Hook(
                 REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
@@ -637,9 +637,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
 
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY),
-                address(this),
-                SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
             vm.label(address(A[i].acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =

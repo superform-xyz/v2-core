@@ -230,7 +230,8 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             "Shares not transferred to escrow"
         );
 
-        (uint256 recipientFee, uint256 superformFee) = _deriveSuperVaultFees(userShares, _getGearSuperVaultPricePerShare());
+        (uint256 recipientFee, uint256 superformFee) =
+            _deriveSuperVaultFees(userShares, _getGearSuperVaultPricePerShare());
 
         // Step 5: Fulfill Redeem
         _fulfillRedeem_Gearbox_SV();

@@ -28,7 +28,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
     using ExecutionLib for *;
     using Math for uint256;
 
-
     struct NewYieldSourceVars {
         uint256 depositAmount;
         uint256 initialFluidVaultBalance;
@@ -55,7 +54,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         uint256 initialPendleVaultPPS;
         uint256 initialMockVaultPPS;
     }
-
 
     function test_gasReport_RequestRedeem() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
@@ -110,7 +108,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
 
         _completeDepositFlow(vars.depositAmount);
     }
-
 
     function test_gasReport_ThreeVaults_Fulfill_And_Rebalance() public {
         NewYieldSourceVars memory vars;

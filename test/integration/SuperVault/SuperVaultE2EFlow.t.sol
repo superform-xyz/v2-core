@@ -103,9 +103,9 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Check final ledger state
         // Ledger checks no more relevant
-//        (ISuperLedger.LedgerEntry[] memory entries,) = superLedgerETH.getLedger(accountEth, address(vault));
-//
-//        assertEq(entries.length, 1, "Should have one ledger entry");
+        //        (ISuperLedger.LedgerEntry[] memory entries,) = superLedgerETH.getLedger(accountEth, address(vault));
+        //
+        //        assertEq(entries.length, 1, "Should have one ledger entry");
         // Shares are not consumed here because the SuperVault is the target and AccountingOutflow is skipped
     }
 
@@ -166,24 +166,25 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
             superLedgerETH.getLedger(accountEth, address(vault));
 
         // This calculates expected fees using FIFO so no more relevant
-//        uint256 expectedLedgerFee = _deriveExpectedFee(
-//            FeeParams({
-//                entries: entries,
-//                unconsumedEntries: unconsumedEntries,
-//                amountAssets: claimableAssets,
-//                usedShares: userShares,
-//                feePercent: 100,
-//                decimals: 6
-//            })
-//        );
+        //        uint256 expectedLedgerFee = _deriveExpectedFee(
+        //            FeeParams({
+        //                entries: entries,
+        //                unconsumedEntries: unconsumedEntries,
+        //                amountAssets: claimableAssets,
+        //                usedShares: userShares,
+        //                feePercent: 100,
+        //                decimals: 6
+        //            })
+        //        );
 
-        uint256 expectedLedgerFee = superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, userShares, 100);
+        uint256 expectedLedgerFee =
+            superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, userShares, 100);
 
         // Step 6: Claim Withdraw
         _claimWithdraw(claimableAssets);
 
         // Hardcoded value calculate used FIFO account which should match since remaining shares = 0 in this test
-//        expectedLedgerFee = 464455;
+        //        expectedLedgerFee = 464455;
 
         uint256 totalFee = superformFee + recipientFee + expectedLedgerFee;
         console.log("Test total fee", totalFee);
@@ -200,8 +201,8 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Check final ledger state
         // Legder checks no more releva
-//        (entries,) = superLedgerETH.getLedger(accountEth, address(vault));
-//        assertEq(entries.length, 1, "Should have one ledger entry");
-//        assertEq(entries[0].amountSharesAvailableToConsume, 0, "Shares should be consumed");
+        //        (entries,) = superLedgerETH.getLedger(accountEth, address(vault));
+        //        assertEq(entries.length, 1, "Should have one ledger entry");
+        //        assertEq(entries[0].amountSharesAvailableToConsume, 0, "Shares should be consumed");
     }
 }
