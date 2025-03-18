@@ -709,7 +709,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
 
         state.sharePricePointCursor = lastConsumedIndex;
-        state.pendingRedeemRequest = 0;
+        state.pendingRedeemRequest = state.pendingRedeemRequest - vars.spentAmount;
 
         state.maxWithdraw += finalAssets;
 
@@ -1039,14 +1039,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
 
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
-        // Calculate underlying shares and update hook calldata
-        execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
-
-        execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
-            .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
-
-        hookCalldata =
-            ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
         if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
