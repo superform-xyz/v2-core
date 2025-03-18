@@ -164,7 +164,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         Operation operation
     )
         external
-        whenNotPaused
         returns (uint256 assetsOrSharesOut)
     {
         if (operation == Operation.DepositRequest) {
@@ -194,7 +193,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         uint256[] memory expectedAssetsOrSharesOut,
         bool isDeposit
     )
-        external 
+        external
         whenNotPaused
     {
         _requireRole(STRATEGIST_ROLE);
