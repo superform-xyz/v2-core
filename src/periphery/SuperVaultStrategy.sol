@@ -968,9 +968,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
             ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
         }
 
-        // Verify hook spent assets or SuperVault shares in full
-        if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
-
         // Resize array to actual count if needed
         if (locals.targetedSourcesCount < locals.hooksLength) {
             // Create new array with actual count and copy elements
