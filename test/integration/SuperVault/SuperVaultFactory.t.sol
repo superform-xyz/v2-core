@@ -10,8 +10,7 @@ import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaul
 contract SuperVaultFactoryTest is BaseSuperVaultTest {
     function test_DeployVault() public {
         // Deploy a new vault
-        (address vaultAddr, address strategyAddr, address escrowAddr) =
-            _deployVault(address(asset), 5_000_000e6, 1e6, "SV");
+        (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(address(asset), 5_000_000e6, "SV");
         // Verify addresses are not zero
         assertTrue(vaultAddr != address(0), "Vault address should not be zero");
         assertTrue(strategyAddr != address(0), "Strategy address should not be zero");
@@ -51,7 +50,6 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
             (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(
                 address(asset),
                 5_000_000e6, // superVaultCap
-                1e6, // bootstrapAmount
                 symbols[i] // symbol
             );
 
@@ -80,16 +78,8 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                vaultThreshold: 100_000e6,
-                bootstrapAmount: 1e6,
-                symbol: "TV",
-                initHooksRoot: bytes32(0),
-                initYieldSource: address(0),
-                bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHookCalldata,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+                symbol: "TV"
             })
         );
 
@@ -102,16 +92,8 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                vaultThreshold: 100_000e6,
-                bootstrapAmount: 1e6,
-                symbol: "TV",
-                initHooksRoot: bytes32(0),
-                initYieldSource: address(0),
-                bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHookCalldata,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+                symbol: "TV"
             })
         );
 
@@ -124,16 +106,8 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 strategist: address(0),
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                vaultThreshold: 100_000e6,
-                bootstrapAmount: 1e6,
-                symbol: "TV",
-                initHooksRoot: bytes32(0),
-                initYieldSource: address(0),
-                bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHookCalldata,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+                symbol: "TV"
             })
         );
 
@@ -146,16 +120,8 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: address(0),
                 feeRecipient: TREASURY,
-                vaultCap: 1_000_000e6,
                 superVaultCap: 5_000_000e6,
-                vaultThreshold: 100_000e6,
-                bootstrapAmount: 1e6,
-                symbol: "TV",
-                initHooksRoot: bytes32(0),
-                initYieldSource: address(0),
-                bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHookCalldata,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+                symbol: "TV"
             })
         );
     }
@@ -170,16 +136,8 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         address strategist;
         address emergencyAdmin;
         address feeRecipient;
-        uint256 vaultCap;
         uint256 superVaultCap;
-        uint256 vaultThreshold;
-        uint256 bootstrapAmount;
         string symbol;
-        bytes32 initHooksRoot;
-        address initYieldSource;
-        address[] bootstrappingHooks;
-        bytes[] bootstrappingHookCalldata;
-        uint256[] expectedAssetsOrSharesOut;
     }
 
     function _createVault(VaultCreationParams memory params)
@@ -195,14 +153,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
                 strategist: params.strategist,
                 emergencyAdmin: params.emergencyAdmin,
                 feeRecipient: params.feeRecipient,
-                superVaultCap: params.superVaultCap,
-                bootstrapAmount: params.bootstrapAmount,
-                initYieldSource: params.initYieldSource,
-                initHooksRoot: params.initHooksRoot,
-                initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-                bootstrappingHooks: params.bootstrappingHooks,
-                bootstrappingHookCalldata: params.bootstrappingHookCalldata,
-                expectedAssetsOrSharesOut: params.expectedAssetsOrSharesOut
+                superVaultCap: params.superVaultCap
             })
         );
     }
