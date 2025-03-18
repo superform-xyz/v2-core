@@ -11,6 +11,7 @@ import { SuperLedgerConfiguration } from "./SuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 import "forge-std/console.sol";
 
@@ -19,6 +20,7 @@ import "forge-std/console.sol";
 /// @notice Base ledger contract for managing user ledger entries
 abstract contract BaseLedger is ISuperLedger {
     using SafeERC20 for IERC20;
+    using Math for uint256;
 
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
 
@@ -122,8 +124,8 @@ abstract contract BaseLedger is ISuperLedger {
         if(usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
 
         // avgEntryPrice = accumulatorCostBasis / accumulatorShares
-        // TODO: Adjust precision?
-        costBasis = accumulatorCostBasis * usedShares / accumulatorShares;
+//        costBasis = accumulatorCostBasis * usedShares / accumulatorShares;
+        costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
     }
 
     function _calculateAvgCostBasis(
@@ -292,7 +294,8 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
         if (profit > 0) {
             if (feePercent == 0) revert FEE_NOT_SET();
-            feeAmount = (profit * feePercent) / 10_000;
+//            feeAmount = (profit * feePercent) / 10_000;
+            feeAmount = Math.mulDiv(profit, feePercent, 10_000);
         }
     }
 
