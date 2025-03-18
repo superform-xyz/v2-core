@@ -55,7 +55,7 @@ contract DeBridgeReceiveFundsAndExecuteGateway {
     //////////////////////////////////////////////////////////////*/
     function claim(DeBridgeClaimData[] memory batch, PackedUserOperation[] memory userOps) external {
         uint256 len = batch.length;
-        for (uint256 i; i < len;) {
+        for (uint256 i; i < len; ++i) {
             DeBridgeClaimData memory claimData = batch[i];
 
             IDeBridgeGate(deBridgeGate).claim(
@@ -70,9 +70,6 @@ contract DeBridgeReceiveFundsAndExecuteGateway {
             emit GatewayClaimed(
                 claimData.debridgeId, claimData.amount, claimData.chainIdFrom, claimData.receiver, claimData.nonce
             );
-            unchecked {
-                ++i;
-            }
         }
 
         IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler);

@@ -17,7 +17,7 @@ import {
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title Withdraw4626VaultHook
+/// @title Redeem4626VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
@@ -26,7 +26,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract Withdraw4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract Redeem4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;

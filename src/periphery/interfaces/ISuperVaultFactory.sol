@@ -43,7 +43,7 @@ interface ISuperVaultFactory {
         address emergencyAdmin;
         address feeRecipient;
         // Strategy configuration
-        ISuperVaultStrategy.GlobalConfig config;
+        uint256 superVaultCap;
         uint256 bootstrapAmount;
         // Initialization parameters
         address initYieldSource;
@@ -66,7 +66,7 @@ interface ISuperVaultFactory {
         address[] bootstrappingHooks;
         bytes[] bootstrappingHookCalldata;
         uint256[] expectedAssetsOrSharesOut;
-        ISuperVaultStrategy.GlobalConfig config;
+        uint256 superVaultCap;
         uint256 bootstrapAmount;
     }
 

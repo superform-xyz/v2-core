@@ -79,7 +79,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
             address(this),
             params.emergencyAdmin,
             peripheryRegistry,
-            params.config,
+            params.superVaultCap,
             params.initYieldSource,
             params.initHooksRoot,
             params.initYieldSourceOracle
@@ -96,7 +96,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
                 bootstrappingHooks: params.bootstrappingHooks,
                 bootstrappingHookCalldata: params.bootstrappingHookCalldata,
                 expectedAssetsOrSharesOut: params.expectedAssetsOrSharesOut,
-                config: params.config,
+                superVaultCap: params.superVaultCap,
                 bootstrapAmount: params.bootstrapAmount
             })
         );
@@ -134,12 +134,9 @@ contract SuperVaultFactory is ISuperVaultFactory {
         vars.hookCount = params.bootstrappingHooks.length;
 
         // Only core hooks are allowed to be used for bootstrapping
-        for (uint256 i; i < vars.hookCount;) {
+        for (uint256 i; i < vars.hookCount; ++i) {
             if (!IPeripheryRegistry(peripheryRegistry).isHookRegistered(params.bootstrappingHooks[i])) {
                 revert HOOK_NOT_REGISTERED();
-            }
-            unchecked {
-                ++i;
             }
         }
 
