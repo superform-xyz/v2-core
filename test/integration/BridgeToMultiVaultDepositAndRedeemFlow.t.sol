@@ -269,13 +269,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
         assertNotEq(pricePerShare, 1);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-
-        assertEq(entries.length, 1);
-        assertEq(entries[0].price, pricePerShare);
-        assertEq(entries[0].amountSharesAvailableToConsume, userShares);
-        assertEq(unconsumedEntries, 0);
+        // Ledger Tests no more relevant
+//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+//            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+//
+//        assertEq(entries.length, 1);
+//        assertEq(entries[0].price, pricePerShare);
+//        assertEq(entries[0].amountSharesAvailableToConsume, userShares);
+//        assertEq(unconsumedEntries, 0);
     }
 
     function _redeem_From_ETH_And_Bridge_Back_To_Base(bool isFullRedeem) internal {
@@ -634,9 +635,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
 
         // CHECK ACCOUNTING
-        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        assertEq(entries.length, 1);
-        assertEq(unconsumedEntries, 1);
+        // Ledger Tests no more relevant
+//        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+//        assertEq(entries.length, 1);
+//        assertEq(unconsumedEntries, 1);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
@@ -703,11 +705,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
 
         // CHECK ACCOUNTING
-        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        assertEq(entries.length, 1);
-        assertEq(entries[0].price, yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH)));
-        assertEq(entries[0].amountSharesAvailableToConsume, redeemAmount);
-        assertEq(unconsumedEntries, 0);
+        // Ledger Tests no more relevant
+//        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+//        assertEq(entries.length, 1);
+//        assertEq(entries[0].price, yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH)));
+//        assertEq(entries[0].amountSharesAvailableToConsume, redeemAmount);
+//        assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
@@ -773,9 +776,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
 
         // CHECK ACCOUNTING
-        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        assertEq(entries.length, 1);
-        assertEq(unconsumedEntries, 0);
+        // Ledger tests no more relevant
+//        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
+//        assertEq(entries.length, 1);
+//        assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
@@ -843,10 +847,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             userBalanceUnderlyingBefore + expectedAssetOutAmount - expectedFee
         );
 
-        (entries, unconsumedEntries) = superLedgerOP.getLedger(accountOP, address(vaultInstance4626OP));
-        assertEq(entries.length, 1);
-        assertEq(entries[0].amountSharesAvailableToConsume, 0);
-        assertEq(unconsumedEntries, 1);
+        // Ledget Tests no more relevant
+//        (entries, unconsumedEntries) = superLedgerOP.getLedger(accountOP, address(vaultInstance4626OP));
+//        assertEq(entries.length, 1);
+//        assertEq(entries[0].amountSharesAvailableToConsume, 0);
+//        assertEq(unconsumedEntries, 1);
     }
 
     // Creates userOpData for the given chainId

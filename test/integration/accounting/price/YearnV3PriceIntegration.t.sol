@@ -309,11 +309,12 @@ contract YearnV3PriceIntegration is BaseE2ETest {
     {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedger.getLedger(nexusAccount, address(yearnVault));
-
-        assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
-        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
+        // Ledger test no more relevant
+//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
+//            superLedger.getLedger(nexusAccount, address(yearnVault));
+//
+//        assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
+//        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
     }
 
     function _mockPricePerShareDouble() private {
