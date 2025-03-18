@@ -7,6 +7,8 @@ import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 // superform
 import { ISuperVault } from "src/periphery/interfaces/ISuperVault.sol";
@@ -25,7 +27,6 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
     /*//////////////////////////////////////////////////////////////
                         DEPOSIT FLOW TESTS
     //////////////////////////////////////////////////////////////*/
-
     function test_RequestDeposit() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
         _requestDeposit(depositAmount);
@@ -52,6 +53,68 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertGt(strategy.getSuperVaultState(accountEth, 1), 0, "No shares available to mint");
     }
 
+    function test_FulfillDeposit_NotAllowedWhenPaused() public {
+        uint256 depositAmount = 1000e6; // 1000 USDC
+
+        // Setup deposit request first
+        _requestDeposit(depositAmount);
+
+       
+        // Verify request state
+        assertEq(strategy.pendingDepositRequest(accountEth), depositAmount, "Wrong pending deposit amount");
+        console2.log("Pending deposit request:", strategy.pendingDepositRequest(accountEth));
+
+        vm.startPrank(MANAGER);
+        strategy.pause();
+        vm.stopPrank();
+        
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountEth;
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+
+        // Split the deposit between two hooks
+        uint256 halfAmount = depositAmount / 2;
+        fulfillHooksData[0] =
+            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), halfAmount, false, false);
+
+        fulfillHooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount - halfAmount, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(fluidVault)).convertToShares(halfAmount);
+        expectedAssetsOrSharesOut[1] = IERC4626(address(aaveVault)).convertToShares(depositAmount - halfAmount);
+
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
+        vm.stopPrank();
+
+        // unpause
+        vm.startPrank(MANAGER);
+        strategy.unpause();
+        vm.stopPrank();
+
+        vm.startPrank(STRATEGIST);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
+        vm.stopPrank();
+
+        assertEq(strategy.pendingDepositRequest(accountEth), 0, "Pending request not cleared");
+        assertGt(strategy.getSuperVaultState(accountEth, 1), 0, "No shares available to mint");
+    }
+
+
+
     function test_FulfillRedeem_FullAmountWithThreshold() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
@@ -70,7 +133,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         assertGt(strategy.getSuperVaultState(accountEth, 2), 0, "No assets available to withdraw");
     }
 
-    function test_FulfillRedeem_FullAmountX() public {
+    function test_FulfillRedeem_FullAmount() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
         // First setup a deposit and claim it
