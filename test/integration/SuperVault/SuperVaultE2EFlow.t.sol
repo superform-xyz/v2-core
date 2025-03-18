@@ -165,22 +165,25 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedgerETH.getLedger(accountEth, address(vault));
 
-        uint256 expectedLedgerFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: claimableAssets,
-                usedShares: userShares,
-                feePercent: 100,
-                decimals: 6
-            })
-        );
+        // This calculates expected fees using FIFO so no more relevant
+//        uint256 expectedLedgerFee = _deriveExpectedFee(
+//            FeeParams({
+//                entries: entries,
+//                unconsumedEntries: unconsumedEntries,
+//                amountAssets: claimableAssets,
+//                usedShares: userShares,
+//                feePercent: 100,
+//                decimals: 6
+//            })
+//        );
+
+        uint256 expectedLedgerFee = superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, userShares, 100);
 
         // Step 6: Claim Withdraw
         _claimWithdraw(claimableAssets);
 
         // Hardcoded value calculate used FIFO account which should match since remaining shares = 0 in this test
-        expectedLedgerFee = 464455;
+//        expectedLedgerFee = 464455;
 
         uint256 totalFee = superformFee + recipientFee + expectedLedgerFee;
         console.log("Test total fee", totalFee);
