@@ -115,8 +115,8 @@ abstract contract BaseLedger is ISuperLedger {
         address user,
         address yieldSource,
         uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        uint256 usedShares
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) internal view returns (uint256 costBasis) {
         uint256 accumulatorShares = usersAccumulatorShares[user];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user];
@@ -132,10 +132,10 @@ abstract contract BaseLedger is ISuperLedger {
         address user,
         address yieldSource,
         uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        uint256 usedShares
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) internal returns (uint256 costBasis) {
-        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares, config);
+        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares);
         console.log("_calculateAvgCostBasis() costBasis", costBasis);
 
         usersAccumulatorShares[user] -= usedShares;
@@ -146,22 +146,24 @@ abstract contract BaseLedger is ISuperLedger {
         address user,
         address yieldSource,
         uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        uint256 usedShares
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) virtual public view
     returns (uint256 costBasis) {
-        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares, config);
+            costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares
+//                config
+            );
     }
 
     function _calculateCostBasis(
         address user,
         address yieldSource,
         uint256 amountAssets,
-        uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        uint256 usedShares
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) virtual internal
     returns (uint256 costBasis) {
-        costBasis = _calculateAvgCostBasis(user, yieldSource, amountAssets, usedShares, config);
+        costBasis = _calculateAvgCostBasis(user, yieldSource, amountAssets, usedShares);
     }
 
 
@@ -304,10 +306,11 @@ abstract contract BaseLedger is ISuperLedger {
         address yieldSource,
         uint256 amountAssets,
         uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        uint256 feePercent
+//        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) public view returns(uint256 feeAmount) {
-        uint256 costBasis = calculateCostBasisView(user, yieldSource, amountAssets, usedShares, config);
-        feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+        uint256 costBasis = calculateCostBasisView(user, yieldSource, amountAssets, usedShares);
+        feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
 
 
@@ -366,7 +369,7 @@ abstract contract BaseLedger is ISuperLedger {
     virtual
     internal
     returns (uint256 feeAmount) {
-        uint256 costBasis = _calculateCostBasis(user, yieldSource, amountAssets, usedShares, config);
+        uint256 costBasis = _calculateCostBasis(user, yieldSource, amountAssets, usedShares);
             feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
     }
 }

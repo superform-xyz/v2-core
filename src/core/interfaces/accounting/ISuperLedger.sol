@@ -96,4 +96,15 @@ interface ISuperLedger is ISuperLedgerData {
     )
         external
         returns (uint256 feeAmount);
+
+    function previewFees(
+        address user,
+        address yieldSource,
+        uint256 amountAssets,
+        uint256 usedShares,
+        uint256 feePercent
+    )
+        external
+        view
+        returns (uint256);
 }
