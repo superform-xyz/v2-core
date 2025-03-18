@@ -615,16 +615,27 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
 
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: userExpectedAssets,
-                usedShares: userShares,
-                feePercent: 100,
-                decimals: 6
-            })
+//        uint256 expectedFee = _deriveExpectedFee(
+//            FeeParams({
+//                entries: entries,
+//                unconsumedEntries: unconsumedEntries,
+//                amountAssets: userExpectedAssets,
+//                usedShares: userShares,
+//                feePercent: 100,
+//                decimals: 6
+//            })
+//        );
+
+        ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        uint256 expectedFee = ledger.previewFees(
+            accountETH,
+            yieldSource7540AddressETH_USDC,
+            userExpectedAssets,
+            userShares,
+            100
         );
+
+
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerData.AccountingOutflow(
@@ -685,15 +696,24 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
 
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: userExpectedAssets,
-                usedShares: redeemAmount,
-                feePercent: 100,
-                decimals: 6
-            })
+//        uint256 expectedFee = _deriveExpectedFee(
+//            FeeParams({
+//                entries: entries,
+//                unconsumedEntries: unconsumedEntries,
+//                amountAssets: userExpectedAssets,
+//                usedShares: redeemAmount,
+//                feePercent: 100,
+//                decimals: 6
+//            })
+//        );
+
+        ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        uint256 expectedFee = ledger.previewFees(
+            accountETH,
+            yieldSource7540AddressETH_USDC,
+            userExpectedAssets,
+            redeemAmount,
+            100
         );
 
         vm.expectEmit(true, true, true, true);
@@ -758,15 +778,24 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
 
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: assetsOut,
-                usedShares: expectedSharesAvailableToConsume,
-                feePercent: 100,
-                decimals: 6
-            })
+//        uint256 expectedFee = _deriveExpectedFee(
+//            FeeParams({
+//                entries: entries,
+//                unconsumedEntries: unconsumedEntries,
+//                amountAssets: assetsOut,
+//                usedShares: expectedSharesAvailableToConsume,
+//                feePercent: 100,
+//                decimals: 6
+//            })
+//        );
+
+        ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        uint256 expectedFee = ledger.previewFees(
+            accountETH,
+            yieldSource7540AddressETH_USDC,
+            assetsOut,
+            expectedSharesAvailableToConsume,
+            100
         );
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
@@ -822,15 +851,24 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY)).getLedger(accountOP, yieldSource4626AddressOP_USDCe);
 
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: expectedAssetOutAmount,
-                usedShares: userExpectedShareDelta,
-                feePercent: 100,
-                decimals: 6
-            })
+//        uint256 expectedFee = _deriveExpectedFee(
+//            FeeParams({
+//                entries: entries,
+//                unconsumedEntries: unconsumedEntries,
+//                amountAssets: expectedAssetOutAmount,
+//                usedShares: userExpectedShareDelta,
+//                feePercent: 100,
+//                decimals: 6
+//            })
+//        );
+
+        ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
+        uint256 expectedFee = ledger.previewFees(
+            accountOP,
+            yieldSource4626AddressOP_USDCe,
+            expectedAssetOutAmount,
+            userExpectedShareDelta,
+            100
         );
 
         vm.expectEmit(true, true, true, true);
