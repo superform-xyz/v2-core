@@ -635,6 +635,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             100
         );
 
+        console2.log("Expected Fees = ", expectedFee);
+
 
 
         vm.expectEmit(true, true, true, true);
