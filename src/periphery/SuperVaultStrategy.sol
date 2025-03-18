@@ -955,7 +955,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
                 locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
             } else {
                 (locals.amount, locals.hookTarget, locals.outAmount) =
-                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
+                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
             }
 
             if (expectedAssetsOrSharesOut[i] == 0) revert INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
@@ -1029,8 +1029,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy {
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
-        bytes memory hookCalldata,
-        uint256 pricePerShare
+        bytes memory hookCalldata
     )
         private
         returns (uint256 amount, address target, uint256 outAmount)
