@@ -118,9 +118,8 @@ abstract contract BaseLedger is ISuperLedger {
     ) internal view returns (uint256 costBasis) {
         uint256 accumulatorShares = usersAccumulatorShares[user];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user];
-
-        // TODO: Check if this is a good error message
-        if(usedShares > accumulatorShares) revert("INSUFFICIENT_SHARES");
+        
+        if(usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
 
         // avgEntryPrice = accumulatorCostBasis / accumulatorShares
         // TODO: Adjust precision?
