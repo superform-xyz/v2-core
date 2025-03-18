@@ -13,7 +13,7 @@ import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISu
 
 // Superform contracts
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { SuperLedgerOptimizedAVG } from "../src/core/accounting/SuperLedgerOptimizedAVG.sol";
+//import { SuperLedgerOptimizedAVG } from "../src/core/accounting/SuperLedgerOptimizedAVG.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
@@ -112,7 +112,7 @@ import "forge-std/console.sol";
 
 struct Addresses {
     ISuperLedger superLedger;
-    ISuperLedger superLedgerOptimizedAvg;
+//    ISuperLedger superLedgerOptimizedAvg;
     ISuperLedger erc1155Ledger;
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
@@ -358,9 +358,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A[i].superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A[i].superLedger);
 
-            A[i].superLedgerOptimizedAvg = ISuperLedger(address(new SuperLedgerOptimizedAVG(address(A[i].superLedgerConfiguration))));
-            vm.label(address(A[i].superLedger), SUPER_LEDGER_OPTIMIZED_AVG_KEY);
-            contractAddresses[chainIds[i]][SUPER_LEDGER_OPTIMIZED_AVG_KEY] = address(A[i].superLedgerOptimizedAvg);
+//            A[i].superLedgerOptimizedAvg = ISuperLedger(address(new SuperLedgerOptimizedAVG(address(A[i].superLedgerConfiguration))));
+//            vm.label(address(A[i].superLedger), SUPER_LEDGER_OPTIMIZED_AVG_KEY);
+//            contractAddresses[chainIds[i]][SUPER_LEDGER_OPTIMIZED_AVG_KEY] = address(A[i].superLedgerOptimizedAvg);
 
             A[i].erc1155Ledger = ISuperLedger(address(new ERC5115Ledger(address(A[i].superLedgerConfiguration))));
             vm.label(address(A[i].erc1155Ledger), ERC1155_LEDGER_KEY);
