@@ -151,30 +151,9 @@ contract DeployV2 is Script, Configuration {
         _setConfiguration(env, saltNamespace);
         console2.log("Deploying on chainId: ", chainId);
 
+        _deployDeployer();
+
         // deploy contracts
-        ISuperDeployer deployer = _getDeployer();
-        console2.log("is configured deployer address 0", address(deployer) == address(0));
-        console2.log("is configured deployer code length 0", address(deployer).code.length == 0);
-        if (address(deployer) == address(0) || address(deployer).code.length == 0) {
-            bool isAlreadyDeployed;
-
-            bytes32 salt = "SuperformSuperDeployer.v1.0.5";
-            address expectedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
-            console2.log("SuperDeployer expected address:", expectedAddr);
-            if (expectedAddr.code.length > 0) {
-                console2.log("SuperDeployer already deployed at:", expectedAddr);
-                isAlreadyDeployed = true;
-            }
-            if (!isAlreadyDeployed) {
-                SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
-                console2.log("SuperDeployer deployed at:", address(superDeployer));
-
-                configuration.deployer = address(superDeployer);
-            }
-        }
-
-        console2.log("deployer address", configuration.deployer);
-
         _deploy(chainId);
 
         // Configure contracts
@@ -184,15 +163,18 @@ contract DeployV2 is Script, Configuration {
         _setupSuperLedgerConfiguration(chainId);
     }
 
-    function _getDeployer() internal view returns (ISuperDeployer deployer) {
-        return ISuperDeployer(configuration.deployer);
+    function _deployDeployer() internal {
+        address superDeployer =
+            address(new SuperDeployer{ salt: __getSalt(configuration.owner, configuration.deployer, SUPER_DEPLOYER_KEY) }());
+        console2.log("SuperDeployer deployed at:", superDeployer);
+        configuration.deployer = superDeployer;
     }
 
     function _deploy(uint64 chainId) internal {
         DeployedContracts memory deployedContracts;
 
         // retrieve deployer
-        ISuperDeployer deployer = _getDeployer();
+        ISuperDeployer deployer = ISuperDeployer(configuration.deployer);
 
         // Deploy SuperRegistry
         deployedContracts.superRegistry = __deployContract(
