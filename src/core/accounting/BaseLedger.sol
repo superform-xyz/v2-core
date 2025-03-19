@@ -106,7 +106,9 @@ abstract contract BaseLedger is ISuperLedger {
         virtual
     {
         usersAccumulatorShares[user] += amountShares;
-        usersAccumulatorCostBasis[user] += amountShares * pps / (10 ** decimals);
+//        usersAccumulatorCostBasis[user] += amountShares * pps / (10 ** decimals);
+        usersAccumulatorCostBasis[user] += Math.mulDiv(amountShares, pps, 10 ** decimals);
+
     }
 
     function _calculateAvgCostBasisView(
@@ -115,7 +117,6 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 amountAssets,
         uint256 usedShares
     )
-        //        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
         internal
         view
         returns (uint256 costBasis)
@@ -125,8 +126,6 @@ abstract contract BaseLedger is ISuperLedger {
 
         if (usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
 
-        // avgEntryPrice = accumulatorCostBasis / accumulatorShares
-        //        costBasis = accumulatorCostBasis * usedShares / accumulatorShares;
         costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
     }
 
@@ -136,7 +135,6 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 amountAssets,
         uint256 usedShares
     )
-        //        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
         internal
         returns (uint256 costBasis)
     {
@@ -155,7 +153,6 @@ abstract contract BaseLedger is ISuperLedger {
     )
         public
         view
-        //        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
         virtual
         returns (uint256 costBasis)
     {

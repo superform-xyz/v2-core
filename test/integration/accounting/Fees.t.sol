@@ -88,14 +88,6 @@ contract FeesTest is BaseTest {
 
         uint256 pricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(address(vaultInstance));
         uint256 shares = vaultInstance.previewDeposit(amount);
-
-        // Ledger Tests no more relevant
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            superLedger.getLedger(account, address(vaultInstance));
-//        assertEq(entries.length, 1);
-//        assertEq(entries[entries.length - 1].price, pricePerShare);
-//        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, shares);
-//        assertEq(unconsumedEntries, 0);
     }
 
     function test_MultipleDepositsAndPartialWithdrawal_Fees() external {
@@ -259,12 +251,6 @@ contract FeesTest is BaseTest {
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         executeOp(userOpData);
 
-        // Ledger tests no more relevant
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            superLedger.getLedger(account, address(vaultInstance));
-//        assertEq(entries.length, 1);
-//        assertEq(unconsumedEntries, 0);
-
         // set pps to 2$ and assure vault has enough assets
         MockAccountingVault(yieldSourceAddress).setCustomPps(2e18);
         _getTokens(underlying, address(vaultInstance), LARGE);
@@ -299,9 +285,5 @@ contract FeesTest is BaseTest {
         // profit should be 1% of SMALL*2 ( = amount*2)
         assertEq(feeBalanceAfter - feeBalanceBefore, amount * 100 / 10_000);
 
-        // Ledger tests no more relevant
-//        (entries, unconsumedEntries) = superLedger.getLedger(account, address(vaultInstance));
-//        assertEq(entries.length, 1);
-//        assertEq(unconsumedEntries, 1);
     }
 }

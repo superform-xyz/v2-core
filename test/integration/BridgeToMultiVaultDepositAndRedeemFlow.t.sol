@@ -269,14 +269,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
         assertNotEq(pricePerShare, 1);
 
-        // Ledger Tests no more relevant
-        //        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-        //            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        //
-        //        assertEq(entries.length, 1);
-        //        assertEq(entries[0].price, pricePerShare);
-        //        assertEq(entries[0].amountSharesAvailableToConsume, userShares);
-        //        assertEq(unconsumedEntries, 0);
     }
 
     function _redeem_From_ETH_And_Bridge_Back_To_Base(bool isFullRedeem) internal {
@@ -615,17 +607,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
 
-        //        uint256 expectedFee = _deriveExpectedFee(
-        //            FeeParams({
-        //                entries: entries,
-        //                unconsumedEntries: unconsumedEntries,
-        //                amountAssets: userExpectedAssets,
-        //                usedShares: userShares,
-        //                feePercent: 100,
-        //                decimals: 6
-        //            })
-        //        );
-
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
             ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, userShares, 100);
@@ -690,17 +671,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
-
-        //        uint256 expectedFee = _deriveExpectedFee(
-        //            FeeParams({
-        //                entries: entries,
-        //                unconsumedEntries: unconsumedEntries,
-        //                amountAssets: userExpectedAssets,
-        //                usedShares: redeemAmount,
-        //                feePercent: 100,
-        //                decimals: 6
-        //            })
-        //        );
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
@@ -768,17 +738,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
 
-        //        uint256 expectedFee = _deriveExpectedFee(
-        //            FeeParams({
-        //                entries: entries,
-        //                unconsumedEntries: unconsumedEntries,
-        //                amountAssets: assetsOut,
-        //                usedShares: expectedSharesAvailableToConsume,
-        //                feePercent: 100,
-        //                decimals: 6
-        //            })
-        //        );
-
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
             accountETH, yieldSource7540AddressETH_USDC, assetsOut, expectedSharesAvailableToConsume, 100
@@ -836,17 +795,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY)).getLedger(accountOP, yieldSource4626AddressOP_USDCe);
-
-        //        uint256 expectedFee = _deriveExpectedFee(
-        //            FeeParams({
-        //                entries: entries,
-        //                unconsumedEntries: unconsumedEntries,
-        //                amountAssets: expectedAssetOutAmount,
-        //                usedShares: userExpectedShareDelta,
-        //                feePercent: 100,
-        //                decimals: 6
-        //            })
-        //        );
 
         ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
