@@ -20,7 +20,7 @@ import "forge-std/console.sol";
 /// @notice Base ledger contract for managing user ledger entries
 abstract contract BaseLedger is ISuperLedger {
     using SafeERC20 for IERC20;
-    using Math for uint256;
+//    using Math for uint256;
 
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
 
@@ -109,6 +109,11 @@ abstract contract BaseLedger is ISuperLedger {
 //        usersAccumulatorCostBasis[user] += amountShares * pps / (10 ** decimals);
         usersAccumulatorCostBasis[user] += Math.mulDiv(amountShares, pps, 10 ** decimals);
 
+    }
+
+    function _getOutflowProcessVolume(uint256 amountSharesOrAssets, uint256 usedShares, uint256 pps, uint8 decimals) internal pure virtual returns(uint256 amountAssets)
+    {
+        return amountSharesOrAssets;
     }
 
     function _calculateAvgCostBasisView(
@@ -347,9 +352,10 @@ abstract contract BaseLedger is ISuperLedger {
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
+        // Get price from oracle
+        uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+
         if (isInflow) {
-            // Get price from oracle
-            uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
             if (pps == 0) revert INVALID_PRICE();
 
             // Always inscribe in the ledger, even if feePercent is set to 0
@@ -369,7 +375,10 @@ abstract contract BaseLedger is ISuperLedger {
         } else {
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
-                feeAmount = _processOutflow(user, yieldSource, amountSharesOrAssets, usedShares, config);
+
+                uint256 amountAssets = _getOutflowProcessVolume(amountSharesOrAssets, usedShares, pps, IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource));
+
+                feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
