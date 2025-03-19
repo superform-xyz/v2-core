@@ -35,6 +35,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     error ALREADY_INITIALIZED();
 
     mapping(address => bool) private _initialized;
+    mapping(address => address) private accountOwners;
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -51,17 +52,24 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         return typeID == TYPE_VALIDATOR;
     }
 
+    function getAccountOwner(address account) external view returns (address) {
+        return accountOwners[account];
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {
+    function onInstall(bytes calldata data) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
+        address owner = abi.decode(data, (address));
+        accountOwners[msg.sender] = owner;
     }
 
     function onUninstall(bytes calldata) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
+        delete accountOwners[msg.sender];
     }
 
     /// @notice Validate a user operation
@@ -93,6 +101,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         // Validate
         bool isValid =
             _isSignatureValid(signer, userOpData.sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
+
         return _packValidationData(!isValid, sigData.validUntil, 0);
     }
 
@@ -155,16 +164,14 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         view
         returns (address signer, bytes32 leaf)
     {
-        // Create leaf
-        leaf = _createLeaf(userOpData, sigData.validUntil);
 
         // Verify leaf and root are valid
+        leaf = _createLeaf(userOpData, sigData.validUntil);
         if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // Create message hash
+        // Get signer
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
     }
 
@@ -193,9 +200,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     }
 
     function _createLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(
-            abi.encode(userOpData.callData, userOpData.gasFees, userOpData.sender, userOpData.nonce, validUntil, block.chainid, userOpData.initCode)
-        );
+        return keccak256(bytes.concat(keccak256(abi.encode(userOpData.callData, userOpData.gasFees, userOpData.sender, userOpData.nonce, validUntil, block.chainid, userOpData.initCode))));
     }
 
     function _createMessageHash(bytes32 merkleRoot) private pure returns (bytes32) {
@@ -216,9 +221,9 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     {
         if (proof.length == 0) return false;
         if (leaf == merkleRoot) return false;
-        
+
         // Verify merkle proof
         bool isValid = MerkleProof.verify(proof, merkleRoot, leaf);
-        return isValid && signer == sender && validUntil >= block.timestamp;
+        return isValid && signer == accountOwners[sender] && validUntil >= block.timestamp;
     }
 }
