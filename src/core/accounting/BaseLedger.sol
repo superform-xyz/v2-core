@@ -76,18 +76,18 @@ abstract contract BaseLedger is ISuperLedger {
 
     }
 
-    function _getOutflowProcessVolume(uint256 amountSharesOrAssets, uint256 usedShares, uint256 pps, uint8 decimals) internal pure virtual returns(uint256 amountAssets)
+    function _getOutflowProcessVolume(uint256 amountSharesOrAssets, uint256 , uint256 , uint8) internal pure virtual returns(uint256)
     {
         return amountSharesOrAssets;
     }
 
-    function _calculateAvgCostBasisView(
+    function calculateCostBasisView(
         address user,
         address yieldSource,
         uint256 amountAssets,
         uint256 usedShares
     )
-        internal
+        public
         view
         returns (uint256 costBasis)
     {
@@ -99,35 +99,6 @@ abstract contract BaseLedger is ISuperLedger {
         costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
     }
 
-    function _calculateAvgCostBasis(
-        address user,
-        address yieldSource,
-        uint256 amountAssets,
-        uint256 usedShares
-    )
-        internal
-        returns (uint256 costBasis)
-    {
-        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares);
-
-        usersAccumulatorShares[user] -= usedShares;
-        usersAccumulatorCostBasis[user] -= costBasis;
-    }
-
-    function calculateCostBasisView(
-        address user,
-        address yieldSource,
-        uint256 amountAssets,
-        uint256 usedShares
-    )
-        public
-        view
-        virtual
-        returns (uint256 costBasis)
-    {
-        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares);
-    }
-
     function _calculateCostBasis(
         address user,
         address yieldSource,
@@ -135,11 +106,40 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 usedShares
     )
         internal
-        virtual
         returns (uint256 costBasis)
     {
-        costBasis = _calculateAvgCostBasis(user, yieldSource, amountAssets, usedShares);
+        costBasis = calculateCostBasisView(user, yieldSource, amountAssets, usedShares);
+
+        usersAccumulatorShares[user] -= usedShares;
+        usersAccumulatorCostBasis[user] -= costBasis;
     }
+
+//    function calculateCostBasisView(
+//        address user,
+//        address yieldSource,
+//        uint256 amountAssets,
+//        uint256 usedShares
+//    )
+//        public
+//        view
+//        virtual
+//        returns (uint256 costBasis)
+//    {
+//        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares);
+//    }
+
+//    function _calculateCostBasis(
+//        address user,
+//        address yieldSource,
+//        uint256 amountAssets,
+//        uint256 usedShares
+//    )
+//        internal
+//        virtual
+//        returns (uint256 costBasis)
+//    {
+//        costBasis = _calculateAvgCostBasis(user, yieldSource, amountAssets, usedShares);
+//    }
 
 
     //////////////////// Fees ////////////////////
@@ -156,7 +156,6 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
         if (profit > 0) {
             if (feePercent == 0) revert FEE_NOT_SET();
-            //            feeAmount = (profit * feePercent) / 10_000;
             feeAmount = Math.mulDiv(profit, feePercent, 10_000);
         }
     }

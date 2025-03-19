@@ -12,7 +12,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 contract ERC5115Ledger is BaseLedger {
     constructor(address registry_) BaseLedger(registry_) { }
 
-    function _getOutflowProcessVolume(uint256 amountSharesOrAssets, uint256 usedShares, uint256 pps, uint8 decimals) internal pure override returns(uint256 amountAssets)
+    function _getOutflowProcessVolume(uint256, uint256 usedShares, uint256 pps, uint8 decimals) internal pure override returns(uint256)
     {
         return Math.mulDiv(usedShares, pps, 10 ** decimals);
     }
