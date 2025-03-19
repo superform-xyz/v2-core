@@ -5,6 +5,7 @@ pragma solidity >=0.8.28;
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -62,10 +63,14 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view { }
+    function preExecute(address, address account, bytes memory data) external { 
+        outAmount = _getBalance(account, data);
+    }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view { }
+    function postExecute(address, address account, bytes memory data) external { 
+        outAmount = outAmount - _getBalance(account, data);
+    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -77,5 +82,9 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+    }
+
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+        return IERC20(IERC7540(data.extractYieldSource()).share()).balanceOf(account);
     }
 }

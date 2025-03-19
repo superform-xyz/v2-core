@@ -87,6 +87,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     // Claimed tokens tracking
     mapping(address token => uint256 amount) public claimedTokens;
 
+    // Track assets in transit from vault to two-step yield sources
+    mapping(address yieldSource => uint256 assetsInTransit) private yieldSourceAssetsInTransit;
+
     IPeripheryRegistry private peripheryRegistry;
 
     function _requireVault() internal view {
@@ -322,11 +325,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Call preExecute to initialize outAmount tracking
             vars.hookContract.preExecute(vars.prevHook, address(this), hookCalldata[i]);
 
+            // Extract targeted yield source from hook calldata
+            vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
             if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
-                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
                 if (!yieldSources[vars.targetedYieldSource].isActive) {
                     revert YIELD_SOURCE_NOT_ACTIVE();
                 }
@@ -344,10 +349,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Call postExecute to update outAmount tracking
             vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
 
+            // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
+            // source's assets in transit
+            if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
+                uint256 outAmount = ISuperHookResult(hooks[i]).outAmount();
+
+                uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(
+                    vars.targetedYieldSource, address(this), outAmount
+                );
+
+                yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
+            }
+
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
         }
-
         // Resize array if needed
         if (vars.inflowCount < vars.hooksLength && vars.inflowCount > 0) {
             vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
@@ -382,9 +398,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         for (uint256 i; i < length; ++i) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
+                // Add yield source's TVL to total assets
                 uint256 tvl = _getTvlByOwnerOfShares(source);
-                totalAssets_ += tvl;
-                sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvl });
+                totalAssets_ += tvl + yieldSourceAssetsInTransit[source];
+                sourceTVLs[activeSourceCount++] =
+                    YieldSourceTVL({ source: source, tvl: tvl + yieldSourceAssetsInTransit[source] });
             }
         }
 
@@ -1035,6 +1053,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
         outAmount = execVars.balanceAssetAfter - execVars.balanceAssetBefore;
+
+        if (outAmount > 0) {
+            // Get hook type
+            ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
+
+            if (hookType == ISuperHook.HookType.OUTFLOW || hookType == ISuperHook.HookType.NONACCOUNTING) {
+                if (yieldSourceAssetsInTransit[execVars.target] >= outAmount) {
+                    yieldSourceAssetsInTransit[execVars.target] -= outAmount;
+                }
+            }
+        }
 
         return (execVars.amount, outAmount);
     }
