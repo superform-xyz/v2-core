@@ -8,7 +8,12 @@ import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol"
 import { IStakedUSDeCooldown } from "../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookNonAccounting
+} from "../../../src/core/interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
 
 /// @title EthenaCooldownSharesHook
@@ -18,7 +23,7 @@ import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookNonAccounting {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -58,15 +63,16 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
         });
     }
 
+    /// @inheritdoc ISuperHookNonAccounting
     /// @notice Returns the outAmount of shares
     /// @return outAmount The outAmount of shares
     function shareOutAmount() external view returns (uint256) {
         return outAmount;
     }
 
-    /// @notice Returns the outAmount of assets
+    /// @inheritdoc ISuperHookNonAccounting
     /// @return This hook does not return assets, so we revert
-    function assetOutAmount() external view returns (uint256) {
+    function assetOutAmount() external pure returns (uint256) {
         revert();
     }
 
@@ -74,7 +80,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external { 
+    function preExecute(address, address account, bytes memory data) external {
         outAmount = _getSharesBalance(account, data);
     }
 

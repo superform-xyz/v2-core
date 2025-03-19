@@ -68,18 +68,6 @@ contract EthenaUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISu
         });
     }
 
-    /// @notice Returns the outAmount of shares
-    /// @dev This hook does not return shares, so we revert
-    function shareOutAmount() external view returns (uint256) {
-        revert();
-    }
-
-    /// @notice Returns the outAmount of assets
-    /// @return outAmount The outAmount of assets
-    function assetOutAmount() external view returns (uint256) {
-        return outAmount;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

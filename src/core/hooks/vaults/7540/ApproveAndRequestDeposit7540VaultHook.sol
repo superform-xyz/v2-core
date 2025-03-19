@@ -8,8 +8,13 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookNonAccounting
+} from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title ApproveAndRequestDeposit7540VaultHook
@@ -20,7 +25,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-contract ApproveAndRequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract ApproveAndRequestDeposit7540VaultHook is
+    BaseHook,
+    ISuperHook,
+    ISuperHookInflowOutflow,
+    ISuperHookNonAccounting
+{
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -67,12 +77,13 @@ contract ApproveAndRequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHo
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
-    /// @notice Returns the outAmount of shares
+    /// @inheritdoc ISuperHookNonAccounting
     /// @dev This hook does not return shares, so we revert
-    function shareOutAmount() external view returns (uint256) {
+    function shareOutAmount() external pure returns (uint256) {
         revert();
     }
 
+    /// @inheritdoc ISuperHookNonAccounting
     /// @notice Returns the outAmount of assets
     /// @return outAmount The outAmount of assets
     function assetOutAmount() external view returns (uint256) {

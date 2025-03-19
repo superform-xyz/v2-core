@@ -9,13 +9,13 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookNonAccounting } from "../../../interfaces/ISuperHook.sol";
 
 /// @title FluidClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
+contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, ISuperHookNonAccounting {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -38,15 +38,16 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
         return _build(stakingRewards, abi.encodeCall(IFluidLendingStakingRewards.getReward, ()));
     }
 
+    /// @inheritdoc ISuperHookNonAccounting
     /// @notice Returns the outAmount of shares
     /// @return outAmount The outAmount of shares
     function shareOutAmount() external view returns (uint256) {
         return outAmount;
     }
 
-    /// @notice Returns the outAmount of assets
+    /// @inheritdoc ISuperHookNonAccounting
     /// @dev This hook does not return assets, so we revert
-    function assetOutAmount() external view returns (uint256) {
+    function assetOutAmount() external pure returns (uint256) {
         revert();
     }
 

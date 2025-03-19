@@ -9,7 +9,12 @@ import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol"
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookNonAccounting
+} from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title RequestRedeem7540VaultHook
@@ -19,7 +24,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookNonAccounting {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -59,15 +64,16 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
         });
     }
 
+    /// @inheritdoc ISuperHookNonAccounting
     /// @notice Returns the outAmount of shares
     /// @return outAmount The outAmount of shares
     function shareOutAmount() external view returns (uint256) {
         return outAmount;
     }
 
-    /// @notice Returns the outAmount of assets
+    /// @inheritdoc ISuperHookNonAccounting
     /// @dev This hook does not return assets, so we revert
-    function assetOutAmount() external view returns (uint256) {
+    function assetOutAmount() external pure returns (uint256) {
         revert();
     }
 
@@ -75,12 +81,12 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external { 
+    function preExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external { 
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = outAmount - _getBalance(account, data);
     }
 
