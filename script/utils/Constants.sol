@@ -25,7 +25,6 @@ abstract contract Constants {
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
     string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
-    string internal constant MOCK_VALIDATOR_MODULE_KEY = "MockValidatorModule";
 
     string internal constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
     string internal constant SUPER_POSITION_ID = "SUPER_POSITION_ID";
@@ -131,6 +130,8 @@ abstract contract Constants {
     string internal constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
+    string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";

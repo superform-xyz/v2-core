@@ -79,7 +79,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 sharesOne = yearnVault.previewDeposit(amount);
 
         // prepare data & execute through entry point
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         // assert price per share
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
@@ -91,7 +91,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
         // re-execute the same entrypoint
         _getTokens(underlying, nexusAccount, amount);
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));
         uint256 sharesTwo = yearnVault.previewDeposit(amount);
@@ -288,7 +288,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 pricePerShare = oracle.getPricePerShare(address(yearnVault));
         uint256 shares = yearnVault.previewDeposit(amount);
 
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedger.getLedger(nexusAccount, address(yearnVault));
@@ -307,7 +307,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
     )
         private
     {
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             superLedger.getLedger(nexusAccount, address(yearnVault));

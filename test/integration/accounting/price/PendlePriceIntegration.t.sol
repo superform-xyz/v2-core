@@ -84,7 +84,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 sharesOne = pendleVault.previewDeposit(underlying, amount);
 
         // prepare data & execute through entry point
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         // assert price per share
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
@@ -96,7 +96,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         // re-execute the same entrypoint
         _getTokens(underlying, nexusAccount, amount);
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         uint256 pricePerShareTwo = oracle.getPricePerShare(address(pendleVault));
         uint256 sharesTwo = pendleVault.previewDeposit(underlying, amount);
@@ -285,7 +285,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 pricePerShare = oracle.getPricePerShare(address(pendleVault));
         uint256 shares = pendleVault.previewDeposit(underlying, amount);
 
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             pendleLedger.getLedger(nexusAccount, address(pendleVault));
@@ -304,7 +304,7 @@ contract PendlePriceIntegration is BaseE2ETest {
     )
         private
     {
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
             pendleLedger.getLedger(nexusAccount, address(pendleVault));

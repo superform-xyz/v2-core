@@ -394,7 +394,6 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
 
         //bytes memory initData = _get7702InitDataWithExecutor(address(_defaultValidator), ""); 
         bytes memory initData = _get7702InitData(); 

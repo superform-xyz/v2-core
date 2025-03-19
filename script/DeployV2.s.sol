@@ -18,8 +18,7 @@ import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
-
-import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
+import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 
 // -- hooks
 // ---- | swappers
@@ -101,6 +100,7 @@ contract DeployV2 is Script, Configuration {
         address oracleRegistry;
         address peripheryRegistry;
         address superVaultFactory;
+        address superMerkleValidator;
     }
 
     struct HookAddresses {
@@ -273,15 +273,6 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        // Deploy MockValidatorModule
-        deployedContracts.mockValidatorModule = __deployContract(
-            deployer,
-            MOCK_VALIDATOR_MODULE_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, MOCK_VALIDATOR_MODULE_KEY),
-            type(MockValidatorModule).creationCode
-        );
-
         // Deploy SuperVaultFactory
         deployedContracts.superVaultFactory = __deployContract(
             deployer,
@@ -289,6 +280,15 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_FACTORY_KEY),
             abi.encodePacked(type(SuperVaultFactory).creationCode, abi.encode(deployedContracts.peripheryRegistry))
+        );
+
+        // Deploy SuperMerkleValidator
+        deployedContracts.superMerkleValidator = __deployContract(
+            deployer,
+            SUPER_MERKLE_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
+            type(SuperMerkleValidator).creationCode
         );
 
         // Deploy Hooks
