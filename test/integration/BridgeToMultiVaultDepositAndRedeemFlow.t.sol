@@ -261,7 +261,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
 
         // DEPOSIT
-        uint256 userShares = _execute7540DepositFlow(amountPerVault);
+        // TODO: Remove
+//        uint256 userShares =
+                        _execute7540DepositFlow(amountPerVault);
 
         vm.selectFork(FORKS[ETH]);
 
@@ -606,7 +608,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
-            ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, userShares, 100);
+            ledger.previewFees(accountETH,
+            // TODO: Remove
+//                yieldSource7540AddressETH_USDC,
+                userExpectedAssets, userShares, 100);
 
         console2.log("Expected Fees = ", expectedFee);
 
@@ -662,7 +667,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
-            ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, redeemAmount, 100);
+            ledger.previewFees(accountETH,
+            // TODO: Remove
+//                yieldSource7540AddressETH_USDC,
+                userExpectedAssets, redeemAmount, 100);
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerData.AccountingOutflow(
@@ -717,7 +725,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
-            accountETH, yieldSource7540AddressETH_USDC, assetsOut, expectedSharesAvailableToConsume, 100
+            accountETH,
+        // TODO: Remove
+//            yieldSource7540AddressETH_USDC,
+            assetsOut, expectedSharesAvailableToConsume, 100
         );
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
@@ -766,7 +777,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
-            accountOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, userExpectedShareDelta, 100
+            accountOP,
+        // TODO: Remove
+//            yieldSource4626AddressOP_USDCe,
+            expectedAssetOutAmount, userExpectedShareDelta, 100
         );
 
         vm.expectEmit(true, true, true, true);

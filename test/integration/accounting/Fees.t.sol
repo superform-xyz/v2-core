@@ -86,8 +86,9 @@ contract FeesTest is BaseTest {
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
         assertEq(accSharesAfter, sharesPreviewed);
 
-        uint256 pricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(address(vaultInstance));
-        uint256 shares = vaultInstance.previewDeposit(amount);
+        // TODO: Remove
+//        uint256 pricePerShare = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(address(vaultInstance));
+//        uint256 shares = vaultInstance.previewDeposit(amount);
     }
 
     function test_MultipleDepositsAndPartialWithdrawal_Fees() external {

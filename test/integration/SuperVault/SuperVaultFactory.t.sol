@@ -65,9 +65,10 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_RevertOnZeroAddresses() public {
-        address[] memory bootstrapHooks;
-        bytes[] memory bootstrapHookCalldata;
-        uint256[] memory expectedAssetsOrSharesOut;
+        // TODO: Remove
+//        address[] memory bootstrapHooks;
+//        bytes[] memory bootstrapHookCalldata;
+//        uint256[] memory expectedAssetsOrSharesOut;
 
         // Test with zero asset address
         vm.expectRevert(ISuperVaultFactory.ZERO_ADDRESS.selector);
