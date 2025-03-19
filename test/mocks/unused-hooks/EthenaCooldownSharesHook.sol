@@ -73,7 +73,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /// @inheritdoc ISuperHookNonAccounting
     /// @return This hook does not return assets, so we revert
     function assetOutAmount() external pure returns (uint256) {
-        revert();
+        revert OUT_AMOUNT_DISABLED();
     }
 
     /*//////////////////////////////////////////////////////////////
