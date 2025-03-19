@@ -366,7 +366,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                     try ISuperHookNonAccounting(hooks[i]).assetOutAmount() returns (uint256 outAmount) {
                         yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
                     } catch {
-                        revert INVALID_AMOUNT();
+                        revert OUT_AMOUNT_DISABLED();
                     }
                 }
             }
