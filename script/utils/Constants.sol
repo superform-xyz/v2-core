@@ -131,6 +131,8 @@ abstract contract Constants {
     string internal constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
+    string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+    
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
