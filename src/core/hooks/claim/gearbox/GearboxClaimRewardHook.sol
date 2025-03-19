@@ -47,7 +47,7 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, IS
     /// @inheritdoc ISuperHookNonAccounting
     /// @dev This hook does not return assets, so we revert
     function assetOutAmount() external pure returns (uint256) {
-        revert();
+        revert OUT_AMOUNT_DISABLED();
     }
 
     /*//////////////////////////////////////////////////////////////
