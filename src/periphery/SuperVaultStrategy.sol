@@ -107,10 +107,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         address strategist_,
         address emergencyAdmin_,
         address peripheryRegistry_,
-        uint256 superVaultCap_,
-        address initYieldSource_,
-        bytes32 initHooksRoot_,
-        address initYieldSourceOracle_
+        uint256 superVaultCap_
     )
         external
     {
@@ -134,18 +131,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
         peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
-
-        // Initialize first yield source and hook root to bootstrap the vault
-        if (initHooksRoot_ == bytes32(0)) revert INVALID_HOOK_ROOT();
-        hookRoot = initHooksRoot_;
-        emit HookRootUpdated(initHooksRoot_);
-
-        if (initYieldSourceOracle_ == address(0)) revert ZERO_ADDRESS();
-        if (initYieldSource_ == address(0)) revert ZERO_ADDRESS();
-
-        yieldSources[initYieldSource_] = YieldSource({ oracle: initYieldSourceOracle_, isActive: true });
-        yieldSourcesList.push(initYieldSource_);
-        emit YieldSourceAdded(initYieldSource_, initYieldSourceOracle_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -211,9 +196,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         /// @dev grab current PPS before processing hooks
         vars.pricePerShare = _getSuperVaultPPS();
 
-        // Process hooks and get targeted yield sources
-        address[] memory targetedYieldSources;
-        (vars, targetedYieldSources) = _processHooks(hooks, hookCalldata, vars, expectedAssetsOrSharesOut, isDeposit);
+        // Process hooks
+        vars = _processHooks(hooks, hookCalldata, vars, expectedAssetsOrSharesOut, isDeposit);
 
         // Process requests
         for (uint256 i; i < usersLength; ++i) {
@@ -927,7 +911,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     /// @param vars Fulfillment variables
     /// @param isDeposit Whether this is a deposit fulfillment
     /// @return vars Updated fulfillment variables
-    /// @return targetedYieldSources Array of yield sources targeted by inflow hooks
     function _processHooks(
         address[] calldata hooks,
         bytes[] memory hookCalldata,
@@ -936,24 +919,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         bool isDeposit
     )
         private
-        returns (FulfillmentVars memory, address[] memory)
+        returns (FulfillmentVars memory)
     {
         ProcessHooksLocalVars memory locals;
         locals.hooksLength = hooks.length;
-        // Track targeted yield sources for inflow operations
-        locals.targetedYieldSources = new address[](locals.hooksLength);
 
         // Process each hook in sequence
         for (uint256 i; i < locals.hooksLength; ++i) {
             // Process hook executions
             if (isDeposit) {
-                (locals.amount, locals.hookTarget, locals.outAmount) =
+                (locals.amount, locals.outAmount) =
                     _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
-                locals.target = locals.hookTarget;
-                // Track targeted yield source for inflow operations
-                locals.targetedYieldSources[locals.targetedSourcesCount++] = locals.target;
             } else {
-                (locals.amount, locals.hookTarget, locals.outAmount) =
+                (locals.amount, locals.outAmount) =
                     _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
 
@@ -970,17 +948,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // Verify hook spent assets or SuperVault shares in full
         if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
-        // Resize array to actual count if needed
-        if (locals.targetedSourcesCount < locals.hooksLength) {
-            // Create new array with actual count and copy elements
-            locals.resizedArray = new address[](locals.targetedSourcesCount);
-            for (uint256 i = 0; i < locals.targetedSourcesCount; i++) {
-                locals.resizedArray[i] = locals.targetedYieldSources[i];
-            }
-            locals.targetedYieldSources = locals.resizedArray;
-        }
-
-        return (vars, locals.targetedYieldSources);
+        return vars;
     }
 
     /// @notice Process inflow hook execution
@@ -988,19 +956,18 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
     /// @return amount The amount from the hook
-    /// @return target The target address from the execution
     function _processInflowHookExecution(
         address hook,
         address prevHook,
         bytes memory hookCalldata
     )
         private
-        returns (uint256 amount, address target, uint256 outAmount)
+        returns (uint256 amount, uint256 outAmount)
     {
         // Get amount before execution
         amount = _decodeHookAmount(hook, hookCalldata);
 
-        target = HookDataDecoder.extractYieldSource(hookCalldata);
+        address target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
         if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
@@ -1027,7 +994,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
     /// @return amount The amount from the hook
-    /// @return target The target address from the execution
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
@@ -1035,7 +1001,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         uint256 pricePerShare
     )
         private
-        returns (uint256 amount, address target, uint256 outAmount)
+        returns (uint256 amount, uint256 outAmount)
     {
         OutflowExecutionVars memory execVars;
 
@@ -1057,14 +1023,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // Execute hook and track balances
         _executeHook(
-            hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, address(0), execVars.amount, execVars.target
+            hook,
+            prevHook,
+            hookCalldata,
+            ISuperHook.HookType.OUTFLOW,
+            address(0),
+            execVars.amountConvertedToUnderlyingShares,
+            execVars.target
         );
 
         execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 
         outAmount = execVars.balanceAssetAfter - execVars.balanceAssetBefore;
 
-        return (execVars.amount, execVars.target, outAmount);
+        return (execVars.amount, outAmount);
     }
 
     /// @notice Prepare variables for outflow execution

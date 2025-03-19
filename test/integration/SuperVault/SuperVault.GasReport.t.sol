@@ -28,7 +28,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
     using ExecutionLib for *;
     using Math for uint256;
 
-
     struct NewYieldSourceVars {
         uint256 depositAmount;
         uint256 initialFluidVaultBalance;
@@ -55,7 +54,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         uint256 initialPendleVaultPPS;
         uint256 initialMockVaultPPS;
     }
-
 
     function test_gasReport_RequestRedeem() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
@@ -111,7 +109,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         _completeDepositFlow(vars.depositAmount);
     }
 
-
     function test_gasReport_ThreeVaults_Fulfill_And_Rebalance() public {
         NewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
@@ -125,10 +122,10 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         // add new vault as yield source
         vars.newVault = new Mock4626Vault(asset, "New Vault", "NV");
 
-        //  -- add funds to the newVault to respect VAULT_THRESHOLD
-        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        //  -- add funds to the newVault to respect LARGE_DEPOSIT
+        _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
         asset.approve(address(vars.newVault), type(uint256).max);
-        vars.newVault.deposit(2 * VAULT_THRESHOLD, address(this));
+        vars.newVault.deposit(2 * LARGE_DEPOSIT, address(this));
 
         vm.warp(block.timestamp + 20 days);
 
