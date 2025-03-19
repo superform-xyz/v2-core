@@ -4,15 +4,15 @@ pragma solidity =0.8.28;
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { SuperVaultFulfillRedeemRequestsTest } from "./SuperVault.fulfillRedeemRequests.t.sol";
 
 //external
 import "forge-std/console2.sol";
 import { AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract SuperVaultMatchRequestsTest is SuperVaultFulfillRedeemRequestsTest {
+import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
+
+contract SuperVaultMatchRequestsTest is BaseSuperVaultTest {
     function test_MatchRequests_SinglePair(uint256 amount) public {
         amount = bound(amount, 100e6, 10_000e6);
 

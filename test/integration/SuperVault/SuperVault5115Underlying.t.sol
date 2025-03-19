@@ -55,35 +55,8 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         // Get real yield sources from fork
         pendleEthena = IStandardizedYield(pendleEthenaAddress);
 
-        bytes32 hookRoot = _getMerkleRoot();
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
-        console2.log("depositHookAddress", depositHookAddress);
-
-        address[] memory bootstrapHooks = new address[](1);
-        bootstrapHooks[0] = depositHookAddress;
-
-        bytes32[][] memory bootstrapHookProofs = new bytes32[][](1);
-        bootstrapHookProofs[0] = _getMerkleProof(depositHookAddress);
-
-        bytes[] memory bootstrapHooksData = new bytes[](1);
-        bootstrapHooksData[0] = _createDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
-            pendleEthenaAddress,
-            address(asset),
-            BOOTSTRAP_AMOUNT,
-            IStandardizedYield(pendleEthenaAddress).previewDeposit(address(asset), BOOTSTRAP_AMOUNT),
-            false,
-            false
-        );
-
         vm.startPrank(SV_MANAGER);
-        deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
-        asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
 
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = pendleEthena.previewDeposit(address(asset), BOOTSTRAP_AMOUNT);
-
-        console2.log("expectedAssetsOrSharesOut", expectedAssetsOrSharesOut[0]);
         // Deploy vault trio
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
@@ -94,14 +67,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                superVaultCap: SUPER_VAULT_CAP,
-                bootstrapAmount: BOOTSTRAP_AMOUNT,
-                initYieldSource: pendleEthenaAddress,
-                initHooksRoot: hookRoot,
-                initYieldSourceOracle: _getContract(ETH, ERC5115_YIELD_SOURCE_ORACLE_KEY),
-                bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+                superVaultCap: SUPER_VAULT_CAP
             })
         );
         vm.label(vaultAddr, "SuperVaultsUSDE");
@@ -118,13 +84,20 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         // Set up hook root (same one as bootstrap, just to test)
         vm.startPrank(SV_MANAGER);
         strategy.manageYieldSource(
+            address(pendleEthenaAddress),
+            _getContract(ETH, ERC5115_YIELD_SOURCE_ORACLE_KEY),
+            0,
+            false // addYieldSource
+        );
+
+        strategy.manageYieldSource(
             CHAIN_1_SUSDE,
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
             false // addYieldSource
         );
 
-        strategy.proposeOrExecuteHookRoot(hookRoot);
+        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();

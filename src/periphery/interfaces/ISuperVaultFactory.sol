@@ -44,30 +44,6 @@ interface ISuperVaultFactory {
         address feeRecipient;
         // Strategy configuration
         uint256 superVaultCap;
-        uint256 bootstrapAmount;
-        // Initialization parameters
-        address initYieldSource;
-        bytes32 initHooksRoot;
-        address initYieldSourceOracle;
-        // Bootstrapping parameters
-        address[] bootstrappingHooks;
-        bytes[] bootstrappingHookCalldata;
-        uint256[] expectedAssetsOrSharesOut;
-    }
-
-    /// @notice Parameters for bootstrapping a vault
-    struct BootstrapParams {
-        address superVault;
-        address strategy;
-        address asset;
-        address manager;
-        address strategist;
-        address recipient;
-        address[] bootstrappingHooks;
-        bytes[] bootstrappingHookCalldata;
-        uint256[] expectedAssetsOrSharesOut;
-        uint256 superVaultCap;
-        uint256 bootstrapAmount;
     }
 
     // Local variables struct to improve readability and organization
