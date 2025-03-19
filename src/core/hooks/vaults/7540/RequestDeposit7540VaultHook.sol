@@ -67,7 +67,7 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOu
     /// @inheritdoc ISuperHookNonAccounting
     /// @dev This hook does not return shares, so we revert
     function shareOutAmount() external pure returns (uint256) {
-        revert();
+        revert OUT_AMOUNT_DISABLED();
     }
 
     /// @inheritdoc ISuperHookNonAccounting
