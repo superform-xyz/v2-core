@@ -71,7 +71,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         address hookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         bytes32[] memory proof = _getMerkleProof(hookAddress);
 
-        bytes32 leaf = keccak256(abi.encodePacked(hookAddress));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(hookAddress))));
 
         bool isValid = MerkleProof.verify(proof, hookRoot, leaf);
         assertTrue(isValid, "Merkle proof should be valid");
