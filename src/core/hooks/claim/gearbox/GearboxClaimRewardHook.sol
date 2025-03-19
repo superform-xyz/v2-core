@@ -38,6 +38,18 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
     }
 
+    /// @notice Returns the outAmount of shares
+    /// @return outAmount The outAmount of shares
+    function shareOutAmount() external view returns (uint256) {
+        return outAmount;
+    }
+
+    /// @notice Returns the outAmount of assets
+    /// @dev This hook does not return assets, so we revert
+    function assetOutAmount() external view returns (uint256) {
+        revert();
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
