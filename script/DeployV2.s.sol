@@ -20,8 +20,6 @@ import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISu
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 
-import { MockValidatorModule } from "../test/mocks/MockValidatorModule.sol";
-
 // -- hooks
 // ---- | swappers
 import { SwapOkxHook } from "../src/core/hooks/swappers/okx/SwapOkxHook.sol";
@@ -265,15 +263,6 @@ contract DeployV2 is Script, Configuration {
                 type(AcrossReceiveFundsAndExecuteGateway).creationCode,
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], ENTRY_POINT, configuration.bundler)
             )
-        );
-
-        // Deploy MockValidatorModule
-        deployedContracts.mockValidatorModule = __deployContract(
-            deployer,
-            MOCK_VALIDATOR_MODULE_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, MOCK_VALIDATOR_MODULE_KEY),
-            type(MockValidatorModule).creationCode
         );
 
         // Deploy SuperVaultFactory

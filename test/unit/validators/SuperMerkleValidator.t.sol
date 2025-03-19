@@ -270,8 +270,4 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
             address(instance.defaultValidator)
         );
     }
-
-    function _hashPair(bytes32 a, bytes32 b) private pure returns (bytes32) {
-        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
-    }
 }
