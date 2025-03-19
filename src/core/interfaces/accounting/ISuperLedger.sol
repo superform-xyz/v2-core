@@ -60,22 +60,6 @@ interface ISuperLedgerData {
 /// @notice Interface for the SuperHookRegistry contract that manages yield source hooks and their accounting
 interface ISuperLedger is ISuperLedgerData {
     /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Returns the ledger for a specific user and yield source
-    /// @param user The user address
-    /// @param yieldSource The yield source address
-    /// @return entries Array of ledger entries
-    /// @return unconsumedEntries Number of unconsumed entries
-    function getLedger(
-        address user,
-        address yieldSource
-    )
-        external
-        view
-        returns (LedgerEntry[] memory entries, uint256 unconsumedEntries);
-
-    /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Updates accounting for a user's yield source interaction
@@ -96,4 +80,14 @@ interface ISuperLedger is ISuperLedgerData {
     )
         external
         returns (uint256 feeAmount);
+
+    function previewFees(
+        address user,
+        uint256 amountAssets,
+        uint256 usedShares,
+        uint256 feePercent
+    )
+        external
+        view
+        returns (uint256);
 }

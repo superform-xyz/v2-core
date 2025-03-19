@@ -44,7 +44,6 @@ interface IPeripheryRegistry {
     /// @return True if the hook is registered, false otherwise
     function isHookRegistered(address hook_) external view returns (bool);
 
-
     /// @notice Get the current SuperVault slippage tolerance.
     /// @return The slippage tolerance in basis points (0-10000).
     function svSlippageTolerance() external view returns (uint256);
@@ -72,7 +71,6 @@ interface IPeripheryRegistry {
     /// @param isFulfillRequestsHook_ Whether this is a fulfill requests hook or a regular hook
     /// @dev Only callable by owner
     function unregisterHook(address hook_, bool isFulfillRequestsHook_) external;
-
 
     /// @dev Propose a new fee split for Superform.
     /// @param feeSplit_ The new fee split in basis points (0-10000).

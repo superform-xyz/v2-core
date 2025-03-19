@@ -74,7 +74,6 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
         }
     }
 
-
     /// @inheritdoc IPeripheryRegistry
     function unregisterHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
         if (isFulfillRequestsHook_) {
@@ -84,7 +83,8 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
             // Remove from fulfill requests hooks array
             for (uint256 i = 0; i < registeredFulfillRequestsHooks.length; i++) {
                 if (registeredFulfillRequestsHooks[i] == hook_) {
-                    registeredFulfillRequestsHooks[i] = registeredFulfillRequestsHooks[registeredFulfillRequestsHooks.length - 1];
+                    registeredFulfillRequestsHooks[i] =
+                        registeredFulfillRequestsHooks[registeredFulfillRequestsHooks.length - 1];
                     registeredFulfillRequestsHooks.pop();
                     break;
                 }
@@ -108,7 +108,6 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
             revert HOOK_NOT_REGISTERED();
         }
     }
-
 
     /// @inheritdoc IPeripheryRegistry
     function proposeFeeSplit(uint256 feeSplit_) external onlyOwner {
