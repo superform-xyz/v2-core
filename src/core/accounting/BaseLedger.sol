@@ -37,6 +37,7 @@ abstract contract BaseLedger is ISuperLedger {
         _;
     }
 
+    /// @inheritdoc ISuperLedger
     function updateAccounting(
         address user,
         address yieldSource,
@@ -51,10 +52,7 @@ abstract contract BaseLedger is ISuperLedger {
         return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
     }
 
-    function _getAddress(bytes32 id_) internal view returns (address) {
-        ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
-        return registry.getAddress(id_);
-    }
+
 
     /*//////////////////////////////////////////////////////////////
                             PRIVATE FUNCTIONS
@@ -112,7 +110,6 @@ abstract contract BaseLedger is ISuperLedger {
 
 
     //////////////////// Fees ////////////////////
-
     function _calculateFees(
         uint256 costBasis,
         uint256 amountAssets,
@@ -208,5 +205,10 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 costBasis = _calculateCostBasis(user,
             usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+    }
+
+    function _getAddress(bytes32 id_) internal view returns (address) {
+        ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
+        return registry.getAddress(id_);
     }
 }
