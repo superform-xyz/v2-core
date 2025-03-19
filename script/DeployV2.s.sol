@@ -153,6 +153,8 @@ contract DeployV2 is Script, Configuration {
 
         // deploy contracts
         ISuperDeployer deployer = _getDeployer();
+        console2.log("is configured deployer address 0", address(deployer) == address(0));
+        console2.log("is configured deployer code length 0", address(deployer).code.length == 0);
         if (address(deployer) == address(0) || address(deployer).code.length == 0) {
             bool isAlreadyDeployed;
 
@@ -170,6 +172,8 @@ contract DeployV2 is Script, Configuration {
                 configuration.deployer = address(superDeployer);
             }
         }
+
+        console2.log("deployer address", configuration.deployer);
 
         _deploy(chainId);
 
