@@ -57,8 +57,6 @@ abstract contract Configuration is Constants {
         chainNames[OP_SEPOLIA_CHAIN_ID] = OP_SEPOLIA_KEY;
 
         // common configuration
-        configuration.deployer = SUPER_DEPLOYER;
-
         if (env == 0) {
             configuration.owner = PROD_MULTISIG;
             configuration.paymaster = PROD_MULTISIG;

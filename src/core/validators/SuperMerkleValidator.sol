@@ -26,13 +26,16 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         address sender;
         uint256 nonce;
         bytes callData;
-        bytes32 accountGasLimits;
+        bytes initCode;
+        bytes32 gasFees;
     }
 
+    error INVALID_PROOF();
     error NOT_INITIALIZED();
     error ALREADY_INITIALIZED();
 
     mapping(address => bool) private _initialized;
+    mapping(address => address) private accountOwners;
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -49,24 +52,31 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         return typeID == TYPE_VALIDATOR;
     }
 
+    function getAccountOwner(address account) external view returns (address) {
+        return accountOwners[account];
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {
+    function onInstall(bytes calldata data) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
+        address owner = abi.decode(data, (address));
+        accountOwners[msg.sender] = owner;
     }
 
     function onUninstall(bytes calldata) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
+        delete accountOwners[msg.sender];
     }
 
     /// @notice Validate a user operation
     /// @param _userOp The user operation to validate
     function validateUserOp(
         PackedUserOperation calldata _userOp,
-        bytes32 _userOpHash
+        bytes32
     )
         external
         view
@@ -81,22 +91,24 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
             sender: _userOp.sender,
             nonce: _userOp.nonce,
             callData: _userOp.callData,
-            accountGasLimits: _userOp.accountGasLimits
+            initCode: _userOp.initCode,
+            gasFees: _userOp.gasFees
         });
 
         // Process signature
-        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData, _userOpHash);
+        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
 
         // Validate
         bool isValid =
             _isSignatureValid(signer, userOpData.sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
+
         return _packValidationData(!isValid, sigData.validUntil, 0);
     }
 
     /// @notice Validate a signature with sender
     function isValidSignatureWithSender(
         address sender,
-        bytes32 userOpHash,
+        bytes32,
         bytes calldata data
     )
         external
@@ -110,7 +122,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         (SignatureData memory sigData, UserOpData memory userOpData) = _decodeSignatureAndUserOpData(data, sender);
 
         // Process signature
-        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData, userOpHash);
+        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
 
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
@@ -120,7 +132,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
 
     /// @notice Validate a signature with data
     function validateSignatureWithData(
-        bytes32 userOpHash,
+        bytes32,
         bytes calldata sigDataRaw,
         bytes calldata userOpDataRaw
     )
@@ -136,7 +148,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         UserOpData memory userOpData = _decodeUserOpData(userOpDataRaw, msg.sender);
 
         // Process signature
-        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData, userOpHash);
+        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
 
         return _isSignatureValid(signer, msg.sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
     }
@@ -146,20 +158,20 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     //////////////////////////////////////////////////////////////*/
     function _processSignature(
         SignatureData memory sigData,
-        UserOpData memory userOpData,
-        bytes32 userOpHash
+        UserOpData memory userOpData
     )
         private
-        pure
+        view
         returns (address signer, bytes32 leaf)
     {
-        // Create leaf
-        leaf = _createLeaf(userOpData);
 
-        // Create message hash
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot, leaf, userOpData.sender, userOpData.nonce, sigData.validUntil, userOpHash);
+        // Verify leaf and root are valid
+        leaf = _createLeaf(userOpData, sigData.validUntil);
+        if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+
+        // Get signer
+        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
     }
 
@@ -170,9 +182,9 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     }
 
     function _decodeUserOpData(bytes memory userOpDataRaw, address sender) private pure returns (UserOpData memory) {
-        (uint256 nonce, bytes memory callData, bytes32 accountGasLimits) =
-            abi.decode(userOpDataRaw, (uint256, bytes, bytes32));
-        return UserOpData(sender, nonce, callData, accountGasLimits);
+        (uint256 nonce, bytes memory callData, bytes32 gasFees, bytes memory initCode) =
+            abi.decode(userOpDataRaw, (uint256, bytes, bytes32, bytes));
+        return UserOpData(sender, nonce, callData, initCode, gasFees);
     }
 
     function _decodeSignatureAndUserOpData(
@@ -187,25 +199,12 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         return (_decodeSignatureData(sigDataRaw), _decodeUserOpData(userOpDataRaw, sender));
     }
 
-    function _createLeaf(UserOpData memory userOpData) private pure returns (bytes32) {
-        return keccak256(
-            abi.encodePacked(userOpData.sender, userOpData.nonce, userOpData.callData, userOpData.accountGasLimits)
-        );
+    function _createLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
+        return keccak256(bytes.concat(keccak256(abi.encode(userOpData.callData, userOpData.gasFees, userOpData.sender, userOpData.nonce, validUntil, block.chainid, userOpData.initCode))));
     }
 
-    function _createMessageHash(
-        bytes32 merkleRoot,
-        bytes32 leaf,
-        address sender,
-        uint256 nonce,
-        uint48 validUntil,
-        bytes32 userOpHash
-    )
-        private
-        pure
-        returns (bytes32)
-    {
-        return keccak256(abi.encode(namespace(), merkleRoot, leaf, sender, nonce, validUntil, userOpHash));
+    function _createMessageHash(bytes32 merkleRoot) private pure returns (bytes32) {
+        return keccak256(abi.encode(namespace(), merkleRoot));
     }
 
     function _isSignatureValid(
@@ -222,9 +221,9 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     {
         if (proof.length == 0) return false;
         if (leaf == merkleRoot) return false;
-        
+
         // Verify merkle proof
         bool isValid = MerkleProof.verify(proof, merkleRoot, leaf);
-        return isValid && signer == sender && validUntil >= block.timestamp;
+        return isValid && signer == accountOwners[sender] && validUntil >= block.timestamp;
     }
 }
