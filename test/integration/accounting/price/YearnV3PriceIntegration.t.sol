@@ -81,31 +81,12 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
-        // assert price per share
-        // Ledger test no more relevant
-        //        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-        //            superLedger.getLedger(nexusAccount, address(yearnVault));
-        //        assertEq(entries.length, 1);
-        //        assertEq(entries[0].price, pricePerShareOne);
-        //        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-        //        assertEq(unconsumedEntries, 0);
-
         // re-execute the same entrypoint
         _getTokens(underlying, nexusAccount, amount);
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));
         uint256 sharesTwo = yearnVault.previewDeposit(amount);
-
-        // assert price per share
-        // Ledger test no more relevant
-        //        (entries, unconsumedEntries) = superLedger.getLedger(nexusAccount, address(yearnVault));
-        //        assertEq(entries.length, 2);
-        //        assertEq(entries[0].price, pricePerShareOne);
-        //        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-        //        assertEq(entries[1].price, pricePerShareTwo);
-        //        assertEq(entries[1].amountSharesAvailableToConsume, sharesTwo);
-        //        assertEq(unconsumedEntries, 0);
     }
 
     function test_ValidateFees_ForPartialWithdrawal_Yearn() public {
@@ -291,15 +272,6 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 shares = yearnVault.previewDeposit(amount);
 
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        // Ledger test no more relevant
-        //        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-        //            superLedger.getLedger(nexusAccount, address(yearnVault));
-        //
-        //        assertEq(entries.length, expectedEntriesCount);
-        //        assertEq(entries[entries.length - 1].price, pricePerShare);
-        //        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, shares);
-        //        assertEq(unconsumedEntries, 0);
     }
 
     function _executeAndValidateWithdraw(
@@ -311,13 +283,6 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         private
     {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        // Ledger test no more relevant
-        //        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-        //            superLedger.getLedger(nexusAccount, address(yearnVault));
-        //
-        //        assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
-        //        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
     }
 
     function _mockPricePerShareDouble() private {

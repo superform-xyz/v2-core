@@ -604,9 +604,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
-
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
             ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, userShares, 100);
@@ -663,9 +660,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
-
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
             ledger.previewFees(accountETH, yieldSource7540AddressETH_USDC, userExpectedAssets, redeemAmount, 100);
@@ -721,9 +715,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
-
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
             accountETH, yieldSource7540AddressETH_USDC, assetsOut, expectedSharesAvailableToConsume, 100
@@ -773,9 +764,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 userExpectedShareDelta = vaultInstance4626OP.convertToShares(expectedAssetOutAmount);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY)).getLedger(accountOP, yieldSource4626AddressOP_USDCe);
-
         ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
             accountOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, userExpectedShareDelta, 100
@@ -794,12 +782,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             IERC20(underlyingOP_USDCe).balanceOf(accountOP),
             userBalanceUnderlyingBefore + expectedAssetOutAmount - expectedFee
         );
-
-        // Ledget Tests no more relevant
-        //        (entries, unconsumedEntries) = superLedgerOP.getLedger(accountOP, address(vaultInstance4626OP));
-        //        assertEq(entries.length, 1);
-        //        assertEq(entries[0].amountSharesAvailableToConsume, 0);
-        //        assertEq(unconsumedEntries, 1);
     }
 
     // Creates userOpData for the given chainId

@@ -100,13 +100,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Verify fee was taken
         _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
-
-        // Check final ledger state
-        // Ledger checks no more relevant
-        //        (ISuperLedger.LedgerEntry[] memory entries,) = superLedgerETH.getLedger(accountEth, address(vault));
-        //
-        //        assertEq(entries.length, 1, "Should have one ledger entry");
-        // Shares are not consumed here because the SuperVault is the target and AccountingOutflow is skipped
     }
 
     function test_SuperVault_E2E_Flow_With_Ledger_Fees() public {
@@ -162,9 +155,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedgerETH.getLedger(accountEth, address(vault));
-
         uint256 expectedLedgerFee =
             superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, userShares, 100);
 
@@ -180,14 +170,8 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
-        (entries,) = superLedgerETH.getLedger(accountEth, address(vault));
         // Verify fee was taken
         _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
 
-        // Check final ledger state
-        // Legder checks no more releva
-        //        (entries,) = superLedgerETH.getLedger(accountEth, address(vault));
-        //        assertEq(entries.length, 1, "Should have one ledger entry");
-        //        assertEq(entries[0].amountSharesAvailableToConsume, 0, "Shares should be consumed");
     }
 }
