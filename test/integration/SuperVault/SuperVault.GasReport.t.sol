@@ -122,10 +122,10 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         // add new vault as yield source
         vars.newVault = new Mock4626Vault(asset, "New Vault", "NV");
 
-        //  -- add funds to the newVault to respect VAULT_THRESHOLD
-        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        //  -- add funds to the newVault to respect LARGE_DEPOSIT
+        _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
         asset.approve(address(vars.newVault), type(uint256).max);
-        vars.newVault.deposit(2 * VAULT_THRESHOLD, address(this));
+        vars.newVault.deposit(2 * LARGE_DEPOSIT, address(this));
 
         vm.warp(block.timestamp + 20 days);
 

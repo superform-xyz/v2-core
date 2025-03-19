@@ -76,24 +76,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         vm.label(gearboxStakingAddr, "GearboxStaking");
         gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
 
-        bytes32 hookRoot = _getMerkleRoot();
-
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory bootstrapHooks = new address[](1);
-        bootstrapHooks[0] = depositHookAddress;
-
-        bytes[] memory bootstrapHooksData = new bytes[](1);
-        bootstrapHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), BOOTSTRAP_AMOUNT, false, false
-        );
-
         vm.startPrank(SV_MANAGER);
-        deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT * 2);
-        asset.approve(address(factory), BOOTSTRAP_AMOUNT * 2);
-
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = gearboxVault.convertToShares(BOOTSTRAP_AMOUNT);
 
         // Deploy vault trio
         (address gearSuperVaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
@@ -105,14 +88,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                superVaultCap: SUPER_VAULT_CAP,
-                bootstrapAmount: BOOTSTRAP_AMOUNT,
-                initYieldSource: address(gearboxVault),
-                initHooksRoot: hookRoot,
-                initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-                bootstrappingHooks: bootstrapHooks,
-                bootstrappingHookCalldata: bootstrapHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+                superVaultCap: SUPER_VAULT_CAP
             })
         );
         vm.label(gearSuperVaultAddr, "GearSuperVault");
@@ -126,6 +102,12 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         // Add a new yield source as manager
         strategyGearSuperVault.manageYieldSource(
+            address(gearboxVault),
+            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            0,
+            false // addYieldSource
+        );
+        strategyGearSuperVault.manageYieldSource(
             gearboxStakingAddr,
             _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
             0,
@@ -135,7 +117,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         // Set up hook root (same one as bootstrap, just to test)
         vm.startPrank(SV_MANAGER);
-        strategyGearSuperVault.proposeOrExecuteHookRoot(hookRoot);
+        strategyGearSuperVault.proposeOrExecuteHookRoot(_getMerkleRoot());
         vm.warp(block.timestamp + 7 days);
         strategyGearSuperVault.proposeOrExecuteHookRoot(bytes32(0));
 

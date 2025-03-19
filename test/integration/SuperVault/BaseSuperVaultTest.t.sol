@@ -52,15 +52,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     IERC4626 public aaveVault;
 
     // Constants
-    uint256 constant VAULT_CAP = type(uint256).max;
     uint256 private constant PRECISION = 1e18;
     uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
-    uint256 constant MAX_ALLOCATION_RATE = 10_000; // 60%
-    uint256 constant VAULT_THRESHOLD = 100_000e6; // 100k USDC
+    uint256 constant LARGE_DEPOSIT = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
-
-    uint256 public constant BOOTSTRAP_AMOUNT = 1e6;
 
     struct SharePricePoint {
         /// @notice Number of shares at this price point
@@ -118,12 +114,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         vm.startPrank(SV_MANAGER);
         strategy.manageYieldSource(
+            address(fluidVault),
+            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            0,
+            false // addYieldSource
+        );
+        strategy.manageYieldSource(
             address(aaveVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
             false // addYieldSource
         );
-        /// for testing purposes
+
         strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
@@ -139,14 +141,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
      */
     struct DeployVaultVars {
         uint256 superVaultCap;
-        bytes32 hookRoot;
-        address depositHookAddress;
-        bytes32[] depositProof;
-        bytes depositHookData;
-        address[] bootstrapHooks;
-        bytes32[][] bootstrapProofs;
-        bytes[] bootstrapData;
-        uint256[] expectedAssetsOrSharesOut;
     }
 
     /**
@@ -158,34 +152,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _deployVault(
         address _asset,
         uint256 _superVaultCap,
-        uint256 _bootstrapAmount,
         string memory _superVaultSymbol
     )
         internal
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
-        DeployVaultVars memory vars;
-
-        vars.superVaultCap = _superVaultCap;
-        vars.hookRoot = _getMerkleRoot();
-        vars.depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        vars.depositProof = _getMerkleProof(vars.depositHookAddress);
-
-        // Prepare bootstrap hooks
-        vars.bootstrapHooks = new address[](1);
-        vars.bootstrapHooks[0] = vars.depositHookAddress;
-
-        vars.expectedAssetsOrSharesOut = new uint256[](1);
-        vars.expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(_bootstrapAmount);
-
-        vars.bootstrapData = new bytes[](1);
-        vars.depositHookData = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), _bootstrapAmount, false, false
-        );
-        vars.bootstrapData[0] = vars.depositHookData;
         vm.startPrank(SV_MANAGER);
-        deal(_asset, SV_MANAGER, BOOTSTRAP_AMOUNT);
-        IERC20(_asset).approve(address(factory), BOOTSTRAP_AMOUNT);
+
         // Deploy the vault trio
         (vaultAddr, strategyAddr, escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
@@ -196,14 +169,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
                 feeRecipient: TREASURY,
-                superVaultCap: vars.superVaultCap,
-                bootstrapAmount: _bootstrapAmount,
-                initYieldSource: address(fluidVault),
-                initHooksRoot: vars.hookRoot,
-                initYieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-                bootstrappingHooks: vars.bootstrapHooks,
-                bootstrappingHookCalldata: vars.bootstrapData,
-                expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
+                superVaultCap: _superVaultCap
             })
         );
 
@@ -228,7 +194,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         internal
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
-        return _deployVault(address(asset), SUPER_VAULT_CAP, BOOTSTRAP_AMOUNT, _superVaultSymbol);
+        return _deployVault(address(asset), SUPER_VAULT_CAP, _superVaultSymbol);
     }
 
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {
@@ -1197,14 +1163,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     {
         uint256 assetsToMove = targetAssets - currentAssets;
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
-
-        console2.log("_rebalanceFromVaultToVault targetAssets", targetAssets);
-        console2.log("_rebalanceFromVaultToVault currentAssets", currentAssets);
-        console2.log("_rebalanceFromVaultToVault assetsToMove", assetsToMove);
-        console2.log("_rebalanceFromVaultToVault sharesToRedeem", sharesToRedeem);
-        console2.log("Moving from", sourceVault, "to", targetVault);
-        console2.log("Assets to move:", assetsToMove);
-        console2.log("Shares to redeem:", sharesToRedeem);
 
         vm.startPrank(STRATEGIST);
         hooksData[0] = _createRedeem4626HookData(

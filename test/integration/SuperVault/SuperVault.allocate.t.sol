@@ -2,23 +2,18 @@
 pragma solidity =0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC4626 } from "forge-std/interfaces/IERC4626.sol";
 
 // superform
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-
-import { AccountInstance } from "modulekit/ModuleKit.sol";
-import { SuperVaultFulfillRedeemRequestsTest } from "./SuperVault.fulfillRedeemRequests.t.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 
 import { console2 } from "forge-std/console2.sol";
 
-contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
+import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
+
+contract SuperVaultAllocateTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -283,10 +278,10 @@ contract SuperVaultAllocateTest is SuperVaultFulfillRedeemRequestsTest {
         // add new vault as yield source
         Mock4626Vault newVault = new Mock4626Vault(asset, "New Vault", "NV");
 
-        //  -- add funds to the newVault to respect VAULT_THRESHOLD
-        _getTokens(address(asset), address(this), 2 * VAULT_THRESHOLD);
+        //  -- add funds to the newVault to respect LARGE_DEPOSIT
+        _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
         asset.approve(address(newVault), type(uint256).max);
-        newVault.deposit(2 * VAULT_THRESHOLD, address(this));
+        newVault.deposit(2 * LARGE_DEPOSIT, address(this));
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
