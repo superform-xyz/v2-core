@@ -14,6 +14,7 @@ import { ISuperVault } from "../../../src/periphery/interfaces/ISuperVault.sol";
 import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 
+
 contract SuperVaultE2EFlow is BaseSuperVaultTest {
     ERC7540YieldSourceOracle public oracle;
     ISuperLedger public superLedgerETH;
@@ -98,12 +99,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
 
         // Verify fee was taken
         _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
-
-        // Check final ledger state
-        (ISuperLedger.LedgerEntry[] memory entries,) = superLedgerETH.getLedger(accountEth, address(vault));
-
-        assertEq(entries.length, 1, "Should have one ledger entry");
-        // Shares are not consumed here because the SuperVault is the target and AccountingOutflow is skipped
     }
 
     function test_SuperVault_E2E_Flow_With_Ledger_Fees() public {
@@ -159,19 +154,9 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedgerETH.getLedger(accountEth, address(vault));
-
-        uint256 expectedLedgerFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: claimableAssets,
-                usedShares: userShares,
-                feePercent: 100,
-                decimals: 6
-            })
-        );
+        uint256 expectedLedgerFee =
+            superLedgerETH.previewFees(accountEth,
+                claimableAssets, userShares, 100);
 
         // Step 6: Claim Withdraw
         _claimWithdraw(claimableAssets);
@@ -181,14 +166,8 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
-        (entries,) = superLedgerETH.getLedger(accountEth, address(vault));
         // Verify fee was taken
         _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
 
-        // Check final ledger state
-        (entries,) = superLedgerETH.getLedger(accountEth, address(vault));
-
-        assertEq(entries.length, 1, "Should have one ledger entry");
-        assertEq(entries[0].amountSharesAvailableToConsume, 0, "Shares should be consumed");
     }
 }

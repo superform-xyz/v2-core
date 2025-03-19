@@ -11,7 +11,6 @@ import "../../../../vendor/okx/PMMLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 
-
 /// @title SwapperOkxHook
 /// @author Superform Labs
 /// @dev data has the following structure
@@ -24,7 +23,6 @@ contract SwapOkxHook is BaseHook, ISuperHook {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     IOkxSwapRouter public router;
-
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -78,7 +76,6 @@ contract SwapOkxHook is BaseHook, ISuperHook {
         executions[0] = Execution({ target: address(router), value: value, callData: txData_ });
     }
 
-    
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -118,7 +115,23 @@ contract SwapOkxHook is BaseHook, ISuperHook {
     }
 
     function _validateSmartSwap(bytes calldata txData_, address dstReceiver, address toToken) private pure {
-        (uint256 orderId, address receiver, IOkxSwapRouter.BaseRequest memory baseRequest, uint256[] memory batchesAmount, IOkxSwapRouter.RouterPath[][] memory batches, ) = abi.decode(txData_, (uint256, address, IOkxSwapRouter.BaseRequest, uint256[], IOkxSwapRouter.RouterPath[][], PMMLib.PMMSwapRequest[]));
+        (
+            uint256 orderId,
+            address receiver,
+            IOkxSwapRouter.BaseRequest memory baseRequest,
+            uint256[] memory batchesAmount,
+            IOkxSwapRouter.RouterPath[][] memory batches,
+        ) = abi.decode(
+            txData_,
+            (
+                uint256,
+                address,
+                IOkxSwapRouter.BaseRequest,
+                uint256[],
+                IOkxSwapRouter.RouterPath[][],
+                PMMLib.PMMSwapRequest[]
+            )
+        );
 
         // the following is used as an unique identifier; it should be non-zero
         if (orderId == 0) revert INVALID_ORDER_ID();
@@ -141,7 +154,6 @@ contract SwapOkxHook is BaseHook, ISuperHook {
                     }
                 }
             }
-            
         }
         if (!found) revert INVALID_BATCH();
     }
