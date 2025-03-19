@@ -621,12 +621,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
 
-        // CHECK ACCOUNTING
-        // Ledger Tests no more relevant
-        //        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        //        assertEq(entries.length, 1);
-        //        assertEq(unconsumedEntries, 1);
-
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
 
@@ -684,14 +678,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
 
-        // CHECK ACCOUNTING
-        // Ledger Tests no more relevant
-        //        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        //        assertEq(entries.length, 1);
-        //        assertEq(entries[0].price, yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH)));
-        //        assertEq(entries[0].amountSharesAvailableToConsume, redeemAmount);
-        //        assertEq(unconsumedEntries, 0);
-
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
 
@@ -748,12 +734,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         executeOp(redeemOpData);
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
-
-        // CHECK ACCOUNTING
-        // Ledger tests no more relevant
-        //        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        //        assertEq(entries.length, 1);
-        //        assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
