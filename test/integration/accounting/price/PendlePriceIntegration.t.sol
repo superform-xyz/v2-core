@@ -86,32 +86,12 @@ contract PendlePriceIntegration is BaseE2ETest {
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
-        // assert price per share
-        // Moving Ledger 5115 to AVG so no more internal ledger to check
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            pendleLedger.getLedger(nexusAccount, address(pendleVault));
-//        assertEq(entries.length, 1);
-//        assertEq(entries[0].price, pricePerShareOne);
-//        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-//        assertEq(unconsumedEntries, 0);
-
         // re-execute the same entrypoint
         _getTokens(underlying, nexusAccount, amount);
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         uint256 pricePerShareTwo = oracle.getPricePerShare(address(pendleVault));
         uint256 sharesTwo = pendleVault.previewDeposit(underlying, amount);
-
-        // assert price per share
-        // Moving Ledger 5115 to AVG so no more internal ledger to check
-//        (entries, unconsumedEntries) = pendleLedger.getLedger(nexusAccount, address(pendleVault));
-//        assertEq(entries.length, 2);
-//        assertEq(entries[0].price, pricePerShareOne);
-//        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-//        assertEq(entries[1].price, pricePerShareTwo);
-//
-//        assertEq(entries[1].amountSharesAvailableToConsume, sharesTwo);
-//        assertEq(unconsumedEntries, 0);
     }
 
     function test_ValidateFees_ForPartialWithdrawal_NoExtraFees_Pendle() public {
@@ -288,15 +268,6 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 shares = pendleVault.previewDeposit(underlying, amount);
 
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        // Moving Ledger 5115 to AVG so no more internal ledger to check
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            pendleLedger.getLedger(nexusAccount, address(pendleVault));
-//
-//        assertEq(entries.length, expectedEntriesCount);
-//        assertEq(entries[entries.length - 1].price, pricePerShare);
-//        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, shares);
-//        assertEq(unconsumedEntries, 0);
     }
 
     function _executeAndValidateWithdraw(
@@ -308,12 +279,5 @@ contract PendlePriceIntegration is BaseE2ETest {
         private
     {
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        // Moving Ledger 5115 to AVG so no more internal ledger to check
-//        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-//            pendleLedger.getLedger(nexusAccount, address(pendleVault));
-//
-//        assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
-//        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
     }
 }
