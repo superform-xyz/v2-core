@@ -75,18 +75,12 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        uint256 pricePerShareOne = oracle.getPricePerShare(address(yearnVault));
-        uint256 sharesOne = yearnVault.previewDeposit(amount);
-
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
         // re-execute the same entrypoint
         _getTokens(underlying, nexusAccount, amount);
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));
-        uint256 sharesTwo = yearnVault.previewDeposit(amount);
     }
 
     function test_ValidateFees_ForPartialWithdrawal_Yearn() public {
@@ -103,11 +97,11 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
 
         // execute and validate first deposit
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+        _executeAndValidateDeposit(nexusAccount, entry);
 
         // execute and validate second deposit
         _getTokens(underlying, nexusAccount, amount);
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 2);
+        _executeAndValidateDeposit(nexusAccount, entry);
 
         // Check before withdrawal fees
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
@@ -129,7 +123,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 withdrawShares = availableShares * 2 / 3;
         entry = _prepareWithdrawExecutorEntry(withdrawShares, nexusAccount);
         // it should still have 2 entries in the ledger and unconsumed entries index should be 0
-        _executeAndValidateWithdraw(nexusAccount, entry, 2, 0);
+        _executeAndValidateWithdraw(nexusAccount, entry);
     }
 
     function test_ValidateFees_TwoEntries_And_FullWithdrawalWithOneTx_WithDoublePricePerShare_Yearn() public {
@@ -146,11 +140,11 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
 
         // execute and validate first deposit
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+        _executeAndValidateDeposit(nexusAccount, entry);
 
         // execute and validate second deposit
         _getTokens(underlying, nexusAccount, amount);
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 2);
+        _executeAndValidateDeposit(nexusAccount, entry);
 
         // Check before withdrawal fees
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
@@ -176,7 +170,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         // in a real case scenario, the `redeem` call would have returned amount * 4 (since pps is doubled now)
         // however, in this case, it returns ~amount * 2 (as pps for real Yearn is 1.06$), so we're left with 1
         // unconsumed entry
-        _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
+        _executeAndValidateWithdraw(nexusAccount, entry);
     }
 
     function test_ValidateFees_TwoEntries_And_FullWithdrawalWithOneTx_Yearn() public {
@@ -193,11 +187,11 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
 
         // execute and validate first deposit
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+        _executeAndValidateDeposit(nexusAccount, entry);
 
         // execute and validate second deposit
         _getTokens(underlying, nexusAccount, amount);
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 2);
+        _executeAndValidateDeposit(nexusAccount, entry);
 
         // Check before withdrawal fees
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
@@ -215,7 +209,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         // in a real case scenario, the `redeem` call would have returned amount * 4 (since pps is doubled now)
         // however, in this case, it returns ~amount * 2 (as pps for real Yearn is 1.06$), so we're left with 1
         // unconsumed entry
-        _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
+        _executeAndValidateWithdraw(nexusAccount, entry);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -262,23 +256,16 @@ contract YearnV3PriceIntegration is BaseE2ETest {
 
     function _executeAndValidateDeposit(
         address nexusAccount,
-        ISuperExecutor.ExecutorEntry memory entry,
-        uint256 amount,
-        uint256 expectedEntriesCount
+        ISuperExecutor.ExecutorEntry memory entry
     )
         private
     {
-        uint256 pricePerShare = oracle.getPricePerShare(address(yearnVault));
-        uint256 shares = yearnVault.previewDeposit(amount);
-
         _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
     }
 
     function _executeAndValidateWithdraw(
         address nexusAccount,
-        ISuperExecutor.ExecutorEntry memory entry,
-        uint256 expectedEntriesCount,
-        uint256 expectedUnconsumedEntries
+        ISuperExecutor.ExecutorEntry memory entry
     )
         private
     {

@@ -83,8 +83,6 @@ interface ISuperLedger is ISuperLedgerData {
 
     function previewFees(
         address user,
-    // TODO: Remove
-//        address yieldSource,
         uint256 amountAssets,
         uint256 usedShares,
         uint256 feePercent

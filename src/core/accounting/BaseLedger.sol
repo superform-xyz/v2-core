@@ -63,8 +63,6 @@ abstract contract BaseLedger is ISuperLedger {
     ///// AVG Implementation /////
     function _takeSnapshot(
         address user,
-    // TODO: Remove
-//        address yieldSource,
         uint256 amountShares,
         uint256 pps,
         uint256 decimals
@@ -84,9 +82,6 @@ abstract contract BaseLedger is ISuperLedger {
 
     function calculateCostBasisView(
         address user,
-    // TODO: Remove
-//        address yieldSource,
-//        uint256 amountAssets,
         uint256 usedShares
     )
         public
@@ -103,51 +98,17 @@ abstract contract BaseLedger is ISuperLedger {
 
     function _calculateCostBasis(
         address user,
-    // TODO: Remove
-//        address yieldSource,
-//        uint256 amountAssets,
         uint256 usedShares
     )
         internal
         returns (uint256 costBasis)
     {
         costBasis = calculateCostBasisView(user,
-        // TODO: Remove
-//            yieldSource,
-//            amountAssets,
             usedShares);
 
         usersAccumulatorShares[user] -= usedShares;
         usersAccumulatorCostBasis[user] -= costBasis;
     }
-
-    // TODO: Remove
-//    function calculateCostBasisView(
-//        address user,
-//        address yieldSource,
-//        uint256 amountAssets,
-//        uint256 usedShares
-//    )
-//        public
-//        view
-//        virtual
-//        returns (uint256 costBasis)
-//    {
-//        costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares);
-//    }
-
-//    function _calculateCostBasis(
-//        address user,
-//        address yieldSource,
-//        uint256 amountAssets,
-//        uint256 usedShares
-//    )
-//        internal
-//        virtual
-//        returns (uint256 costBasis)
-//    {
-//        costBasis = _calculateAvgCostBasis(user, yieldSource, amountAssets, usedShares);
-//    }
 
 
     //////////////////// Fees ////////////////////
@@ -170,8 +131,6 @@ abstract contract BaseLedger is ISuperLedger {
 
     function previewFees(
         address user,
-    // TODO: Remove
-//        address yieldSource,
         uint256 amountAssets,
         uint256 usedShares,
         uint256 feePercent
@@ -181,9 +140,6 @@ abstract contract BaseLedger is ISuperLedger {
         returns (uint256 feeAmount)
     {
         uint256 costBasis = calculateCostBasisView(user,
-        // TODO: Remove
-//            yieldSource,
-//            amountAssets,
             usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
@@ -214,8 +170,6 @@ abstract contract BaseLedger is ISuperLedger {
 
             _takeSnapshot(
                 user,
-            // TODO: Remove
-//                yieldSource,
                 amountSharesOrAssets,
                 pps,
                 IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
@@ -230,8 +184,6 @@ abstract contract BaseLedger is ISuperLedger {
                 uint256 amountAssets = _getOutflowProcessVolume(amountSharesOrAssets, usedShares, pps, IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource));
 
                 feeAmount = _processOutflow(user,
-                // TODO: Remove
-//                    yieldSource,
                     amountAssets, usedShares, config);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
@@ -245,8 +197,6 @@ abstract contract BaseLedger is ISuperLedger {
 
     function _processOutflow(
         address user,
-    // TODO: Remove
-//        address yieldSource,
         uint256 amountAssets,
         uint256 usedShares,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
@@ -256,9 +206,6 @@ abstract contract BaseLedger is ISuperLedger {
         returns (uint256 feeAmount)
     {
         uint256 costBasis = _calculateCostBasis(user,
-        // TODO: Remove
-//            yieldSource,
-//            amountAssets,
             usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
     }

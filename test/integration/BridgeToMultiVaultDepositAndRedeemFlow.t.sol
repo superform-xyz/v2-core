@@ -261,9 +261,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
 
         // DEPOSIT
-        // TODO: Remove
-//        uint256 userShares =
-                        _execute7540DepositFlow(amountPerVault);
+        _execute7540DepositFlow(amountPerVault);
 
         vm.selectFork(FORKS[ETH]);
 
@@ -609,8 +607,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
             ledger.previewFees(accountETH,
-            // TODO: Remove
-//                yieldSource7540AddressETH_USDC,
                 userExpectedAssets, userShares, 100);
 
         console2.log("Expected Fees = ", expectedFee);
@@ -668,8 +664,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
             ledger.previewFees(accountETH,
-            // TODO: Remove
-//                yieldSource7540AddressETH_USDC,
                 userExpectedAssets, redeemAmount, 100);
 
         vm.expectEmit(true, true, true, true);
@@ -726,8 +720,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
             accountETH,
-        // TODO: Remove
-//            yieldSource7540AddressETH_USDC,
             assetsOut, expectedSharesAvailableToConsume, 100
         );
 
@@ -778,8 +770,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
             accountOP,
-        // TODO: Remove
-//            yieldSource4626AddressOP_USDCe,
             expectedAssetOutAmount, userExpectedShareDelta, 100
         );
 

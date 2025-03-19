@@ -394,7 +394,10 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+
+        // Question: is this just a getter method or does it have side effects?
+        // Since it is not defined as view I assume it has side effects so I did not remove it but the `get` in the name is misleading since it suggests it is just a getter, so better to check this
+                        _getExecOps(instance, superExecutor, abi.encode(entry));
 
         //bytes memory initData = _get7702InitDataWithExecutor(address(_defaultValidator), "");
         bytes memory initData = _get7702InitData();
