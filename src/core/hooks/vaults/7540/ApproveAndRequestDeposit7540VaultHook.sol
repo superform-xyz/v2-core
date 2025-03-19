@@ -80,7 +80,7 @@ contract ApproveAndRequestDeposit7540VaultHook is
     /// @inheritdoc ISuperHookNonAccounting
     /// @dev This hook does not return shares, so we revert
     function shareOutAmount() external pure returns (uint256) {
-        revert();
+        revert OUT_AMOUNT_DISABLED();
     }
 
     /// @inheritdoc ISuperHookNonAccounting
