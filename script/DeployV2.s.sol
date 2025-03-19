@@ -154,17 +154,21 @@ contract DeployV2 is Script, Configuration {
         // deploy contracts
         ISuperDeployer deployer = _getDeployer();
         if (address(deployer) == address(0) || address(deployer).code.length == 0) {
+            bool isAlreadyDeployed;
+
             bytes32 salt = "SuperformSuperDeployer.v1.0.5";
             address expectedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
             console2.log("SuperDeployer expected address:", expectedAddr);
             if (expectedAddr.code.length > 0) {
                 console2.log("SuperDeployer already deployed at:", expectedAddr);
-                return;
+                isAlreadyDeployed = true;
             }
-            SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
-            console2.log("SuperDeployer deployed at:", address(superDeployer));
+            if (!isAlreadyDeployed) {
+                SuperDeployer superDeployer = new SuperDeployer{ salt: salt }();
+                console2.log("SuperDeployer deployed at:", address(superDeployer));
 
-            configuration.deployer = address(superDeployer);
+                configuration.deployer = address(superDeployer);
+            }
         }
 
         _deploy(chainId);
