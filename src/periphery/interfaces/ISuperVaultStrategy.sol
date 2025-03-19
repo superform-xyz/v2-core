@@ -32,6 +32,7 @@ interface ISuperVaultStrategy {
     error INSUFFICIENT_FUNDS();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
+    error OUT_AMOUNT_DISABLED();
     error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
