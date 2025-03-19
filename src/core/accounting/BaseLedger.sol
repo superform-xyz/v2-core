@@ -13,8 +13,6 @@ import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "forge-std/console.sol";
-
 /// @title BaseLedger
 /// @author Superform Labs
 /// @notice Base ledger contract for managing user ledger entries
@@ -111,7 +109,6 @@ abstract contract BaseLedger is ISuperLedger {
         returns (uint256 costBasis)
     {
         costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares);
-        console.log("_calculateAvgCostBasis() costBasis", costBasis);
 
         usersAccumulatorShares[user] -= usedShares;
         usersAccumulatorCostBasis[user] -= costBasis;
@@ -129,7 +126,6 @@ abstract contract BaseLedger is ISuperLedger {
         returns (uint256 costBasis)
     {
         costBasis = _calculateAvgCostBasisView(user, yieldSource, amountAssets, usedShares);
-        //                config
     }
 
     function _calculateCostBasis(

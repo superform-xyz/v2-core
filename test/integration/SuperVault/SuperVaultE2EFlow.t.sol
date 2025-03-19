@@ -14,7 +14,6 @@ import { ISuperVault } from "../../../src/periphery/interfaces/ISuperVault.sol";
 import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 
-import "forge-std/console.sol";
 
 contract SuperVaultE2EFlow is BaseSuperVaultTest {
     ERC7540YieldSourceOracle public oracle;
@@ -162,10 +161,6 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         _claimWithdraw(claimableAssets);
 
         uint256 totalFee = superformFee + recipientFee + expectedLedgerFee;
-        console.log("Test total fee", totalFee);
-        console.log("Test superform fee", superformFee);
-        console.log("Test recipient fee", recipientFee);
-        console.log("Test ledger fee", expectedLedgerFee);
 
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");

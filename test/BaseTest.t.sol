@@ -13,7 +13,6 @@ import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISu
 
 // Superform contracts
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-//import { SuperLedgerOptimizedAVG } from "../src/core/accounting/SuperLedgerOptimizedAVG.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
@@ -112,7 +111,6 @@ import "forge-std/console.sol";
 
 struct Addresses {
     ISuperLedger superLedger;
-    //    ISuperLedger superLedgerOptimizedAvg;
     ISuperLedger erc1155Ledger;
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
@@ -1133,9 +1131,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         internal
         pure
     {
-        console.log("feeBalanceAfter = ", feeBalanceAfter);
-        console.log("feeBalanceBefore = ", feeBalanceBefore);
-        console.log("expectedFee = ", expectedFee);
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 
