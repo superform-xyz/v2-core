@@ -49,10 +49,10 @@ interface ISuperHookResultOutflow is ISuperHookResult {
     function usedShares() external view returns (uint256);
 }
 
-/// @title ISuperHookResultNonAccounting
+/// @title ISuperHookNonAccounting
 /// @author Superform Labs
 /// @notice Interface for the SuperHookResultNonAccounting contract that manages non-accounting hook results
-interface ISuperHookResultNonAccounting {
+interface ISuperHookNonAccounting {
     /// @notice The amount of shares processed by the hook
     function shareOutAmount() external view returns (uint256);
     /// @notice The amount of assets processed by the hook
