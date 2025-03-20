@@ -30,7 +30,8 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     uint256 private constant TIMELOCK_PERIOD = 1 weeks;
     uint256 private constant ORACLE_PROVIDER_AVERAGE = 0;
     uint256 private constant MAX_PROVIDERS = 10;
-
+    uint256 private constant DEFAULT_STALENESS = 1 days;
+    
     /// @notice Pending oracle update
     PendingUpdate private pendingUpdate;
 
@@ -46,7 +47,7 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         uint256 length = initialProviders.length;
         // Set default staleness for initial providers
         for (uint256 i; i < length; ++i) {
-            providerMaxStaleness[initialProviders[i]] = 1 days;
+            providerMaxStaleness[initialProviders[i]] = DEFAULT_STALENESS;
         }
         _configureOracles(initialBases, initialProviders, initialOracleAddresses);
     }
@@ -112,6 +113,8 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
 
     /// @inheritdoc ISuperOracle
     function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
+        if (newMaxStaleness == 0) newMaxStaleness = DEFAULT_STALENESS;
+        
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
@@ -178,7 +181,7 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
             usdQuotedOracle[bases[i]][providers[i]] = oracleAddresses[i];
             // Set default staleness if not already set
             if (providerMaxStaleness[providers[i]] == 0) {
-                providerMaxStaleness[providers[i]] = 1 days;
+                providerMaxStaleness[providers[i]] = DEFAULT_STALENESS;
             }
         }
 
