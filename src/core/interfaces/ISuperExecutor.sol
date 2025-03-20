@@ -13,8 +13,10 @@ interface ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error NO_HOOKS();
     error INVALID_FEE();
     error NOT_AUTHORIZED();
+    error LENGTH_MISMATCH();
     error NOT_INITIALIZED();
     error MANAGER_NOT_SET();
     error ADDRESS_NOT_VALID();

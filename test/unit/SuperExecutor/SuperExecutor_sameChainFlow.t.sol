@@ -134,7 +134,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[2] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
-        bytes[] memory hooksData = new bytes[](5);
+        bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
