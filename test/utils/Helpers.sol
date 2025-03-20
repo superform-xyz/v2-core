@@ -10,6 +10,8 @@ import { Vm } from "forge-std/Vm.sol";
 import { Constants } from "./Constants.sol";
 
 abstract contract Helpers is Test, Constants {
+    address constant VM_ADDR = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D;
+
     address public user1;
     address public user2;
     address public user3;
@@ -88,5 +90,17 @@ abstract contract Helpers is Test, Constants {
         vm.deal(_user, LARGE);
         vm.label(_user, name_);
         return _user;
+    }
+
+    function envOr(string memory name, string memory defaultValue) public view returns (string memory value) {
+        return Vm(VM_ADDR).envOr(name, defaultValue);
+    }
+
+    function startStateDiffRecording() public {
+        Vm(VM_ADDR).startStateDiffRecording();
+    }
+
+    function envOr(string memory name, bool defaultValue) public view returns (bool value) {
+        return Vm(VM_ADDR).envOr(name, defaultValue);
     }
 }

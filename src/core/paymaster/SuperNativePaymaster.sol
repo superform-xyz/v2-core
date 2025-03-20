@@ -8,34 +8,27 @@ import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserO
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
 
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
+import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
 /// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.sol
-contract SuperNativePaymaster is BasePaymaster {
+contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     using UserOperationLib for PackedUserOperation;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ZERO_ADDRESS();
-    error EMPTY_MESSAGE_VALUE();
-    error INSUFFICIENT_BALANCE();
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {   
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {
         if (address(_entryPoint).code.length == 0) revert ZERO_ADDRESS();
-     }
+    }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Calculate the refund amount based on the max gas limit, max fee per gas, actual gas cost, and node
-    /// operator premium.
-    /// @param maxGasLimit The maximum gas limit for the operation.
-    /// @param maxFeePerGas The maximum fee per gas for the operation.
-    /// @param actualGasCost The actual gas cost for the operation.
-    /// @param nodeOperatorPremium The node operator premium for the operation.
 
+    /// @inheritdoc ISuperNativePaymaster
     function calculateRefund(
         uint256 maxGasLimit,
         uint256 maxFeePerGas,
@@ -57,19 +50,23 @@ contract SuperNativePaymaster is BasePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Handle a batch of user operations.
-    /// @param ops The user operations to handle.
+    /// @inheritdoc ISuperNativePaymaster
     function handleOps(PackedUserOperation[] calldata ops) public payable {
         uint256 balance = address(this).balance;
         if (balance > 0) {
-            (bool success, ) = payable(address(entryPoint)).call{value: balance}("");
+            (bool success,) = payable(address(entryPoint)).call{ value: balance }("");
             if (!success) revert INSUFFICIENT_BALANCE();
         }
 
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
-    
+
+    /// @inheritdoc ISuperNativePaymaster
+    function depositTo() external payable onlyOwner {
+        entryPoint.depositTo{ value: msg.value }(address(this));
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

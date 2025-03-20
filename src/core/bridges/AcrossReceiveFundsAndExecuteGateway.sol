@@ -2,11 +2,14 @@
 pragma solidity >=0.8.28;
 
 // external
-import { IMinimalEntryPoint, PackedUserOperation } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
+
+import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
+import { IMinimalEntryPoint } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { BytesLib } from "../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
+import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
 
 /// @title AcrossReceiveFundsAndExecuteGateway
 /// @author Superform Labs
@@ -45,13 +48,20 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
     address public immutable acrossSpokePool;
     address public immutable entryPointAddress;
     address payable public immutable superBundler;
+    address public immutable superNativePaymaster;
 
-    constructor(address acrossSpokePool_, address entryPointAddress_, address superBundler_) {
+    constructor(
+        address acrossSpokePool_,
+        address entryPointAddress_,
+        address superBundler_,
+        address superNativePaymaster_
+    ) {
         if (acrossSpokePool_ == address(0)) revert ADDRESS_NOT_VALID();
         if (entryPointAddress_ == address(0)) revert ADDRESS_NOT_VALID();
         acrossSpokePool = acrossSpokePool_;
         entryPointAddress = entryPointAddress_;
         superBundler = payable(superBundler_);
+        superNativePaymaster = superNativePaymaster_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -123,12 +133,35 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
-        // Execute the userOp through EntryPoint
-        try IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler) {
+
+        if (userOp.paymasterAndData.length == 0) {
+            // Execute the userOp through EntryPoint
+            try IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler) {
+                emit AcrossFundsReceivedAndExecuted(account);
+            } catch {
+                // no action, as funds are already transferred
+                emit AcrossFundsReceivedButExecutionFailed(account);
+            }
+        } else {
+            uint256 balanceBefore = address(this).balance;
+            // Execute the userOp through SuperNativePaymaster
+            try ISuperNativePaymaster(payable(superNativePaymaster)).handleOps(userOps) { }
+            catch {
+                // no action, as funds are already transferred
+                emit AcrossFundsReceivedButExecutionFailed(account);
+                return;
+            }
+
+            uint256 balanceDiff = address(this).balance - balanceBefore;
+            if (balanceDiff > 0) {
+                (bool success,) = payable(superBundler).call{ value: balanceDiff }("");
+                if (!success) {
+                    emit AcrossFundsReceivedAndExecutedButRefundFailed(account);
+                    return;
+                }
+            }
+
             emit AcrossFundsReceivedAndExecuted(account);
-        } catch {
-            // no action, as funds are already transferred
-            emit AcrossFundsReceivedButExecutionFailed(account);
         }
     }
 }

@@ -7,6 +7,7 @@ import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { console2 } from "forge-std/console2.sol";
 
 /// @title SuperMerkleValidator
 /// @author Superform Labs
@@ -87,6 +88,7 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
 
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
+        console2.log("sigData", sigData.validUntil);
         UserOpData memory userOpData = UserOpData({
             sender: _userOp.sender,
             nonce: _userOp.nonce,
@@ -164,7 +166,6 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         view
         returns (address signer, bytes32 leaf)
     {
-
         // Verify leaf and root are valid
         leaf = _createLeaf(userOpData, sigData.validUntil);
         if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
@@ -200,7 +201,21 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     }
 
     function _createLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpData.callData, userOpData.gasFees, userOpData.sender, userOpData.nonce, validUntil, block.chainid, userOpData.initCode))));
+        return keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encode(
+                        userOpData.callData,
+                        userOpData.gasFees,
+                        userOpData.sender,
+                        userOpData.nonce,
+                        validUntil,
+                        block.chainid,
+                        userOpData.initCode
+                    )
+                )
+            )
+        );
     }
 
     function _createMessageHash(bytes32 merkleRoot) private pure returns (bytes32) {

@@ -97,7 +97,7 @@ abstract contract Constants {
     string public constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
     string public constant GEARBOX_YIELD_SOURCE_ORACLE_KEY = "GearboxYieldSourceOracle";
     string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
-
+    string public constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
     // tokens
     string public constant DAI_KEY = "DAI";
     string public constant USDC_KEY = "USDC";
