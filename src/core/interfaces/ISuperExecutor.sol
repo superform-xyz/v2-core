@@ -13,7 +13,9 @@ interface ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error NO_HOOKS();
     error NOT_AUTHORIZED();
+    error LENGTH_MISMATCH();
     error NOT_INITIALIZED();
     error ADDRESS_NOT_VALID();
     error ALREADY_INITIALIZED();
