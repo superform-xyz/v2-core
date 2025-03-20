@@ -62,11 +62,11 @@ contract SuperNativePaymaster is BasePaymaster {
         if (msg.value == 0) {
             revert EMPTY_MESSAGE_VALUE();
         }
-        entryPoint.depositTo{ value: msg.value }(address(this));
+        payable(address(entryPoint)).call{value: msg.value}("")
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
-
+    
     /// @notice Simulate the handling of a user operation.
     /// @param op The user operation to simulate.
     /// @param target The target address of the user operation.
