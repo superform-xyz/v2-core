@@ -10,7 +10,7 @@ abstract contract SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    ISuperRegistry public superRegistry;
+    ISuperRegistry public immutable superRegistry;
 
     constructor(address superRegistry_) {
         superRegistry = ISuperRegistry(superRegistry_);
