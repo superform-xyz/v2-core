@@ -113,7 +113,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             );
 
             // If there's a fee to collect (only for outflows)
-            if (feeAmount > 0) {
+            if (feeAmount > 0 && _type == ISuperHook.HookType.OUTFLOW) {
                 // Get the asset token from the hook
                 address assetToken = ISuperHookResultOutflow(hook).asset();
                 if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
