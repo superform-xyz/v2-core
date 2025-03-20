@@ -15,6 +15,7 @@ interface ISuperExecutor {
     //////////////////////////////////////////////////////////////*/
     error NOT_AUTHORIZED();
     error NOT_INITIALIZED();
+    error MANAGER_NOT_SET();
     error ADDRESS_NOT_VALID();
     error ALREADY_INITIALIZED();
     error INSUFFICIENT_BALANCE_FOR_FEE();

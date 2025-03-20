@@ -101,7 +101,8 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
-
+            if (config.manager == address(0)) revert MANAGER_NOT_SET();
+            
             // Update accounting and get fee amount if any
             uint256 feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
