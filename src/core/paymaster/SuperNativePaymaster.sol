@@ -59,7 +59,7 @@ contract SuperNativePaymaster is BasePaymaster {
         if (msg.value == 0) {
             revert EMPTY_MESSAGE_VALUE();
         }
-        entryPoint.depositTo{ value: msg.value }(address(this));
+        entryPoint.depositTo{ value: address(this).balance }(address(this));
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
@@ -81,7 +81,7 @@ contract SuperNativePaymaster is BasePaymaster {
             revert EMPTY_MESSAGE_VALUE();
         }
         IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
+        entryPointWithSimulations.depositTo{ value: address(this).balance }(address(this));
         return entryPointWithSimulations.simulateHandleOp(op, target, callData);
     }
 
@@ -96,7 +96,7 @@ contract SuperNativePaymaster is BasePaymaster {
             revert EMPTY_MESSAGE_VALUE();
         }
         IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
+        entryPointWithSimulations.depositTo{ value: address(this).balance }(address(this));
         return entryPointWithSimulations.simulateValidation(op);
     }
 
