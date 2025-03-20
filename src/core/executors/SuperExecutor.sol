@@ -29,6 +29,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
     }
