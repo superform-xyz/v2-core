@@ -23,6 +23,8 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     /// @notice Mapping of provider to max staleness period
     mapping(uint256 provider => uint256 maxStaleness) public providerMaxStaleness;
 
+    uint256 public maxStaleness;
+
     /// @notice There is a single supported quote in this oracle system: USD
     address private constant USD = address(840);
 
@@ -43,10 +45,13 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         Ownable(owner_)
     {
         if (owner_ == address(0)) revert ZERO_ADDRESS();
+
+        maxStaleness = 1 days;
+
         uint256 length = initialProviders.length;
         // Set default staleness for initial providers
         for (uint256 i; i < length; ++i) {
-            providerMaxStaleness[initialProviders[i]] = 1 days;
+            providerMaxStaleness[initialProviders[i]] = maxStaleness;
         }
         _configureOracles(initialBases, initialProviders, initialOracleAddresses);
     }
@@ -109,9 +114,17 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     }
 
     // -- External configuration functions --
+    /// @inheritdoc ISuperOracle
+    function setMaxStaleness(uint256 newMaxStaleness) external onlyOwner {
+        maxStaleness = newMaxStaleness;
+        emit MaxStalenessUpdated(newMaxStaleness);
+    }
 
     /// @inheritdoc ISuperOracle
     function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
+        if (newMaxStaleness > maxStaleness) {
+            revert MAX_STALENESS_EXCEEDED();
+        }
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
@@ -188,7 +201,7 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
             usdQuotedOracle[bases[i]][providers[i]] = oracleAddresses[i];
             // Set default staleness if not already set
             if (providerMaxStaleness[providers[i]] == 0) {
-                providerMaxStaleness[providers[i]] = 1 days;
+                providerMaxStaleness[providers[i]] = maxStaleness;
             }
         }
 
