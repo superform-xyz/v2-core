@@ -33,7 +33,7 @@ contract Redeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, I
 
     uint256 private constant AMOUNT_POSITION = 44;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

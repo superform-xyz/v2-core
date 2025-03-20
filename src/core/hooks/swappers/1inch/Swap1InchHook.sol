@@ -42,10 +42,9 @@ contract Swap1InchHook is BaseHook, ISuperHook {
 
     constructor(
         address registry_,
-        address author_,
         address aggregationRouter_
     )
-        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+        BaseHook(registry_, HookType.NONACCOUNTING)
     {
         if (aggregationRouter_ == address(0)) {
             revert ZERO_ADDRESS();

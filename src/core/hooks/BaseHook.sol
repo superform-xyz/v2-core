@@ -20,8 +20,6 @@ abstract contract BaseHook is SuperRegistryImplementer {
     address public transient asset;
     // forgefmt: disable-end
 
-
-    address public immutable author;
     ISuperHook.HookType public hookType;
 
     /*//////////////////////////////////////////////////////////////
@@ -32,9 +30,7 @@ abstract contract BaseHook is SuperRegistryImplementer {
     error ADDRESS_NOT_VALID();
     error DATA_LENGTH_INSUFFICIENT();
 
-    constructor(address registry_, address author_, ISuperHook.HookType hookType_) SuperRegistryImplementer(registry_) {
-        if(author_ == address(0)) revert ADDRESS_NOT_VALID();
-        author = author_;
+    constructor(address registry_, ISuperHook.HookType hookType_) SuperRegistryImplementer(registry_) {
         hookType = hookType_;
     }
 

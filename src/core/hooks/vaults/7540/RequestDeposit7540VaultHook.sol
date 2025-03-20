@@ -24,7 +24,7 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOu
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -24,7 +24,7 @@ contract FluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

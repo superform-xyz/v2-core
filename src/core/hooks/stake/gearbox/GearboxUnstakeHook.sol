@@ -31,7 +31,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, IS
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
     /// @inheritdoc ISuperHook
     function build(
