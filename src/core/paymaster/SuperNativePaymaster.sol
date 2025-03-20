@@ -71,42 +71,6 @@ contract SuperNativePaymaster is BasePaymaster {
         }
     }
 
-    /// @notice Simulate the handling of a user operation.
-    /// @param op The user operation to simulate.
-    /// @param target The target address of the user operation.
-    /// @param callData The call data for the user operation.
-    function simulateHandleOp(
-        PackedUserOperation calldata op,
-        address target,
-        bytes calldata callData
-    )
-        external
-        payable
-        returns (IEntryPointSimulations.ExecutionResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
-        return entryPointWithSimulations.simulateHandleOp(op, target, callData);
-    }
-
-    /// @notice Simulate the validation of a user operation.
-    /// @param op The user operation to simulate.
-    function simulateValidation(PackedUserOperation calldata op)
-        external
-        payable
-        returns (IEntryPointSimulations.ValidationResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
-        return entryPointWithSimulations.simulateValidation(op);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
