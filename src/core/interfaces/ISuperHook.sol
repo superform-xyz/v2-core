@@ -53,12 +53,8 @@ interface ISuperHookResultOutflow is ISuperHookResult {
 /// @author Superform Labs
 /// @notice Interface for the SuperHookResultNonAccounting contract that manages non-accounting hook results
 interface ISuperHookNonAccounting {
-    error OUT_AMOUNT_DISABLED();
-    
-    /// @notice The amount of shares processed by the hook
-    function shareOutAmount() external view returns (uint256);
-    /// @notice The amount of assets processed by the hook
-    function assetOutAmount() external view returns (uint256);
+    /// @notice The amount of assets or shares processed by the hook
+    function getUsedAssetsOrShares() external pure returns (uint256, bool);
 }
 
 /// @title ISuperHook
