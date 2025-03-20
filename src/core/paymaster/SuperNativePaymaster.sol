@@ -2,11 +2,12 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BasePaymaster } from "@account-abstraction/core/BasePaymaster.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
+
+import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
