@@ -56,14 +56,16 @@ contract SuperNativePaymaster is BasePaymaster {
     /// @notice Handle a batch of user operations.
     /// @param ops The user operations to handle.
     function handleOps(PackedUserOperation[] calldata ops) public payable {
-        if (msg.value == 0) {
+        if (address(this).balance == 0) {
             revert EMPTY_MESSAGE_VALUE();
         }
         entryPoint.depositTo{ value: address(this).balance }(address(this));
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
+    
 
+    // Removed in PR for issue #62
     /// @notice Simulate the handling of a user operation.
     /// @param op The user operation to simulate.
     /// @param target The target address of the user operation.
@@ -85,6 +87,7 @@ contract SuperNativePaymaster is BasePaymaster {
         return entryPointWithSimulations.simulateHandleOp(op, target, callData);
     }
 
+    // Removed in PRfor issue #62
     /// @notice Simulate the validation of a user operation.
     /// @param op The user operation to simulate.
     function simulateValidation(PackedUserOperation calldata op)
