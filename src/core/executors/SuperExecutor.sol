@@ -20,6 +20,8 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     using HookDataDecoder for bytes;
 
+    bytes32 internal constant SUPER_LEDGER_CONFIGURATION_ID = keccak256("SUPER_LEDGER_CONFIGURATION_ID");
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -27,6 +29,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
     }
@@ -100,14 +105,15 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedgerConfiguration ledgerConfiguration =
-                ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
+                ISuperLedgerConfiguration(superRegistry.getAddress(SUPER_LEDGER_CONFIGURATION_ID));
 
             bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
-
+            if (config.manager == address(0)) revert MANAGER_NOT_SET();
+            
             // Update accounting and get fee amount if any
             uint256 feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
@@ -119,7 +125,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             );
 
             // If there's a fee to collect (only for outflows)
-            if (feeAmount > 0) {
+            if (feeAmount > 0 && _type == ISuperHook.HookType.OUTFLOW) {
+                if (feeAmount > ISuperHookResult(address(hook)).outAmount()) revert INVALID_FEE();
+                
                 // Get the asset token from the hook
                 address assetToken = ISuperHookResultOutflow(hook).asset();
                 if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
