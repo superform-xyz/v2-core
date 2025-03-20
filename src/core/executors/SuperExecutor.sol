@@ -116,20 +116,40 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             if (feeAmount > 0) {
                 // Get the asset token from the hook
                 address assetToken = ISuperHookResultOutflow(hook).asset();
-                if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
-                if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
-
-                uint256 balanceBefore = IERC20(assetToken).balanceOf(config.feeRecipient);
-                Execution[] memory feeExecution = new Execution[](1);
-                feeExecution[0] = Execution({
-                    target: assetToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.transfer, (config.feeRecipient, feeAmount))
-                });
-                _execute(account, feeExecution);
-                uint256 balanceAfter = IERC20(assetToken).balanceOf(config.feeRecipient);
-                if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+                if (assetToken == address(0)) {
+                    if (account.balance < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
+                    _performNativeFeeTransfer(account, config.feeRecipient, feeAmount);
+                } else {
+                    if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
+                    _performErc20FeeTransfer(account, assetToken, config.feeRecipient, feeAmount);
+                }
             }
         }
+    }
+
+    function _performErc20FeeTransfer(address account, address assetToken, address feeRecipient, uint256 feeAmount) private {
+        uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
+        Execution[] memory feeExecution = new Execution[](1);
+        feeExecution[0] = Execution({
+            target: assetToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount))
+        });
+        _execute(account, feeExecution);
+        uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
+        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+    }
+
+    function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) private {
+        uint256 balanceBefore = feeRecipient.balance;
+        Execution[] memory feeExecution = new Execution[](1);
+        feeExecution[0] = Execution({
+            target: feeRecipient,
+            value: feeAmount,
+            callData: ""
+        });
+        _execute(account, feeExecution);
+        uint256 balanceAfter = feeRecipient.balance;
+        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
     }
 }
