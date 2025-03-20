@@ -13,6 +13,7 @@ interface ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error INVALID_FEE();
     error NOT_AUTHORIZED();
     error NOT_INITIALIZED();
     error MANAGER_NOT_SET();
