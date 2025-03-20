@@ -551,3 +551,5 @@ SuperExecutor module:
 **Purpose**: Handles emergency situations
 
 **Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during critical situations without full admin privileges
+
+Deploy
