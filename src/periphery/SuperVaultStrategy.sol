@@ -354,7 +354,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // source's assets in transit
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
                 try ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares)
-                {
+                {   
+                    if (outAmount == 0) revert INVALID_AMOUNT();
                     if (isShares) {
                         uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle)
                             .getAssetOutput(vars.targetedYieldSource, address(this), outAmount);
@@ -957,6 +958,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 (locals.amount, locals.outAmount) =
                     _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
+
+            if (expectedAssetsOrSharesOut[i] == 0) revert INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;

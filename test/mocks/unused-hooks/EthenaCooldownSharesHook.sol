@@ -66,7 +66,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /// @inheritdoc ISuperHookNonAccounting
     /// @return outAmount The amount of assets or shares processed by the hook
     /// @return isShares Whether the amount is in shares
-    function getUsedAssetsOrShares() external pure returns (uint256 outAmount, bool isShares) {
+    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
         return (outAmount, true);
     }
 

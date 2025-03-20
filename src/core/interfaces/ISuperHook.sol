@@ -54,7 +54,7 @@ interface ISuperHookResultOutflow is ISuperHookResult {
 /// @notice Interface for the SuperHookResultNonAccounting contract that manages non-accounting hook results
 interface ISuperHookNonAccounting {
     /// @notice The amount of assets or shares processed by the hook
-    function getUsedAssetsOrShares() external pure returns (uint256, bool);
+    function getUsedAssetsOrShares() external view returns (uint256, bool);
 }
 
 /// @title ISuperHook
