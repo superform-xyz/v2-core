@@ -30,7 +30,6 @@ contract Swap1InchHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ZERO_ADDRESS();
     error INVALID_RECEIVER();
     error INVALID_SELECTOR();
     error INVALID_TOKEN_PAIR();
