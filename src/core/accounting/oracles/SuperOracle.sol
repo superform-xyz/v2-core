@@ -30,6 +30,7 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     uint256 private constant TIMELOCK_PERIOD = 1 weeks;
     uint256 private constant ORACLE_PROVIDER_AVERAGE = 0;
     uint256 private constant MAX_PROVIDERS = 10;
+    uint256 private constant ORACLE_MAX_STALENESS = 3 days;
 
     /// @notice Pending oracle update
     PendingUpdate private pendingUpdate;
@@ -112,6 +113,9 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
 
     /// @inheritdoc ISuperOracle
     function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
+        if (newMaxStaleness > ORACLE_MAX_STALENESS) {
+            revert MAX_STALENESS_EXCEEDED();
+        }
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
