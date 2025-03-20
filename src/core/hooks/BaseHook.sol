@@ -33,6 +33,7 @@ abstract contract BaseHook is SuperRegistryImplementer {
     error DATA_LENGTH_INSUFFICIENT();
 
     constructor(address registry_, address author_, ISuperHook.HookType hookType_) SuperRegistryImplementer(registry_) {
+        if(author == address(0)) revert ADDRESS_NOT_VALID();
         author = author_;
         hookType = hookType_;
     }
