@@ -20,6 +20,8 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     using HookDataDecoder for bytes;
 
+    uint256 internal constant EXECUTION_LENGTH_LIMIT = 100;
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -80,6 +82,8 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         // run hook preExecute
         hook.preExecute(prevHook, account, hookData);
         Execution[] memory executions = hook.build(prevHook, account, hookData);
+        if (executions.length > EXECUTION_LENGTH_LIMIT) revert EXECUTION_LENGTH_LIMIT_EXCEEDED();
+        
         // run hook execute
         if (executions.length > 0) {
             _execute(account, executions);
