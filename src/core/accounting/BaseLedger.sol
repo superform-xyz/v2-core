@@ -161,10 +161,9 @@ abstract contract BaseLedger is ISuperLedger {
 
         // Get price from oracle
         uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+        if (pps == 0) revert INVALID_PRICE();
 
         if (isInflow) {
-            if (pps == 0) revert INVALID_PRICE();
-
             _takeSnapshot(
                 user,
                 amountSharesOrAssets,
