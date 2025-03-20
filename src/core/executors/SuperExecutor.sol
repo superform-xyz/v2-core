@@ -20,13 +20,13 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     using HookDataDecoder for bytes;
 
-    /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
     mapping(address => bool) internal _initialized;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
     }
