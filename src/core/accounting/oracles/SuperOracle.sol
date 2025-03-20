@@ -126,10 +126,14 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         onlyOwner
     {
         if (pendingUpdate.timestamp != 0) revert PENDING_UPDATE_EXISTS();
-        if (bases.length != providers.length || providers.length != oracleAddresses.length) {
+        uint256 providersLength = providers.length;
+        if (providersLength > MAX_PROVIDERS) {
+            revert MAX_PROVIDERS_EXCEEDED();
+        }
+        if (bases.length != providersLength || providersLength != oracleAddresses.length) {
             revert ARRAY_LENGTH_MISMATCH();
         }
-
+      
         pendingUpdate = PendingUpdate({
             bases: bases,
             providers: providers,
@@ -172,6 +176,12 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         private
     {
         uint256 length = bases.length;
+        if (length > MAX_PROVIDERS) {
+            // @dev there shouldn't be a case where this happens
+            // it's already validated on `queueOracleUpdate`
+            // but double check to be safe
+            revert MAX_PROVIDERS_EXCEEDED();
+        }
         if (length != providers.length || length != oracleAddresses.length) revert ARRAY_LENGTH_MISMATCH();
 
         for (uint256 i = 0; i < length; ++i) {
