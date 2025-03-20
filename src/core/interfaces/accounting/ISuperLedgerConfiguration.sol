@@ -31,6 +31,7 @@ interface ISuperLedgerConfiguration {
     error ZERO_LENGTH();
     error ZERO_ID_NOT_ALLOWED();
     error INVALID_FEE_PERCENT();
+    error NOT_PENDING_MANAGER();
     error ZERO_ADDRESS_NOT_ALLOWED();
 
     /*//////////////////////////////////////////////////////////////
@@ -44,6 +45,8 @@ interface ISuperLedgerConfiguration {
         address feeRecipient,
         address ledger
     );
+    event ManagerRoleTransferStarted(bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager);
+    event ManagerRoleTransferAccepted(bytes4 indexed yieldSourceOracleId, address indexed newManager);
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -51,6 +54,15 @@ interface ISuperLedgerConfiguration {
     /// @notice Registers hooks and sets their oracle configs in one transaction
     /// @param configs Array of oracle configurations
     function setYieldSourceOracles(YieldSourceOracleConfigArgs[] calldata configs) external;
+
+    /// @notice Transfers the manager role to a new address
+    /// @param yieldSourceOracleId The yield source id
+    /// @param newManager The new manager
+    function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) external;
+
+    /// @notice Accepts the manager role
+    /// @param yieldSourceOracleId The yield source id
+    function acceptManagerRole(bytes4 yieldSourceOracleId) external;
 
     /// @notice Returns the configuration for a yield source oracle
     /// @param yieldSourceOracleId The yield source id

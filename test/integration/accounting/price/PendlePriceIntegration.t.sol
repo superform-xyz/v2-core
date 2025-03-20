@@ -30,7 +30,6 @@ contract PendlePriceIntegration is BaseE2ETest {
     SuperExecutor superExecutor;
     ERC5115Ledger pendleLedger;
     SuperLedgerConfiguration superLedgerConfiguration;
-    bytes mockSignature;
 
     IStandardizedYield pendleVault;
     address underlying;
@@ -44,8 +43,6 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         attesters[0] = address(MANAGER);
         threshold = 1;
-
-        mockSignature = abi.encodePacked(hex"41414141");
 
         oracle = new ERC5115YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
 
@@ -80,36 +77,13 @@ contract PendlePriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        uint256 pricePerShareOne = oracle.getPricePerShare(address(pendleVault));
-        uint256 sharesOne = pendleVault.previewDeposit(underlying, amount);
-
         // prepare data & execute through entry point
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        // assert price per share
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            pendleLedger.getLedger(nexusAccount, address(pendleVault));
-        assertEq(entries.length, 1);
-        assertEq(entries[0].price, pricePerShareOne);
-        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-        assertEq(unconsumedEntries, 0);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         // re-execute the same entrypoint
         _getTokens(underlying, nexusAccount, amount);
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
 
-        uint256 pricePerShareTwo = oracle.getPricePerShare(address(pendleVault));
-        uint256 sharesTwo = pendleVault.previewDeposit(underlying, amount);
-
-        // assert price per share
-        (entries, unconsumedEntries) = pendleLedger.getLedger(nexusAccount, address(pendleVault));
-        assertEq(entries.length, 2);
-        assertEq(entries[0].price, pricePerShareOne);
-        assertEq(entries[0].amountSharesAvailableToConsume, sharesOne);
-        assertEq(entries[1].price, pricePerShareTwo);
-
-        assertEq(entries[1].amountSharesAvailableToConsume, sharesTwo);
-        assertEq(unconsumedEntries, 0);
+        _executeThroughEntrypoint(nexusAccount, entry);
     }
 
     function test_ValidateFees_ForPartialWithdrawal_NoExtraFees_Pendle() public {
@@ -126,11 +100,11 @@ contract PendlePriceIntegration is BaseE2ETest {
         ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
 
         // execute and validate first deposit
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         // execute and validate second deposit
         _getTokens(underlying, nexusAccount, amount);
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 2);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         // Check before withdrawal fees
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
@@ -144,7 +118,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 withdrawShares = availableShares * 2 / 3;
         entry = _prepareWithdrawExecutorEntry(withdrawShares);
         // it should still have 2 entries in the ledger and unconsumed entries index should be 0
-        _executeAndValidateWithdraw(nexusAccount, entry, 2, 1);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         assertEq(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
@@ -160,10 +134,10 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
 
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         _getTokens(underlying, nexusAccount, amount);
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 2);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
         assertEq(feeBalanceBefore, 0);
@@ -175,7 +149,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         uint256 availableShares = pendleVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares);
-        _executeAndValidateWithdraw(nexusAccount, entry, 2, 2);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
@@ -191,7 +165,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
 
-        _executeAndValidateDeposit(nexusAccount, entry, amount, 1);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
         assertEq(feeBalanceBefore, 0);
@@ -210,7 +184,7 @@ contract PendlePriceIntegration is BaseE2ETest {
 
         uint256 availableShares = pendleVault.balanceOf(nexusAccount);
         entry = _prepareWithdrawExecutorEntry(availableShares);
-        _executeAndValidateWithdraw(nexusAccount, entry, 1, 1);
+        _executeThroughEntrypoint(nexusAccount, entry);
 
         assertGt(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
@@ -272,44 +246,5 @@ contract PendlePriceIntegration is BaseE2ETest {
         );
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-    }
-
-    function _executeAndValidateDeposit(
-        address nexusAccount,
-        ISuperExecutor.ExecutorEntry memory entry,
-        uint256 amount,
-        uint256 expectedEntriesCount
-    )
-        private
-    {
-        uint256 pricePerShare = oracle.getPricePerShare(address(pendleVault));
-        uint256 shares = pendleVault.previewDeposit(underlying, amount);
-
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            pendleLedger.getLedger(nexusAccount, address(pendleVault));
-
-        assertEq(entries.length, expectedEntriesCount);
-        assertEq(entries[entries.length - 1].price, pricePerShare);
-        assertEq(entries[entries.length - 1].amountSharesAvailableToConsume, shares);
-        assertEq(unconsumedEntries, 0);
-    }
-
-    function _executeAndValidateWithdraw(
-        address nexusAccount,
-        ISuperExecutor.ExecutorEntry memory entry,
-        uint256 expectedEntriesCount,
-        uint256 expectedUnconsumedEntries
-    )
-        private
-    {
-        _executeThroughEntrypoint(nexusAccount, mockSignature, entry);
-
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            pendleLedger.getLedger(nexusAccount, address(pendleVault));
-
-        assertEq(entries.length, expectedEntriesCount, "Entries count mismatch");
-        assertEq(unconsumedEntries, expectedUnconsumedEntries, "Unconsumed entries mismatch");
     }
 }

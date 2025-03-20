@@ -11,6 +11,8 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 abstract contract BaseClaimRewardHook {
     uint256 public transient obtainedReward;
 
+    error REWARD_TOKEN_ZERO_ADDRESS();
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -22,6 +24,8 @@ abstract contract BaseClaimRewardHook {
     function _getBalance(bytes memory data) internal view returns (uint256) {
         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         address account = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+
+        if (rewardToken == address(0)) revert REWARD_TOKEN_ZERO_ADDRESS();
 
         return IERC20(rewardToken).balanceOf(account);
     }

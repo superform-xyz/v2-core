@@ -6,10 +6,16 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookNonAccounting
+} from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title RequestRedeem7540VaultHook
@@ -19,7 +25,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookNonAccounting {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -57,6 +63,13 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
             value: 0,
             callData: abi.encodeCall(IERC7540.requestRedeem, (shares, account, account))
         });
+    }
+
+    /// @inheritdoc ISuperHookNonAccounting
+    /// @return outAmount The amount of assets or shares processed by the hook
+    /// @return isShares Whether the amount is in shares
+    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
+        return (outAmount, true);
     }
 
     /*//////////////////////////////////////////////////////////////

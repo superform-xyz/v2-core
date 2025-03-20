@@ -41,6 +41,12 @@ interface ISuperOracle {
     /// @notice Error when quote is not supported (only USD is supported)
     error UNSUPPORTED_QUOTE();
 
+    /// @notice Error when provider max staleness period is exceeded
+    error MAX_STALENESS_EXCEEDED();
+    
+    /// @notice Error when provider max count is exceeded
+    error MAX_PROVIDERS_EXCEEDED();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -68,6 +74,10 @@ interface ISuperOracle {
     /// @param provider Provider index
     /// @param newMaxStaleness New maximum staleness period in seconds
     event ProviderMaxStalenessUpdated(uint256 provider, uint256 newMaxStaleness);
+
+    /// @notice Emitted when max staleness period is updated
+    /// @param newMaxStaleness New maximum staleness period in seconds
+    event MaxStalenessUpdated(uint256 newMaxStaleness);
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -124,4 +134,8 @@ interface ISuperOracle {
     /// @param provider Provider index
     /// @param newMaxStaleness New maximum staleness period in seconds
     function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external;
+
+    /// @notice Set the maximum staleness period for all providers
+    /// @param newMaxStaleness New maximum staleness period in seconds
+    function setMaxStaleness(uint256 newMaxStaleness) external;
 }

@@ -41,6 +41,7 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+
     address public immutable acrossSpokePool;
     address public immutable entryPointAddress;
     address payable public immutable superBundler;
@@ -129,6 +130,5 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
             // no action, as funds are already transferred
             emit AcrossFundsReceivedButExecutionFailed(account);
         }
-
     }
 }

@@ -62,6 +62,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
     function setUp() public override {
         super.setUp();
+        console2.log("--- SET UP 7540 UNDERLYING SV ---");
 
         vm.selectFork(FORKS[ETH]);
 
@@ -77,15 +78,11 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         vm.label(centrifugeAddress, YIELD_SOURCE_7540_ETH_USDC_KEY);
 
         centrifugeVault = IERC7540(centrifugeAddress);
-
         // Fluid 4626 vault was set up in BaseTest
 
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
 
-        vm.startPrank(SV_MANAGER);
-        deal(address(asset), SV_MANAGER, BOOTSTRAP_AMOUNT);
-        IERC20(address(asset)).approve(address(factory), BOOTSTRAP_AMOUNT);
-
+        vm.prank(SV_MANAGER);
         // Deploy the vault trio
         (
           address superVaultAddress, 
@@ -94,7 +91,6 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         ) = _deployVault(
           address(asset),
           SUPER_VAULT_CAP,
-          BOOTSTRAP_AMOUNT,
           "SV7540U"
         );
 
@@ -104,14 +100,13 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         amount = 1000e6; // 1000 USDC
 
-        vm.startPrank(SV_MANAGER);
+        vm.prank(SV_MANAGER);
         strategy.manageYieldSource(
             address(centrifugeVault),
             _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
             0,
             false // addYieldSource
         );
-        vm.stopPrank();
 
         address share = centrifugeVault.share();
 
@@ -123,11 +118,9 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         restrictionManager = RestrictionManagerLike(mngr);
 
-        vm.startPrank(RestrictionManagerLike(mngr).root());
+        vm.prank(RestrictionManagerLike(mngr).root());
         
         restrictionManager.updateMember(share, address(strategy), type(uint64).max);
-
-        vm.stopPrank();
 
         poolId = centrifugeVault.poolId();
         assertEq(poolId, 4_139_607_887);

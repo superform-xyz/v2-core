@@ -17,7 +17,7 @@ contract Mock4626Vault is ERC4626 {
 
     uint256 public yield;
     uint256 public yield_precision = 1e5;
-    
+
     // Track deposit timestamps for yield calculation
     mapping(address => uint256) public depositTimestamps;
 
@@ -73,10 +73,10 @@ contract Mock4626Vault is ERC4626 {
         _totalAssets += amount;
         _totalShares += shares;
         amountOf[receiver] += amount;
-        
+
         // Record deposit timestamp for yield calculation
         depositTimestamps[receiver] = block.timestamp;
-        
+
         IERC20(_asset).transferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -94,14 +94,14 @@ contract Mock4626Vault is ERC4626 {
         } else {
             assets = shares; // 1:1 ratio for simplicity when no yield
         }
-        
+
         _totalAssets -= assets;
         _totalShares -= shares;
         amountOf[owner] -= assets;
-        
+
         // Reset deposit timestamp
         depositTimestamps[owner] = 0;
-        
+
         IERC20(_asset).transfer(receiver, assets);
         _burn(owner, shares);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);

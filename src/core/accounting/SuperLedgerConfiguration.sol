@@ -13,6 +13,10 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     //////////////////////////////////////////////////////////////*/
     /// @notice Yield source oracle configurations
     mapping(bytes4 yieldSourceOracleId => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
+    /// @notice Pending manager for yield source oracle
+    mapping(bytes4 => address) private pendingManager;
+
+    uint256 internal constant MAX_FEE_PERCENT = 10_000;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
@@ -63,7 +67,24 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
             configs[i] = yieldSourceOracleConfig[yieldSourceOracleIds[i]];
         }
     }
+    /// @inheritdoc ISuperLedgerConfiguration
+    function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) external virtual {
+        YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
+        if (config.manager != msg.sender) revert NOT_MANAGER();
 
+        pendingManager[yieldSourceOracleId] = newManager;
+
+        emit ManagerRoleTransferStarted(yieldSourceOracleId, msg.sender, newManager);
+    }
+
+    /// @inheritdoc ISuperLedgerConfiguration
+    function acceptManagerRole(bytes4 yieldSourceOracleId) external virtual {
+        if (pendingManager[yieldSourceOracleId] != msg.sender) revert NOT_PENDING_MANAGER();
+        yieldSourceOracleConfig[yieldSourceOracleId].manager = msg.sender;
+        delete pendingManager[yieldSourceOracleId];
+
+        emit ManagerRoleTransferAccepted(yieldSourceOracleId, msg.sender);
+    }
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -80,7 +101,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (ledgerContract == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-        if (feePercent > 10_000) revert INVALID_FEE_PERCENT();
+        if (feePercent > MAX_FEE_PERCENT) revert INVALID_FEE_PERCENT();
         if (yieldSourceOracleId == bytes4(0)) revert ZERO_ID_NOT_ALLOWED();
 
         // Only allow updates if no config exists or if caller is the manager
