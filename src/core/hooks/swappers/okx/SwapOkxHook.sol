@@ -27,7 +27,6 @@ contract SwapOkxHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ZERO_ADDRESS();
     error INVALID_TOKEN();
     error INVALID_VALUE();
     error INVALID_BATCH();
