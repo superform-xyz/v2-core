@@ -15,9 +15,12 @@ import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPo
 contract SuperNativePaymaster is BasePaymaster {
     using UserOperationLib for PackedUserOperation;
 
+    uint256 constant MAX_NODE_OPERATOR_PREMIUM = 50;
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error EXCESSIVE_PREMIUM();
     error EMPTY_MESSAGE_VALUE();
     error INSUFFICIENT_BALANCE();
 
@@ -42,6 +45,10 @@ contract SuperNativePaymaster is BasePaymaster {
         pure
         returns (uint256 refund)
     {
+        if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
+            revert EXCESSIVE_PREMIUM();
+        }
+
         uint256 costWithPremium = (actualGasCost * (100 + nodeOperatorPremium)) / 100;
 
         uint256 maxCost = maxGasLimit * maxFeePerGas;
@@ -121,6 +128,10 @@ contract SuperNativePaymaster is BasePaymaster {
         }
         (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
             abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
+
+        if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
+            revert EXCESSIVE_PREMIUM();
+        }
 
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
     }
