@@ -28,7 +28,7 @@ At a high level, Superform v2 is organized into two major parts:
 - SuperBundler: A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It also integrates with
   a validation system (SuperMerkleValidator) to ensure secure operation.
 - SuperVault: A ERC7540 compliant vault capable of allocating an asset to various yield sources using hooks and allowing
-  strategists to optimize the performance of the vault.
+  strategists to optimize the performance of the vault..
 
 ### Repository Structure
 
