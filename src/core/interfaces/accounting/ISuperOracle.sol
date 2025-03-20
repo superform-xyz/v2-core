@@ -41,6 +41,9 @@ interface ISuperOracle {
     /// @notice Error when quote is not supported (only USD is supported)
     error UNSUPPORTED_QUOTE();
 
+    /// @notice Error when provider max count is exceeded
+    error MAX_PROVIDERS_EXCEEDED();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/

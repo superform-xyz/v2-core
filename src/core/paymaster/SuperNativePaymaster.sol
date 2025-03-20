@@ -59,50 +59,15 @@ contract SuperNativePaymaster is BasePaymaster {
     /// @notice Handle a batch of user operations.
     /// @param ops The user operations to handle.
     function handleOps(PackedUserOperation[] calldata ops) public payable {
-        if (msg.value == 0) {
+        if (address(this).balance == 0) {
             revert EMPTY_MESSAGE_VALUE();
         }
-        payable(address(entryPoint)).call{value: msg.value}("")
+        (bool success, ) = payable(address(entryPoint)).call{value: msg.value}("");
+        if (!success) revert INSUFFICIENT_BALANCE();
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
     
-    /// @notice Simulate the handling of a user operation.
-    /// @param op The user operation to simulate.
-    /// @param target The target address of the user operation.
-    /// @param callData The call data for the user operation.
-    function simulateHandleOp(
-        PackedUserOperation calldata op,
-        address target,
-        bytes calldata callData
-    )
-        external
-        payable
-        returns (IEntryPointSimulations.ExecutionResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
-        return entryPointWithSimulations.simulateHandleOp(op, target, callData);
-    }
-
-    /// @notice Simulate the validation of a user operation.
-    /// @param op The user operation to simulate.
-    function simulateValidation(PackedUserOperation calldata op)
-        external
-        payable
-        returns (IEntryPointSimulations.ValidationResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
-        return entryPointWithSimulations.simulateValidation(op);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
