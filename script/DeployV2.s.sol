@@ -19,6 +19,7 @@ import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConf
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
+import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
 
 // -- hooks
 // ---- | swappers
@@ -101,6 +102,7 @@ contract DeployV2 is Script, Configuration {
         address peripheryRegistry;
         address superVaultFactory;
         address superMerkleValidator;
+        address superNativePaymaster;
     }
 
     struct HookAddresses {
@@ -273,6 +275,14 @@ contract DeployV2 is Script, Configuration {
             type(SuperMerkleValidator).creationCode
         );
 
+        // Deploy SuperNativePaymaster
+        deployedContracts.superNativePaymaster = __deployContract(
+            deployer,
+            SUPER_NATIVE_PAYMASTER_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_NATIVE_PAYMASTER_KEY),
+            abi.encodePacked(type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT))
+        );
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);
 
