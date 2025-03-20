@@ -28,7 +28,7 @@ contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflo
 
     uint256 private constant AMOUNT_POSITION = 44;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

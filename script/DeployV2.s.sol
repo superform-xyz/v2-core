@@ -342,89 +342,89 @@ contract DeployV2 is Script, Configuration {
 
         hooks[0] = HookDeployment(
             APPROVE_ERC20_HOOK_KEY,
-            abi.encodePacked(type(ApproveERC20Hook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(ApproveERC20Hook).creationCode, abi.encode(registry))
         );
         hooks[1] = HookDeployment(
             TRANSFER_ERC20_HOOK_KEY,
-            abi.encodePacked(type(TransferERC20Hook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(TransferERC20Hook).creationCode, abi.encode(registry))
         );
         hooks[2] = HookDeployment(
             DEPOSIT_4626_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Deposit4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(Deposit4626VaultHook).creationCode, abi.encode(registry))
         );
         hooks[3] = HookDeployment(
             APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
             abi.encodePacked(
-                type(ApproveAndDeposit4626VaultHook).creationCode, abi.encode(registry, configuration.owner)
+                type(ApproveAndDeposit4626VaultHook).creationCode, abi.encode(registry)
             )
         );
         hooks[4] = HookDeployment(
             REDEEM_4626_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Redeem4626VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(Redeem4626VaultHook).creationCode, abi.encode(registry))
         );
         hooks[5] = HookDeployment(
             DEPOSIT_5115_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Deposit5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(Deposit5115VaultHook).creationCode, abi.encode(registry))
         );
         hooks[6] = HookDeployment(
             APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
             abi.encodePacked(
-                type(ApproveAndDeposit5115VaultHook).creationCode, abi.encode(registry, configuration.owner)
+                type(ApproveAndDeposit5115VaultHook).creationCode, abi.encode(registry)
             )
         );
         hooks[7] = HookDeployment(
             REDEEM_5115_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Redeem5115VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(Redeem5115VaultHook).creationCode, abi.encode(registry))
         );
         hooks[8] = HookDeployment(
             REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(RequestDeposit7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(RequestDeposit7540VaultHook).creationCode, abi.encode(registry))
         );
         hooks[9] = HookDeployment(
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
             abi.encodePacked(
-                type(ApproveAndRequestDeposit7540VaultHook).creationCode, abi.encode(registry, configuration.owner)
+                type(ApproveAndRequestDeposit7540VaultHook).creationCode, abi.encode(registry)
             )
         );
         hooks[10] = HookDeployment(
             REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(RequestRedeem7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(RequestRedeem7540VaultHook).creationCode, abi.encode(registry))
         );
 
         hooks[11] = HookDeployment(
             DEPOSIT_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Deposit7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(Deposit7540VaultHook).creationCode, abi.encode(registry))
         );
         hooks[12] = HookDeployment(
             WITHDRAW_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Withdraw7540VaultHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(Withdraw7540VaultHook).creationCode, abi.encode(registry))
         );
         hooks[13] = HookDeployment(
             SWAP_OKX_HOOK_KEY,
             abi.encodePacked(
                 type(SwapOkxHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.okxRouters[chainId])
+                abi.encode(registry, configuration.okxRouters[chainId])
             )
         );
         hooks[14] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
             abi.encodePacked(
                 type(Swap1InchHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.aggregationRouters[chainId])
+                abi.encode(registry, configuration.aggregationRouters[chainId])
             )
         );
         hooks[15] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
             abi.encodePacked(
                 type(SwapOdosHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.odosRouters[chainId])
+                abi.encode(registry, configuration.odosRouters[chainId])
             )
         );
         hooks[16] = HookDeployment(
             APPROVE_AND_SWAP_ODOS_HOOK_KEY,
             abi.encodePacked(
                 type(ApproveAndSwapOdosHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.odosRouters[chainId])
+                abi.encode(registry, configuration.odosRouters[chainId])
             )
         );
 
@@ -432,44 +432,44 @@ contract DeployV2 is Script, Configuration {
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(registry, configuration.owner, configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(registry, configuration.acrossSpokePoolV3s[chainId])
             )
         );
         hooks[18] = HookDeployment(
             FLUID_CLAIM_REWARD_HOOK_KEY,
-            abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry))
         );
         hooks[19] = HookDeployment(
             FLUID_STAKE_HOOK_KEY,
-            abi.encodePacked(type(FluidStakeHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(FluidStakeHook).creationCode, abi.encode(registry))
         );
         hooks[20] = HookDeployment(
             APPROVE_AND_FLUID_STAKE_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndFluidStakeHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(ApproveAndFluidStakeHook).creationCode, abi.encode(registry))
         );
         hooks[21] = HookDeployment(
             FLUID_UNSTAKE_HOOK_KEY,
-            abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry))
         );
         hooks[22] = HookDeployment(
             GEARBOX_CLAIM_REWARD_HOOK_KEY,
-            abi.encodePacked(type(GearboxClaimRewardHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(GearboxClaimRewardHook).creationCode, abi.encode(registry))
         );
         hooks[23] = HookDeployment(
             GEARBOX_STAKE_HOOK_KEY,
-            abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry))
         );
         hooks[24] = HookDeployment(
             GEARBOX_APPROVE_AND_STAKE_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndGearboxStakeHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(ApproveAndGearboxStakeHook).creationCode, abi.encode(registry))
         );
         hooks[25] = HookDeployment(
             GEARBOX_UNSTAKE_HOOK_KEY,
-            abi.encodePacked(type(GearboxUnstakeHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(GearboxUnstakeHook).creationCode, abi.encode(registry))
         );
         hooks[26] = HookDeployment(
             YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
-            abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry, configuration.owner))
+            abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry))
         );
 
         for (uint256 i = 0; i < len; ++i) {

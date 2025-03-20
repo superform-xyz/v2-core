@@ -162,7 +162,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -196,7 +196,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -232,7 +232,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);

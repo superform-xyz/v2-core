@@ -50,10 +50,9 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
 
     constructor(
         address registry_,
-        address author_,
         address spokePoolV3_
     )
-        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+        BaseHook(registry_, HookType.NONACCOUNTING)
     {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;

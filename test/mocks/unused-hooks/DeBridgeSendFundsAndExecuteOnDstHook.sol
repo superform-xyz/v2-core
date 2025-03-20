@@ -56,10 +56,9 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
 
     constructor(
         address registry_,
-        address author_,
         address deBridgeGate_
     )
-        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+        BaseHook(registry_, HookType.NONACCOUNTING)
     {
         if (deBridgeGate_ == address(0)) revert ADDRESS_NOT_VALID();
         deBridgeGate = deBridgeGate_;

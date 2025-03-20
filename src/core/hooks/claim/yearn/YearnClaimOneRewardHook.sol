@@ -17,7 +17,7 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

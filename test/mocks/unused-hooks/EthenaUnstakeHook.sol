@@ -35,7 +35,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISu
     // if the callee is the superRegistry, the receiver must be the account
     error INVALID_RECEIVER();
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
