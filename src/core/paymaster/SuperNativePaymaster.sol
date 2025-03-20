@@ -62,11 +62,12 @@ contract SuperNativePaymaster is BasePaymaster {
         if (address(this).balance == 0) {
             revert EMPTY_MESSAGE_VALUE();
         }
-        payable(address(entryPoint)).call{value: address(this).balance}("");
+        (bool success, ) = payable(address(entryPoint)).call{value: msg.value}("");
+        if (!success) revert INSUFFICIENT_BALANCE();
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
-
+    
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
