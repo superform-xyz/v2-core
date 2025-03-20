@@ -353,11 +353,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
             // source's assets in transit
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
-                try ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares) {
+                try ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares)
+                {
                     if (isShares) {
-                        uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(
-                            vars.targetedYieldSource, address(this), outAmount
-                        );
+                        uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle)
+                            .getAssetOutput(vars.targetedYieldSource, address(this), outAmount);
                         yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
                     } else {
                         yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
