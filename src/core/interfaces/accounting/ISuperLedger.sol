@@ -37,7 +37,7 @@ interface ISuperLedgerData {
     );
 
     event AccountingOutflowSkipped(
-        address indexed user, address indexed yieldSource, bytes32 indexed yieldSourceOracleId, uint256 amount
+        address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount
     );
 
     /*//////////////////////////////////////////////////////////////

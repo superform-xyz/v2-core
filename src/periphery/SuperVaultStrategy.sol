@@ -14,11 +14,12 @@ import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 // Core Interfaces
 import {
+    Execution,
     ISuperHook,
     ISuperHookResult,
-    Execution,
+    ISuperHookOutflow,
     ISuperHookInflowOutflow,
-    ISuperHookOutflow
+    ISuperHookNonAccounting
 } from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -352,15 +353,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
             // source's assets in transit
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
-                uint256 outAmount = ISuperHookResult(hooks[i]).outAmount();
-
-                uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(
-                    vars.targetedYieldSource, address(this), outAmount
-                );
-
-                yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
+                try ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares)
+                {   
+                    if (outAmount == 0) revert INVALID_AMOUNT();
+                    if (isShares) {
+                        uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle)
+                            .getAssetOutput(vars.targetedYieldSource, address(this), outAmount);
+                        yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
+                    } else {
+                        yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
+                    }
+                } catch {
+                    revert INVALID_HOOK();
+                }
             }
-
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
         }

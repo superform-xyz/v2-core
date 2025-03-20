@@ -8,8 +8,8 @@ import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingP
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs

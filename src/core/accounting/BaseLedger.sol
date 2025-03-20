@@ -24,6 +24,8 @@ abstract contract BaseLedger is ISuperLedger {
     mapping(address user => uint256) public usersAccumulatorShares;
     mapping(address user => uint256) public usersAccumulatorCostBasis;
 
+    bytes32 internal constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID");
+
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -33,7 +35,7 @@ abstract contract BaseLedger is ISuperLedger {
     }
 
     modifier onlyExecutor() {
-        if (_getAddress(keccak256("SUPER_EXECUTOR_ID")) != msg.sender) revert NOT_AUTHORIZED();
+        if (_getAddress(SUPER_EXECUTOR_ID) != msg.sender) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -161,10 +163,9 @@ abstract contract BaseLedger is ISuperLedger {
 
         // Get price from oracle
         uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+        if (pps == 0) revert INVALID_PRICE();
 
         if (isInflow) {
-            if (pps == 0) revert INVALID_PRICE();
-
             _takeSnapshot(
                 user,
                 amountSharesOrAssets,

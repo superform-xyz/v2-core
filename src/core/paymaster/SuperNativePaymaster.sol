@@ -18,10 +18,13 @@ contract SuperNativePaymaster is BasePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
     error EMPTY_MESSAGE_VALUE();
     error INSUFFICIENT_BALANCE();
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) { }
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {   
+        if (address(_entryPoint).code.length == 0) revert ZERO_ADDRESS();
+     }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -59,48 +62,9 @@ contract SuperNativePaymaster is BasePaymaster {
         if (address(this).balance == 0) {
             revert EMPTY_MESSAGE_VALUE();
         }
-        entryPoint.depositTo{ value: address(this).balance }(address(this));
+        payable(address(entryPoint)).call{value: address(this).balance}("");
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
-    }
-    
-
-    // Removed in PR for issue #62
-    /// @notice Simulate the handling of a user operation.
-    /// @param op The user operation to simulate.
-    /// @param target The target address of the user operation.
-    /// @param callData The call data for the user operation.
-    function simulateHandleOp(
-        PackedUserOperation calldata op,
-        address target,
-        bytes calldata callData
-    )
-        external
-        payable
-        returns (IEntryPointSimulations.ExecutionResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: address(this).balance }(address(this));
-        return entryPointWithSimulations.simulateHandleOp(op, target, callData);
-    }
-
-    // Removed in PRfor issue #62
-    /// @notice Simulate the validation of a user operation.
-    /// @param op The user operation to simulate.
-    function simulateValidation(PackedUserOperation calldata op)
-        external
-        payable
-        returns (IEntryPointSimulations.ValidationResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: address(this).balance }(address(this));
-        return entryPointWithSimulations.simulateValidation(op);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -8,8 +8,8 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 /// @title FluidClaimRewardHook
 /// @author Superform Labs

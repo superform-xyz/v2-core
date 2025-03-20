@@ -10,9 +10,15 @@ abstract contract SuperRegistryImplementer {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    ISuperRegistry public superRegistry;
+    ISuperRegistry public immutable superRegistry;
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
 
     constructor(address superRegistry_) {
+        if(superRegistry_ == address(0)) revert ZERO_ADDRESS();
         superRegistry = ISuperRegistry(superRegistry_);
     }
 }
