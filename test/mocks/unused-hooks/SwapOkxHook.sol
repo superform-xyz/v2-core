@@ -4,12 +4,12 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../../../../vendor/okx/IOkxSwapRouter.sol";
-import "../../../../vendor/okx/PMMLib.sol";
+import "../../../src/vendor/okx/IOkxSwapRouter.sol";
+import "../../../src/vendor/okx/PMMLib.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 
 
 /// @title SwapperOkxHook

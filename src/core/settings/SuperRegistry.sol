@@ -16,9 +16,7 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
 
-    constructor(address owner_) Ownable(owner_) {
-        if (owner_ == address(0)) revert INVALID_ACCOUNT();
-    }
+    constructor(address owner_) Ownable(owner_) {}
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER

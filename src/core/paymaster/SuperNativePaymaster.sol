@@ -66,7 +66,7 @@ contract SuperNativePaymaster is BasePaymaster {
 
     /// @notice Simulate the handling of a user operation.
     /// @param op The user operation to simulate.
-    /// @param target The target address of the user operation.
+    /// @param target The target address of  the user operation.
     /// @param callData The call data for the user operation.
     function simulateHandleOp(
         PackedUserOperation calldata op,
@@ -167,4 +167,7 @@ contract SuperNativePaymaster is BasePaymaster {
     function _getEntryPointWithSimulations() private view returns (IEntryPointSimulations) {
         return IEntryPointSimulations(address(entryPoint));
     }
+    
+    /// @notice Allows the contract to receive ETH
+    receive() external payable {}
 }

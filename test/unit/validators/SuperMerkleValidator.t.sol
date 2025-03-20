@@ -19,7 +19,6 @@ import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleVa
 
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
-import { console2 } from "forge-std/console2.sol";
 
 contract SuperMerkleValidatorTest is BaseTest {
     using ModuleKitHelpers for *;
