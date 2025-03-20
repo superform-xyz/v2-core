@@ -125,6 +125,9 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         if (newMaxStaleness > maxStaleness) {
             revert MAX_STALENESS_EXCEEDED();
         }
+        if (newMaxStaleness == 0) {
+            newMaxStaleness = maxStaleness;
+        }
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
