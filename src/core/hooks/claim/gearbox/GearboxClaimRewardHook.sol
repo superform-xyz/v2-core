@@ -8,14 +8,14 @@ import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingP
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
-import { ISuperHook, ISuperHookNonAccounting } from "../../../interfaces/ISuperHook.sol";
 
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, ISuperHookNonAccounting {
+contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -36,18 +36,6 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, IS
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
-    }
-
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @return outAmount The outAmount of shares
-    function shareOutAmount() external view returns (uint256) {
-        return outAmount;
-    }
-
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @dev This hook does not return assets, so we revert
-    function assetOutAmount() external pure returns (uint256) {
-        revert OUT_AMOUNT_DISABLED();
     }
 
     /*//////////////////////////////////////////////////////////////
