@@ -52,6 +52,7 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
+        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](4);
         executions[0] =

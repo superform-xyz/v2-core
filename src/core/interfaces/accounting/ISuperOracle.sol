@@ -43,6 +43,9 @@ interface ISuperOracle {
 
     /// @notice Error when provider max staleness period is exceeded
     error MAX_STALENESS_EXCEEDED();
+    
+    /// @notice Error when provider max count is exceeded
+    error MAX_PROVIDERS_EXCEEDED();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS

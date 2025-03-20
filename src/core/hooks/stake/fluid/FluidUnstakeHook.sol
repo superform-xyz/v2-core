@@ -56,6 +56,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISup
         if (usePrevHookAmount) {
             amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
+        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
