@@ -14,11 +14,12 @@ import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 
 // Core Interfaces
 import {
+    Execution,
     ISuperHook,
     ISuperHookResult,
-    Execution,
+    ISuperHookOutflow,
     ISuperHookInflowOutflow,
-    ISuperHookOutflow
+    ISuperHookNonAccounting
 } from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -352,13 +353,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
             // source's assets in transit
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
-                uint256 outAmount = ISuperHookResult(hooks[i]).outAmount();
+                // If the hook returns a share out amount, we can calculate the assets out
+                try ISuperHookNonAccounting(hooks[i]).shareOutAmount() returns (uint256 outAmount) {
+                    uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(
+                        vars.targetedYieldSource, address(this), outAmount
+                    );
 
-                uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(
-                    vars.targetedYieldSource, address(this), outAmount
-                );
-
-                yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
+                    yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
+                } catch {
+                    // If the hook returns an asset out amount, we can add it directly to the yield source assets in
+                    // transit
+                    try ISuperHookNonAccounting(hooks[i]).assetOutAmount() returns (uint256 outAmount) {
+                        yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
+                    } catch {
+                        revert OUT_AMOUNT_DISABLED();
+                    }
+                }
             }
 
             // Update prevHook for next iteration

@@ -9,7 +9,12 @@ import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol"
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookNonAccounting
+} from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title RequestDeposit7540VaultHook
@@ -19,7 +24,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookNonAccounting {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -57,6 +62,19 @@ contract RequestDeposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOu
             value: 0,
             callData: abi.encodeCall(IERC7540.requestDeposit, (amount, account, account))
         });
+    }
+
+    /// @inheritdoc ISuperHookNonAccounting
+    /// @dev This hook does not return shares, so we revert
+    function shareOutAmount() external pure returns (uint256) {
+        revert OUT_AMOUNT_DISABLED();
+    }
+
+    /// @inheritdoc ISuperHookNonAccounting
+    /// @notice Returns the outAmount of assets
+    /// @return outAmount The outAmount of assets
+    function assetOutAmount() external view returns (uint256) {
+        return outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
