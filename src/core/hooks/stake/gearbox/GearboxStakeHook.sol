@@ -51,6 +51,7 @@ contract GearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
+        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
