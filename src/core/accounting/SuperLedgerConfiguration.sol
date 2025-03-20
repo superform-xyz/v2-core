@@ -14,6 +14,8 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     /// @notice Yield source oracle configurations
     mapping(bytes4 yieldSourceOracleId => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
 
+    uint256 internal constant MAX_FEE_PERCENT = 10_000;
+
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -80,7 +82,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (ledgerContract == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-        if (feePercent > 10_000) revert INVALID_FEE_PERCENT();
+        if (feePercent > MAX_FEE_PERCENT) revert INVALID_FEE_PERCENT();
         if (yieldSourceOracleId == bytes4(0)) revert ZERO_ID_NOT_ALLOWED();
 
         // Only allow updates if no config exists or if caller is the manager

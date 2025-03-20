@@ -19,7 +19,6 @@ interface ISuperHookResult {
     function lockForSP() external view returns (bool);
     /// @notice The lock token of the hook
     function spToken() external view returns (address);
-
     /// @notice The asset token being withdrawn or deposited
     function asset() external view returns (address);
 }
@@ -48,6 +47,14 @@ interface ISuperHookOutflow {
 interface ISuperHookResultOutflow is ISuperHookResult {
     /// @notice The amount of shares processed by the hook
     function usedShares() external view returns (uint256);
+}
+
+/// @title ISuperHookNonAccounting
+/// @author Superform Labs
+/// @notice Interface for the SuperHookResultNonAccounting contract that manages non-accounting hook results
+interface ISuperHookNonAccounting {
+    /// @notice The amount of assets or shares processed by the hook
+    function getUsedAssetsOrShares() external pure returns (uint256, bool);
 }
 
 /// @title ISuperHook

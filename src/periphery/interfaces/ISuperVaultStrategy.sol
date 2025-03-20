@@ -55,7 +55,6 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
     error DEPOSIT_FAILURE_INVALID_TARGET();
-    error INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
