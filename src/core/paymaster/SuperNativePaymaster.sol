@@ -18,10 +18,13 @@ contract SuperNativePaymaster is BasePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
     error EMPTY_MESSAGE_VALUE();
     error INSUFFICIENT_BALANCE();
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) { }
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {   
+        if (address(_entryPoint).code.length == 0) revert ZERO_ADDRESS();
+     }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
