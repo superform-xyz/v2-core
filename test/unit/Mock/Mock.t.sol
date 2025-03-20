@@ -39,6 +39,8 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
     uint256 eoaKey;
     address account7702;
 
+    receive() external payable {}
+
     function setUp() public {
         eoaKey = uint256(8);
         account7702 = vm.addr(eoaKey);
@@ -138,6 +140,33 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
 
         uint256 executorVal = executor.val();
         assertEq(executorVal, amount);
+    }
+
+    function test_ETHTransfer() external {
+        MockValidatorModule validator = new MockValidatorModule();
+        MockExecutorModule executor = new MockExecutorModule();
+
+        AccountInstance memory instance = makeAccountInstance("MockAccount");
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
+        vm.deal(instance.account, LARGE);
+        vm.label(instance.account, "MockAccount");
+
+        uint256 amount = 1e18;
+        bytes memory data = abi.encode(amount);
+
+        // Get exec user ops
+        UserOpData memory userOpData = instance.getExecOps({
+            target: address(this),
+            value: 1 ether,
+            callData: "",
+            txValidator: address(validator)
+        });
+
+        uint256 balanceBefore = address(this).balance;
+        userOpData.execUserOps();
+        uint256 balanceAfter = address(this).balance;
+        assertEq(balanceAfter - balanceBefore, 1 ether);
     }
 
     function test_7579call_from_7702_compliant_account() external {
