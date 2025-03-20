@@ -60,11 +60,12 @@ contract SuperNativePaymaster is BasePaymaster {
     /// @notice Handle a batch of user operations.
     /// @param ops The user operations to handle.
     function handleOps(PackedUserOperation[] calldata ops) public payable {
-        if (address(this).balance == 0) {
-            revert EMPTY_MESSAGE_VALUE();
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success, ) = payable(address(entryPoint)).call{value: balance}("");
+            if (!success) revert INSUFFICIENT_BALANCE();
         }
-        (bool success, ) = payable(address(entryPoint)).call{value: msg.value}("");
-        if (!success) revert INSUFFICIENT_BALANCE();
+
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
