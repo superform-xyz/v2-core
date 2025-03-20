@@ -32,7 +32,6 @@ interface ISuperVaultStrategy {
     error INSUFFICIENT_FUNDS();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
-    error OUT_AMOUNT_DISABLED();
     error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
     error INVALID_BALANCE_CHANGE();
@@ -56,7 +55,6 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
     error DEPOSIT_FAILURE_INVALID_TARGET();
-    error INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/

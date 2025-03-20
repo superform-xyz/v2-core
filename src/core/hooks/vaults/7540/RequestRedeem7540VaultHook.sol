@@ -65,16 +65,10 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
     }
 
     /// @inheritdoc ISuperHookNonAccounting
-    /// @notice Returns the outAmount of shares
-    /// @return outAmount The outAmount of shares
-    function shareOutAmount() external view returns (uint256) {
-        return outAmount;
-    }
-
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @dev This hook does not return assets, so we revert
-    function assetOutAmount() external pure returns (uint256) {
-        revert OUT_AMOUNT_DISABLED();
+    /// @return outAmount The amount of assets or shares processed by the hook
+    /// @return isShares Whether the amount is in shares
+    function getUsedAssetsOrShares() external pure returns (uint256 outAmount, bool isShares) {
+        return (outAmount, true);
     }
 
     /*//////////////////////////////////////////////////////////////

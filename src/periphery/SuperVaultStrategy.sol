@@ -353,24 +353,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
             // source's assets in transit
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
-                // If the hook returns a share out amount, we can calculate the assets out
-                try ISuperHookNonAccounting(hooks[i]).shareOutAmount() returns (uint256 outAmount) {
-                    uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(
-                        vars.targetedYieldSource, address(this), outAmount
-                    );
-
-                    yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
-                } catch {
-                    // If the hook returns an asset out amount, we can add it directly to the yield source assets in
-                    // transit
-                    try ISuperHookNonAccounting(hooks[i]).assetOutAmount() returns (uint256 outAmount) {
+                try ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares)
+                {
+                    if (isShares) {
+                        uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle)
+                            .getAssetOutput(vars.targetedYieldSource, address(this), outAmount);
+                        yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
+                    } else {
                         yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
-                    } catch {
-                        revert OUT_AMOUNT_DISABLED();
                     }
+                } catch {
+                    revert INVALID_HOOK();
                 }
             }
-
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
         }
@@ -962,8 +957,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 (locals.amount, locals.outAmount) =
                     _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
             }
-
-            if (expectedAssetsOrSharesOut[i] == 0) revert INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
