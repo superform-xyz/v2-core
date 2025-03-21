@@ -8,7 +8,11 @@ import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol
 /// @author Superform Labs
 /// @notice Library for calculating paymaster gas costs for user operations
 library PaymasterGasCalculator {
+    uint256 internal constant UINT128_BYTES = 16;
+
+
     /// @dev Offset in paymasterAndData where custom data begins
+    uint256 internal constant PAYMASTER_MAX_GAS_LIMIT_OFFSET = 20;
     uint256 internal constant PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
     uint256 internal constant PAYMASTER_VALIDATION_GAS_OFFSET = UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET;
     uint256 internal constant PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;

@@ -6,11 +6,11 @@ import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
-import { IStakeManager } from "@account-abstraction/interfaces/IStakeManager.sol";
 
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
-import { console2 } from "forge-std/console2.sol";
+import { PaymasterGasCalculator } from "../libraries/PaymasterGasCalculator.sol";
+
 /// @title SuperNativePaymaster
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
@@ -83,9 +83,15 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
             revert INSUFFICIENT_BALANCE();
         }
+
+        uint256 operatorPremiumOffsetStart = PaymasterGasCalculator.PAYMASTER_DATA_OFFSET;
+        uint256 operatorPremiumOffsetEnd = operatorPremiumOffsetStart + PaymasterGasCalculator.UINT128_BYTES;
+
+        uint256 maxGasLimitOffsetStart = PaymasterGasCalculator.PAYMASTER_MAX_GAS_LIMIT_OFFSET;
+        uint256 maxGasLimitOffsetEnd = maxGasLimitOffsetStart + PaymasterGasCalculator.UINT128_BYTES;
         // paymaster (20 bytes), validationGasLimit (16 bytes), postOpGasLimit (16 bytes), paymasterData (any length)
-        uint128 maxGasLimit = uint128(bytes16(userOp.paymasterAndData[20:36]));
-        uint128 nodeOperatorPremium = uint128(bytes16(userOp.paymasterAndData[52:68]));
+        uint128 maxGasLimit = uint128(bytes16(userOp.paymasterAndData[maxGasLimitOffsetStart:maxGasLimitOffsetEnd]));
+        uint128 nodeOperatorPremium = uint128(bytes16(userOp.paymasterAndData[operatorPremiumOffsetStart:operatorPremiumOffsetEnd]));
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
     }
 
