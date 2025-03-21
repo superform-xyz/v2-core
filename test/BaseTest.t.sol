@@ -107,11 +107,13 @@ import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 
 // SuperformNativePaymaster
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
+
+import { SuperGasTank } from "../src/core/paymaster/SuperGasTank.sol";
+
 // Nexus and Rhinestone overrides to allow for SuperformNativePaymaster
 import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFactory.sol";
 import { getFactory, getHelper, getStorageCompliance } from "modulekit/test/utils/Storage.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
-import { IStakeManager } from "@account-abstraction/interfaces/IStakeManager.sol";
 
 import "forge-std/console2.sol";
 
@@ -159,6 +161,7 @@ struct Addresses {
     SuperMerkleValidator superMerkleValidator;
     PeripheryRegistry peripheryRegistry;
     SuperNativePaymaster superNativePaymaster;
+    SuperGasTank superGasTank;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -411,10 +414,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].superNativePaymaster = new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR));
             vm.label(address(A[i].superNativePaymaster), SUPER_NATIVE_PAYMASTER_KEY);
             contractAddresses[chainIds[i]][SUPER_NATIVE_PAYMASTER_KEY] = address(A[i].superNativePaymaster);
-            SuperNativePaymaster(payable(address(A[i].superNativePaymaster))).depositTo{ value: 10 ether }();
-            IStakeManager.DepositInfo memory info =
-                IStakeManager(ENTRYPOINT_ADDR).getDepositInfo(address(A[i].superNativePaymaster));
-            console2.log("DEPOSIT INFO ON PAYMASTER DPLY", info.deposit);
+
+            A[i].superGasTank = new SuperGasTank(address(this));
+            vm.label(address(A[i].superGasTank), SUPER_GAS_TANK_KEY);
+            contractAddresses[chainIds[i]][SUPER_GAS_TANK_KEY] = address(A[i].superGasTank);
+            payable(address(A[i].superGasTank)).transfer(10 ether);
 
             A[i].acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
                 SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR, SUPER_BUNDLER, address(A[i].superNativePaymaster)

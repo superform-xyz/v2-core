@@ -119,6 +119,14 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
         userOp.paymasterAndData = BytesLib.slice(message, offset, codeLength);
         offset += codeLength;
 
+        // create a helper function that
+        // 1. decodes paymasterAndData - pull (unpackPaymasterStaticFields) 3 values, preverificationGas, postOpGas,
+        // gasLimit (which is abi.encodePacked(accountCreationGas, callDataGas))
+        // 1.1             bytes  gasLimit =uint128(bytes16(paymasterAndData[PAYMASTER_DATA_OFFSET : length])) // then
+        // decode it to have accountCreationGas, callDataGas
+        // 2. Sum all 4 values:  preverificationGas, postOpGas, accountCreationGas, callDataGas - total gas consumption
+        // 3. gasFees -  unpackMaxFeePerGas / unpackMaxPriorityFeePerGas
+        // 4. totalGasConsumption * (maxFeePerGas + maxPriorityFeePerGas) = gas consumption in wei  (msg.value)
         userOp.signature = BytesLib.slice(message, offset, message.length - offset);
 
         IERC20 token = IERC20(tokenSent);

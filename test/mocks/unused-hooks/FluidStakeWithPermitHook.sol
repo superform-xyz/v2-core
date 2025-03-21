@@ -2,16 +2,16 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
-import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
+import { IFluidLendingStakingRewards } from "../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
 
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
 
 /// @title FluidStakeWithPermitHook
 /// @author Superform Labs

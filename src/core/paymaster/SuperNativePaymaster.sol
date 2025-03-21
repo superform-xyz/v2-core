@@ -62,11 +62,6 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
 
-    /// @inheritdoc ISuperNativePaymaster
-    function depositTo() external payable onlyOwner {
-        entryPoint.depositTo{ value: msg.value }(address(this));
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

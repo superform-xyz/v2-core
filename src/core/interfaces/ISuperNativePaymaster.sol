@@ -39,7 +39,4 @@ interface ISuperNativePaymaster {
         external
         pure
         returns (uint256 refund);
-
-    /// @notice Deposit to the entrypoint.
-    function depositTo() external payable;
 }
