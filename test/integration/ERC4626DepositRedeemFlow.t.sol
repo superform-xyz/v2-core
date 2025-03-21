@@ -204,7 +204,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         vars.intentAmount = 100e8;
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         // force account on dst to have 0 balance
         deal(underlyingBase_USDC, accountBase, 0);
@@ -228,7 +228,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecuteOnDst));
 
         // ETH is SRC1
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
         vars.srcHooksAddresses = new address[](2);
         vars.srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         vars.srcHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
@@ -253,10 +253,12 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         UserOpData memory srcUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         // not enough balance is received
-        _processAcrossV3Message(ETH, BASE, 0, executeOp(srcUserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(
+            ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase
+        );
 
         // OP is SRC2
-        vm.selectFork(FORKS[OP]);
+        SELECT_FORK_AND_WARP(OP, block.timestamp);
 
         vars.srcHooksAddresses = new address[](2);
         vars.srcHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
@@ -280,9 +282,11 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         srcUserOpData = _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entry));
         // balance is received and everything is executed
-        _processAcrossV3Message(OP, BASE, 0, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(
+            OP, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+        );
 
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
     }
 
     /*
