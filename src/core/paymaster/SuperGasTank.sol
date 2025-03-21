@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {ISuperGasTank} from "../interfaces/ISuperGasTank.sol";
+import { Ownable, Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { ISuperGasTank } from "../interfaces/ISuperGasTank.sol";
 
 /// @title SuperGasTank
 /// @author Superform Labs
@@ -20,14 +20,14 @@ contract SuperGasTank is ISuperGasTank, Ownable2Step {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address owner_) Ownable(owner_) {}
+    constructor(address owner_) Ownable(owner_) { }
 
     /*//////////////////////////////////////////////////////////////
                             RECEIVE FUNCTION
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Allows the contract to receive ETH
-    receive() external payable {}
+    receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
@@ -61,12 +61,12 @@ contract SuperGasTank is ISuperGasTank, Ownable2Step {
     }
 
     /// @inheritdoc ISuperGasTank
-    function withdrawETH(uint256 amount, address payable receiver) external {
+    function withdrawETH(uint256 amount, address payable receiver) external onlyOwner {
         if (!allowlist[msg.sender]) revert NOT_ALLOWLISTED();
         if (amount == 0) revert ZERO_AMOUNT();
         if (receiver == address(0)) revert ZERO_ADDRESS();
 
-        (bool success,) = receiver.call{value: amount}("");
+        (bool success,) = receiver.call{ value: amount }("");
         if (!success) revert TRANSFER_FAILED();
 
         emit ETHWithdrawn(receiver, amount);

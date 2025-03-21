@@ -9,11 +9,12 @@ import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPo
 
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
-
+import { console2 } from "forge-std/console2.sol";
 /// @title SuperNativePaymaster
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
 /// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.sol
+
 contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     using UserOperationLib for PackedUserOperation;
 
@@ -53,6 +54,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     /// @inheritdoc ISuperNativePaymaster
     function handleOps(PackedUserOperation[] calldata ops) public payable {
         uint256 balance = address(this).balance;
+        console2.log("balance", balance);
         if (balance > 0) {
             (bool success,) = payable(address(entryPoint)).call{ value: balance }("");
             if (!success) revert INSUFFICIENT_BALANCE();

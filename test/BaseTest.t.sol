@@ -1102,8 +1102,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         userOpData = instance.getExecOps(
             address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
         );
-        uint256 largeGasLimit = 6_000_000;
-        userOpData.userOp.paymasterAndData = abi.encodePacked(paymaster, largeGasLimit, largeGasLimit);
+        uint128 validationGasLimit = 2e6;
+        uint128 postOpGasLimit = 2e6;
+        userOpData.userOp.paymasterAndData = abi.encodePacked(paymaster, validationGasLimit, postOpGasLimit);
 
         return userOpData;
     }
