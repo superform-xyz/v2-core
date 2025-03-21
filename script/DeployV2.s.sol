@@ -267,6 +267,7 @@ contract DeployV2 is Script, Configuration {
         SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(
             deployedContracts.acrossReceiveFundsAndExecuteGateway
         );
+        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(configuration.owner);
 
         // Deploy AcrossReceiveFundsAndExecuteGateway
         deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
@@ -280,7 +281,7 @@ contract DeployV2 is Script, Configuration {
                     configuration.acrossSpokePoolV3s[chainId],
                     ENTRY_POINT,
                     configuration.bundler,
-                    deployedContracts.superNativePaymaster
+                    deployedContracts.superRegistry
                 )
             )
         );
@@ -319,7 +320,10 @@ contract DeployV2 is Script, Configuration {
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
         superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setAddress(keccak256(bytes(SUPER_REGISTRY_ID)), _getContract(chainId, SUPER_REGISTRY_KEY));
+        superRegistry.setAddress(keccak256(bytes(SUPER_GAS_TANK_ID)), _getContract(chainId, SUPER_GAS_TANK_KEY));
+        superRegistry.setAddress(
+            keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainId, SUPER_NATIVE_PAYMASTER_KEY)
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

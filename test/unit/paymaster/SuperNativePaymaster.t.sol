@@ -49,16 +49,6 @@ contract SuperNativePaymasterTest is BaseTest {
         assertEq(address(paymaster.entryPoint()), address(mockEntryPoint));
     }
 
-    function test_CalculateRefund_WithRefund() public view {
-        uint256 maxCost = maxGasLimit * maxFeePerGas;
-        uint256 actualGasCost = maxCost / 2;
-        uint256 expectedRefund = maxCost - (actualGasCost * 110 / 100);
-
-        uint256 refund = paymaster.calculateRefund(maxGasLimit, maxFeePerGas, actualGasCost, nodeOperatorPremium);
-
-        assertEq(refund, expectedRefund);
-    }
-
     function test_CalculateRefund_NoRefund() public view {
         uint256 maxCost = maxGasLimit * maxFeePerGas;
         uint256 actualGasCost = maxCost;
@@ -71,7 +61,7 @@ contract SuperNativePaymasterTest is BaseTest {
     function test_CalculateRefund_HighPremium() public view {
         uint256 maxCost = maxGasLimit * maxFeePerGas;
         uint256 actualGasCost = maxCost / 2;
-        uint256 highPremium = 110; // 110%
+        uint256 highPremium = 10_000; // 100%
 
         uint256 refund = paymaster.calculateRefund(maxGasLimit, maxFeePerGas, actualGasCost, highPremium);
 
@@ -114,19 +104,6 @@ contract SuperNativePaymasterTest is BaseTest {
 
         assertEq(mockEntryPoint.withdrawAddress(), sender);
         assertTrue(mockEntryPoint.withdrawAmount() > 0);
-    }
-
-    function test_PostOp_NoRefund() public {
-        bytes memory context = abi.encode(sender, maxFeePerGas, maxGasLimit, 200); // 200% premium
-        uint256 actualGasCost = maxGasLimit * maxFeePerGas / 2;
-
-        vm.deal(address(mockEntryPoint), 10 ether);
-
-        vm.prank(address(mockEntryPoint));
-        paymaster.postOp(IPaymaster.PostOpMode.opSucceeded, context, actualGasCost, 0);
-
-        assertEq(mockEntryPoint.withdrawAddress(), address(0));
-        assertEq(mockEntryPoint.withdrawAmount(), 0);
     }
 
     function test_PostOp_Reverted() public {

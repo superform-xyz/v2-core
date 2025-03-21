@@ -6,13 +6,11 @@ import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol
 
 /// @title PaymasterGasCalculator
 /// @author Superform Labs
-/// @notice Library for calculating paymaster gas costs for user operations
+/// @notice Library for calculating paymaster gas costs for user operations, copied from UserOperationLib so that ir
+/// works with memory UserOperations
 library PaymasterGasCalculator {
     uint256 internal constant UINT128_BYTES = 16;
 
-
-    /// @dev Offset in paymasterAndData where custom data begins
-    uint256 internal constant PAYMASTER_MAX_GAS_LIMIT_OFFSET = 20;
     uint256 internal constant PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
     uint256 internal constant PAYMASTER_VALIDATION_GAS_OFFSET = UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET;
     uint256 internal constant PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;
@@ -40,8 +38,8 @@ library PaymasterGasCalculator {
         uint256 callDataGas = getCallGasLimit(userOp);
 
         // 3. Extract validationGas and postOpGas from paymasterAndData if it exists
-        uint256 validationGas = 0;
-        uint256 postOpGas = 0;
+        uint256 validationGas;
+        uint256 postOpGas;
 
         if (userOp.paymasterAndData.length >= PAYMASTER_DATA_OFFSET) {
             // Extract paymaster data using memory versions of the functions
@@ -88,8 +86,8 @@ library PaymasterGasCalculator {
         if (userOp.paymasterAndData.length < PAYMASTER_POSTOP_GAS_OFFSET) return 0;
 
         // Since we can't slice memory arrays directly, we need to copy the relevant bytes
-        bytes memory validationGasBytes = new bytes(16);
-        for (uint256 i; i < 16; i++) {
+        bytes memory validationGasBytes = new bytes(UINT128_BYTES);
+        for (uint256 i; i < UINT128_BYTES; i++) {
             if (PAYMASTER_VALIDATION_GAS_OFFSET + i < userOp.paymasterAndData.length) {
                 validationGasBytes[i] = userOp.paymasterAndData[PAYMASTER_VALIDATION_GAS_OFFSET + i];
             }
@@ -106,8 +104,8 @@ library PaymasterGasCalculator {
         if (userOp.paymasterAndData.length < PAYMASTER_DATA_OFFSET) return 0;
 
         // Since we can't slice memory arrays directly, we need to copy the relevant bytes
-        bytes memory postOpGasBytes = new bytes(16);
-        for (uint256 i; i < 16; i++) {
+        bytes memory postOpGasBytes = new bytes(UINT128_BYTES);
+        for (uint256 i; i < UINT128_BYTES; i++) {
             if (PAYMASTER_POSTOP_GAS_OFFSET + i < userOp.paymasterAndData.length) {
                 postOpGasBytes[i] = userOp.paymasterAndData[PAYMASTER_POSTOP_GAS_OFFSET + i];
             }

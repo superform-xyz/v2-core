@@ -146,8 +146,12 @@ abstract contract Constants {
     string public constant ERC7540FullyAsync_KEY = "ERC7540FullyAsync";
     string public constant PENDLE_ETHENA_KEY = "PendleEthena";
 
-    string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_ID";
-    string public constant PERIPHERY_REGISTRY_ID = "PERIPHERY_REGISTRY_ID";
+    string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_KEY";
+    
+    string public constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
+    string public constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
+    string public constant SUPER_GAS_TANK_ID = "SUPER_GAS_TANK_ID";
+    string public constant SUPER_NATIVE_PAYMASTER_ID = "SUPER_NATIVE_PAYMASTER_ID";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;

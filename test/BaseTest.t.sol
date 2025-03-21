@@ -421,11 +421,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             payable(address(A[i].superGasTank)).transfer(10 ether);
 
             A[i].acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
-                SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
-                ENTRYPOINT_ADDR,
-                SUPER_BUNDLER,
-                address(A[i].superNativePaymaster),
-                address(A[i].superGasTank)
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR, SUPER_BUNDLER, address(A[i].superRegistry)
             );
             vm.label(address(A[i].acrossReceiveFundsAndExecuteGateway), ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
             contractAddresses[chainIds[i]][ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
@@ -1023,14 +1019,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             ISuperRegistry superRegistry = ISuperRegistry(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
 
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_LEDGER_CONFIGURATION_ID"), _getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)
+                keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)),
+                _getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("SUPER_EXECUTOR_ID"), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
+                keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
             );
-
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256("PERIPHERY_REGISTRY_ID"), _getContract(chainIds[i], PERIPHERY_REGISTRY_KEY)
+                keccak256(bytes(SUPER_GAS_TANK_ID)), _getContract(chainIds[i], SUPER_GAS_TANK_KEY)
+            );
+            SuperRegistry(address(superRegistry)).setAddress(
+                keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainIds[i], SUPER_NATIVE_PAYMASTER_KEY)
             );
         }
     }
@@ -1108,10 +1107,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         userOpData = instance.getExecOps(
             address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
         );
-        uint128 validationGasLimit = 2e6;
+        uint128 paymasterVerificationGasLimit = 2e6;
         uint128 postOpGasLimit = 2e6;
-        bytes memory paymasterData = abi.encodePacked(uint128(2e6)); // paymasterData { nodeOperatorPremium }
-        userOpData.userOp.paymasterAndData = abi.encodePacked(paymaster, validationGasLimit, postOpGasLimit, paymasterData);
+        bytes memory extraData = abi.encodePacked(uint128(1000));
+        bytes memory paymasterData = abi.encodePacked(uint128(2e6), uint128(1000), extraData); // paymasterData {
+            // maxGasLimi = 200000, nodeOperatorPremium = 10 % }
+        userOpData.userOp.paymasterAndData =
+            abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
         return userOpData;
     }
 

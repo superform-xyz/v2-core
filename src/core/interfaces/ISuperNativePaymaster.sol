@@ -13,6 +13,8 @@ interface ISuperNativePaymaster {
     error ZERO_ADDRESS();
     error EMPTY_MESSAGE_VALUE();
     error INSUFFICIENT_BALANCE();
+    error INVALID_MAX_GAS_LIMIT();
+    error INVALID_NODE_OPERATOR_PREMIUM();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
