@@ -76,6 +76,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         }
     }
 
+    /// @inheritdoc IYieldSourceOracle
     function getBalanceOfOwner(
         address yieldSourceAddress,
         address ownerOfShares
