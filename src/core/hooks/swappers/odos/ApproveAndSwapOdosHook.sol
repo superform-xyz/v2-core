@@ -63,7 +63,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 
-        executions = new Execution[](2);
+        executions = new Execution[](4);
         executions[0] = Execution({
             target: inputToken,
             value: 0,
@@ -76,7 +76,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
         });
         executions[2] = Execution({
             target: address(odosRouterV2),
-            value: 0,
+            value: inputToken == address(0) ? inputAmount : 0,
             callData: abi.encodeCall(
                 IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), pathDefinition, executor, referralCode)
             )
