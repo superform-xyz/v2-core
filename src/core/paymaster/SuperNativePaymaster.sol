@@ -136,7 +136,4 @@ contract SuperNativePaymaster is BasePaymaster {
     function _getEntryPointWithSimulations() private view returns (IEntryPointSimulations) {
         return IEntryPointSimulations(address(entryPoint));
     }
-    
-    /// @notice Allows the contract to receive ETH
-    receive() external payable {}
 }

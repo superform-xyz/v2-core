@@ -148,13 +148,6 @@ contract SuperNativePaymasterTest is BaseTest {
         assertEq(mockEntryPoint.withdrawAmount(), 0);
     }
     
-    function test_Receive() public {
-        vm.deal(address(this), 1 ether);
-        (bool success,) = address(paymaster).call{value: 1 ether}("");
-        assertTrue(success);
-        assertEq(address(paymaster).balance, 1 ether);
-    }
-    
     function _createUserOp() internal view returns (PackedUserOperation memory) {
         PackedUserOperation memory op;
         op.sender = sender;
