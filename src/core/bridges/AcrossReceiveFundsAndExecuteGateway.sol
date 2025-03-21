@@ -10,6 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
+import { PaymasterGasCalculator } from "../libraries/PaymasterGasCalculator.sol";
 
 /// @title AcrossReceiveFundsAndExecuteGateway
 /// @author Superform Labs
@@ -41,6 +42,7 @@ import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
 ///     5. Chain B: Executes deposit into new Superform
 contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
     using SafeERC20 for IERC20;
+    using PaymasterGasCalculator for PackedUserOperation;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -144,8 +146,9 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
             }
         } else {
             uint256 balanceBefore = address(this).balance;
+            uint256 gasCost = userOps[0].calculateGasCostInWei();
             // Execute the userOp through SuperNativePaymaster
-            try ISuperNativePaymaster(payable(superNativePaymaster)).handleOps(userOps) { }
+            try ISuperNativePaymaster(payable(superNativePaymaster)).handleOps{ value: gasCost }(userOps) { }
             catch {
                 // no action, as funds are already transferred
                 emit AcrossFundsReceivedButExecutionFailed(account);
@@ -153,6 +156,7 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
             }
 
             uint256 balanceDiff = address(this).balance - balanceBefore;
+            /// @dev this grabs the refund by the paymaster and sends it back to the bundler
             if (balanceDiff > 0) {
                 (bool success,) = payable(superBundler).call{ value: balanceDiff }("");
                 if (!success) {
