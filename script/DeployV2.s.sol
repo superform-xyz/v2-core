@@ -20,7 +20,7 @@ import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISu
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
-
+import { SuperGasTank } from "../src/core/paymaster/SuperGasTank.sol";
 // -- hooks
 // ---- | swappers
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
@@ -102,6 +102,7 @@ contract DeployV2 is Script, Configuration {
         address superVaultFactory;
         address superMerkleValidator;
         address superNativePaymaster;
+        address superGasTank;
     }
 
     struct HookAddresses {
@@ -244,13 +245,27 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(ERC5115Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
+        // Deploy SuperGasTank
+        deployedContracts.superGasTank = __deployContract(
+            deployer,
+            SUPER_GAS_TANK_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_GAS_TANK_KEY),
+            abi.encodePacked(type(SuperGasTank).creationCode, abi.encode(configuration.owner))
+        );
+
         // Deploy SuperNativePaymaster
         deployedContracts.superNativePaymaster = __deployContract(
             deployer,
             SUPER_NATIVE_PAYMASTER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_NATIVE_PAYMASTER_KEY),
-            abi.encodePacked(type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT))
+            abi.encodePacked(
+                type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT), deployedContracts.superGasTank
+            )
+        );
+        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(
+            deployedContracts.acrossReceiveFundsAndExecuteGateway
         );
 
         // Deploy AcrossReceiveFundsAndExecuteGateway

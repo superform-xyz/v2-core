@@ -421,11 +421,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             payable(address(A[i].superGasTank)).transfer(10 ether);
 
             A[i].acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
-                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR, SUPER_BUNDLER, address(A[i].superNativePaymaster)
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
+                ENTRYPOINT_ADDR,
+                SUPER_BUNDLER,
+                address(A[i].superNativePaymaster),
+                address(A[i].superGasTank)
             );
             vm.label(address(A[i].acrossReceiveFundsAndExecuteGateway), ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
             contractAddresses[chainIds[i]][ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
                 address(A[i].acrossReceiveFundsAndExecuteGateway);
+            SuperGasTank(payable(A[i].superGasTank)).addToAllowlist(address(this));
+            SuperGasTank(payable(A[i].superGasTank)).addToAllowlist(address(A[i].acrossReceiveFundsAndExecuteGateway));
 
             A[i].superMerkleValidator = new SuperMerkleValidator();
             vm.label(address(A[i].superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);

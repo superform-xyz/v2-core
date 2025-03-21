@@ -61,7 +61,7 @@ contract SuperGasTank is ISuperGasTank, Ownable2Step {
     }
 
     /// @inheritdoc ISuperGasTank
-    function withdrawETH(uint256 amount, address payable receiver) external onlyOwner {
+    function withdrawETH(uint256 amount, address payable receiver) external {
         if (!allowlist[msg.sender]) revert NOT_ALLOWLISTED();
         if (amount == 0) revert ZERO_AMOUNT();
         if (receiver == address(0)) revert ZERO_ADDRESS();

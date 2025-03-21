@@ -11,6 +11,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
 import { PaymasterGasCalculator } from "../libraries/PaymasterGasCalculator.sol";
+import { ISuperGasTank } from "../interfaces/ISuperGasTank.sol";
 
 /// @title AcrossReceiveFundsAndExecuteGateway
 /// @author Superform Labs
@@ -51,19 +52,27 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
     address public immutable entryPointAddress;
     address payable public immutable superBundler;
     address public immutable superNativePaymaster;
+    address public immutable superGasTank;
+
+    receive() external payable { }
 
     constructor(
         address acrossSpokePool_,
         address entryPointAddress_,
         address superBundler_,
-        address superNativePaymaster_
+        address superNativePaymaster_,
+        address superGasTank_
     ) {
         if (acrossSpokePool_ == address(0)) revert ADDRESS_NOT_VALID();
         if (entryPointAddress_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (superBundler_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (superNativePaymaster_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (superGasTank_ == address(0)) revert ADDRESS_NOT_VALID();
         acrossSpokePool = acrossSpokePool_;
         entryPointAddress = entryPointAddress_;
         superBundler = payable(superBundler_);
         superNativePaymaster = superNativePaymaster_;
+        superGasTank = superGasTank_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,6 +156,7 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
         } else {
             uint256 balanceBefore = address(this).balance;
             uint256 gasCost = userOps[0].calculateGasCostInWei();
+            ISuperGasTank(payable(superGasTank)).withdrawETH(gasCost, payable(address(this)));
             // Execute the userOp through SuperNativePaymaster
             try ISuperNativePaymaster(payable(superNativePaymaster)).handleOps{ value: gasCost }(userOps) { }
             catch {
