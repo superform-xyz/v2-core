@@ -82,7 +82,6 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
 
-        vm.prank(SV_MANAGER);
         // Deploy the vault trio
         (
           address superVaultAddress, 
@@ -100,13 +99,20 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         amount = 1000e6; // 1000 USDC
 
-        vm.prank(SV_MANAGER);
+        vm.startPrank(SV_MANAGER);
+        strategy.manageYieldSource(
+            address(fluidVault),
+            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            0,
+            false // addYieldSource
+        );
         strategy.manageYieldSource(
             address(centrifugeVault),
             _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
             0,
             false // addYieldSource
         );
+        vm.stopPrank();
 
         address share = centrifugeVault.share();
 
@@ -119,7 +125,6 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         restrictionManager = RestrictionManagerLike(mngr);
 
         vm.prank(RestrictionManagerLike(mngr).root());
-        
         restrictionManager.updateMember(share, address(strategy), type(uint64).max);
 
         poolId = centrifugeVault.poolId();
@@ -136,46 +141,41 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
     }
 
     function test_SuperVault_7540_Underlying_Flow() public {
+        console2.log("Original pps", _getSuperVaultPricePerShare());
+
         // Request deposit into superVault as user1
-        _requestDeposit(amount / 2);
+        _requestDeposit(amount);
+
+        console2.log("user1 pending deposit", strategy.pendingDepositRequest(accountEth));
+        console2.log("pps After Request Deposit1", _getSuperVaultPricePerShare());
 
         // Request deposit into superVault as user2
         deal(address(asset), accInstances[2].account, amount);
         _requestDepositForAccount(accInstances[2], amount);
-        
-        // Deposit into underlying vaults as strategy
-        _fulfillDepositRequest(amount);
 
-        // Fulfill deposit request into 7540 vault
-        _fulfillCentrifugeDeposit(amount / 2);
+        console2.log("user2 pending deposit", strategy.pendingDepositRequest(accInstances[2].account));
+        console2.log("pps After Request Deposit2", _getSuperVaultPricePerShare());
+        console2.log("---Strategy balance", asset.balanceOf(address(strategy)));
+
+        // Request deposit into 7540 vault
+        _requestCentrifugeDeposit(amount);
+        console2.log("pps After Request Centrifuge Deposit", _getSuperVaultPricePerShare());
+
+        // Deposit into underlying vaults as strategy
+        _fulfillDepositRequests(amount * 2);
+        console2.log("pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
+
+        // Claim deposit into superVault as user1
+        _claimDeposit(amount);
+        console2.log("User1 SV Share Balance After Claim Deposit", vault.balanceOf(accountEth));
+
+        // Claim deposit into superVault as user2
+        _claimDepositForAccount(accInstances[2], amount);
+        console2.log("User2 SV Share Balance After Claim Deposit", vault.balanceOf(accInstances[2].account));
     }
 
-    function _fulfillDepositRequest(uint256 amountToDeposit) internal {
-        // Fulfill deposit request for half amount into superVault
-        uint256 amountPerVault = amountToDeposit / 2;
-
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accountEth;
-
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        address[] memory fulfillHooksAddresses = new address[](1);
-        fulfillHooksAddresses[0] = depositHookAddress;
-
-        bytes[] memory fulfillHooksData = new bytes[](1);
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), amountPerVault, false, false
-        );
-
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = fluidVault.convertToShares(amountPerVault);
-
-        vm.prank(STRATEGIST);
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
-
-        // 7540 request deposit
+    function _requestCentrifugeDeposit(uint256 amountToDeposit) internal {
+        // Request deposit into 7540 vault
         address approveAndRequestDepositHookAddress = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
         address[] memory requestHooksAddresses = new address[](1);
@@ -183,39 +183,64 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         bytes[] memory requestHooksData = new bytes[](1);
         requestHooksData[0] = _createApproveAndRequestDeposit7540HookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), address(asset), amountPerVault, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), address(asset), amountToDeposit, false
         );
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(requestHooksAddresses, requestHooksData);
+        console2.log("---- Pending deposit request", centrifugeVault.pendingDepositRequest(0, address(strategy)));
 
-        (uint256 pricePerShare) = _getSuperVaultPricePerShare();
-        console2.log("pricePerShare after Fluid deposit", pricePerShare);
+        uint256 expectedShares = centrifugeVault.convertToShares(amountToDeposit);
 
-        uint256 shares = amountPerVault.mulDiv(1e18, pricePerShare);
-        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
-    }
-
-    function _fulfillCentrifugeDeposit(uint256 amountPerVault) internal {
-        uint256 expectedShares = centrifugeVault.convertToShares(amountPerVault);
+        // Fulfill Centrifuge Deposit Request as rootManager
         vm.prank(rootManager);
         investmentManager.fulfillDepositRequest(
-            poolId, trancheId, address(strategy), assetId, uint128(amountPerVault), uint128(expectedShares)
+            poolId, trancheId, address(strategy), assetId, uint128(amountToDeposit), uint128(expectedShares)
         );
 
-        uint256 maxDeposit = centrifugeVault.maxDeposit(address(strategy));
+        console2.log("---- Claimable deposit request", centrifugeVault.claimableDepositRequest(0, address(strategy)));
+    }
 
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+    function _fulfillDepositRequests(uint256 amountToDeposit) internal {
+        uint256 amountPerVault = amountToDeposit / 2;
 
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxDeposit, false, false
+        address[] memory requestingUsers = new address[](2);
+        requestingUsers[0] = accountEth;
+        requestingUsers[1] = accInstances[2].account;
+
+        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address deposit7540HookAddress = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        fulfillHooksAddresses[1] = deposit7540HookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), amountPerVault, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = fluidVault.convertToShares(amountPerVault);
+
+        // 7540 claim deposit
+        uint256 maxMint = centrifugeVault.maxMint(address(strategy));
+        expectedAssetsOrSharesOut[1] = maxMint;
+        console2.log("----- Max mint", maxMint);
+
+        fulfillHooksData[1] = _createDeposit7540VaultHookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxMint, false, false
         );
 
         vm.prank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        );
+
+        // Update share price points for each user
         uint256 pps = _getSuperVaultPricePerShare();
-        console2.log("PPS AFTER CENTRIFUGE DEPOSIT", pps);
+        uint256 shares = amount.mulDiv(1e18, pps);
+        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pps }));
+        userSharePricePoints[accInstances[2].account].push(SharePricePoint({ shares: shares, pricePerShare: pps }));
     }
 }
