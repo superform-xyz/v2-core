@@ -264,10 +264,6 @@ contract DeployV2 is Script, Configuration {
                 type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT), deployedContracts.superGasTank
             )
         );
-        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(
-            deployedContracts.acrossReceiveFundsAndExecuteGateway
-        );
-        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(configuration.owner);
 
         // Deploy AcrossReceiveFundsAndExecuteGateway
         deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
@@ -285,6 +281,11 @@ contract DeployV2 is Script, Configuration {
                 )
             )
         );
+
+        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(
+            deployedContracts.acrossReceiveFundsAndExecuteGateway
+        );
+        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(configuration.owner);
 
         // Deploy SuperVaultFactory
         deployedContracts.superVaultFactory = __deployContract(
