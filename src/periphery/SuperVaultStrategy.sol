@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 
 // External
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import { IERC7540 } from "../vendor/vaults/7540/IERC7540.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
+import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
+
 
 // Core Interfaces
 import {
@@ -192,11 +197,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // Validate requests and determine total amount (assets for deposits, shares for redeem)
         vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
+
         // If deposit, check available balance
-        if (isDeposit) {
-            vars.availableAmount = _getTokenBalance(address(_asset), address(this));
-            if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
-        }
+        // if (isDeposit) {
+        //     vars.availableAmount = _getTokenBalance(address(_asset), address(this));
+        //     for (uint256 i; i < hooksLength; ++i) {
+        //         address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+        //         try IERC7540(target).claimableDepositRequest(0, address(this)) returns (uint256 pendingDepositRequest) {
+        //             vars.availableAmount += pendingDepositRequest;
+        //         } catch { }
+        //     }
+
+        //     if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
+        // }
+
         /// @dev grab current PPS before processing hooks
         vars.pricePerShare = _getSuperVaultPPS();
 
@@ -399,7 +413,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         for (uint256 i; i < length; ++i) {
             address source = yieldSourcesList[i];
             if (yieldSources[source].isActive) {
-                // Add yield source's TVL to total assets
                 // Add yield source's TVL to total assets
                 uint256 tvl = _getTvlByOwnerOfShares(source);
                 totalAssets_ += tvl + yieldSourceAssetsInTransit[source];
@@ -959,6 +972,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
+            console2.log("locals.outAmount", locals.outAmount);
+            console2.log("expectedAssetsOrSharesOut[i]", expectedAssetsOrSharesOut[i]);
             if (
                 locals.outAmount * ONE_HUNDRED_PERCENT
                     < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
