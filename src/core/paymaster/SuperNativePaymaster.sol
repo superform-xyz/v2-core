@@ -83,8 +83,9 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
             revert INSUFFICIENT_BALANCE();
         }
+        // paymaster (20 bytes), validationGasLimit (16 bytes), postOpGasLimit (16 bytes), paymasterData (any length)
         uint128 maxGasLimit = uint128(bytes16(userOp.paymasterAndData[20:36]));
-        uint128 nodeOperatorPremium = uint128(bytes16(userOp.paymasterAndData[36:52]));
+        uint128 nodeOperatorPremium = uint128(bytes16(userOp.paymasterAndData[52:68]));
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
     }
 
