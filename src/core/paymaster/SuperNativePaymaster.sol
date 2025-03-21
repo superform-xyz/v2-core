@@ -2,11 +2,12 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BasePaymaster } from "@account-abstraction/core/BasePaymaster.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
+
+import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
@@ -18,10 +19,13 @@ contract SuperNativePaymaster is BasePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
     error EMPTY_MESSAGE_VALUE();
     error INSUFFICIENT_BALANCE();
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) { }
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {   
+        if (address(_entryPoint).code.length == 0) revert ZERO_ADDRESS();
+     }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -56,50 +60,15 @@ contract SuperNativePaymaster is BasePaymaster {
     /// @notice Handle a batch of user operations.
     /// @param ops The user operations to handle.
     function handleOps(PackedUserOperation[] calldata ops) public payable {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success, ) = payable(address(entryPoint)).call{value: balance}("");
+            if (!success) revert INSUFFICIENT_BALANCE();
         }
-        entryPoint.depositTo{ value: msg.value }(address(this));
+
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
-
-    /// @notice Simulate the handling of a user operation.
-    /// @param op The user operation to simulate.
-    /// @param target The target address of  the user operation.
-    /// @param callData The call data for the user operation.
-    function simulateHandleOp(
-        PackedUserOperation calldata op,
-        address target,
-        bytes calldata callData
-    )
-        external
-        payable
-        returns (IEntryPointSimulations.ExecutionResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
-        return entryPointWithSimulations.simulateHandleOp(op, target, callData);
-    }
-
-    /// @notice Simulate the validation of a user operation.
-    /// @param op The user operation to simulate.
-    function simulateValidation(PackedUserOperation calldata op)
-        external
-        payable
-        returns (IEntryPointSimulations.ValidationResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
-        return entryPointWithSimulations.simulateValidation(op);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

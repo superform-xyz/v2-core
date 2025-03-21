@@ -37,7 +37,10 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
     IERC7579Account erc7579account;
 
     uint256 eoaKey;
-    address account7702;    
+    address account7702;
+
+    receive() external payable {}
+
     function setUp() public {
         eoaKey = uint256(8);
         account7702 = vm.addr(eoaKey);
@@ -139,6 +142,33 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         assertEq(executorVal, amount);
     }
 
+    function test_ETHTransfer() external {
+        MockValidatorModule validator = new MockValidatorModule();
+        MockExecutorModule executor = new MockExecutorModule();
+
+        AccountInstance memory instance = makeAccountInstance("MockAccount");
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
+        vm.deal(instance.account, LARGE);
+        vm.label(instance.account, "MockAccount");
+
+        uint256 amount = 1e18;
+        bytes memory data = abi.encode(amount);
+
+        // Get exec user ops
+        UserOpData memory userOpData = instance.getExecOps({
+            target: address(this),
+            value: 1 ether,
+            callData: "",
+            txValidator: address(validator)
+        });
+
+        uint256 balanceBefore = address(this).balance;
+        userOpData.execUserOps();
+        uint256 balanceAfter = address(this).balance;
+        assertEq(balanceAfter - balanceBefore, 1 ether);
+    }
+
     function test_7579call_from_7702_compliant_account() external {
         MockValidatorModule validator = new MockValidatorModule();
         MockExecutorModule executor = new MockExecutorModule();
@@ -172,7 +202,7 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         assertEq(validatorVal, amount);
 
         uint256 executorVal = executor.val();
-        assertEq(executorVal, amount);  
+        assertEq(executorVal, amount);
 
         // remove 7579 from account7702 EOA
         vm.etch(account7702, "");
@@ -194,10 +224,12 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         bool opsSuccess;
         bytes opsResult;
     }
+
     function _get7702InitData() internal view returns (bytes memory) {
         bytes memory initData = erc7579factory.getInitData(address(_defaultValidator), "");
         return initData;
     }
+
     function _getDefaultUserOp() internal pure returns (PackedUserOperation memory userOp) {
         userOp = PackedUserOperation({
             sender: address(0),
@@ -211,6 +243,7 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
             signature: abi.encodePacked(hex"41414141")
         });
     }
+
     function _getSignature(
         PackedUserOperation memory userOp,
         IEntryPoint entrypoint
@@ -224,7 +257,10 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         return abi.encodePacked(r, s, v);
     }
 
-    function test_7579methods_on_7702_compliant_account() external add7702Precompile(account7702, address(erc7579account).code) {
+    function test_7579methods_on_7702_compliant_account()
+        external
+        add7702Precompile(account7702, address(erc7579account).code)
+    {
         Test7579MethodsVars memory vars;
         vars.amount = 1e18;
 
@@ -232,22 +268,16 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         vars.instance = makeAccountInstance("MockAccount");
         vm.label(vars.instance.account, "MockAccount");
 
-        bytes memory initData = _get7702InitData(); 
+        bytes memory initData = _get7702InitData();
         vars.setValueCalldata = abi.encodeCall(this.setValue, vars.amount);
 
         Execution[] memory executions = new Execution[](2);
-        executions[0] = Execution({
-            target: account7702,
-            value: 0,
-            callData: abi.encodeCall(IMSA.initializeAccount, initData)
-        });
+        executions[0] =
+            Execution({ target: account7702, value: 0, callData: abi.encodeCall(IMSA.initializeAccount, initData) });
         executions[1] = Execution({ target: address(this), value: 0, callData: vars.setValueCalldata });
 
-
-        vars.userOpCalldata = abi.encodeCall(
-            IERC7579Account.execute,
-            (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions))
-        );
+        vars.userOpCalldata =
+            abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions)));
 
         vars.key = uint192(bytes24(bytes20(address(_defaultValidator))));
         vars.nonce = vars.instance.aux.entrypoint.getNonce(address(account7702), vars.key);
@@ -260,13 +290,11 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         vars.userOps[0].callData = vars.userOpCalldata;
         vars.userOps[0].signature = _getSignature(vars.userOps[0], vars.instance.aux.entrypoint);
 
-
         assertGt(account7702.code.length, 0);
-        
+
         vars.instance.aux.entrypoint.handleOps(vars.userOps, payable(address(0x69)));
         assertEq(val, vars.amount);
     }
-
 
     function setValue(uint256 value) external {
         val = value;

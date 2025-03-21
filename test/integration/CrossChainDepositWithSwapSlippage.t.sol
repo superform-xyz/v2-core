@@ -55,6 +55,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
 
     string public constant YIELD_SOURCE_4626_BASE_USDC_KEY = "ERC4626_BASE_USDC";
     string public constant YIELD_SOURCE_4626_BASE_WETH_KEY = "ERC4626_BASE_WETH";
+    uint256 public constant WARP_START_TIME = 1_740_559_708;
 
     function setUp() public override {
         super.setUp();
@@ -124,7 +125,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         uint256 intentAmount = 1e10;
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         // Transfer users USDC to this contract so that balance checks are correct
         uint256 amountToRemove = IERC20(underlyingBase_USDC).balanceOf(accountBase);
@@ -150,7 +151,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         UserOpData memory dstUserOpData = _createUserOpData(dstHooksAddresses, dstHooksData, BASE);
 
         // OP IS SRC1
-        vm.selectFork(FORKS[OP]);
+        SELECT_FORK_AND_WARP(OP, block.timestamp);
 
         // PREPARE SRC1 DATA
         address[] memory src1HooksAddresses = new address[](2);
@@ -173,15 +174,18 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
 
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP);
 
+        console2.log("sending from op to base");
         // not enough balance is received
-        _processAcrossV3Message(OP, BASE, 0, executeOp(src1UserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(
+            OP, BASE, block.timestamp, executeOp(src1UserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase
+        );
     }
 
     function _sendFundsFromEthToBase() internal {
         uint256 intentAmount = 1e10;
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](4);
@@ -217,7 +221,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         UserOpData memory dstUserOpData = _createUserOpData(dstHooksAddresses, dstHooksData, BASE);
 
         // ETH IS SRC1
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         // PREPARE SRC1 DATA
         address[] memory src1HooksAddresses = new address[](2);
@@ -238,11 +242,14 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         );
 
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, ETH);
+        console2.log("sending from eth to base");
 
         // enough balance is received
-        _processAcrossV3Message(ETH, BASE, 0, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(
+            ETH, BASE, block.timestamp, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+        );
 
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         uint256 sharesExpectedWETH =
             vaultInstance4626Base_WETH.convertToShares((intentAmount / 2) - ((intentAmount / 2) * 50 / 10_000));

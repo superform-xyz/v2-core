@@ -17,7 +17,7 @@ import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -35,7 +35,7 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     {
         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || rewardToken == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getOneReward, (rewardToken)));
     }

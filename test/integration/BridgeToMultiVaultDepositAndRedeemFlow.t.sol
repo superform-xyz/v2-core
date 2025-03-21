@@ -261,7 +261,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
 
         // DEPOSIT
-        uint256 userShares = _execute7540DepositFlow(amountPerVault);
+        _execute7540DepositFlow(amountPerVault);
 
         vm.selectFork(FORKS[ETH]);
 
@@ -269,13 +269,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
         assertNotEq(pricePerShare, 1);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-
-        assertEq(entries.length, 1);
-        assertEq(entries[0].price, pricePerShare);
-        assertEq(entries[0].amountSharesAvailableToConsume, userShares);
-        assertEq(unconsumedEntries, 0);
     }
 
     function _redeem_From_ETH_And_Bridge_Back_To_Base(bool isFullRedeem) internal {
@@ -611,19 +604,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
+        ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        uint256 expectedFee =
+            ledger.previewFees(accountETH,
+                userExpectedAssets, userShares, 100);
 
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: userExpectedAssets,
-                usedShares: userShares,
-                feePercent: 100,
-                decimals: 6
-            })
-        );
+        console2.log("Expected Fees = ", expectedFee);
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerData.AccountingOutflow(
@@ -632,11 +618,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         executeOp(redeemOpData);
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
-
-        // CHECK ACCOUNTING
-        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        assertEq(entries.length, 1);
-        assertEq(unconsumedEntries, 1);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
@@ -680,19 +661,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
-
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: userExpectedAssets,
-                usedShares: redeemAmount,
-                feePercent: 100,
-                decimals: 6
-            })
-        );
+        ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        uint256 expectedFee =
+            ledger.previewFees(accountETH,
+                userExpectedAssets, redeemAmount, 100);
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerData.AccountingOutflow(
@@ -701,13 +673,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         executeOp(redeemOpData);
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
-
-        // CHECK ACCOUNTING
-        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        assertEq(entries.length, 1);
-        assertEq(entries[0].price, yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH)));
-        assertEq(entries[0].amountSharesAvailableToConsume, redeemAmount);
-        assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
@@ -752,18 +717,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY)).getLedger(accountETH, yieldSource7540AddressETH_USDC);
-
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: assetsOut,
-                usedShares: expectedSharesAvailableToConsume,
-                feePercent: 100,
-                decimals: 6
-            })
+        ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        uint256 expectedFee = ledger.previewFees(
+            accountETH,
+            assetsOut, expectedSharesAvailableToConsume, 100
         );
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
@@ -771,11 +728,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         executeOp(redeemOpData);
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
-
-        // CHECK ACCOUNTING
-        (entries, unconsumedEntries) = superLedgerETH.getLedger(accountETH, address(vaultInstance7540ETH));
-        assertEq(entries.length, 1);
-        assertEq(unconsumedEntries, 0);
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
@@ -815,18 +767,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 userExpectedShareDelta = vaultInstance4626OP.convertToShares(expectedAssetOutAmount);
 
-        (ISuperLedger.LedgerEntry[] memory entries, uint256 unconsumedEntries) =
-            ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY)).getLedger(accountOP, yieldSource4626AddressOP_USDCe);
-
-        uint256 expectedFee = _deriveExpectedFee(
-            FeeParams({
-                entries: entries,
-                unconsumedEntries: unconsumedEntries,
-                amountAssets: expectedAssetOutAmount,
-                usedShares: userExpectedShareDelta,
-                feePercent: 100,
-                decimals: 6
-            })
+        ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
+        uint256 expectedFee = ledger.previewFees(
+            accountOP,
+            expectedAssetOutAmount, userExpectedShareDelta, 100
         );
 
         vm.expectEmit(true, true, true, true);
@@ -842,11 +786,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             IERC20(underlyingOP_USDCe).balanceOf(accountOP),
             userBalanceUnderlyingBefore + expectedAssetOutAmount - expectedFee
         );
-
-        (entries, unconsumedEntries) = superLedgerOP.getLedger(accountOP, address(vaultInstance4626OP));
-        assertEq(entries.length, 1);
-        assertEq(entries[0].amountSharesAvailableToConsume, 0);
-        assertEq(unconsumedEntries, 1);
     }
 
     // Creates userOpData for the given chainId

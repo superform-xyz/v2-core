@@ -48,6 +48,13 @@ abstract contract Helpers is Test, Constants {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 MERKLE TREE HELPER METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _hashPair(bytes32 a, bytes32 b) internal pure returns (bytes32) {
+        return a < b ? keccak256(abi.encodePacked(a, b)) : keccak256(abi.encodePacked(b, a));
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  GENERIC HELPER METHODS
     //////////////////////////////////////////////////////////////*/
     function _resetCaller(address from_) internal {

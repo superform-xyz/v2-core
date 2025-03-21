@@ -234,7 +234,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     bool constant DEBUG = false;
 
-
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
@@ -400,7 +399,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            A[i].approveErc20Hook = new ApproveERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            A[i].approveErc20Hook = new ApproveERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
             hookAddresses[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = address(A[i].approveErc20Hook);
             hooks[chainIds[i]][APPROVE_ERC20_HOOK_KEY] = Hook(
@@ -412,7 +411,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][APPROVE_ERC20_HOOK_KEY]);
 
-            A[i].transferErc20Hook = new TransferERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            A[i].transferErc20Hook = new TransferERC20Hook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].transferErc20Hook), TRANSFER_ERC20_HOOK_KEY);
             hookAddresses[chainIds[i]][TRANSFER_ERC20_HOOK_KEY] = address(A[i].transferErc20Hook);
             hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY] = Hook(
@@ -425,7 +424,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY]);
 
             A[i].deposit4626VaultHook =
-                new Deposit4626VaultHook(_getContract(chainIds[i], "SuperRegistry"), address(this));
+                new Deposit4626VaultHook(_getContract(chainIds[i], "SuperRegistry"));
             vm.label(address(A[i].deposit4626VaultHook), DEPOSIT_4626_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = address(A[i].deposit4626VaultHook);
             hooks[chainIds[i]][DEPOSIT_4626_VAULT_HOOK_KEY] = Hook(
@@ -440,7 +439,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].approveAndDeposit4626VaultHook =
-                new ApproveAndDeposit4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new ApproveAndDeposit4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveAndDeposit4626VaultHook), APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY] =
                 address(A[i].approveAndDeposit4626VaultHook);
@@ -456,7 +455,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].redeem4626VaultHook =
-                new Redeem4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new Redeem4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].redeem4626VaultHook), REDEEM_4626_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][REDEEM_4626_VAULT_HOOK_KEY] = address(A[i].redeem4626VaultHook);
             hooks[chainIds[i]][REDEEM_4626_VAULT_HOOK_KEY] = Hook(
@@ -471,7 +470,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].deposit5115VaultHook =
-                new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].deposit5115VaultHook), DEPOSIT_5115_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = address(A[i].deposit5115VaultHook);
             hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = Hook(
@@ -486,7 +485,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].approveAndDeposit5115VaultHook =
-                new ApproveAndDeposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new ApproveAndDeposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveAndDeposit5115VaultHook), APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY] =
                 address(A[i].approveAndDeposit5115VaultHook);
@@ -502,7 +501,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].redeem5115VaultHook =
-                new Redeem5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new Redeem5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].redeem5115VaultHook), REDEEM_5115_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][REDEEM_5115_VAULT_HOOK_KEY] = address(A[i].redeem5115VaultHook);
             hooks[chainIds[i]][REDEEM_5115_VAULT_HOOK_KEY] = Hook(
@@ -517,7 +516,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].requestDeposit7540VaultHook =
-                new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new RequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = address(A[i].requestDeposit7540VaultHook);
             hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
@@ -532,7 +531,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].approveAndRequestDeposit7540VaultHook =
-                new ApproveAndRequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new ApproveAndRequestDeposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(
                 address(A[i].approveAndRequestDeposit7540VaultHook), APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY
             );
@@ -550,10 +549,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].requestRedeem7540VaultHook =
-                new RequestRedeem7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new RequestRedeem7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].requestRedeem7540VaultHook), REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][REQUEST_REDEEM_7540_VAULT_HOOK_KEY] =
-                address(A[i].requestRedeem7540VaultHook);
+            hookAddresses[chainIds[i]][REQUEST_REDEEM_7540_VAULT_HOOK_KEY] = address(A[i].requestRedeem7540VaultHook);
             hooks[chainIds[i]][REQUEST_REDEEM_7540_VAULT_HOOK_KEY] = Hook(
                 REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
@@ -566,7 +564,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].deposit7540VaultHook =
-                new Deposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new Deposit7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].deposit7540VaultHook), DEPOSIT_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY] = address(A[i].deposit7540VaultHook);
             hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY] = Hook(
@@ -581,7 +579,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].withdraw7540VaultHook =
-                new Withdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new Withdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].withdraw7540VaultHook), WITHDRAW_7540_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY] = address(A[i].withdraw7540VaultHook);
             hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
@@ -596,7 +594,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].swap1InchHook =
-                new Swap1InchHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), ONE_INCH_ROUTER);
+                new Swap1InchHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ONE_INCH_ROUTER);
             vm.label(address(A[i].swap1InchHook), SWAP_1INCH_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_1INCH_HOOK_KEY] = address(A[i].swap1InchHook);
             hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY] = Hook(
@@ -608,7 +606,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             odosRouters[chainIds[i]] = address(odosRouter);
             vm.label(address(odosRouter), "MockOdosRouterV2");
             A[i].swapOdosHook =
-                new SwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter));
+                new SwapOdosHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
             vm.label(address(A[i].swapOdosHook), SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(A[i].swapOdosHook);
             hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
@@ -617,7 +615,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
 
             A[i].approveAndSwapOdosHook = new ApproveAndSwapOdosHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this), address(odosRouter)
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter)
             );
             vm.label(address(A[i].approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(A[i].approveAndSwapOdosHook);
@@ -631,9 +629,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
 
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY),
-                address(this),
-                SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
             );
             vm.label(address(A[i].acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
@@ -650,7 +646,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].fluidClaimRewardHook =
-                new FluidClaimRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new FluidClaimRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].fluidClaimRewardHook), FLUID_CLAIM_REWARD_HOOK_KEY);
             hookAddresses[chainIds[i]][FLUID_CLAIM_REWARD_HOOK_KEY] = address(A[i].fluidClaimRewardHook);
             hooks[chainIds[i]][FLUID_CLAIM_REWARD_HOOK_KEY] = Hook(
@@ -661,14 +657,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 ""
             );
 
-            A[i].fluidStakeHook = new FluidStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            A[i].fluidStakeHook = new FluidStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].fluidStakeHook), FLUID_STAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][FLUID_STAKE_HOOK_KEY] = address(A[i].fluidStakeHook);
             hooks[chainIds[i]][FLUID_STAKE_HOOK_KEY] =
                 Hook(FLUID_STAKE_HOOK_KEY, HookCategory.Stakes, HookCategory.None, address(A[i].fluidStakeHook), "");
 
             A[i].approveAndFluidStakeHook =
-                new ApproveAndFluidStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new ApproveAndFluidStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveAndFluidStakeHook), APPROVE_AND_FLUID_STAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY] = address(A[i].approveAndFluidStakeHook);
             hooks[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY] = Hook(
@@ -680,14 +676,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY]);
 
-            A[i].fluidUnstakeHook = new FluidUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            A[i].fluidUnstakeHook = new FluidUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].fluidUnstakeHook), FLUID_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][FLUID_UNSTAKE_HOOK_KEY] = address(A[i].fluidUnstakeHook);
             hooks[chainIds[i]][FLUID_UNSTAKE_HOOK_KEY] =
                 Hook(FLUID_UNSTAKE_HOOK_KEY, HookCategory.Stakes, HookCategory.None, address(A[i].fluidUnstakeHook), "");
 
             A[i].gearboxClaimRewardHook =
-                new GearboxClaimRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new GearboxClaimRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].gearboxClaimRewardHook), GEARBOX_CLAIM_REWARD_HOOK_KEY);
             hookAddresses[chainIds[i]][GEARBOX_CLAIM_REWARD_HOOK_KEY] = address(A[i].gearboxClaimRewardHook);
             hooks[chainIds[i]][GEARBOX_CLAIM_REWARD_HOOK_KEY] = Hook(
@@ -698,7 +694,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 ""
             );
 
-            A[i].gearboxStakeHook = new GearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            A[i].gearboxStakeHook = new GearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].gearboxStakeHook), GEARBOX_STAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][GEARBOX_STAKE_HOOK_KEY] = address(A[i].gearboxStakeHook);
             hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY] = Hook(
@@ -711,7 +707,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY]);
 
             A[i].approveAndGearboxStakeHook =
-                new ApproveAndGearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new ApproveAndGearboxStakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveAndGearboxStakeHook), GEARBOX_APPROVE_AND_STAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY] = address(A[i].approveAndGearboxStakeHook);
             hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY] = Hook(
@@ -726,7 +722,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
 
             A[i].gearboxUnstakeHook =
-                new GearboxUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new GearboxUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].gearboxUnstakeHook), GEARBOX_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = address(A[i].gearboxUnstakeHook);
             hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY] = Hook(
@@ -735,7 +731,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY]);
 
             A[i].yearnClaimOneRewardHook =
-                new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new YearnClaimOneRewardHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].yearnClaimOneRewardHook), YEARN_CLAIM_ONE_REWARD_HOOK_KEY);
             hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = Hook(
                 YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
@@ -748,11 +744,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             /// @dev EXPERIMENTAL HOOKS FROM HERE ONWARDS
             A[i].ethenaCooldownSharesHook =
-                new EthenaCooldownSharesHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+                new EthenaCooldownSharesHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].ethenaCooldownSharesHook), ETHENA_COOLDOWN_SHARES_HOOK_KEY);
             hookAddresses[chainIds[i]][ETHENA_COOLDOWN_SHARES_HOOK_KEY] = address(A[i].ethenaCooldownSharesHook);
 
-            A[i].ethenaUnstakeHook = new EthenaUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(this));
+            A[i].ethenaUnstakeHook = new EthenaUnstakeHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].ethenaUnstakeHook), ETHENA_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
         }
@@ -1125,52 +1121,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         uint256 usedShares;
         uint256 feePercent;
         uint256 decimals;
-    }
-
-    function _deriveExpectedFee(FeeParams memory params) internal pure returns (uint256 feeAmount) {
-        uint256 remainingShares = params.usedShares;
-        uint256 costBasis;
-
-        uint256 len = params.entries.length;
-
-        if (len == 0) return 0;
-
-        uint256 currentIndex = params.unconsumedEntries;
-
-        while (remainingShares > 0) {
-            if (currentIndex >= len) revert("No more entries to consume");
-
-            ISuperLedger.LedgerEntry memory entry = params.entries[currentIndex];
-            uint256 availableShares = entry.amountSharesAvailableToConsume;
-
-            // if no shares available on current entry, move to the next
-            if (availableShares == 0) {
-                unchecked {
-                    ++currentIndex;
-                }
-                continue;
-            }
-
-            // remove from current entry
-            uint256 sharesConsumed = availableShares > remainingShares ? remainingShares : availableShares;
-
-            availableShares -= sharesConsumed;
-            remainingShares -= sharesConsumed;
-
-            costBasis += sharesConsumed * entry.price / (10 ** params.decimals);
-
-            if (sharesConsumed == availableShares) {
-                unchecked {
-                    ++currentIndex;
-                }
-            }
-        }
-
-        uint256 profit = params.amountAssets > costBasis ? params.amountAssets - costBasis : 0;
-        if (profit > 0) {
-            // Calculate fee in assets but don't transfer - let the executor handle it
-            feeAmount = (profit * params.feePercent) / 10_000;
-        }
     }
 
     function _assertFeeDerivation(

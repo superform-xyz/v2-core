@@ -23,6 +23,8 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     /// @notice Mapping of provider to max staleness period
     mapping(uint256 provider => uint256 maxStaleness) public providerMaxStaleness;
 
+    uint256 public maxStaleness;
+
     /// @notice There is a single supported quote in this oracle system: USD
     address private constant USD = address(840);
 
@@ -43,10 +45,13 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         Ownable(owner_)
     {
         if (owner_ == address(0)) revert ZERO_ADDRESS();
+
+        maxStaleness = 1 days;
+
         uint256 length = initialProviders.length;
         // Set default staleness for initial providers
         for (uint256 i; i < length; ++i) {
-            providerMaxStaleness[initialProviders[i]] = 1 days;
+            providerMaxStaleness[initialProviders[i]] = maxStaleness;
         }
         _configureOracles(initialBases, initialProviders, initialOracleAddresses);
     }
@@ -109,9 +114,20 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
     }
 
     // -- External configuration functions --
+    /// @inheritdoc ISuperOracle
+    function setMaxStaleness(uint256 newMaxStaleness) external onlyOwner {
+        maxStaleness = newMaxStaleness;
+        emit MaxStalenessUpdated(newMaxStaleness);
+    }
 
     /// @inheritdoc ISuperOracle
     function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external onlyOwner {
+        if (newMaxStaleness > maxStaleness) {
+            revert MAX_STALENESS_EXCEEDED();
+        }
+        if (newMaxStaleness == 0) {
+            newMaxStaleness = maxStaleness;
+        }
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
@@ -126,10 +142,14 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         onlyOwner
     {
         if (pendingUpdate.timestamp != 0) revert PENDING_UPDATE_EXISTS();
-        if (bases.length != providers.length || providers.length != oracleAddresses.length) {
+        uint256 providersLength = providers.length;
+        if (providersLength > MAX_PROVIDERS) {
+            revert MAX_PROVIDERS_EXCEEDED();
+        }
+        if (bases.length != providersLength || providersLength != oracleAddresses.length) {
             revert ARRAY_LENGTH_MISMATCH();
         }
-
+      
         pendingUpdate = PendingUpdate({
             bases: bases,
             providers: providers,
@@ -172,13 +192,19 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         private
     {
         uint256 length = bases.length;
+        if (length > MAX_PROVIDERS) {
+            // @dev there shouldn't be a case where this happens
+            // it's already validated on `queueOracleUpdate`
+            // but double check to be safe
+            revert MAX_PROVIDERS_EXCEEDED();
+        }
         if (length != providers.length || length != oracleAddresses.length) revert ARRAY_LENGTH_MISMATCH();
 
         for (uint256 i = 0; i < length; ++i) {
             usdQuotedOracle[bases[i]][providers[i]] = oracleAddresses[i];
             // Set default staleness if not already set
             if (providerMaxStaleness[providers[i]] == 0) {
-                providerMaxStaleness[providers[i]] = 1 days;
+                providerMaxStaleness[providers[i]] = maxStaleness;
             }
         }
 

@@ -37,7 +37,6 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 
 import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 
-
 import { Vm } from "forge-std/Test.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
@@ -55,7 +54,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     MockSuperPositionFactory public mockSuperPositionFactory;
 
     uint256 eoaKey;
-    address account7702;    
+    address account7702;
     ERC7579Factory erc7579factory;
     IERC7579Account erc7579account;
     IERC7579Bootstrap bootstrapDefault;
@@ -135,7 +134,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[2] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
-        bytes[] memory hooksData = new bytes[](5);
+        bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
@@ -163,7 +162,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -197,7 +196,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -233,7 +232,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -370,8 +369,9 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         bool opsSuccess;
         bytes opsResult;
     }
+
     function test_7702_SuperExecutor(uint256 amount)
-        external 
+        external
         add7702Precompile(account7702, address(erc7579account).code)
     {
         Test7579MethodsVars memory vars;
@@ -395,22 +395,28 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        //bytes memory initData = _get7702InitDataWithExecutor(address(_defaultValidator), ""); 
-        bytes memory initData = _get7702InitData(); 
+        // Question: is this just a getter method or does it have side effects?
+        // Since it is not defined as view I assume it has side effects so I did not remove it but the `get` in the name is misleading since it suggests it is just a getter, so better to check this
+                        _getExecOps(instance, superExecutor, abi.encode(entry));
+
+        //bytes memory initData = _get7702InitDataWithExecutor(address(_defaultValidator), "");
+        bytes memory initData = _get7702InitData();
         Execution[] memory executions = new Execution[](3);
-        executions[0] = Execution({
+        executions[0] =
+            Execution({ target: account7702, value: 0, callData: abi.encodeCall(IMSA.initializeAccount, initData) });
+        executions[1] = Execution({
             target: account7702,
             value: 0,
-            callData: abi.encodeCall(IMSA.initializeAccount, initData)
+            callData: abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_EXECUTOR, address(superExecutor), ""))
         });
-        executions[1] = Execution({ target: account7702, value: 0, callData: abi.encodeCall(IERC7579Account.installModule, (MODULE_TYPE_EXECUTOR, address(superExecutor), "")) });
-        executions[2] = Execution({ target: address(superExecutor), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, (abi.encode(entry))) });
+        executions[2] = Execution({
+            target: address(superExecutor),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, (abi.encode(entry)))
+        });
 
-
-        vars.userOpCalldata = abi.encodeCall(
-            IERC7579Account.execute,
-            (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions))
-        );
+        vars.userOpCalldata =
+            abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions)));
 
         vars.key = uint192(bytes24(bytes20(address(_defaultValidator))));
         vars.nonce = vars.instance.aux.entrypoint.getNonce(address(account7702), vars.key);
@@ -424,12 +430,13 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         vars.userOps[0].signature = _getSignature(vars.userOps[0], vars.instance.aux.entrypoint);
 
         assertGt(account7702.code.length, 0);
-        
+
         vars.instance.aux.entrypoint.handleOps(vars.userOps, payable(address(0x69)));
-     
+
         uint256 accSharesAfter = vaultInstance.balanceOf(account7702);
         assertGt(accSharesAfter, 0);
     }
+
     function _get7702InitData() internal view returns (bytes memory) {
         bytes memory initData = erc7579factory.getInitData(address(_defaultValidator), "");
         return initData;
@@ -457,6 +464,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             abi.encodeCall(IERC7579Bootstrap.initMSA, (_validators, _executors, _hook, _fallBacks))
         );
     }
+
     function _getDefaultUserOp() internal pure returns (PackedUserOperation memory userOp) {
         userOp = PackedUserOperation({
             sender: address(0),
@@ -470,6 +478,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             signature: abi.encodePacked(hex"41414141")
         });
     }
+
     function _getSignature(
         PackedUserOperation memory userOp,
         IEntryPoint entrypoint

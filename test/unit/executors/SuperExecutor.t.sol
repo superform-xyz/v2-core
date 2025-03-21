@@ -212,7 +212,7 @@ contract SuperExecutorTest is BaseTest {
             hooksData: hooksData
         });
         
-        vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
+        vm.expectRevert(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
         superExecutor.execute(abi.encode(entry));
         vm.stopPrank();
     }

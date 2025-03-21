@@ -26,11 +26,10 @@ contract YearnClaimOneRewardHookTest is BaseTest {
         mockAccount = makeAddr("account");
         mockAmount = 1000;
 
-        hook = new YearnClaimOneRewardHook(address(this), address(this));
+        hook = new YearnClaimOneRewardHook(address(this));
     }
 
     function test_Constructor() public view {
-        assertEq(hook.author(), address(this));
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 

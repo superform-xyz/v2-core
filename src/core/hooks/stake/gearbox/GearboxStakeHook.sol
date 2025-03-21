@@ -26,7 +26,7 @@ contract GearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -51,6 +51,7 @@ contract GearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
+        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({

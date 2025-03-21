@@ -44,19 +44,17 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
         mockExclusivityPeriod = 1800;
         mockMessage = abi.encode("test message");
         
-        hook = new AcrossSendFundsAndExecuteOnDstHook(address(this), address(this), mockSpokePool);
+        hook = new AcrossSendFundsAndExecuteOnDstHook(address(this), mockSpokePool);
     }
     
     function test_Constructor() public view {
         assertEq(address(hook.spokePoolV3()), mockSpokePool);
-
-        assertEq(hook.author(), address(this));
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
     
     function test_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new AcrossSendFundsAndExecuteOnDstHook(address(this), address(this), address(0));
+        new AcrossSendFundsAndExecuteOnDstHook(address(this), address(0));
     }
     
     function test_Build() public view {

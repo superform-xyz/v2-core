@@ -11,6 +11,7 @@ import { SuperLedgerConfiguration } from "./SuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @title BaseLedger
 /// @author Superform Labs
@@ -20,8 +21,10 @@ abstract contract BaseLedger is ISuperLedger {
 
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
 
-    /// @notice Tracks user's ledger entries for each yield source address
-    mapping(address user => mapping(address yieldSource => Ledger ledger)) internal userLedger;
+    mapping(address user => uint256) public usersAccumulatorShares;
+    mapping(address user => uint256) public usersAccumulatorCostBasis;
+
+    bytes32 internal constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID");
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -32,22 +35,11 @@ abstract contract BaseLedger is ISuperLedger {
     }
 
     modifier onlyExecutor() {
-        if (_getAddress(keccak256("SUPER_EXECUTOR_ID")) != msg.sender) revert NOT_AUTHORIZED();
+        if (_getAddress(SUPER_EXECUTOR_ID) != msg.sender) revert NOT_AUTHORIZED();
         _;
     }
 
     /// @inheritdoc ISuperLedger
-    function getLedger(
-        address user,
-        address yieldSource
-    )
-        external
-        view
-        returns (LedgerEntry[] memory entries, uint256 unconsumedEntries)
-    {
-        return _getLedger(user, yieldSource);
-    }
-
     function updateAccounting(
         address user,
         address yieldSource,
@@ -62,30 +54,95 @@ abstract contract BaseLedger is ISuperLedger {
         return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    function _getLedger(
-        address user,
-        address yieldSource
-    )
-        internal
-        view
-        virtual
-        returns (LedgerEntry[] memory entries, uint256 unconsumedEntries)
-    {
-        Ledger storage ledger = userLedger[user][yieldSource];
-        return (ledger.entries, ledger.unconsumedEntries);
-    }
 
-    function _getAddress(bytes32 id_) internal view returns (address) {
-        ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
-        return registry.getAddress(id_);
-    }
 
     /*//////////////////////////////////////////////////////////////
                             PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    ///// AVG Implementation /////
+    function _takeSnapshot(
+        address user,
+        uint256 amountShares,
+        uint256 pps,
+        uint256 decimals
+    )
+        internal
+        virtual
+    {
+        usersAccumulatorShares[user] += amountShares;
+        usersAccumulatorCostBasis[user] += Math.mulDiv(amountShares, pps, 10 ** decimals);
+
+    }
+
+    function _getOutflowProcessVolume(uint256 amountSharesOrAssets, uint256 , uint256 , uint8) internal pure virtual returns(uint256)
+    {
+        return amountSharesOrAssets;
+    }
+
+    function calculateCostBasisView(
+        address user,
+        uint256 usedShares
+    )
+        public
+        view
+        returns (uint256 costBasis)
+    {
+        uint256 accumulatorShares = usersAccumulatorShares[user];
+        uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user];
+
+        if (usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
+
+        costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
+    }
+
+    function _calculateCostBasis(
+        address user,
+        uint256 usedShares
+    )
+        internal
+        returns (uint256 costBasis)
+    {
+        costBasis = calculateCostBasisView(user,
+            usedShares);
+
+        usersAccumulatorShares[user] -= usedShares;
+        usersAccumulatorCostBasis[user] -= costBasis;
+    }
+
+
+    //////////////////// Fees ////////////////////
+    function _calculateFees(
+        uint256 costBasis,
+        uint256 amountAssets,
+        uint256 feePercent
+    )
+        internal
+        pure
+        returns (uint256 feeAmount)
+    {
+        uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
+        if (profit > 0) {
+            if (feePercent == 0) revert FEE_NOT_SET();
+            feeAmount = Math.mulDiv(profit, feePercent, 10_000);
+        }
+    }
+
+    function previewFees(
+        address user,
+        uint256 amountAssets,
+        uint256 usedShares,
+        uint256 feePercent
+    )
+        public
+        view
+        returns (uint256 feeAmount)
+    {
+        uint256 costBasis = calculateCostBasisView(user,
+            usedShares);
+        feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
+    }
+
     function _updateAccounting(
         address user,
         address yieldSource,
@@ -104,21 +161,28 @@ abstract contract BaseLedger is ISuperLedger {
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
-        if (isInflow) {
-            // Get price from oracle
-            uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
-            if (pps == 0) revert INVALID_PRICE();
+        // Get price from oracle
+        uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
+        if (pps == 0) revert INVALID_PRICE();
 
-            // Always inscribe in the ledger, even if feePercent is set to 0
-            userLedger[user][yieldSource].entries.push(
-                LedgerEntry({ amountSharesAvailableToConsume: amountSharesOrAssets, price: pps })
+        if (isInflow) {
+            _takeSnapshot(
+                user,
+                amountSharesOrAssets,
+                pps,
+                IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
             );
+
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
             return 0;
         } else {
             // Only process outflow if feePercent is not set to 0
             if (config.feePercent != 0) {
-                feeAmount = _processOutflow(user, yieldSource, amountSharesOrAssets, usedShares, config);
+
+                uint256 amountAssets = _getOutflowProcessVolume(amountSharesOrAssets, usedShares, pps, IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource));
+
+                feeAmount = _processOutflow(user,
+                    amountAssets, usedShares, config);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
@@ -129,19 +193,8 @@ abstract contract BaseLedger is ISuperLedger {
         }
     }
 
-    struct OutflowVars {
-        uint256 remainingShares;
-        uint256 costBasis;
-        uint256 len;
-        uint256 currentIndex;
-        uint256 lastIndex;
-        uint256 lastSharesConsumed;
-        uint256 decimals;
-    }
-
     function _processOutflow(
         address user,
-        address yieldSource,
         uint256 amountAssets,
         uint256 usedShares,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
@@ -150,58 +203,13 @@ abstract contract BaseLedger is ISuperLedger {
         virtual
         returns (uint256 feeAmount)
     {
-        Ledger storage ledger = userLedger[user][yieldSource];
+        uint256 costBasis = _calculateCostBasis(user,
+            usedShares);
+        feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+    }
 
-        OutflowVars memory vars = OutflowVars({
-            remainingShares: usedShares,
-            costBasis: 0,
-            len: ledger.entries.length,
-            currentIndex: userLedger[user][yieldSource].unconsumedEntries,
-            lastIndex: 0,
-            lastSharesConsumed: 0,
-            decimals: IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
-        });
-
-        if (vars.len == 0) return 0;
-        vars.lastIndex = vars.currentIndex;
-
-        while (vars.remainingShares > 0) {
-            if (vars.currentIndex >= vars.len) revert INSUFFICIENT_SHARES();
-
-            LedgerEntry storage entry = ledger.entries[vars.currentIndex];
-            uint256 availableShares = entry.amountSharesAvailableToConsume;
-
-            if (availableShares == 0) {
-                unchecked {
-                    ++vars.currentIndex;
-                }
-                continue;
-            }
-
-            uint256 sharesConsumed = availableShares > vars.remainingShares ? vars.remainingShares : availableShares;
-
-            vars.lastIndex = vars.currentIndex;
-            vars.lastSharesConsumed = sharesConsumed;
-            vars.remainingShares -= sharesConsumed;
-
-            vars.costBasis += sharesConsumed * entry.price / (10 ** vars.decimals);
-
-            if (sharesConsumed == availableShares) {
-                unchecked {
-                    ++vars.currentIndex;
-                }
-            }
-        }
-
-        ledger.entries[vars.lastIndex].amountSharesAvailableToConsume -= vars.lastSharesConsumed;
-        userLedger[user][yieldSource].unconsumedEntries = vars.currentIndex;
-
-        uint256 profit = amountAssets > vars.costBasis ? amountAssets - vars.costBasis : 0;
-
-        if (profit > 0) {
-            if (config.feePercent == 0) revert FEE_NOT_SET();
-
-            feeAmount = (profit * config.feePercent) / 10_000;
-        }
+    function _getAddress(bytes32 id_) internal view returns (address) {
+        ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
+        return registry.getAddress(id_);
     }
 }

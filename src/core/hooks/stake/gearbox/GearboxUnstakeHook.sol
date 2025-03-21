@@ -31,7 +31,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, IS
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
     /// @inheritdoc ISuperHook
     function build(
@@ -53,6 +53,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, IS
         if (usePrevHookAmount) {
             amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
+        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({

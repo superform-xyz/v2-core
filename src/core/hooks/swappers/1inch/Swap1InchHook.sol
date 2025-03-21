@@ -30,7 +30,6 @@ contract Swap1InchHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ZERO_ADDRESS();
     error INVALID_RECEIVER();
     error INVALID_SELECTOR();
     error INVALID_TOKEN_PAIR();
@@ -42,10 +41,9 @@ contract Swap1InchHook is BaseHook, ISuperHook {
 
     constructor(
         address registry_,
-        address author_,
         address aggregationRouter_
     )
-        BaseHook(registry_, author_, HookType.NONACCOUNTING)
+        BaseHook(registry_, HookType.NONACCOUNTING)
     {
         if (aggregationRouter_ == address(0)) {
             revert ZERO_ADDRESS();
@@ -240,6 +238,9 @@ contract Swap1InchHook is BaseHook, ISuperHook {
         address dstToken = address(bytes20(data[:20]));
         address dstReceiver = address(bytes20(data[20:40]));
 
+        if (dstToken == NATIVE) {
+            return dstReceiver.balance;
+        } 
         return IERC20(dstToken).balanceOf(dstReceiver);
     }
 }

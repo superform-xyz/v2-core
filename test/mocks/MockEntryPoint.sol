@@ -65,11 +65,20 @@ contract MockEntryPoint {
     event StakeWithdrawn(address indexed account, address withdrawAddress, uint256 amount);
     event AccountDeployed(bytes32 indexed userOpHash, address indexed sender, address factory, address paymaster);
 
+
+    fallback() external payable {
+        depositAmount += msg.value;
+        deposits[msg.sender].deposit += msg.value;
+    }
+    receive() external payable {
+        depositAmount += msg.value;
+        deposits[msg.sender].deposit += msg.value;
+    }
     function supportsInterface(bytes4) public pure returns (bool) {
         return true;
     }
     
-    function depositTo(address account) external payable {
+    function depositTo(address account) public payable {
         depositAmount += msg.value;
         deposits[account].deposit += msg.value;
         emit Deposited(account, deposits[account].deposit);
@@ -225,6 +234,4 @@ contract MockEntryPoint {
     ) external pure returns (uint256) {
         return 0;
     }
-    
-    receive() external payable {}
 }

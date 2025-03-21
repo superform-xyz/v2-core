@@ -29,11 +29,10 @@ contract FluidStakeHookTest is BaseTest {
         yieldSource = makeAddr("yieldSource");
         amount = 1000;
 
-        hook = new FluidStakeHook(address(this), address(this));
+        hook = new FluidStakeHook(address(this));
     }
 
     function test_Constructor() public view {
-        assertEq(hook.author(), address(this));
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
     }
 

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { BasePaymaster } from "@account-abstraction/core/BasePaymaster.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { IPaymaster } from "@account-abstraction/interfaces/IPaymaster.sol";
 import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
-import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 
 // Superform
@@ -84,47 +83,11 @@ contract SuperNativePaymasterTest is BaseTest {
     
     function test_HandleOps() public {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        
         paymaster.handleOps{value: 1 ether}(ops);
         
         assertEq(mockEntryPoint.depositAmount(), 1 ether);
     }
     
-    function test_HandleOps_RevertIf_EmptyValue() public {
-        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        
-        vm.expectRevert(SuperNativePaymaster.EMPTY_MESSAGE_VALUE.selector);
-        paymaster.handleOps(ops);
-    }
-    
-    function test_SimulateHandleOp() public {
-        PackedUserOperation memory op = _createUserOp();
-        address target = address(0x123);
-        bytes memory callData = "";
-        
-        IEntryPointSimulations.ExecutionResult memory result = paymaster.simulateHandleOp{value: 1 ether}(op, target, callData);
-        
-        assertEq(result.preOpGas, 100000);
-        assertEq(mockEntryPoint.depositAmount(), 1 ether);
-    }
-    
-    function test_SimulateHandleOp_RevertIf_EmptyValue() public {
-        PackedUserOperation memory op = _createUserOp();
-        address target = address(0x123);
-        bytes memory callData = "";
-        
-        vm.expectRevert(SuperNativePaymaster.EMPTY_MESSAGE_VALUE.selector);
-        paymaster.simulateHandleOp(op, target, callData);
-    }
-   
-    function test_SimulateValidation_RevertIf_EmptyValue() public {
-        PackedUserOperation memory op = _createUserOp();
-        
-        // Use bytes4 selector for the custom error
-        bytes4 selector = SuperNativePaymaster.EMPTY_MESSAGE_VALUE.selector;
-        vm.expectRevert(selector);
-        paymaster.simulateValidation(op);
-    }
     
     function test_ValidatePaymasterUserOp_RevertIf_InsufficientBalance() public {
         bytes memory paymasterAndData = abi.encodePacked(

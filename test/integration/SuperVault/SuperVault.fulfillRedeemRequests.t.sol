@@ -417,7 +417,8 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         console2.log("Final shares:", vars.finalShareBalance);
         console2.log("Assets received:", vars.assetsReceived);
 
-        assertEq(vars.assetsReceived, vars.maxWithdraw, "Assets received should match maxWithdraw");
+        /// @dev  -4 is the SuperLedger fee
+        assertEq(vars.assetsReceived, vars.maxWithdraw - 4, "Assets received should match maxWithdraw");
         assertApproxEqRel(
             vault.convertToAssets(vars.finalShareBalance), vars.depositAmount - vars.assetsReceived, 0.002e18
         );

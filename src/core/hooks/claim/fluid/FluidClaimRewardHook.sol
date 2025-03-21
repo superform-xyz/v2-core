@@ -8,15 +8,15 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 /// @title FluidClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

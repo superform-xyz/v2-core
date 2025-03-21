@@ -29,11 +29,10 @@ contract GearboxStakeHookTest is BaseTest {
         yieldSource = makeAddr("yieldSource");
         amount = 1000;
 
-        hook = new GearboxStakeHook(address(this), address(this));
+        hook = new GearboxStakeHook(address(this));
     }
 
     function test_Constructor() public view {
-        assertEq(hook.author(), address(this));
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
     }
 

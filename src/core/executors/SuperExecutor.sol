@@ -20,6 +20,8 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
     using HookDataDecoder for bytes;
 
+    bytes32 internal constant SUPER_LEDGER_CONFIGURATION_ID = keccak256("SUPER_LEDGER_CONFIGURATION_ID");
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -27,6 +29,9 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
     }
@@ -65,12 +70,18 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _execute(address account, ExecutorEntry memory entry) private {
+        uint256 hooksLen = entry.hooksAddresses.length;
+
+        if (hooksLen == 0) revert NO_HOOKS();
+        if (hooksLen != entry.hooksData.length) revert LENGTH_MISMATCH();
+
         // execute each strategy
         address prevHook;
         address currentHook;
-        uint256 hooksLen = entry.hooksAddresses.length;
         for (uint256 i; i < hooksLen; ++i) {
             currentHook = entry.hooksAddresses[i];
+            if (currentHook == address(0)) revert ADDRESS_NOT_VALID();
+            
             _processHook(account, ISuperHook(currentHook), prevHook, entry.hooksData[i]);
             prevHook = currentHook;
         }
@@ -94,14 +105,15 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedgerConfiguration ledgerConfiguration =
-                ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
+                ISuperLedgerConfiguration(superRegistry.getAddress(SUPER_LEDGER_CONFIGURATION_ID));
 
             bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
-
+            if (config.manager == address(0)) revert MANAGER_NOT_SET();
+            
             // Update accounting and get fee amount if any
             uint256 feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
@@ -113,23 +125,45 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             );
 
             // If there's a fee to collect (only for outflows)
-            if (feeAmount > 0) {
+            if (feeAmount > 0 && _type == ISuperHook.HookType.OUTFLOW) {
+                if (feeAmount > ISuperHookResult(address(hook)).outAmount()) revert INVALID_FEE();
+                
                 // Get the asset token from the hook
                 address assetToken = ISuperHookResultOutflow(hook).asset();
-                if (assetToken == address(0)) revert ADDRESS_NOT_VALID();
-                if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
-
-                uint256 balanceBefore = IERC20(assetToken).balanceOf(config.feeRecipient);
-                Execution[] memory feeExecution = new Execution[](1);
-                feeExecution[0] = Execution({
-                    target: assetToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.transfer, (config.feeRecipient, feeAmount))
-                });
-                _execute(account, feeExecution);
-                uint256 balanceAfter = IERC20(assetToken).balanceOf(config.feeRecipient);
-                if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+                if (assetToken == address(0)) {
+                    if (account.balance < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
+                    _performNativeFeeTransfer(account, config.feeRecipient, feeAmount);
+                } else {
+                    if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
+                    _performErc20FeeTransfer(account, assetToken, config.feeRecipient, feeAmount);
+                }
             }
         }
+    }
+
+    function _performErc20FeeTransfer(address account, address assetToken, address feeRecipient, uint256 feeAmount) private {
+        uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
+        Execution[] memory feeExecution = new Execution[](1);
+        feeExecution[0] = Execution({
+            target: assetToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount))
+        });
+        _execute(account, feeExecution);
+        uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
+        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+    }
+
+    function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) private {
+        uint256 balanceBefore = feeRecipient.balance;
+        Execution[] memory feeExecution = new Execution[](1);
+        feeExecution[0] = Execution({
+            target: feeRecipient,
+            value: feeAmount,
+            callData: ""
+        });
+        _execute(account, feeExecution);
+        uint256 balanceAfter = feeRecipient.balance;
+        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
     }
 }

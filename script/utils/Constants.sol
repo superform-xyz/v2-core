@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 abstract contract Constants {
     address internal constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
-
+    string internal constant SUPER_DEPLOYER_KEY = "SuperDeployer";
     // chain names
     string internal constant ETHEREUM_KEY = "Ethereum";
     string internal constant BASE_KEY = "Base";
@@ -25,8 +25,8 @@ abstract contract Constants {
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
     string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
-    string internal constant MOCK_VALIDATOR_MODULE_KEY = "MockValidatorModule";
-
+    string internal constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
+    
     string internal constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
     string internal constant SUPER_POSITION_ID = "SUPER_POSITION_ID";
     string internal constant SUPER_POSITION_SENTINEL_ID = "SUPER_POSITION_SENTINEL_ID";
@@ -84,11 +84,14 @@ abstract contract Constants {
         // the real one
 
     address internal constant OKX_ROUTER_MAINNET = 0x1Ef032a3c471a99CC31578c8007F256D95E89896;
-    address internal constant OKX_ROUTER_BASE = 0x6b2C0c7be2048Daa9b5527982C29f48062B34D58; 
+    address internal constant OKX_ROUTER_BASE = 0x6b2C0c7be2048Daa9b5527982C29f48062B34D58;
     address internal constant OKX_ROUTER_OPTIMISM = 0xf332761c673b59B21fF6dfa8adA44d78c12dEF09;
-    address internal constant OKX_ROUTER_ARB_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
-    address internal constant OKX_ROUTER_BASE_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
-    address internal constant OKX_ROUTER_OP_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real one
+    address internal constant OKX_ROUTER_ARB_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real
+        // one
+    address internal constant OKX_ROUTER_BASE_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real
+        // one
+    address internal constant OKX_ROUTER_OP_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real
+        // one
 
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
@@ -131,6 +134,8 @@ abstract contract Constants {
     string internal constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
+    string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";

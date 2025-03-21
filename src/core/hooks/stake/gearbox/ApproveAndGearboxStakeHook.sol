@@ -28,7 +28,7 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOut
 
     uint256 private constant AMOUNT_POSITION = 44;
 
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -51,6 +51,7 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOut
         bool usePrevHookAmount = _decodeBool(data, 76);
 
         if (yieldSource == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
+        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
