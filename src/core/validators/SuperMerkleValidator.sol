@@ -7,7 +7,6 @@ import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import { console2 } from "forge-std/console2.sol";
 
 /// @title SuperMerkleValidator
 /// @author Superform Labs
@@ -88,7 +87,6 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
 
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
-        console2.log("sigData", sigData.validUntil);
         UserOpData memory userOpData = UserOpData({
             sender: _userOp.sender,
             nonce: _userOp.nonce,

@@ -1110,8 +1110,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
         uint128 validationGasLimit = 2e6;
         uint128 postOpGasLimit = 2e6;
-        userOpData.userOp.paymasterAndData = abi.encodePacked(paymaster, validationGasLimit, postOpGasLimit);
-
+        bytes memory paymasterData = abi.encodePacked(uint128(2e6)); // paymasterData { nodeOperatorPremium }
+        userOpData.userOp.paymasterAndData = abi.encodePacked(paymaster, validationGasLimit, postOpGasLimit, paymasterData);
         return userOpData;
     }
 
