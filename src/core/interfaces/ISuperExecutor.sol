@@ -34,6 +34,5 @@ interface ISuperExecutor {
     //////////////////////////////////////////////////////////////*/
     /// @notice Execute a batch of calls
     /// @param data The data to execute
-
     function execute(bytes memory data) external;
 }
