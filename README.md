@@ -23,7 +23,7 @@ At a high level, Superform v2 is organized into two major parts:
   interacts with the SuperLedger for accounting.
 - SuperLedger: Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW hooks. These fees are taken by
   Superform.
-- RBAC & SuperRegistry: Provide robust role-based access control and centralized address management for configuration
+- SuperRegistry: Provides entralized address management for configuration
   and upgradeability.
 - SuperBundler: A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It also integrates with
   a validation system (SuperMerkleValidator) to ensure secure operation.
@@ -134,7 +134,7 @@ Key Points for Auditors:
     More considerations on this in the SuperBundler section.
 
 Untested Areas:
-- No unit tests for hooks (only integration tests)
+- Partial unit tests for hooks (coverage additions in progress)
 - The only swap hook that is tested is SwapOdosHook.sol
   - `SwapOdosHook.sol` has only been tested using a simple mock `MockOdosRouterV2.sol` which transfers amount with slippage. This still needs to be tested with actual router implementations.
   - No tests for other hooks that do swaps yet due to api requirements, these will be tested using `surl` in the future.
@@ -272,18 +272,12 @@ Key Points for Auditors:
 #### SuperRegistry
 
 SuperRegistry Definition & Role: The SuperRegistry centralizes the management of contract addresses. By using unique
-identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol. Also provides role-based access control for the protocol. It defines
-roles (as bytes32 identifiers) for various operational functions such as configuration, execution, and system
-monitoring.
-
-Key Roles:
-
-- HOOKS_MANAGER: Can add / remove hooks from the HooksRegistry and add / remove router for 1inch and Odos hooks
+identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol.
 
 Key Points for Auditors:
 
 - Modularity & Upgradeability:
-  - Stores addresses for Executors, RBAC, SuperPositions, Sentinels, Bridges, and shared storage.
+  - Stores addresses for Executor, Bridges, and shared storage.
 - Risks:
   - Misconfiguration or unauthorized modifications could lead to vulnerabilities. Proper governance around the registry
     is critical.
