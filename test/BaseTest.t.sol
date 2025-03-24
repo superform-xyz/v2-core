@@ -821,16 +821,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             peripheryRegistry.registerHook(address(A[i].redeem4626VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].deposit5115VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].redeem5115VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].requestDeposit7540VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].requestRedeem7540VaultHook), true);
+            peripheryRegistry.registerHook(address(A[i].requestDeposit7540VaultHook), false);
+            peripheryRegistry.registerHook(address(A[i].requestRedeem7540VaultHook), false);
             // Register remaining hooks
-            peripheryRegistry.registerHook(address(A[i].approveAndDeposit4626VaultHook), false);
-            peripheryRegistry.registerHook(address(A[i].approveAndDeposit5115VaultHook), false);
-            peripheryRegistry.registerHook(address(A[i].approveAndRequestDeposit7540VaultHook), false);
+            peripheryRegistry.registerHook(address(A[i].approveAndDeposit4626VaultHook), true);
+            peripheryRegistry.registerHook(address(A[i].approveAndDeposit5115VaultHook), true);
+            peripheryRegistry.registerHook(address(A[i].approveAndRequestDeposit7540VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].approveErc20Hook), false);
             peripheryRegistry.registerHook(address(A[i].transferErc20Hook), false);
-            peripheryRegistry.registerHook(address(A[i].deposit7540VaultHook), false);
-            peripheryRegistry.registerHook(address(A[i].withdraw7540VaultHook), false);
+            peripheryRegistry.registerHook(address(A[i].deposit7540VaultHook), true);
+            peripheryRegistry.registerHook(address(A[i].withdraw7540VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].swap1InchHook), false);
             peripheryRegistry.registerHook(address(A[i].swapOdosHook), false);
             peripheryRegistry.registerHook(address(A[i].approveAndSwapOdosHook), false);

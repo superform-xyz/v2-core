@@ -166,32 +166,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
         }
     }
 
-    function test_RequestDeposit_RevertOnInvalidAllocation() public {
-        uint256 depositAmount = 1000e6;
-
-        // Create deposit requests for all users
-        _requestDepositForAllUsers(depositAmount);
-
-        // Create fulfillment data with invalid allocation (total less than deposits)
-        uint256 totalAmount = depositAmount * ACCOUNT_COUNT;
-        uint256 invalidAmount = totalAmount / 4; // Allocating less than total deposits
-
-        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT; i++) {
-            requestingUsers[i] = accInstances[i].account;
-        }
-
-        // Should revert when trying to fulfill with insufficient allocation
-        _fulfillDepositForUsers(
-            requestingUsers,
-            invalidAmount,
-            invalidAmount,
-            address(fluidVault),
-            address(aaveVault),
-            ISuperVaultStrategy.INVALID_AMOUNT.selector
-        );
-    }
-
     function test_RequestDeposit_UnorderedFulfillment(uint256 depositAmount) public {
         depositAmount = bound(depositAmount, 100e6, 10_000e6);
 

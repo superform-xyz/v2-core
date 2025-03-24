@@ -66,7 +66,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
+        return IERC20(IERC7540(yieldSourceAddress).share()).balanceOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
