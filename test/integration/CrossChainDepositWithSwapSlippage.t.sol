@@ -6,17 +6,15 @@ import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
 // Superform
-import { SuperRegistry } from "../../src/core/settings/SuperRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { IOdosRouterV2 } from "../../src/vendor/odos/IOdosRouterV2.sol";
+
+import { IStakeManager } from "@account-abstraction/interfaces/IStakeManager.sol";
 
 // Two briding actions to the same chain, Across gateway waits for both to arrive
 // Two target vaults where one requires a swap due to underlying mismatch which incurs slippage
@@ -187,6 +185,10 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         // BASE IS DST
         SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
+        IStakeManager.DepositInfo memory info =
+            IStakeManager(ENTRYPOINT_ADDR).getDepositInfo(_getContract(BASE, SUPER_NATIVE_PAYMASTER_KEY));
+        console2.log("DEPOSIT INFO ON PAYMASTER", info.deposit);
+
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](4);
         dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
@@ -280,9 +282,15 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
             return _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute));
         } else {
+            /// @dev only base requires a paymaster for across execution
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-            return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
+            return _getExecOps(
+                instanceOnBase,
+                superExecutorOnBase,
+                abi.encode(entryToExecute),
+                _getContract(BASE, SUPER_NATIVE_PAYMASTER_KEY)
+            );
         }
     }
 }
