@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Redeem4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { Withdraw7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
 import { BaseTest } from "../../../../BaseTest.t.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
@@ -10,14 +10,13 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract Redeem4626VaultHookTest is BaseTest {
-    Redeem4626VaultHook public hook;
+contract Withdraw7540VaultHookTest is BaseTest {
+    Withdraw7540VaultHook public hook;
 
     bytes4 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
-    address owner;
 
     function setUp() public override { 
         super.setUp();
@@ -26,9 +25,8 @@ contract Redeem4626VaultHookTest is BaseTest {
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
-        owner = address(this);
 
-        hook = new Redeem4626VaultHook(address(this));
+        hook = new Withdraw7540VaultHook(address(this));
     }
 
     function test_Constructor() public view {
@@ -42,7 +40,6 @@ contract Redeem4626VaultHookTest is BaseTest {
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0); 
-
     }
 
     function test_Build_WithPrevHook() public {
@@ -67,11 +64,10 @@ contract Redeem4626VaultHookTest is BaseTest {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), _encodeData(false, false));
 
-        // owner is address(0)
+        // account is address(0)
         yieldSource = _yieldSource;
-        owner = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(0), _encodeData(false, false));
     }
 
     function test_Build_RevertIf_AmountZero() public {
@@ -80,13 +76,7 @@ contract Redeem4626VaultHookTest is BaseTest {
         hook.build(address(0), address(this), _encodeData(false, false));
     }
 
-    function test_DecodeAmount() public view {
-        bytes memory data = _encodeData(false, false);
-        uint256 decodedAmount = hook.decodeAmount(data);
-        assertEq(decodedAmount, amount);
-    }
-
-    function test_PreAndPostExecute() public {
+    function test_PreAndPostExecuteX() public {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
         bytes memory data = _encodeData(false, false);
@@ -116,11 +106,11 @@ contract Redeem4626VaultHookTest is BaseTest {
         assertEq(replacedAmount, 1);
     }
 
+
     function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
         return abi.encodePacked(
             yieldSourceOracleId,
             yieldSource,
-            owner,
             amount,
             usePrevHook,
             lockForSp
