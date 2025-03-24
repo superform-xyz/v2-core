@@ -328,9 +328,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Extract targeted yield source from hook calldata
             vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
 
-            // Extract targeted yield source from hook calldata
-            vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
-
             // Build executions for this hook
             vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
