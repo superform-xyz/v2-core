@@ -2,12 +2,10 @@
 pragma solidity =0.8.28;
 
 // testing
-import { BaseTest } from "../../BaseTest.t.sol";
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
 // vault interfaces
 import { IERC7540 } from "../../../src/vendor/vaults/7540/IERC7540.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
@@ -15,25 +13,15 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { RestrictionManagerLike } from "../../mocks/centrifuge/IRestrictionManagerLike.sol";
-import { IRestrictionManager } from "../../mocks/centrifuge/IRestrictionManager.sol";
 import { IInvestmentManager } from "../../mocks/centrifuge/IInvestmentManager.sol";
 import { IPoolManager } from "../../mocks/centrifuge/IPoolManager.sol";
 import { ITranche } from "../../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../../mocks/centrifuge/IRoot.sol";
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
-
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
-import { ISuperVault } from "../../../src/periphery/interfaces/ISuperVault.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
+import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 
 contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {

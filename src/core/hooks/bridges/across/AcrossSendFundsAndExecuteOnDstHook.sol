@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -48,12 +48,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
         bytes message;
     }
 
-    constructor(
-        address registry_,
-        address spokePoolV3_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address spokePoolV3_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
     }

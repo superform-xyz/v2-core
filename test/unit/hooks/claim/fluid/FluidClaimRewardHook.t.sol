@@ -41,7 +41,7 @@ contract FluidClaimRewardHookTest is BaseTest {
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
     }
-    
+
     function test_Build_RevertIf_AddressZero() public {
         stakingRewards = address(0);
         bytes memory data = _encodeData();
@@ -58,12 +58,8 @@ contract FluidClaimRewardHookTest is BaseTest {
         hook.postExecute(address(0), account, _encodeData());
         assertEq(hook.outAmount(), 0);
     }
-    
+
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(
-            stakingRewards,
-            rewardToken,
-            account
-        );
+        return abi.encodePacked(stakingRewards, rewardToken, account);
     }
 }

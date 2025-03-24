@@ -4,9 +4,7 @@ pragma solidity >=0.8.28;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
-
 import { MockRegistry } from "../../mocks/MockRegistry.sol";
-
 import { BaseE2ETest } from "../../BaseE2ETest.t.sol";
 
 contract SwapWithOdosIntegrationTest is BaseE2ETest {

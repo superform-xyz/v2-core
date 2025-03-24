@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -76,12 +76,12 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external { 
+    function preExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external { 
+    function postExecute(address, address account, bytes memory data) external {
         outAmount = outAmount - _getBalance(account, data);
     }
 

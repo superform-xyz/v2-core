@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
@@ -66,7 +66,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
             (bool success,) = payable(address(entryPoint)).call{ value: balance }("");
             if (!success) revert INSUFFICIENT_BALANCE();
         }
-        // note: msg.sender is the SUperBundler on same chain, or a cross-chain Gateway contract on the destination
+        // note: msg.sender is the SuperBundler on same chain, or a cross-chain Gateway contract on the destination
         // chain
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
@@ -88,7 +88,6 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         override
         returns (bytes memory context, uint256 validationData)
     {
-        /// @dev note: these values need to be correct and checked against the actual refund received
         if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
             revert INSUFFICIENT_BALANCE();
         }

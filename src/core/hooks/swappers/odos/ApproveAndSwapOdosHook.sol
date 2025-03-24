@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -9,7 +9,6 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOdosHook
@@ -31,12 +30,7 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
     IOdosRouterV2 public odosRouterV2;
 
-    constructor(
-        address registry_,
-        address _routerV2
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address _routerV2) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
         odosRouterV2 = IOdosRouterV2(_routerV2);
     }

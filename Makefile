@@ -24,7 +24,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 test-vvv :; forge test --match-contract SuperNativePaymasterTest -vv
 
-test-integration :; forge test --match-test test_ValidateFees_ForFullWithdrawal_AccumulatedFees_Pendle -vvv
+test-integration :; forge test --match-test test_CrossChainDepositWithSlippage -vvv
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report
