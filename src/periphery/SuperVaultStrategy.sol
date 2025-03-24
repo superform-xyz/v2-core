@@ -196,6 +196,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // Validate requests and determine total amount (assets for deposits, shares for redeem)
         vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
 
+        // If deposit, check available balance
+        if (isDeposit) {
+            vars.availableAmount = _getTokenBalance(address(_asset), address(this));
+            for (uint256 i; i < hooksLength; ++i) {
+                address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+                try IERC7540(target).claimableDepositRequest(0, address(this)) returns (uint256 pendingDepositRequest) {
+                    vars.availableAmount += pendingDepositRequest;
+                } catch { }
+            }
+
+            if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
+        }
+
         /// @dev grab current PPS before processing hooks
         vars.pricePerShare = _getSuperVaultPPS();
 
@@ -690,7 +703,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
-        state.pendingDepositRequest = vars.requestedAmount >= vars.spentAmount ? vars.requestedAmount - vars.spentAmount : 0;
+        state.pendingDepositRequest = 0;
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
@@ -707,7 +720,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
 
         state.sharePricePointCursor = lastConsumedIndex;
-        state.pendingRedeemRequest = state.pendingRedeemRequest >= vars.spentAmount ? state.pendingRedeemRequest - vars.spentAmount : 0;
+        state.pendingRedeemRequest = 0;
 
         state.maxWithdraw += finalAssets;
 
