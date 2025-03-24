@@ -7,7 +7,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 import { BaseTest } from "../BaseTest.t.sol";
 

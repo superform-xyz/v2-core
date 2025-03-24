@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -16,7 +16,7 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
 
-    constructor(address owner_) Ownable(owner_) {}
+    constructor(address owner_) Ownable(owner_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER

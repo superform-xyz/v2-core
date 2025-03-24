@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -39,12 +39,7 @@ contract Swap1InchHook is BaseHook, ISuperHook {
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
 
-    constructor(
-        address registry_,
-        address aggregationRouter_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address aggregationRouter_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (aggregationRouter_ == address(0)) {
             revert ZERO_ADDRESS();
         }
@@ -240,7 +235,7 @@ contract Swap1InchHook is BaseHook, ISuperHook {
 
         if (dstToken == NATIVE) {
             return dstReceiver.balance;
-        } 
+        }
         return IERC20(dstToken).balanceOf(dstReceiver);
     }
 }

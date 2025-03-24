@@ -30,12 +30,7 @@ contract PermitWithPermit2Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     address public permit2;
 
-    constructor(
-        address registry_,
-        address permit2_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address permit2_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
         permit2 = permit2_;
     }

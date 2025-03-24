@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -81,7 +81,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         for (uint256 i; i < hooksLen; ++i) {
             currentHook = entry.hooksAddresses[i];
             if (currentHook == address(0)) revert ADDRESS_NOT_VALID();
-            
+
             _processHook(account, ISuperHook(currentHook), prevHook, entry.hooksData[i]);
             prevHook = currentHook;
         }
@@ -113,7 +113,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
-            
+
             // Update accounting and get fee amount if any
             uint256 feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
@@ -127,7 +127,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
             // If there's a fee to collect (only for outflows)
             if (feeAmount > 0 && _type == ISuperHook.HookType.OUTFLOW) {
                 if (feeAmount > ISuperHookResult(address(hook)).outAmount()) revert INVALID_FEE();
-                
+
                 // Get the asset token from the hook
                 address assetToken = ISuperHookResultOutflow(hook).asset();
                 if (assetToken == address(0)) {
@@ -141,7 +141,14 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
         }
     }
 
-    function _performErc20FeeTransfer(address account, address assetToken, address feeRecipient, uint256 feeAmount) private {
+    function _performErc20FeeTransfer(
+        address account,
+        address assetToken,
+        address feeRecipient,
+        uint256 feeAmount
+    )
+        private
+    {
         uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
         Execution[] memory feeExecution = new Execution[](1);
         feeExecution[0] = Execution({
@@ -157,11 +164,7 @@ contract SuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperE
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) private {
         uint256 balanceBefore = feeRecipient.balance;
         Execution[] memory feeExecution = new Execution[](1);
-        feeExecution[0] = Execution({
-            target: feeRecipient,
-            value: feeAmount,
-            callData: ""
-        });
+        feeExecution[0] = Execution({ target: feeRecipient, value: feeAmount, callData: "" });
         _execute(account, feeExecution);
         uint256 balanceAfter = feeRecipient.balance;
         if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();

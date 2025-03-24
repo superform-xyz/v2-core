@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -108,7 +108,7 @@ contract ApproveAndRequestDeposit7540VaultHook is
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
-    
+
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         return IERC20(IERC7540(data.extractYieldSource()).asset()).balanceOf(account);
     }

@@ -29,6 +29,8 @@ At a high level, Superform v2 is organized into two major parts:
   a validation system (SuperMerkleValidator) to ensure secure operation.
 - SuperVault: A ERC7540 compliant vault capable of allocating an asset to various yield sources using hooks and allowing
   strategists to optimize the performance of the vault.
+- SuperMerkleValidator: A validator contract for entrypoint actions. This is used for the purpose of users only signing once for multiple user ops under Superform v2 chain abstraction experience
+- SuperNativePaymaster: A paymaster contract to fund user actions with native tokens and to allow users to use ERC20 tokens to fund operations from their originating
 
 ### Repository Structure
 
@@ -41,11 +43,11 @@ src/
 │   ├── hooks/          # Protocol hooks
 │   ├── interfaces/     # Contract interfaces
 │   ├── libraries/      # Shared libraries
-│   ├── paymaster/      # Native paymaster
+│   ├── paymaster/      # Native paymaster and gas tank contracts
 │   ├── settings/       # Protocol settings
 │   ├── utils/          # Utility contracts
-│   └── validators/     # Validation contracts
-└── periphery/         # Peripheral contracts such as SuperVaults
+│   └── validators/     # Validation contract
+└── periphery/         # Peripheral contracts such as SuperVaults (NOT IN SCOPE)
 ```
 
 ## Development Setup
@@ -71,6 +73,17 @@ Install dependencies:
 forge install
 ```
 
+```bash
+cd lib/modulekit
+pnpm install
+```
+
+Note: This requires pnpm and will not work with npm. Install it using:
+
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+```
+
 Copy the environment file:
 
 ```bash
@@ -85,22 +98,9 @@ Build:
 forge build
 ```
 
-If forge build fails:
-
-```bash
-cd lib/modulekit
-pnpm install
-```
-
-Note: This requires pnpm and will not work with npm. Install it using:
-
-```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
-```
-
 ### Testing
 
-Supply your RPCS directly in the makefile and then
+Supply your node rpc directly in the makefile and then
 
 ```bash
 make ftest
@@ -108,7 +108,40 @@ make ftest
 
 ## Technical Architecture & Concepts
 
-### Core Components
+### SuperBundler
+
+SuperBundler is a specialized component that handles the bundling of ERC4337 userOps. Unlike typical bundlers that
+immediately forward userOps, SuperBundler processes them in a timed manner, allowing for batching and optimized
+execution.
+
+Bundler Operation
+
+- Allows fee charging in ERC20 tokens with a fee payment hook (a transfer hook), which transfers fees to the SuperBundler so that it can orchestrate the entire operation.
+- Allows for a single signature experience flow, where the SuperBundler builds a merkle tree of all userOps that are going to be executed in all chains for a given
+user intent. This siganture is validated in SuperMerkle Validator.
+- Allows for delayed execution of userOps (async userOps) with a single user signature. UserOps are processed when and where required rather than immediately upon receipt. 
+Reasonable deadlines apply here. Typical desired flow of usage is for example with asynchronous vaults like those following ERC7540 standard.
+- Centralization Concerns:
+  - Since SuperBundler controls both the userOp and validation flow, it introduces a degree of centralization. We
+    acknowledge that this could be flagged by auditors.
+  - In later stages this system is planned to be decentralized.
+- Mitigation: Transparency around this design choice and the availability of fallback mechanisms when operations are not
+  executed through SuperBundler.
+
+### Module Installation & Account Bootstrapping
+
+Smart accounts that interact with Superform must install two essential ERC7579 modules:
+
+- SuperExecutor:
+  - Installs hooks and executes operations.
+- SuperMerkleValidator:
+  - Validates userOps against a Merkle root.
+- Additional Modules:
+  - Rhinestone Resource Lock Module: Used for cross-chain resource locking.
+  - Rhinestone Target Executor: Executes userOps on destination chains, bypassing the entry point flow.
+
+
+### Core Contracts
 
 #### Hooks
 
@@ -125,20 +158,19 @@ Key Points for Auditors:
 - Known Considerations:
   - Complex interdependencies may arise if hooks are misconfigured.
   - Failure handling is strict (reverting the entire operation on a specific hook failure).
-  - All hooks are executed within the smart account context. This is why many typical checks such as in superform v1 can
-    be removed, because the assumption is that the user will agree to the ordering and the type of hooks provided and
-    this choice will solely affect his account and not the entire system, such as in superform v1.
-  - There is a HooksRegistry which essentially tells if a Hook is a considered a core hook or not (valid for SuperVaults
-    execution). However anyone can create a hook including a malicious one. Users select which hooks to use, but
-    ultimately it is up to the SuperBundler to provide the correct suggestions for users in the majority of the cases.
-    More considerations on this in the SuperBundler section.
-
+  - All hooks are executed within the smart account context. This is why many typical checks on slippage or other behaviour can be disregarded, 
+    because the assumption is that the user will agree to the ordering and the type of hooks provided and
+    this choice will solely affect his account and not the entire core system of contracts.
+  - Anyone can create a hook including a malicious one. Users select which hooks to use, but ultimately it is up to the SuperBundler 
+    to provide the correct suggestions for users in the majority of the cases. Therefore users place a certain degree of trust in SuperBundler
+    
 Untested Areas:
-- No unit tests for hooks (only integration tests)
+- Many hooks are not 100% covered
 - The only swap hook that is tested is SwapOdosHook.sol
   - `SwapOdosHook.sol` has only been tested using a simple mock `MockOdosRouterV2.sol` which transfers amount with slippage. This still needs to be tested with actual router implementations.
   - No tests for other hooks that do swaps yet due to api requirements, these will be tested using `surl` in the future.
 - No tests for any of the hooks for staking and claiming staked tokens yet. 
+
 
 #### SuperExecutor
 
@@ -190,7 +222,7 @@ Key Points for Auditors:
     state due to influences on the price per share accounting and the SuperLedger used for that yield source.
   - SuperBundler will enforce the yieldSourceOracleId to use whenever a user interacts with Superform app or API. Otherwise 
   this cannot be enforced. Each yieldSourceOracle is paired with a ledger contract which users can also specify when configuring
-  the yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through the Superform app and API and acknowledged by the team.
+  the yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through the offchain SuperBundler and acknowledged by the team.
 
 #### SuperOracle
 
@@ -216,9 +248,14 @@ execution on destination chains.
 
 Key Points for Auditors:
 
+- Only AcrossV3 is used at the moment, but other bridging solutions may be added in the future following a similar pattern.
 - Relayed message handling:
   - Both bridges expect the full intent amount to be available to continue execution on destinaton
   - The last relay to happen continues the operation
+- Known issues and yet to be solved cases:
+  - Gas tank grievance by users who get a valid signature of the merkle root but override data sent via the Across Hook causing the gas tank to be overly charged and draining of all of its funds
+  - We are studying a potential fix (un-applied yet), where there is a validation at the SuperExecutor level which has access to hook calldata that allows to compare the amount of fees that the bundler
+  signed into the Across hook is greater than the actual amount the user is paying in fee with the initial transfer hook (see SuperBundler section for initial transfer hook).
 - Known and accepted cases:
   - Failure of a relay:
     - It is entirely possible for a relay to fail due to a lack of a fill by a solver. In these types of cases, the
@@ -237,19 +274,18 @@ Key Points for Auditors:
 
 #### SuperNativePaymaster
 
-Definition & Role: SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint,
-enabling users to pay for operations using native tokens. It's primarily used by SuperBundler for gas abstraction.
+Definition & Role: SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint, enabling users to pay for operations using erc20 tokens from any chain, on demand. 
+It's primarily used by SuperBundler for gas abstraction and one balance experience. This is necessary because of the Superbundler's unique fee collection mechanism where userOps are executed on user behalf and when required. 
 
 Key Points for Auditors:
 
 - Gas Management:
-  - Native token conversion for gas payments
   - Gas estimation and pricing mechanisms
   - Refund handling for unused gas
 - Integration Points:
   - EntryPoint interaction patterns
   - SuperBundler dependencies
-  - Failure recovery mechanisms
+  - Across gateway interaction
 - Security Considerations:
   - DOS prevention
   - Gas price manipulation protection
@@ -257,38 +293,40 @@ Key Points for Auditors:
 
 #### SuperMerkleValidator
 
-Definition & Role: SuperMerkleValidator is used by SuperBundler to validate operations through Merkle proof
-verification. It ensures that only authorized operations are executed within the system.
+Definition & Role: SuperMerkleValidator is used by SuperBundler to validate operations through Merkle proof verification. It ensures that only authorized operations are executed within the system.
 
 Key Points for Auditors:
 
 - Validation Process:
-  - Merkle proof verification methodology
+  - Merkle proof verification methodology deviates purposefully from ERC-4337, because the userOpHash is not included as part of the signature. In
+  Superform's case (opinionated) the merkle root is treated as "userOpHash". This is done to give the one signature experience. We acknowledge this
+  will make the validator incompatible with other integrations.
   - Validation failure handling
 - Security Considerations:
   - Proof verification robustness
   - Replay attack prevention
+- Good to know:
+  - Rhinestone's mock validator is used widely across tests for easiness of testing. We plan to increase level of usage of our validator more widely through the tests and remove the usage of the mock eventually.
+  - The logic for using SuperMerkleValidator with SuperNativePaymaster in cross chain execution with Across hook and gateway is untested. It has been verified to work with the Mock validator provided by
+  Rhinestone's modulekit.
 
 #### SuperRegistry
 
-SuperRegistry Definition & Role: The SuperRegistry centralizes the management of contract addresses. By using unique
-identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol. Also provides role-based access control for the protocol. It defines
-roles (as bytes32 identifiers) for various operational functions such as configuration, execution, and system
-monitoring.
-
-Key Roles:
-
-- HOOKS_MANAGER: Can add / remove hooks from the HooksRegistry and add / remove router for 1inch and Odos hooks
+SuperRegistry Definition & Role: The SuperRegistry centralizes the management of contract addresses. By using unique identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol.
 
 Key Points for Auditors:
 
 - Modularity & Upgradeability:
-  - Stores addresses for Executors, RBAC, SuperPositions, Sentinels, Bridges, and shared storage.
+  - Stores relevant addresses for:
+    - SUPER_LEDGER_CONFIGURATION
+    - SUPER_EXECUTOR
+    - SUPER_GAS_TANK
+    - SUPER_NATIVE_PAYMASTER
 - Risks:
   - Misconfiguration or unauthorized modifications could lead to vulnerabilities. Proper governance around the registry
     is critical.
 
-### Periphery Components
+### Periphery Components (NOT IN SCOPE FOR AUDIT)
 
 #### SuperVaults
 
@@ -300,7 +338,7 @@ Key Features:
 1. Yield Source Management:
 
    - Dynamic configuration of yield sources
-   - Caps and thresholds for risk management
+   - Caps for risk management
    - Timelock for yield source additions
 
 2. Request Processing:
@@ -313,7 +351,7 @@ Key Features:
 
    - Flexible allocation strategies
    - Hook-based execution
-   - Constraint enforcement (caps, thresholds)
+   - Constraint enforcement
 
 4. Reward Mechanisms:
    - Claim and compound functionality
@@ -329,16 +367,11 @@ Key Points for Auditors:
   - Access control implementation
   - Emergency controls
   - Hook validation
-- Math and safety of the vault:
-  - We took an approach of using a state variable to track increases to totalAssets such that balance of asset sent to the vault doesn't influence the PPS
-  - Also, to determine the shares to mint when fulfilling deposit requests, the total share increase for a set of users is calculated based on the proportion of asset increase, for each user. By aggregating all deposit amounts and processing them together, the share issuance is calculated based on the full combined deposit. This adjustment ensures that the asset-to-share ratio remains consistent and the PPS is the same for all fulfilled depositors
-  - To prevent the problem depicted in https://github.com/OpenZeppelin/openzeppelin-contracts/blob/3882a0916300b357f3d2f438450c1e9bc2902bae/contracts/token/ERC20/extensions/ERC4626.sol#L22C1-L28C82 we decided to force
-  an initial deposit to the SuperVault. This amount should be non trivial (e.g $1 worth of asset)
 - Important cases to watch for:
   - Rebalance accuracy
   - Fee calculation accuracy
   - Sufficient mitigation of rounding issues
-  - Guardrails to protect users/strategists against bad underlying vaults. Are they enough?
+  - Guardrails to protect users/strategists against bad underlying vaults.
   - Unique logic around matchRequests functionality, which will have high importance to reduce gas costs to fulfill requests in Coindidence of Wants format.
   - Ensure all the above is secure in light of the existence of the escrow contract
 
@@ -348,43 +381,6 @@ Factory Implementation:
 - Configurable parameters for new vaults
 - Security measures for initialization
 - Important case to watch for:
-  - The factory performs an initial deposit into the vault during the `createVault` function. This is done to mitigate the discrepancy between shares received by the first depositor and subsequent depositors due to changes in the price per share. Is this the best approach to mitigate this issue?
-
-Untested Areas:
-
-- The `claim` function and the `compoudClaimedTokens` functions have not yet been tested.
-- `allocate()` has not yet been tested.
-- `manageEmergencyWithdrawal()` has only been partially tested.
-
-## SuperBundler & Account Abstraction
-
-### SuperBundler Overview
-
-SuperBundler is a specialized component that handles the bundling of ERC4337 userOps. Unlike typical bundlers that
-immediately forward userOps, SuperBundler processes them in a timed manner, allowing for batching and optimized
-execution.
-
-Bundler Operation
-
-- Timed Processing:
-  - UserOps are processed when and where required rather than immediately upon receipt.
-- Centralization Concerns:
-  - Since SuperBundler controls both the userOp and validation flow, it introduces a degree of centralization. We
-    acknowledge that this could be flagged by auditors.
-- Mitigation: Transparency around this design choice and the availability of fallback mechanisms when operations are not
-  executed through SuperBundler.
-
-### Module Installation & Account Bootstrapping
-
-Smart accounts that interact with Superform must install two essential ERC7579 modules:
-
-- SuperExecutor:
-  - Installs hooks and executes operations.
-- SuperMerkleValidator:
-  - Validates userOps against a Merkle root.
-- Additional Modules:
-  - Rhinestone Resource Lock Module: Used for cross-chain resource locking.
-  - Rhinestone Target Executor: Executes userOps on destination chains, bypassing the entry point flow.
 
 ## Edge Cases & Known Issues
 
@@ -404,7 +400,9 @@ Execution Outside SuperBundler:
 - Risk:
   - If userOps are executed directly (not via SuperBundler), certain optimizations and checks might be
     bypassed. 
+  - Users can deplete the SuperGasTank by grieving it, in cross chain operations
 - Mitigation:
+  - See the potential fix for gas grievance issue in the `Bridges` section. This issue can be flagged as an non-solved issue that will be tackled during
   - Our modules are designed to handle direct execution gracefully, but users and integrators are advised to follow best
     practices outlined in the documentation and interact via Superform app.
 
@@ -414,12 +412,6 @@ Inter-Hook Dependencies:
 - Mitigation:
   - The SuperExecutor's design ensures that hooks update and pass transient data in a controlled manner, with reversion on
   error to preserve state integrity.
-
-SuperLedger Funds Separation: 
-- Risk:
-  - Right now assets obtained to fulfill redeem requests remain in the SuperVaultStrategy and contribute temporarily to the PPS/totalAssets. However they must not be used for fulfillDepositRequests as they are meant to be given to users who have already claimed
-- Mitigation:
-  - Separate these assets into a new Escrow Assets contract for users to claim?
 
 SuperLedger Accounting: 
 - Risk:
@@ -475,10 +467,32 @@ SuperExecutor module:
 
 **Justification**: Owner control with timelock protection prevents immediate changes to price oracles, reducing risk of malicious oracle manipulation while allowing for necessary updates
 
+---
+
+### **SuperGasTank.sol**
+
+**Function**: addToAllowlist(address contractAddress)
+
+**Role**: onlyOwner
+
+**Purpose**: Sets the maximum staleness period for a price provider
+
+**Justification**: Owner control ensures only authorized contracts can withdraw ETH from the gas tank, preventing unauthorized access to funds used for cross-chain operations
+
+<br>
+
+**Function**: removeFromAllowlist(address contractAddress)
+
+**Role**: onlyOwner
+
+**Purpose**: Queues an update to oracle addresses with a timelock
+
+**Justification**: Owner control ensures the ability to revoke access from compromised or deprecated addresses, maintaining security of the gas tank's ETH reserves used for cross-chain operations
+
 
 ---
 
-## **Periphery Contracts**
+## **Periphery Contracts (NOT IN SCOPE)**
 
 ### **PeripheryRegistry.sol**
 

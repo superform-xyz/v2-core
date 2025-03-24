@@ -2,7 +2,6 @@
 pragma solidity =0.8.28;
 
 // testing
-import { BaseTest } from "../../BaseTest.t.sol";
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
 // external
@@ -10,9 +9,8 @@ import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // superform
-import { ISuperVault } from "../../../src/periphery/interfaces/ISuperVault.sol";
 import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 
 contract SuperVaultE2EFlow is BaseSuperVaultTest {

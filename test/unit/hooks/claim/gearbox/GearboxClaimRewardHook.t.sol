@@ -42,7 +42,7 @@ contract GearboxClaimRewardHookTest is BaseTest {
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
     }
-    
+
     function test_Build_RevertIf_AddressZero() public {
         mockFarmingPool = address(0);
         bytes memory data = _encodeData();
@@ -59,12 +59,8 @@ contract GearboxClaimRewardHookTest is BaseTest {
         hook.postExecute(address(0), mockAccount, _encodeData());
         assertEq(hook.outAmount(), 0);
     }
-    
+
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(
-            mockFarmingPool,
-            mockRewardToken,
-            mockAccount
-        );
+        return abi.encodePacked(mockFarmingPool, mockRewardToken, mockAccount);
     }
 }

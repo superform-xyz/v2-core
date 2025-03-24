@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution } from "../../src/core/interfaces/ISuperHook.sol";
+import {
+    ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution
+} from "../../src/core/interfaces/ISuperHook.sol";
 
 contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     HookType public hookType;

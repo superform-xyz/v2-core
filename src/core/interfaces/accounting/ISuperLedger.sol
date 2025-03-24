@@ -96,4 +96,10 @@ interface ISuperLedger is ISuperLedgerData {
         external
         view
         returns (uint256 feeAmount);
+
+    /// @notice Calculates the cost basis for a given user and amount of shares
+    /// @param user The user address
+    /// @param usedShares The amount of shares used
+    /// @return costBasis The cost basis
+    function calculateCostBasisView(address user, uint256 usedShares) external view returns (uint256 costBasis);
 }

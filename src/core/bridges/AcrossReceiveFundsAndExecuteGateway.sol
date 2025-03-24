@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
-
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -154,7 +153,7 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
             }
         } else {
             /// @dev TODO: note to auditors - users can grieve gas tank out of all its value
-            /// this is currently unfixed
+            /// this is currently unfixed (issue 8 of previous audit)
             uint256 gasCost = userOps[0].calculateGasCostInWei();
             address superGasTank = superRegistry.getAddress(keccak256("SUPER_GAS_TANK_ID"));
             if (address(this).balance < gasCost) {

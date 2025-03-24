@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 
@@ -18,7 +18,7 @@ abstract contract SuperRegistryImplementer {
     error ZERO_ADDRESS();
 
     constructor(address superRegistry_) {
-        if(superRegistry_ == address(0)) revert ZERO_ADDRESS();
+        if (superRegistry_ == address(0)) revert ZERO_ADDRESS();
         superRegistry = ISuperRegistry(superRegistry_);
     }
 }

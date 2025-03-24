@@ -2,13 +2,10 @@
 pragma solidity =0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // superform
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";

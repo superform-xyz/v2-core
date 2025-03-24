@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
@@ -16,7 +16,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     /// @notice Pending manager for yield source oracle
     mapping(bytes4 => address) private pendingManager;
 
-    uint256 internal constant MAX_FEE_PERCENT = 5_000;
+    uint256 internal constant MAX_FEE_PERCENT = 5000;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
@@ -68,6 +68,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
         }
     }
     /// @inheritdoc ISuperLedgerConfiguration
+
     function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) external virtual {
         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
         if (config.manager != msg.sender) revert NOT_MANAGER();
@@ -88,6 +89,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     function _setYieldSourceOracleConfig(
         bytes4 yieldSourceOracleId,
         address yieldSourceOracle,
