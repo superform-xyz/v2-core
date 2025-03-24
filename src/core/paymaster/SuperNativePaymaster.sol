@@ -2,11 +2,12 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BasePaymaster } from "@account-abstraction/core/BasePaymaster.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
+
+import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
@@ -59,15 +60,15 @@ contract SuperNativePaymaster is BasePaymaster {
     /// @notice Handle a batch of user operations.
     /// @param ops The user operations to handle.
     function handleOps(PackedUserOperation[] calldata ops) public payable {
-        if (address(this).balance == 0) {
-            revert EMPTY_MESSAGE_VALUE();
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success, ) = payable(address(entryPoint)).call{value: balance}("");
+            if (!success) revert INSUFFICIENT_BALANCE();
         }
-        (bool success, ) = payable(address(entryPoint)).call{value: msg.value}("");
-        if (!success) revert INSUFFICIENT_BALANCE();
+
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
-    
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

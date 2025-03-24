@@ -16,7 +16,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     /// @notice Pending manager for yield source oracle
     mapping(bytes4 => address) private pendingManager;
 
-    uint256 internal constant MAX_FEE_PERCENT = 10_000;
+    uint256 internal constant MAX_FEE_PERCENT = 5_000;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 

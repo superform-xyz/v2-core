@@ -16,7 +16,7 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 /// @dev data has the following structure
 /// @notice         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

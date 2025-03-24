@@ -162,7 +162,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -196,7 +196,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -232,7 +232,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), address(this), executor);
+        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -286,6 +286,103 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         executeOp(userOpData);
+    }
+
+    function test_SwapNativeThroughOdosAndDeposit4626() external {
+        uint256 amount = 1 ether;
+
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[2] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](3);
+        hooksData[0] = _createOdosSwapHookData(
+            address(0), // ETH
+            amount,
+            account,
+            address(underlying),
+            amount,
+            amount,
+            "",
+            address(this),
+            uint32(0),
+            false
+        );
+        hooksData[1] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[2] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+        );
+        uint256 routerEthBalanceBefore = address(odosRouters[ETH]).balance;
+        _getTokens(address(underlying), odosRouters[ETH], amount);
+
+        uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        uint256 routerEthBalanceAfter = address(odosRouters[ETH]).balance;
+        assertEq(routerEthBalanceAfter, routerEthBalanceBefore + amount);
+
+        uint256 accSharesAfter = vaultInstance.balanceOf(account);
+        assertEq(accSharesAfter, sharesPreviewed);
+    }
+
+    function test_SwapUnderlyingToNativeAndThenUnderlying() external {
+        uint256 amount = 1 ether;
+
+        _getTokens(address(underlying), odosRouters[ETH], amount);
+        vm.deal(address(odosRouters[ETH]), amount);
+
+        address[] memory hooksAddresses = new address[](5);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[2] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[3] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[4] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](5);
+        hooksData[0] = _createApproveHookData(underlying, odosRouters[ETH], amount, false);
+        hooksData[1] = _createOdosSwapHookData(
+            address(underlying),
+            amount,
+            account,
+            address(0), // ETH
+            amount,
+            amount,
+            "",
+            address(this),
+            uint32(0),
+            false
+        );
+        hooksData[2] = _createOdosSwapHookData(
+            address(0),
+            amount,
+            account,
+            address(underlying), // ETH
+            amount,
+            amount,
+            "",
+            address(this),
+            uint32(0),
+            true
+        );
+        hooksData[3] = _createApproveHookData(underlying, yieldSourceAddress, amount, true);
+        hooksData[4] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, true, false
+        );
+
+        uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        uint256 accSharesAfter = vaultInstance.balanceOf(account);
+        assertApproxEqRel(accSharesAfter, sharesPreviewed, 0.05e18);
     }
 
     function test_MockedSuperPositionFlow(uint256 amount) external {
