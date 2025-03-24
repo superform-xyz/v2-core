@@ -153,9 +153,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         deal(address(asset), accInstances[2].account, amount);
         _requestDepositForAccount(accInstances[2], amount);
 
-        console2.log("user2 pending deposit", strategy.pendingDepositRequest(accInstances[2].account));
         console2.log("pps After Request Deposit2", _getSuperVaultPricePerShare());
-        console2.log("---Strategy balance", asset.balanceOf(address(strategy)));
 
         // Request deposit into 7540 vault
         _requestCentrifugeDeposit(amount);
@@ -172,6 +170,22 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         // Claim deposit into superVault as user2
         _claimDepositForAccount(accInstances[2], amount);
         console2.log("User2 SV Share Balance After Claim Deposit", vault.balanceOf(accInstances[2].account));
+
+        // --- REDEMPTIONS --- 
+        uint256 amountToRedeemAccEth = IERC20(vault.share()).balanceOf(accountEth);
+        __requestRedeem(instanceOnEth, amountToRedeemAccEth, false);
+        uint256 amountToRedeemAcc2 = IERC20(vault.share()).balanceOf(accInstances[2].account);
+        __requestRedeem(accInstances[2], amountToRedeemAcc2, false);
+
+        console2.log("user1 pending redeem", strategy.pendingRedeemRequest(accountEth));
+        console2.log("user2 pending redeem", strategy.pendingRedeemRequest(accInstances[2].account));
+
+        _requestCentrifugeRedeem();
+
+        console2.log("user1 pending redeem", strategy.pendingRedeemRequest(accountEth));
+        console2.log("user2 pending redeem", strategy.pendingRedeemRequest(accInstances[2].account));
+
+        _fulfillRedemptions();
     }
 
     function _requestCentrifugeDeposit(uint256 amountToDeposit) internal {
@@ -224,12 +238,11 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[0] = fluidVault.convertToShares(amountPerVault);
 
         // 7540 claim deposit
-        uint256 maxMint = centrifugeVault.maxMint(address(strategy));
-        expectedAssetsOrSharesOut[1] = maxMint;
-        console2.log("----- Max mint", maxMint);
+        uint256 maxDeposit = centrifugeVault.maxDeposit(address(strategy));
+        expectedAssetsOrSharesOut[1] = centrifugeVault.maxMint(address(strategy));
 
         fulfillHooksData[1] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxMint, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxDeposit, false, false
         );
 
         vm.prank(STRATEGIST);
@@ -242,5 +255,73 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         uint256 shares = amount.mulDiv(1e18, pps);
         userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pps }));
         userSharePricePoints[accInstances[2].account].push(SharePricePoint({ shares: shares, pricePerShare: pps }));
+    }
+
+    function _requestCentrifugeRedeem() internal {
+        address requestRedeemHookAddress = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+
+        address[] memory requestHooksAddresses = new address[](1);
+        requestHooksAddresses[0] = requestRedeemHookAddress;
+
+        uint256 centrifugeRedeem = IERC20(centrifugeVault.share()).balanceOf(address(strategy));
+
+        bytes[] memory requestHooksData = new bytes[](1);
+        requestHooksData[0] = _createRequestRedeem7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), centrifugeRedeem, false
+        );
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(requestHooksAddresses, requestHooksData);
+
+        console2.log("---- PPS After Centrifuge Request Redeem", _getSuperVaultPricePerShare());
+
+        uint256 expectedAssetsOut = centrifugeVault.convertToAssets(centrifugeRedeem);
+
+        vm.prank(rootManager);
+        investmentManager.fulfillRedeemRequest(
+            poolId, trancheId, address(strategy), assetId, uint128(centrifugeRedeem), uint128(expectedAssetsOut)
+        );
+
+        console2.log("---- PPS After Centrifuge Fulfill Redeem", _getSuperVaultPricePerShare());
+    }
+
+    function _fulfillRedemptions() internal {
+        uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
+        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(centrifugeRedeemShares);
+
+        uint256 fluidRedeemShares = fluidVault.balanceOf(address(strategy));
+        console2.log("----fluidRedeemShares", fluidRedeemShares);
+        console2.log("-----fluid max redeem", fluidVault.maxRedeem(address(strategy)));
+
+        address[] memory requestingUsers = new address[](2);
+        requestingUsers[0] = accountEth;
+        requestingUsers[1] = accInstances[2].account;
+
+        address redeemHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address withdraw7540HookAddress = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](2);
+        fulfillHooksAddresses[0] = redeemHookAddress;
+        fulfillHooksAddresses[1] = withdraw7540HookAddress;
+
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        fulfillHooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(strategy), fluidRedeemShares, false, false
+        );
+
+        fulfillHooksData[1] = _createWithdraw7540VaultHookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), centrifugeExpectedAssets, false, false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = fluidRedeemShares;
+        expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
+
+        vm.prank(STRATEGIST);
+        strategy.fulfillRequests(
+            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        );
+
+        console2.log("---- PPS After Fulfill Redemptions", _getSuperVaultPricePerShare());
     }
 }
