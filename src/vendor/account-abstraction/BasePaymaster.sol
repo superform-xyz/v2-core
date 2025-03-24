@@ -3,22 +3,21 @@ pragma solidity ^0.8.23;
 
 /* solhint-disable reason-string */
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 
 import "@account-abstraction/interfaces/IPaymaster.sol";
 import "@account-abstraction/interfaces/IEntryPoint.sol";
 import "@account-abstraction/core/UserOperationLib.sol";
 
-
 /// @dev Taken from @account-abstraction/core/BasePaymaster.sol"
-/// Removed `deposit()` method as it does not perform a refund
+/// Removed `deposit()` method as it does not perform a refund and changed to ownable2step
 /**
  * Helper class for creating a paymaster.
  * provides helper methods for staking.
  * Validates that the postOp is called only by the entryPoint.
  */
-abstract contract BasePaymaster is IPaymaster, Ownable {
+abstract contract BasePaymaster is IPaymaster, Ownable2Step {
     IEntryPoint public immutable entryPoint;
 
     uint256 internal constant PAYMASTER_VALIDATION_GAS_OFFSET = UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET;
@@ -33,7 +32,10 @@ abstract contract BasePaymaster is IPaymaster, Ownable {
     //sanity check: make sure this EntryPoint was compiled against the same
     // IEntryPoint of this paymaster
     function _validateEntryPointInterface(IEntryPoint _entryPoint) internal virtual {
-        require(IERC165(address(_entryPoint)).supportsInterface(type(IEntryPoint).interfaceId), "IEntryPoint interface mismatch");
+        require(
+            IERC165(address(_entryPoint)).supportsInterface(type(IEntryPoint).interfaceId),
+            "IEntryPoint interface mismatch"
+        );
     }
 
     /// @inheritdoc IPaymaster
@@ -41,7 +43,11 @@ abstract contract BasePaymaster is IPaymaster, Ownable {
         PackedUserOperation calldata userOp,
         bytes32 userOpHash,
         uint256 maxCost
-    ) external override returns (bytes memory context, uint256 validationData) {
+    )
+        external
+        override
+        returns (bytes memory context, uint256 validationData)
+    {
         _requireFromEntryPoint();
         return _validatePaymasterUserOp(userOp, userOpHash, maxCost);
     }
@@ -56,7 +62,10 @@ abstract contract BasePaymaster is IPaymaster, Ownable {
         PackedUserOperation calldata userOp,
         bytes32 userOpHash,
         uint256 maxCost
-    ) internal virtual returns (bytes memory context, uint256 validationData);
+    )
+        internal
+        virtual
+        returns (bytes memory context, uint256 validationData);
 
     /// @inheritdoc IPaymaster
     function postOp(
@@ -64,7 +73,10 @@ abstract contract BasePaymaster is IPaymaster, Ownable {
         bytes calldata context,
         uint256 actualGasCost,
         uint256 actualUserOpFeePerGas
-    ) external override {
+    )
+        external
+        override
+    {
         _requireFromEntryPoint();
         _postOp(mode, context, actualGasCost, actualUserOpFeePerGas);
     }
@@ -89,7 +101,10 @@ abstract contract BasePaymaster is IPaymaster, Ownable {
         bytes calldata context,
         uint256 actualGasCost,
         uint256 actualUserOpFeePerGas
-    ) internal virtual {
+    )
+        internal
+        virtual
+    {
         (mode, context, actualGasCost, actualUserOpFeePerGas); // unused params
         // subclass must override this method if validatePaymasterUserOp returns a context
         revert("must override");
@@ -100,10 +115,7 @@ abstract contract BasePaymaster is IPaymaster, Ownable {
      * @param withdrawAddress - Target to send to.
      * @param amount          - Amount to withdraw.
      */
-    function withdrawTo(
-        address payable withdrawAddress,
-        uint256 amount
-    ) public onlyOwner {
+    function withdrawTo(address payable withdrawAddress, uint256 amount) public onlyOwner {
         entryPoint.withdrawTo(withdrawAddress, amount);
     }
 
@@ -113,7 +125,7 @@ abstract contract BasePaymaster is IPaymaster, Ownable {
      * @param unstakeDelaySec - The unstake delay for this paymaster. Can only be increased.
      */
     function addStake(uint32 unstakeDelaySec) external payable onlyOwner {
-        entryPoint.addStake{value: msg.value}(unstakeDelaySec);
+        entryPoint.addStake{ value: msg.value }(unstakeDelaySec);
     }
 
     /**

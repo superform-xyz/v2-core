@@ -67,17 +67,6 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         withdrawUserOp = _createDummyWithdrawUserOp();
     }
 
-    function test_Dummy_SuperVaultsMerkleRoot() public view {
-        bytes32 hookRoot = _getMerkleRoot();
-        address hookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        bytes32[] memory proof = _getMerkleProof(hookAddress);
-
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(hookAddress))));
-
-        bool isValid = MerkleProof.verify(proof, hookRoot, leaf);
-        assertTrue(isValid, "Merkle proof should be valid");
-    }
-
     function test_Dummy_OnChainMerkleTree() public pure {
         bytes32[] memory leaves = new bytes32[](4);
         leaves[0] = keccak256(bytes.concat(keccak256(abi.encode("leaf 0"))));

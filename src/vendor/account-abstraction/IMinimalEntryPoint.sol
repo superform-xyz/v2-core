@@ -10,17 +10,7 @@ pragma solidity >=0.7.5;
 /* solhint-disable no-inline-assembly */
 /* solhint-disable reason-string */
 
-struct PackedUserOperation {
-    address sender;
-    uint256 nonce;
-    bytes initCode;
-    bytes callData;
-    bytes32 accountGasLimits;
-    uint256 preVerificationGas;
-    bytes32 gasFees;
-    bytes paymasterAndData;
-    bytes signature;
-}
+import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 
 interface IMinimalEntryPoint {
     /**

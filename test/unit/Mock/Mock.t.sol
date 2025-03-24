@@ -39,7 +39,7 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
     uint256 eoaKey;
     address account7702;
 
-    receive() external payable {}
+    receive() external payable { }
 
     function setUp() public {
         eoaKey = uint256(8);
@@ -151,9 +151,6 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
         vm.deal(instance.account, LARGE);
         vm.label(instance.account, "MockAccount");
-
-        uint256 amount = 1e18;
-        bytes memory data = abi.encode(amount);
 
         // Get exec user ops
         UserOpData memory userOpData = instance.getExecOps({
