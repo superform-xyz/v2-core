@@ -13,8 +13,6 @@ import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/Sa
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
-
-
 // Core Interfaces
 import {
     Execution,
@@ -362,11 +360,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Call postExecute to update outAmount tracking
             vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
 
-            // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield source's assets in transit
+            // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
+            // source's assets in transit
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
                 uint256 outAmount = ISuperHookResult(hooks[i]).outAmount();
 
-                uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(vars.targetedYieldSource, address(this), outAmount);
+                uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle).getAssetOutput(
+                    vars.targetedYieldSource, address(this), outAmount
+                );
 
                 yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
             }
@@ -411,8 +412,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // Add yield source's TVL to total assets
                 uint256 tvl = _getTvlByOwnerOfShares(source);
                 totalAssets_ += tvl + yieldSourceAssetsInTransit[source];
-                sourceTVLs[activeSourceCount++] = 
-                YieldSourceTVL({ source: source, tvl: tvl + yieldSourceAssetsInTransit[source] });
+                sourceTVLs[activeSourceCount++] =
+                    YieldSourceTVL({ source: source, tvl: tvl + yieldSourceAssetsInTransit[source] });
             }
         }
 

@@ -12,7 +12,7 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 // external
 import { console2 } from "forge-std/console2.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { RestrictionManagerLike } from "../../mocks/centrifuge/IRestrictionManagerLike.sol";
 import { IRestrictionManager } from "../../mocks/centrifuge/IRestrictionManager.sol";
@@ -38,6 +38,7 @@ import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.so
 
 contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
     using Math for uint256;
+
     ISuperLedger public superLedgerETH;
 
     address public centrifugeAddress;
@@ -73,8 +74,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         asset = IERC20Metadata(underlyingETH_USDC);
 
         // Set up the 7540 yield source
-        centrifugeAddress =
-            realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
+        centrifugeAddress = realVaultAddresses[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY];
         vm.label(centrifugeAddress, YIELD_SOURCE_7540_ETH_USDC_KEY);
 
         centrifugeVault = IERC7540(centrifugeAddress);
@@ -83,15 +83,8 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
 
         // Deploy the vault trio
-        (
-          address superVaultAddress, 
-          address superVaultStrategyAddress, 
-          address superVaultEscrowAddress
-        ) = _deployVault(
-          address(asset),
-          SUPER_VAULT_CAP,
-          "SV7540U"
-        );
+        (address superVaultAddress, address superVaultStrategyAddress, address superVaultEscrowAddress) =
+            _deployVault(address(asset), SUPER_VAULT_CAP, "SV7540U");
 
         vault = SuperVault(superVaultAddress);
         escrow = SuperVaultEscrow(superVaultEscrowAddress);
@@ -171,7 +164,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         _claimDepositForAccount(accInstances[2], amount);
         console2.log("User2 SV Share Balance After Claim Deposit", vault.balanceOf(accInstances[2].account));
 
-        // --- REDEMPTIONS --- 
+        // --- REDEMPTIONS ---
         uint256 amountToRedeemAccEth = IERC20(vault.share()).balanceOf(accountEth);
         __requestRedeem(instanceOnEth, amountToRedeemAccEth, false);
         uint256 amountToRedeemAcc2 = IERC20(vault.share()).balanceOf(accInstances[2].account);
@@ -190,14 +183,19 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
     function _requestCentrifugeDeposit(uint256 amountToDeposit) internal {
         // Request deposit into 7540 vault
-        address approveAndRequestDepositHookAddress = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+        address approveAndRequestDepositHookAddress =
+            _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
         address[] memory requestHooksAddresses = new address[](1);
         requestHooksAddresses[0] = approveAndRequestDepositHookAddress;
 
         bytes[] memory requestHooksData = new bytes[](1);
         requestHooksData[0] = _createApproveAndRequestDeposit7540HookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), address(asset), amountToDeposit, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            address(centrifugeVault),
+            address(asset),
+            amountToDeposit,
+            false
         );
 
         vm.prank(STRATEGIST);
@@ -306,11 +304,20 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         fulfillHooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(strategy), fluidRedeemShares, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            fluidRedeemShares,
+            false,
+            false
         );
 
         fulfillHooksData[1] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), centrifugeExpectedAssets, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(centrifugeVault),
+            centrifugeExpectedAssets,
+            false,
+            false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
