@@ -23,8 +23,7 @@ At a high level, Superform v2 is organized into two major parts:
   interacts with the SuperLedger for accounting.
 - SuperLedger: Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW hooks. These fees are taken by
   Superform.
-- RBAC & SuperRegistry: Provide robust role-based access control and centralized address management for configuration
-  and upgradeability.
+- SuperRegistry: Provides centralized address management for configuration and upgradeability.
 - SuperBundler: A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It also integrates with
   a validation system (SuperMerkleValidator) to ensure secure operation.
 - SuperVault: A ERC7540 compliant vault capable of allocating an asset to various yield sources using hooks and allowing
@@ -165,11 +164,12 @@ Key Points for Auditors:
     to provide the correct suggestions for users in the majority of the cases. Therefore users place a certain degree of trust in SuperBundler
     
 Untested Areas:
-- Many hooks are not 100% covered
+- Partial unit tests for hooks (coverage additions in progress)
 - The only swap hook that is tested is SwapOdosHook.sol
-  - `SwapOdosHook.sol` has only been tested using a simple mock `MockOdosRouterV2.sol` which transfers amount with slippage. This still needs to be tested with actual router implementations.
+  - `SwapOdosHook.sol` has only been tested using a simple mock `MockOdosRouterV2.sol` which transfers amount with
+    slippage. This still needs to be tested with actual router implementations.
   - No tests for other hooks that do swaps yet due to api requirements, these will be tested using `surl` in the future.
-- No tests for any of the hooks for staking and claiming staked tokens yet. 
+- No tests for any of the hooks for staking and claiming staked tokens yet.
 
 
 #### SuperExecutor
@@ -211,8 +211,8 @@ Key Points for Auditors:
   - The YieldSourceOracle derives price-per-share and other relevant metadata (for off-chain purposes) for yield
     sources.
   - Hooks are passed the yieldSourceOracleId to use. It is up for the SuperBundler to suggest / enforce the correct
-    yieldSourceOracleIds to use, but nothing impedes a user to pass their own yieldSourceOracleId in a hook and bypass the fee.
-    This is known and accepted.
+    yieldSourceOracleIds to use, but nothing impedes a user to pass their own yieldSourceOracleId in a hook and bypass
+    the fee. This is known and accepted.
 - Multiple yield source oracle and ledger implementation system:
   - Provide more flexibility to adapt to yield source types that have special needs do determine fees for Superform
     (such as Pendle's EIP5115)
@@ -220,7 +220,7 @@ Key Points for Auditors:
     Superform.
   - It is also important to assess if a user can ever be denied of exiting a position (due to a revert) in a certain
     state due to influences on the price per share accounting and the SuperLedger used for that yield source.
-  - SuperBundler will enforce the yieldSourceOracleId to use whenever a user interacts with Superform app or API. Otherwise 
+  - SuperBundler will enforce the yieldSourceOracleId to use whenever a user interacts with it. Otherwise 
   this cannot be enforced. Each yieldSourceOracle is paired with a ledger contract which users can also specify when configuring
   the yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through the offchain SuperBundler and acknowledged by the team.
 
@@ -388,15 +388,17 @@ To ensure transparency and facilitate the audit process, the following points ou
 cases: In an effort to preemptively address concerns that auditors might raise, we outline the following known edge
 cases and limitations:
 
-SuperBundler Centralization: 
+SuperBundler Centralization:
+
 - Risk:
-  - Since SuperBundler manages both the bundling and validation of userOps, it can be seen as a centralized component. 
+  - Since SuperBundler manages both the bundling and validation of userOps, it can be seen as a centralized component.
 - Mitigation:
   - The v2-contracts design incorporates fallback paths if operations are submitted outside of SuperBundler.
-  - All SuperBundler can do is execute indicated user operations, no possibilities of malicious injection. Will be submitted
-  to a separate audit.
+  - All SuperBundler can do is execute indicated user operations, no possibilities of malicious injection. Will be
+    submitted to a separate audit.
 
-Execution Outside SuperBundler: 
+Execution Outside SuperBundler:
+
 - Risk:
   - If userOps are executed directly (not via SuperBundler), certain optimizations and checks might be
     bypassed. 
@@ -406,12 +408,7 @@ Execution Outside SuperBundler:
   - Our modules are designed to handle direct execution gracefully, but users and integrators are advised to follow best
     practices outlined in the documentation and interact via Superform app.
 
-Inter-Hook Dependencies: 
-- Risk:
-  - Misordering or misconfiguration of hooks can lead to unintended state changes. 
-- Mitigation:
-  - The SuperExecutor's design ensures that hooks update and pass transient data in a controlled manner, with reversion on
-  error to preserve state integrity.
+Inter-Hook Dependencies:
 
 SuperLedger Accounting: 
 - Risk:
@@ -419,15 +416,18 @@ SuperLedger Accounting:
   - Small rounding errors in fee calculations could be exploited over time to reduce fee paid?
 - Mitigation:
   - Regarding fee loss, a small loss due to rounding is accepted.
-  - Regarding being locked into a position, in serious problems with the core each yieldSourceOracle configured in SuperLedgerConfiguration can be set with a feePercent of 0 to allow users to skip the accounting calculation on exit. Aditionally, the yieldSourceOracleId can be configured to use a new ledger
-  contract.
+  - Regarding being locked into a position, in serious problems with the core each yieldSourceOracle configured in
+    SuperLedgerConfiguration can be set with a feePercent of 0 to allow users to skip the accounting calculation on
+    exit. Aditionally, the yieldSourceOracleId can be configured to use a new ledger contract.
 
-SuperExecutor module: 
+SuperExecutor module:
+
 - Risk:
-  - Users could execute hooks by their own, without go through the SuperBundler. This could lead to an avoidance of the validator module. However, this would affect only the user and not the protocol as each action is executed in the context of the user's account. 
+  - Users could execute hooks by their own, without go through the SuperBundler. This could lead to an avoidance of the
+    validator module. However, this would affect only the user and not the protocol as each action is executed in the
+    context of the user's account.
 - Mitigation:
   - For extra safety, should we deny `target` as SuperExecutor for each hook?
-
 
 ---
 
@@ -437,13 +437,14 @@ SuperExecutor module:
 
 ### **SuperRegistry.sol**
 
-**Function**: setAddress(bytes32 id_, address address_)
+**Function**: setAddress(bytes32 id*, address address*)
 
 **Role**: onlyOwner
 
 **Purpose**: Updates contract addresses in the registry
 
-**Justification**: Owner control is needed to manage the system's core contract addresses, ensuring only authorized changes to critical infrastructure components
+**Justification**: Owner control is needed to manage the system's core contract addresses, ensuring only authorized
+changes to critical infrastructure components
 
 ---
 
@@ -455,11 +456,13 @@ SuperExecutor module:
 
 **Purpose**: Sets the maximum staleness period for a price provider
 
-**Justification**: Owner control ensures price feed reliability by allowing only authorized updates to staleness parameters, preventing manipulation of price validity windows 
+**Justification**: Owner control ensures price feed reliability by allowing only authorized updates to staleness
+parameters, preventing manipulation of price validity windows
 
 <br>
 
-**Function**: queueOracleUpdate(address[] calldata bases, uint256[] calldata providers, address[] calldata oracleAddresses)
+**Function**: queueOracleUpdate(address[] calldata bases, uint256[] calldata providers, address[] calldata
+oracleAddresses)
 
 **Role**: onlyOwner
 
@@ -496,43 +499,47 @@ SuperExecutor module:
 
 ### **PeripheryRegistry.sol**
 
-**Function**: registerHook(address hook_)
+**Function**: registerHook(address hook\_)
 
 **Role**: onlyOwner
 
 **Purpose**: Registers a new hook in the system
 
-**Justification**: Owner control ensures only core verified and audited hooks can be added to the system, preventing malicious hooks from being registered
+**Justification**: Owner control ensures only core verified and audited hooks can be added to the system, preventing
+malicious hooks from being registered
 
 <br>
 
-**Function**: unregisterHook(address hook_)
+**Function**: unregisterHook(address hook\_)
 
 **Role**: onlyOwner
 
 **Purpose**: Removes a hook from the system
 
-**Justification**: Owner control allows disabling compromised or deprecated hooks, protecting users from potential vulnerabilities
+**Justification**: Owner control allows disabling compromised or deprecated hooks, protecting users from potential
+vulnerabilities
 
 <br>
 
-**Function**: proposeFeeSplit(uint256 feeSplit_)
+**Function**: proposeFeeSplit(uint256 feeSplit\_)
 
 **Role**: onlyOwner
 
 **Purpose**: Proposes a new fee split with a timelock
 
-**Justification**: Owner control with timelock ensures transparent and gradual changes to fee structures, preventing sudden changes that could harm users
+**Justification**: Owner control with timelock ensures transparent and gradual changes to fee structures, preventing
+sudden changes that could harm users
 
 <br>
 
-**Function**: setTreasury(address treasury_)
+**Function**: setTreasury(address treasury\_)
 
 **Role**: onlyOwner
 
 **Purpose**: Updates the treasury address
 
-**Justification**: Owner control protects the destination of collected fees, ensuring they go to the legitimate project treasury
+**Justification**: Owner control protects the destination of collected fees, ensuring they go to the legitimate project
+treasury
 
 ---
 
@@ -544,7 +551,8 @@ SuperExecutor module:
 
 **Purpose**: Manages yield sources and strategy execution
 
-**Justification**: Specialized role for optimizing yield strategies, requiring deep DeFi expertise and quick response to market conditions
+**Justification**: Specialized role for optimizing yield strategies, requiring deep DeFi expertise and quick response to
+market conditions
 
 <br>
 
@@ -554,7 +562,8 @@ SuperExecutor module:
 
 **Purpose**: Manages global configuration and fee settings
 
-**Justification**: Administrative role for overall vault management, separate from strategy execution for better separation of concerns
+**Justification**: Administrative role for overall vault management, separate from strategy execution for better
+separation of concerns
 
 <br>
 
@@ -564,4 +573,5 @@ SuperExecutor module:
 
 **Purpose**: Handles emergency situations
 
-**Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during critical situations without full admin privileges
+**Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during
+critical situations without full admin privileges
