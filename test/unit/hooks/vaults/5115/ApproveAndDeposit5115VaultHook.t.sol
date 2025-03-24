@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Redeem4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ApproveAndDeposit5115VaultHook } from "../../../../../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
 import { BaseTest } from "../../../../BaseTest.t.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
@@ -10,14 +10,13 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract Redeem4626VaultHookTest is BaseTest {
-    Redeem4626VaultHook public hook;
+contract ApproveAndDeposit5115VaultHookTest is BaseTest {
+    ApproveAndDeposit5115VaultHook public hook;
 
     bytes4 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
-    address owner;
 
     function setUp() public override { 
         super.setUp();
@@ -26,23 +25,33 @@ contract Redeem4626VaultHookTest is BaseTest {
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
-        owner = address(this);
 
-        hook = new Redeem4626VaultHook(address(this));
+        hook = new ApproveAndDeposit5115VaultHook(address(this));
     }
 
     function test_Constructor() public view {
-        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
     }
 
     function test_Build() public view {
         bytes memory data = _encodeData(false, false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, yieldSource);
+        assertEq(executions.length, 4);
+        assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0); 
 
+        assertEq(executions[1].target, token);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0); 
+
+        assertEq(executions[2].target, yieldSource);
+        assertEq(executions[2].value, 0);
+        assertGt(executions[2].callData.length, 0); 
+
+        assertEq(executions[3].target, token);
+        assertEq(executions[3].value, 0);
+        assertGt(executions[3].callData.length, 0); 
     }
 
     function test_Build_WithPrevHook() public {
@@ -53,25 +62,34 @@ contract Redeem4626VaultHookTest is BaseTest {
         bytes memory data = _encodeData(true, false);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, yieldSource);
+        assertEq(executions.length, 4);
+        assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0); 
+
+        assertEq(executions[1].target, token);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0); 
+
+        assertEq(executions[2].target, yieldSource);
+        assertEq(executions[2].value, 0);
+        assertGt(executions[2].callData.length, 0); 
+
+        assertEq(executions[3].target, token);
+        assertEq(executions[3].value, 0);
+        assertGt(executions[3].callData.length, 0); 
     }
 
     function test_Build_RevertIf_AddressZero() public {
         address _yieldSource = yieldSource;
 
-        // yieldSource is address(0)
         yieldSource = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), _encodeData(false, false));
 
-        // owner is address(0)
         yieldSource = _yieldSource;
-        owner = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(0), _encodeData(false, false));
     }
 
     function test_Build_RevertIf_AmountZero() public {
@@ -93,34 +111,17 @@ contract Redeem4626VaultHookTest is BaseTest {
         hook.preExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), amount);
 
-        bool lockForSp = hook.lockForSP();
-        assertEq(lockForSp, false);
-
-        address spToken = hook.spToken();
-        assertEq(spToken, yieldSource);
-
-        address asset = hook.asset();
-        assertEq(asset, token);
 
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);    
-    }
-
-    function test_ReplaceCalldata() public view {
-        bytes memory data = _encodeData(false, false);
-
-        bytes memory replacedData = hook.replaceCalldataAmount(data, 1);
-        assertEq(replacedData.length, data.length);
-
-        uint256 replacedAmount = hook.decodeAmount(replacedData);
-        assertEq(replacedAmount, 1);
     }
 
     function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
         return abi.encodePacked(
             yieldSourceOracleId,
             yieldSource,
-            owner,
+            token,
+            amount,
             amount,
             usePrevHook,
             lockForSp

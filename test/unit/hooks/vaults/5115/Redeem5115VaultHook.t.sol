@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Redeem4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { Redeem5115VaultHook } from "../../../../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
 import { BaseTest } from "../../../../BaseTest.t.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
@@ -10,14 +10,13 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract Redeem4626VaultHookTest is BaseTest {
-    Redeem4626VaultHook public hook;
+contract Redeem5115VaultHookTest is BaseTest {
+    Redeem5115VaultHook public hook;
 
     bytes4 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
-    address owner;
 
     function setUp() public override { 
         super.setUp();
@@ -26,9 +25,8 @@ contract Redeem4626VaultHookTest is BaseTest {
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
-        owner = address(this);
 
-        hook = new Redeem4626VaultHook(address(this));
+        hook = new Redeem5115VaultHook(address(this));
     }
 
     function test_Constructor() public view {
@@ -67,9 +65,9 @@ contract Redeem4626VaultHookTest is BaseTest {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), _encodeData(false, false));
 
-        // owner is address(0)
+        // token is address(0)
         yieldSource = _yieldSource;
-        owner = address(0);
+        token = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), _encodeData(false, false));
     }
@@ -116,12 +114,15 @@ contract Redeem4626VaultHookTest is BaseTest {
         assertEq(replacedAmount, 1);
     }
 
+
     function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
         return abi.encodePacked(
             yieldSourceOracleId,
             yieldSource,
-            owner,
+            token,
             amount,
+            amount,
+            false,
             usePrevHook,
             lockForSp
         );
