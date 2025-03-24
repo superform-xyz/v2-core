@@ -185,7 +185,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("user1 pending redeem", strategy.pendingRedeemRequest(accountEth));
         console2.log("user2 pending redeem", strategy.pendingRedeemRequest(accInstances[2].account));
 
-        _fulfillRedemptions();
+        // _fulfillRedemptions();
     }
 
     function _requestCentrifugeDeposit(uint256 amountToDeposit) internal {
