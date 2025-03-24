@@ -972,6 +972,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
         }
 
+        // Verify hook spent assets or SuperVault shares in full
+        if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+
         return (vars);
     }
 
