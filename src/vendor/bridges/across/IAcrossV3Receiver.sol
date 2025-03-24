@@ -8,6 +8,7 @@ interface IAcrossV3Receiver {
     event AcrossFundsReceivedAndExecuted(address indexed account);
     event AcrossFundsReceivedButExecutionFailed(address indexed account);
     event AcrossFundsReceivedButNotEnoughBalance(address indexed account);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/

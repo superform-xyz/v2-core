@@ -39,7 +39,7 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
     uint256 eoaKey;
     address account7702;
 
-    receive() external payable {}
+    receive() external payable { }
 
     function setUp() public {
         eoaKey = uint256(8);

@@ -26,14 +26,13 @@ abstract contract Constants {
     string internal constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
-    
+
     string internal constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
-    string internal constant SUPER_POSITION_ID = "SUPER_POSITION_ID";
-    string internal constant SUPER_POSITION_SENTINEL_ID = "SUPER_POSITION_SENTINEL_ID";
-    string internal constant SUPER_RBAC_ID = "SUPER_RBAC_ID";
     string internal constant SUPER_REGISTRY_ID = "SUPER_REGISTRY_ID";
     string internal constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
     string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
+    string internal constant SUPER_GAS_TANK_ID = "SUPER_GAS_TANK_ID";
+    string internal constant SUPER_NATIVE_PAYMASTER_ID = "SUPER_NATIVE_PAYMASTER_ID";
     string internal constant TREASURY_ID = "TREASURY_ID";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
         "DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID";
@@ -135,7 +134,7 @@ abstract contract Constants {
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
-
+    string internal constant SUPER_GAS_TANK_KEY = "SuperGasTank";
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
