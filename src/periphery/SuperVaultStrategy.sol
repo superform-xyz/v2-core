@@ -960,16 +960,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
         }
 
-        // Resize array to actual count if needed
-        if (locals.targetedSourcesCount < locals.hooksLength) {
-            // Create new array with actual count and copy elements
-            locals.resizedArray = new address[](locals.targetedSourcesCount);
-            for (uint256 i = 0; i < locals.targetedSourcesCount; i++) {
-                locals.resizedArray[i] = locals.targetedYieldSources[i];
-            }
-            locals.targetedYieldSources = locals.resizedArray;
-        }
-
         return (vars);
     }
 
