@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 
 // External
@@ -197,19 +195,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // Validate requests and determine total amount (assets for deposits, shares for redeem)
         vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
-
-        // If deposit, check available balance
-        // if (isDeposit) {
-        //     vars.availableAmount = _getTokenBalance(address(_asset), address(this));
-        //     for (uint256 i; i < hooksLength; ++i) {
-        //         address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
-        //         try IERC7540(target).claimableDepositRequest(0, address(this)) returns (uint256 pendingDepositRequest) {
-        //             vars.availableAmount += pendingDepositRequest;
-        //         } catch { }
-        //     }
-
-        //     if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
-        // }
 
         /// @dev grab current PPS before processing hooks
         vars.pricePerShare = _getSuperVaultPPS();
@@ -972,8 +957,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             vars.prevHook = hooks[i];
             vars.spentAmount += locals.amount;
-            console2.log("locals.outAmount", locals.outAmount);
-            console2.log("expectedAssetsOrSharesOut[i]", expectedAssetsOrSharesOut[i]);
             if (
                 locals.outAmount * ONE_HUNDRED_PERCENT
                     < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
