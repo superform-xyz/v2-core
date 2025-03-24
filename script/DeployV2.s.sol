@@ -282,10 +282,10 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(
+        SuperGasTank(payable(deployedContracts.superGasTank)).addToAllowlist(
             deployedContracts.acrossReceiveFundsAndExecuteGateway
         );
-        SuperGasTank(payable(deployedContracts.superNativePaymaster)).addToAllowlist(configuration.owner);
+        SuperGasTank(payable(deployedContracts.superGasTank)).addToAllowlist(configuration.owner);
 
         // Deploy SuperVaultFactory
         deployedContracts.superVaultFactory = __deployContract(
