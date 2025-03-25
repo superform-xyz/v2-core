@@ -16,6 +16,7 @@ import { ISuperHookOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
 import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockLockVault } from "../../mocks/MockLockVault.sol";
+import { MockSuperExecutor } from "../../mocks/MockSuperExecutor.sol";
 import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
 import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
@@ -36,6 +37,7 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 
 import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 
+import "forge-std/console2.sol";
 import { Vm } from "forge-std/Test.sol";
 
 contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
@@ -51,6 +53,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     ISuperExecutor public superExecutor;
     SuperRegistry public superRegistry;
     MockSuperPositionFactory public mockSuperPositionFactory;
+    MockSuperExecutor public mockSuperExecutor;
 
     uint256 eoaKey;
     address account7702;
@@ -72,6 +75,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
         mockSuperPositionFactory = new MockSuperPositionFactory(address(this));
         vm.label(address(mockSuperPositionFactory), "MockSuperPositionFactory");
+
+        mockSuperExecutor = MockSuperExecutor(_getContract(ETH, "MockSuperExecutor"));
 
         eoaKey = uint256(8);
         account7702 = vm.addr(eoaKey);
@@ -449,6 +454,47 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
                 }
             }
         }
+    }
+
+    function test_executeFromExecutor_SuperExecutorMock_With_ExecutorData() external {
+        uint256 amount = 1e18;
+        _getTokens(underlying, account, amount);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+        );
+        uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
+
+        //update super executor for this call
+        superRegistry.setAddress(keccak256("SUPER_EXECUTOR_ID"), address(mockSuperExecutor));
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        //try executing from non allowed caller
+        vm.startPrank(hooksAddresses[0]);
+        vm.expectRevert(MockSuperExecutor.NOT_GATEWAY.selector);
+        mockSuperExecutor.executeFromHereWithExecutorEntry(account, abi.encode(entry));
+        vm.stopPrank();
+
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({ target: address(mockSuperExecutor), value: 0, callData: abi.encodeCall(MockSuperExecutor.execute, abi.encode(entry)) });
+
+        console2.log("------ STARTING EXECUTION FROM EXECUTOR ------");
+        mockSuperExecutor.executeFromHereWithExecutorEntry(account, abi.encode(executions));
+        console2.log("------ EXECUTION FROM EXECUTOR COMPLETED ------");
+
+       
+
+        uint256 accSharesAfter = vaultInstance.balanceOf(account);
+        assertEq(accSharesAfter, sharesPreviewed);
+
     }
 
     struct Test7579MethodsVars {

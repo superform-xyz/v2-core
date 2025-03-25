@@ -22,6 +22,7 @@ import { Helpers } from "../../utils/Helpers.sol";
 import { MockSignature } from "../../mocks/MockSignature.sol";
 
 import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
+import { MockSuperExecutor } from "../../mocks/MockSuperExecutor.sol";
 import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 
 import "forge-std/console2.sol";
@@ -296,4 +297,26 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
     function setValue(uint256 value) external {
         val = value;
     }
+
+
+    function test_executeFromExecutor() external {
+        MockValidatorModule validator = new MockValidatorModule();
+        MockSuperExecutor executor = new MockSuperExecutor(address(this), /**gateway->*/address(this));
+
+        AccountInstance memory instance = makeAccountInstance("MockAccount");
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(executor), data: "" });
+        vm.deal(instance.account, LARGE);
+        vm.label(instance.account, "MockAccount");
+
+        uint256 amount = 1e18;
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({ target: address(this), value: 0, callData: abi.encodeCall(this.setValue, amount) });
+
+        console2.log("------ STARTING EXECUTION FROM EXECUTOR ------");
+        executor.executeFromHere(instance.account, abi.encode(executions));
+        console2.log("------ EXECUTION FROM EXECUTOR COMPLETED ------");
+        assertEq(val, amount);
+    }
+
 }

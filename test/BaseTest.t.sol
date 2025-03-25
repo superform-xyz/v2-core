@@ -101,6 +101,7 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
+import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
@@ -162,6 +163,7 @@ struct Addresses {
     PeripheryRegistry peripheryRegistry;
     SuperNativePaymaster superNativePaymaster;
     SuperGasTank superGasTank;
+    MockSuperExecutor mockSuperExecutor;    
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -453,6 +455,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].gearboxYieldSourceOracle = new GearboxYieldSourceOracle(address(A[i].superRegistry));
             vm.label(address(A[i].gearboxYieldSourceOracle), GEARBOX_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][GEARBOX_YIELD_SOURCE_ORACLE_KEY] = address(A[i].gearboxYieldSourceOracle);
+
+
+            A[i].mockSuperExecutor = new MockSuperExecutor(address(A[i].superRegistry), /**gateway->*/address(this));
+            vm.label(address(A[i].mockSuperExecutor), "MockSuperExecutor");
+            contractAddresses[chainIds[i]]["MockSuperExecutor"] = address(A[i].mockSuperExecutor);
         }
         return A;
     }
@@ -867,6 +874,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 data: ""
             });
             vm.label(instance.account, accountName);
+
+            instance.installModule({
+                moduleTypeId: MODULE_TYPE_EXECUTOR,
+                module: _getContract(chainIds[i], "MockSuperExecutor"),
+                data: ""
+            });
 
             // create random accounts to be used as users
             for (uint256 j; j < count; ++j) {

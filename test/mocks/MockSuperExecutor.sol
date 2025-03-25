@@ -26,8 +26,13 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
     //////////////////////////////////////////////////////////////*/
 
     mapping(address => bool) internal _initialized;
+    address public gateway;
 
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }
+    error NOT_GATEWAY();
+
+    constructor(address registry_, address gateway_) SuperRegistryImplementer(registry_) {
+        gateway = gateway_;
+    }
 
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
@@ -58,6 +63,28 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
         _initialized[msg.sender] = false;
     }
 
+    function executeFromHere(address account, bytes calldata data) external {
+        if (msg.sender != gateway) revert NOT_GATEWAY();
+        Execution[] memory execs = abi.decode(data, (Execution[]));
+        _execute(account, execs);    
+    }
+
+    function executeFromHereWithExecutorEntry(address account, bytes calldata data) external {
+        if (msg.sender != gateway) revert NOT_GATEWAY();
+        if (!_initialized[account]) revert NOT_INITIALIZED();
+
+        //TODO: add validation similar to `SuperMerkleValidator` 
+        // Validation needed:
+        // - account recovered from signature == account passed in the call here 
+        //        (this validates the gateway is not calling this without account's permission)
+        // - data is part of the merkle tree 
+        //        ( but this should be a different merkle tree since we don't have UserOp anymore )
+        //        ( I think leaf should contain account, hooksAddresses, hooksData? What other fields should we include here? )
+        
+        Execution[] memory execs = abi.decode(data, (Execution[]));
+        _execute(account, execs);    
+    }
+   
     function execute(bytes calldata data) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
