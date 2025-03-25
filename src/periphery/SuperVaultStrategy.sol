@@ -170,7 +170,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function fulfillRequests(
+
+    /// @inheritdoc ISuperVaultStrategy
+    function execute(
         address[] calldata users,
         address[] calldata hooks,
         bytes[] memory hookCalldata,
@@ -182,51 +184,167 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     {
         _requireRole(STRATEGIST_ROLE);
 
-        uint256 usersLength = users.length;
-        if (usersLength == 0) revert ZERO_LENGTH();
         uint256 hooksLength = hooks.length;
-        if (hooksLength != expectedAssetsOrSharesOut.length) revert INVALID_ARRAY_LENGTH();
+        if (hooksLength == 0) revert ZERO_LENGTH();
 
+        // Determine if this is a fulfillment operation (users array not empty)
+        bool isFulfillment = users.length > 0;
+
+        // Validate array lengths
         _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
 
-        FulfillmentVars memory vars;
+        ExecutionVars memory vars;
+        vars.hooksLength = hooksLength;
+        vars.isFulfillment = isFulfillment;
 
-        // Validate requests and determine total amount (assets for deposits, shares for redeem)
-        vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
+        // If fulfillment operation, validate and prepare additional parameters
+        if (isFulfillment) {
+            uint256 usersLength = users.length;
+            if (usersLength == 0) revert ZERO_LENGTH();
+            if (expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
-        // If deposit, check available balance
-        if (isDeposit) {
-            vars.availableAmount = _getTokenBalance(address(_asset), address(this));
-            for (uint256 i; i < hooksLength; ++i) {
-                address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
-                try IERC7540(target).claimableDepositRequest(0, address(this)) returns (uint256 pendingDepositRequest) {
-                    vars.availableAmount += pendingDepositRequest;
-                } catch { }
+            // Validate requests and determine total amount (assets for deposits, shares for redeem)
+            vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
+
+            // If deposit, check available balance
+            if (isDeposit) {
+                vars.availableAmount = _getTokenBalance(address(_asset), address(this));
+                for (uint256 i; i < hooksLength; ++i) {
+                    address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+                    try IERC7540(target).claimableDepositRequest(0, address(this)) returns (
+                        uint256 pendingAmount
+                    ) {
+                        vars.availableAmount += pendingAmount;
+                    } catch { }
+                }
+
+                if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
             }
 
-            if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
+            // Get current PPS before processing hooks
+            vars.pricePerShare = _getSuperVaultPPS();
+        } else {
+            // Standard hook execution setup
+            vars.inflowTargets = new address[](hooksLength);
         }
-
-        /// @dev grab current PPS before processing hooks
-        vars.pricePerShare = _getSuperVaultPPS();
 
         // Process hooks
-        vars = _processHooks(hooks, hookCalldata, vars, expectedAssetsOrSharesOut, isDeposit);
+        for (uint256 i = 0; i < hooksLength; ++i) {
+            address hook = hooks[i];
 
-        // Process requests
-        for (uint256 i; i < usersLength; ++i) {
-            address user = users[i];
-            SuperVaultState storage state = superVaultState[user];
+            // Determine if this is a fulfill hook
+            bool isFulfillHook = _isFulfillRequestsHook(hook);
 
-            if (isDeposit) {
-                _processDeposit(user, state, vars);
+            if (isFulfillment && isFulfillHook) {
+                // Process as fulfill hook
+                if (isDeposit) {
+                    (uint256 amount, uint256 outAmount) =
+                        _processInflowHookExecution(hook, vars.prevHook, hookCalldata[i]);
+                    vars.prevHook = hook;
+                    vars.spentAmount += amount;
+
+                    if (
+                        outAmount * ONE_HUNDRED_PERCENT
+                            < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+                    ) {
+                        revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
+                    }
+                } else {
+                    (uint256 amount, uint256 outAmount) =
+                        _processOutflowHookExecution(hook, vars.prevHook, hookCalldata[i], vars.pricePerShare);
+                    vars.prevHook = hook;
+                    vars.spentAmount += amount;
+
+                    if (
+                        outAmount * ONE_HUNDRED_PERCENT
+                            < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+                    ) {
+                        revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
+                    }
+                }
             } else {
-                _processRedeem(user, state, vars);
+                // Process as regular hook
+                if (!peripheryRegistry.isHookRegistered(hook)) revert INVALID_HOOK();
+
+                // Get hook type
+                vars.hookContract = ISuperHook(hook);
+                vars.hookType = ISuperHookResult(hook).hookType();
+
+                // Call preExecute to initialize outAmount tracking
+                vars.hookContract.preExecute(vars.prevHook, address(this), hookCalldata[i]);
+
+                // Extract targeted yield source from hook calldata
+                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+
+                // Build executions for this hook
+                vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
+
+                if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
+                    if (!yieldSources[vars.targetedYieldSource].isActive) {
+                        revert YIELD_SOURCE_NOT_ACTIVE();
+                    }
+                    if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                        vars.inflowTargets[vars.inflowCount++] = vars.targetedYieldSource;
+                    }
+                }
+
+                for (uint256 j = 0; j < vars.executions.length; ++j) {
+                    // Execute the transaction
+                    (vars.success,) =
+                        vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
+                    if (!vars.success) revert OPERATION_FAILED();
+                }
+
+                // Call postExecute to update outAmount tracking
+                vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
+
+                // If the hook is non-accounting and the yield source is active, add the asset balance change to the
+                // yield
+                // source's assets in transit
+                if (
+                    vars.hookType == ISuperHook.HookType.NONACCOUNTING
+                        && yieldSources[vars.targetedYieldSource].isActive
+                ) {
+                    (uint256 outAmount, bool isShares) = ISuperHookNonAccounting(hook).getUsedAssetsOrShares();
+                    if (isShares) {
+                        outAmount = IERC4626(vars.targetedYieldSource).convertToAssets(outAmount);
+                    }
+                    yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
+                }
+
+                // Update prevHook for next iteration
+                vars.prevHook = hook;
             }
         }
 
-        //check super vault cap
+        // For fulfill operations, process the user requests after all hooks are executed
+        if (isFulfillment) {
+            // Verify hooks spent assets or SuperVault shares in full
+            if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+
+            // Process user requests
+            for (uint256 i; i < users.length; ++i) {
+                address user = users[i];
+                SuperVaultState storage state = superVaultState[user];
+
+                if (isDeposit) {
+                    _processDeposit(user, state, vars);
+                } else {
+                    _processRedeem(user, state, vars);
+                }
+            }
+        } else if (vars.inflowCount > 0) {
+            // Resize array if needed for regular hook execution
+            if (vars.inflowCount < vars.hooksLength) {
+                vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
+            }
+        }
+
+        // Check super vault cap
         _checkSuperVaultCap();
+
+        // Emit appropriate event
+        emit ExecutionCompleted(hooks, isFulfillment, users.length, vars.spentAmount);
     }
 
     /// @param redeemUsers Array of users with pending redeem requests
@@ -314,75 +432,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
     }
 
-    /// @inheritdoc ISuperVaultStrategy
-    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external whenNotPaused {
-        _requireRole(STRATEGIST_ROLE);
-
-        ExecuteHooksVars memory vars;
-        vars.hooksLength = hooks.length;
-        _validateFulfillHooksArrays(vars.hooksLength, hookCalldata.length);
-
-        vars.inflowTargets = new address[](vars.hooksLength);
-
-        // Process each hook in sequence
-        for (uint256 i = 0; i < vars.hooksLength; ++i) {
-            // Validate hook via periphery registry
-            if (!peripheryRegistry.isHookRegistered(hooks[i])) revert INVALID_HOOK();
-
-            // Get hook type
-            vars.hookContract = ISuperHook(hooks[i]);
-            vars.hookType = ISuperHookResult(hooks[i]).hookType();
-
-            // Call preExecute to initialize outAmount tracking
-            vars.hookContract.preExecute(vars.prevHook, address(this), hookCalldata[i]);
-
-            // Extract targeted yield source from hook calldata
-            vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
-
-            // Build executions for this hook
-            vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
-
-            if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
-                if (!yieldSources[vars.targetedYieldSource].isActive) {
-                    revert YIELD_SOURCE_NOT_ACTIVE();
-                }
-                if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                    vars.inflowTargets[vars.inflowCount++] = vars.targetedYieldSource;
-                }
-            }
-
-            for (uint256 j = 0; j < vars.executions.length; ++j) {
-                // Execute the transaction
-                (vars.success,) =
-                    vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
-                if (!vars.success) revert OPERATION_FAILED();
-            }
-            // Call postExecute to update outAmount tracking
-            vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
-
-            // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
-            // source's assets in transit
-            if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
-                (uint256 outAmount, bool isShares) = ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares();
-                if (isShares) {
-                    outAmount = IERC4626(vars.targetedYieldSource).convertToAssets(outAmount);
-                }
-                yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
-            }
-
-            // Update prevHook for next iteration
-            vars.prevHook = hooks[i];
-        }
-        // Resize array if needed
-        if (vars.inflowCount < vars.hooksLength && vars.inflowCount > 0) {
-            vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
-        }
-
-        //check super vault cap
-        _checkSuperVaultCap();
-
-        emit HooksExecuted(hooks);
-    }
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
@@ -685,7 +734,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
     }
 
-    function _processDeposit(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
+    function _processDeposit(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
 
@@ -710,7 +759,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         _onDepositClaimable(user, vars.requestedAmount, vars.shares);
     }
 
-    function _processRedeem(address user, SuperVaultState storage state, FulfillmentVars memory vars) private {
+    function _processRedeem(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
         vars.requestedAmount = state.pendingRedeemRequest;
 
         uint256 lastConsumedIndex;
