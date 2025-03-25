@@ -335,7 +335,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
         );
         vm.stopPrank();
@@ -381,7 +381,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
         );
         vm.stopPrank();
@@ -416,7 +416,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
         );
         vm.stopPrank();
@@ -455,7 +455,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
         );
         vm.stopPrank();
@@ -491,7 +491,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
         );
         vm.stopPrank();
@@ -532,7 +532,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
         expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
         );
         vm.stopPrank();
@@ -578,7 +578,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
         );
         vm.stopPrank();
@@ -614,7 +614,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.fulfillRequests(
+        strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
         );
         vm.stopPrank();
@@ -894,9 +894,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 finalHooksData[i] = allHooksData[i];
             }
 
+            address[] memory users = new address[](0);
+
             // Execute all hooks in a single transaction
             vm.startPrank(STRATEGIST);
-            strategy.executeHooks(finalHooksAddresses, finalHooksData);
+            strategy.execute(users, finalHooksAddresses, finalHooksData, new uint256[](0), false);
             vm.stopPrank();
         }
 
@@ -1143,7 +1145,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, address(asset), assetsToMove, true, false
         );
-        strategy.executeHooks(hooksAddresses, hooksData);
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, expectedAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 
@@ -1172,7 +1176,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             true,
             false
         );
-        strategy.executeHooks(hooksAddresses, hooksData);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, expectedAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 

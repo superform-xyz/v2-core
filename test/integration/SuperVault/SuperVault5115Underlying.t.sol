@@ -138,7 +138,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         vm.warp(block.timestamp + 50 weeks);
         uint256 pricePerShare = _getPPS();
         console2.log("\n PPS BEFORE REDEEM", pricePerShare);
-        
+
         // Step 4: Request Redeem
         _requestRedeem(userShares);
 
@@ -200,7 +200,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = expectedShares;
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
+        strategy.execute(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
         vm.stopPrank();
         console2.log("-------SVShare balance", IStandardizedYield(pendleEthenaAddress).balanceOf(address(strategy)));
 
@@ -242,7 +242,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooks_, hookCalldata);
+        strategy.execute(new address[](0), hooks_, hookCalldata, new uint256[](0), false);
 
         vm.stopPrank();
     }
@@ -273,9 +273,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
 
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
 
         vm.stopPrank();
     }

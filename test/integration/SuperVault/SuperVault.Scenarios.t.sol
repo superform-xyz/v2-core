@@ -548,9 +548,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
 
         // claim deposits
@@ -668,9 +666,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             }
 
             vm.startPrank(STRATEGIST);
-            strategy.fulfillRequests(
-                requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-            );
+            strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
             vm.stopPrank();
         }
 
@@ -972,7 +968,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         // check new balances
@@ -1475,7 +1471,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         // check new balances
@@ -1521,7 +1517,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
@@ -1658,7 +1654,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         // disable fluid vault entirely
@@ -1710,7 +1706,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         // re-enable fluid vault
@@ -1720,7 +1716,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // try allocate again
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
@@ -1924,7 +1920,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 20 days);
@@ -2010,7 +2006,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 20 days);
@@ -2450,7 +2446,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
             // Execute allocation
             vm.startPrank(STRATEGIST);
-            strategy.executeHooks(hooksAddresses, hooksData);
+            strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
             vm.stopPrank();
 
             // Check final balances

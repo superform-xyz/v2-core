@@ -346,7 +346,7 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
         vm.stopPrank();
 
         // check new balances

@@ -282,7 +282,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = gearboxVault.convertToShares(depositAmount);
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(
+        strategyGearSuperVault.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true
         );
         vm.stopPrank();
@@ -322,7 +322,9 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.executeHooks(hooksAddresses, hooksData);
+        strategyGearSuperVault.execute(
+            new address[](0), hooksAddresses, hooksData, new uint256[](0), false
+        );
     }
 
     function _requestRedeem_Gearbox_SV(uint256 shares) internal {
@@ -350,7 +352,9 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.executeHooks(hooksAddresses, hooksData);
+        strategyGearSuperVault.execute(
+            new address[](0), hooksAddresses, hooksData, new uint256[](0), false
+        );
     }
 
     function _fulfillRedeem_Gearbox_SV() internal {
@@ -380,7 +384,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[0] = underlyingShares;
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(
+        strategyGearSuperVault.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
         );
         vm.stopPrank();

@@ -187,7 +187,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.executeHooks(requestHooksAddresses, requestHooksData);
+        strategy.execute(new address[](0), requestHooksAddresses, requestHooksData, new uint256[](0), false);
         console2.log("---- Pending deposit request", centrifugeVault.pendingDepositRequest(0, address(strategy)));
 
         uint256 expectedShares = centrifugeVault.convertToShares(amountToDeposit);
@@ -232,9 +232,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
 
         // Update share price points for each user
         uint256 pps = _getSuperVaultPricePerShare();
@@ -257,7 +255,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.executeHooks(requestHooksAddresses, requestHooksData);
+        strategy.execute(new address[](0), requestHooksAddresses, requestHooksData, new uint256[](0), false);
 
         console2.log("---- PPS After Centrifuge Request Redeem", _getSuperVaultPricePerShare());
 
@@ -313,9 +311,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
 
         vm.prank(STRATEGIST);
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
 
         console2.log("---- PPS After Fulfill Redemptions", _getSuperVaultPricePerShare());
     }

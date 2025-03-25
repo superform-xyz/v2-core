@@ -59,7 +59,6 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         // Setup deposit request first
         _requestDeposit(depositAmount);
 
-       
         // Verify request state
         assertEq(strategy.pendingDepositRequest(accountEth), depositAmount, "Wrong pending deposit amount");
         console2.log("Pending deposit request:", strategy.pendingDepositRequest(accountEth));
@@ -67,7 +66,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         vm.startPrank(MANAGER);
         strategy.pause();
         vm.stopPrank();
-        
+
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
         address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -80,8 +79,9 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         // Split the deposit between two hooks
         uint256 halfAmount = depositAmount / 2;
-        fulfillHooksData[0] =
-            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), halfAmount, false, false);
+        fulfillHooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), halfAmount, false, false
+        );
 
         fulfillHooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), depositAmount - halfAmount, false, false
@@ -93,9 +93,7 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         vm.expectRevert(Pausable.EnforcedPause.selector);
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
 
         // unpause
@@ -104,16 +102,12 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         vm.stopPrank();
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
 
         assertEq(strategy.pendingDepositRequest(accountEth), 0, "Pending request not cleared");
         assertGt(strategy.getSuperVaultState(accountEth, 1), 0, "No shares available to mint");
     }
-
-
 
     function test_FulfillRedeem_FullAmountWithThreshold() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
