@@ -209,9 +209,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 vars.availableAmount = _getTokenBalance(address(_asset), address(this));
                 for (uint256 i; i < hooksLength; ++i) {
                     address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
-                    try IERC7540(target).claimableDepositRequest(0, address(this)) returns (
-                        uint256 pendingAmount
-                    ) {
+                    try IERC7540(target).claimableDepositRequest(0, address(this)) returns (uint256 pendingAmount) {
                         vars.availableAmount += pendingAmount;
                     } catch { }
                 }
@@ -429,7 +427,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             }
         }
     }
-
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
