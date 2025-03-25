@@ -82,6 +82,7 @@ interface ISuperVaultStrategy {
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
     event HooksExecuted(address[] hooks);
+    event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 spentAmount);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
@@ -109,6 +110,30 @@ interface ISuperVaultStrategy {
         SharePricePoint[] sharePricePoints;
     }
 
+    /// @notice Combined execution variables for all hook types
+    struct ExecutionVars {
+        // Common variables
+        uint256 hooksLength;
+        address prevHook;
+        address targetedYieldSource;
+        bool success;
+        ISuperHook hookContract;
+        ISuperHook.HookType hookType;
+        Execution[] executions;
+        // Fulfill hooks specific
+        bool isFulfillment;
+        uint256 totalRequestedAmount;
+        uint256 spentAmount;
+        uint256 pricePerShare;
+        uint256 availableAmount;
+        uint256 requestedAmount;
+        uint256 shares;
+        // Execute hooks specific
+        uint256 inflowCount;
+        address[] inflowTargets;
+        uint256 outAmount;
+    }
+
     struct FulfillmentVars {
         // Common variables used in both deposit and redeem flows
         uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
@@ -120,22 +145,6 @@ interface ISuperVaultStrategy {
         uint256 availableAmount; // Only used in deposit to check initial balance
         // Variables for share calculations
         uint256 shares; // Used in deposit for minting shares
-    }
-
-    struct MatchVars {
-        // Variables for deposit processing
-        uint256 depositAssets; // Assets requested in the deposit
-        uint256 sharesNeeded; // Total shares needed for this deposit
-        uint256 remainingShares; // Remaining shares needed to fulfill deposit
-        // Variables for redeem processing
-        uint256 redeemShares; // Shares available from redeemer
-        uint256 sharesToUse; // Shares to take from current redeemer
-        // Variables for historical assets calculation
-        uint256 lastConsumedIndex; // Last consumed share price point index
-        uint256 finalAssets; // Final assets after fee calculation
-        // Price tracking
-        uint256 currentPricePerShare; // Current price per share for calculations
-        uint256 totalAssets; // Total assets across all yield sources
     }
 
     /// @notice Local variables struct for executeHooks to avoid stack too deep
@@ -154,6 +163,22 @@ interface ISuperVaultStrategy {
         ISuperHook.HookType hookType;
         Execution[] executions;
         bool success;
+    }
+
+    struct MatchVars {
+        // Variables for deposit processing
+        uint256 depositAssets; // Assets requested in the deposit
+        uint256 sharesNeeded; // Total shares needed for this deposit
+        uint256 remainingShares; // Remaining shares needed to fulfill deposit
+        // Variables for redeem processing
+        uint256 redeemShares; // Shares available from redeemer
+        uint256 sharesToUse; // Shares to take from current redeemer
+        // Variables for historical assets calculation
+        uint256 lastConsumedIndex; // Last consumed share price point index
+        uint256 finalAssets; // Final assets after fee calculation
+        // Price tracking
+        uint256 currentPricePerShare; // Current price per share for calculations
+        uint256 totalAssets; // Total assets across all yield sources
     }
 
     struct YieldSource {
@@ -211,17 +236,17 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Fulfill deposit requests for multiple users
-    /// @param users Array of users with pending deposit requests
-    /// @param hooks Array of hooks to use for deposits
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param minAssetsOrSharesOut Array of minimum assets or shares out for each hook
-    /// @param isDeposit Whether the requests are deposits or redeems
-    function fulfillRequests(
+    /// @notice Execute hooks with support for fulfilling user requests
+    /// @param users Optional array of users for request fulfillment (empty if not fulfilling requests)
+    /// @param hooks Array of hooks to execute in sequence
+    /// @param hookCalldata Array of calldata for each hook
+    /// @param expectedAssetsOrSharesOut Optional array of expected minimum output values (required for fulfillment)
+    /// @param isDeposit Whether to process as deposits (true) or withdrawals (false) when fulfilling
+    function execute(
         address[] calldata users,
         address[] calldata hooks,
-        bytes[] calldata hookCalldata,
-        uint256[] calldata minAssetsOrSharesOut,
+        bytes[] memory hookCalldata,
+        uint256[] memory expectedAssetsOrSharesOut,
         bool isDeposit
     )
         external;
@@ -230,11 +255,6 @@ interface ISuperVaultStrategy {
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
     function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external;
-
-    /// @notice Execute arbitrary hooks with proper validation based on hook type
-    /// @param hooks Array of hooks to execute in sequence
-    /// @param hookCalldata Array of calldata for each hook
-    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
