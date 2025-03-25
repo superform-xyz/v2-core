@@ -319,4 +319,26 @@ contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
         assertEq(val, amount);
     }
 
+    function test_createAccountWithBootstrap() external {
+        MockValidatorModule validator = new MockValidatorModule();
+        ERC7579Factory theFactory = new ERC7579Factory();
+        bytes memory initData = theFactory.getInitData(address(validator), "");
+        address createdAccount = theFactory.createAccount(bytes32("salt"), initData);
+        assertGt(createdAccount.code.length, 0);
+
+        /**
+        bytes memory initData = erc7579factory.getInitData(address(validator), "");
+        address createdAccount = erc7579factory.createAccount(bytes32(keccak256("some_salt")), initData);
+        assertGt(createdAccount.code.length, 0);
+        */
+
+                
+        /**
+        IERC7579Account deployedAccount =  deployERC7579Account();
+        assertGt(address(deployedAccount).code.length, 0);
+        IMSA(address(deployedAccount)).initializeAccount(initData);
+        */
+
+    }
+
 }
