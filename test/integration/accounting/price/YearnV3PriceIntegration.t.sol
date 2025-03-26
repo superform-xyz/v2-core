@@ -55,7 +55,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         amount = _bound(amount);
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
         vm.deal(nexusAccount, LARGE);
 
         // add tokens to account
@@ -215,7 +215,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _setupNexusAccount(uint256 amount) private returns (address nexusAccount) {
-        nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
         vm.deal(nexusAccount, LARGE);
         _getTokens(underlying, nexusAccount, amount);
     }

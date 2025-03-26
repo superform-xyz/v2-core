@@ -16,6 +16,7 @@ import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConf
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
+import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
 
@@ -160,6 +161,7 @@ struct Addresses {
     GearboxYieldSourceOracle gearboxYieldSourceOracle;
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
+    SuperDestinationValidator superDestinationValidator;
     PeripheryRegistry peripheryRegistry;
     SuperNativePaymaster superNativePaymaster;
     SuperGasTank superGasTank;
@@ -438,6 +440,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].superMerkleValidator = new SuperMerkleValidator();
             vm.label(address(A[i].superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A[i].superMerkleValidator);
+
+            A[i].superDestinationValidator = new SuperDestinationValidator();
+            vm.label(address(A[i].superDestinationValidator), SUPER_DESTINATION_VALIDATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_DESTINATION_VALIDATOR_KEY] = address(A[i].superDestinationValidator);  
 
             /// @dev action oracles
             A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A[i].superRegistry));

@@ -57,7 +57,8 @@ contract BaseE2ETest is BaseTest {
     function _createWithNexus(
         address registry,
         address[] memory attesters,
-        uint8 threshold
+        uint8 threshold,
+        uint256 value
     )
         internal
         returns (address)
@@ -65,7 +66,7 @@ contract BaseE2ETest is BaseTest {
         bytes memory initData = _getNexusInitData(registry, attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
-        address deployedAddress = nexusFactory.createAccount(initData, initSalt);
+        address deployedAddress = nexusFactory.createAccount{ value: value }(initData, initSalt);
 
         if (deployedAddress != computedAddress) revert("Nexus SCA addresses mismatch");
         return computedAddress;

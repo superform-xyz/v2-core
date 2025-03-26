@@ -32,35 +32,35 @@ contract E2EExecutionTest is BaseE2ETest {
     }
 
     function test_AccountCreation_WithNexus() public {
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
     }
 
     function test_AccountCreation_WithNexus_WithNoAttesters() public {
         address[] memory actualAttesters = new address[](0);
-        address nexusAccount = _createWithNexus(address(nexusRegistry), actualAttesters, threshold);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), actualAttesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
     }
 
     function test_AccountCreation_WithNexus_WithNoThreshold() public {
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, 0);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, 0, 0);
         _assertAccountCreation(nexusAccount);
     }
 
     function test_AccountCreation_Multiple_Times() public {
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
 
-        address nexusAccount2 = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        address nexusAccount2 = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
         _assertAccountCreation(nexusAccount2);
         assertEq(nexusAccount, nexusAccount2, "Nexus accounts should be the same");
 
-        address nexusAccount3 = _createWithNexus(address(nexusRegistry), attesters, 0);
+        address nexusAccount3 = _createWithNexus(address(nexusRegistry), attesters, 0, 0);
         _assertAccountCreation(nexusAccount3);
         assertNotEq(nexusAccount, nexusAccount3, "Nexus3 account should be different");
 
         address[] memory actualAttesters = new address[](0);
-        address nexusAccount4 = _createWithNexus(address(nexusRegistry), actualAttesters, threshold);
+        address nexusAccount4 = _createWithNexus(address(nexusRegistry), actualAttesters, threshold, 0);
         _assertAccountCreation(nexusAccount4);
         assertNotEq(nexusAccount, nexusAccount4, "Nexus4 account should be different");
     }
@@ -69,7 +69,7 @@ contract E2EExecutionTest is BaseE2ETest {
         amount = _bound(amount);
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
 
         // fund account
@@ -100,11 +100,11 @@ contract E2EExecutionTest is BaseE2ETest {
         amount = _bound(amount);
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
         _assertAccountCreation(nexusAccount);
 
         // "re-create" account
-        nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
 
         _assertExecutorIsInitialized(nexusAccount);
@@ -133,7 +133,7 @@ contract E2EExecutionTest is BaseE2ETest {
         address morphoVault = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold);
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
         _assertAccountCreation(nexusAccount);
 
         // add tokens to account
