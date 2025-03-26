@@ -304,7 +304,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
             // Process user requests
-            for (uint256 i; i < users.length; ++i) {
+            for (uint256 i; i < usersLength; ++i) {
                 address user = users[i];
                 SuperVaultState storage state = superVaultState[user];
 
