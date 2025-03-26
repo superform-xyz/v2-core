@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import { IGearboxFarmingPool, Info } from "../../../vendor/gearbox/IGearboxFarmingPool.sol";
+import { IGearboxFarmingPool } from "../../../vendor/gearbox/IGearboxFarmingPool.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -125,6 +125,9 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         if (newMaxStaleness > maxStaleness) {
             revert MAX_STALENESS_EXCEEDED();
         }
+        if (newMaxStaleness == 0) {
+            newMaxStaleness = maxStaleness;
+        }
         providerMaxStaleness[provider] = newMaxStaleness;
         emit ProviderMaxStalenessUpdated(provider, newMaxStaleness);
     }
@@ -146,7 +149,7 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         if (bases.length != providersLength || providersLength != oracleAddresses.length) {
             revert ARRAY_LENGTH_MISMATCH();
         }
-      
+
         pendingUpdate = PendingUpdate({
             bases: bases,
             providers: providers,

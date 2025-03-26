@@ -81,6 +81,12 @@ interface ISuperLedger is ISuperLedgerData {
         external
         returns (uint256 feeAmount);
 
+    /// @notice Previews fees for a given amount of assets obtained from shares
+    /// @param user The user address
+    /// @param amountAssets The amount of assets
+    /// @param usedShares The amount of shares used
+    /// @param feePercent The fee percentage in basis points (0-10000, where 10000 = 100%)
+    /// @return feeAmount The amount of fee to be collected in the asset being withdrawn
     function previewFees(
         address user,
         uint256 amountAssets,
@@ -89,5 +95,11 @@ interface ISuperLedger is ISuperLedgerData {
     )
         external
         view
-        returns (uint256);
+        returns (uint256 feeAmount);
+
+    /// @notice Calculates the cost basis for a given user and amount of shares
+    /// @param user The user address
+    /// @param usedShares The amount of shares used
+    /// @return costBasis The cost basis
+    function calculateCostBasisView(address user, uint256 usedShares) external view returns (uint256 costBasis);
 }

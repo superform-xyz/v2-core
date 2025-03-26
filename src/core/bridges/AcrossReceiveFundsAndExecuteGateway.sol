@@ -1,12 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
-import { IMinimalEntryPoint, PackedUserOperation } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
-import { BytesLib } from "../../vendor/BytesLib.sol";
+import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+// Superform
+import { IMinimalEntryPoint } from "../../vendor/account-abstraction/IMinimalEntryPoint.sol";
+import { BytesLib } from "../../vendor/BytesLib.sol";
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
+import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
+import { PaymasterGasCalculator } from "../libraries/PaymasterGasCalculator.sol";
+import { ISuperGasTank } from "../interfaces/ISuperGasTank.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 /// @title AcrossReceiveFundsAndExecuteGateway
 /// @author Superform Labs
@@ -36,8 +43,9 @@ import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver
 ///     3. Chain B: This contract receives funds + message
 ///     4. Chain B: Contract transfers tokens to user's account
 ///     5. Chain B: Executes deposit into new Superform
-contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
+contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistryImplementer {
     using SafeERC20 for IERC20;
+    using PaymasterGasCalculator for PackedUserOperation;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -45,10 +53,21 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
     address public immutable acrossSpokePool;
     address public immutable entryPointAddress;
     address payable public immutable superBundler;
+    address public immutable superNativePaymaster;
 
-    constructor(address acrossSpokePool_, address entryPointAddress_, address superBundler_) {
+    receive() external payable { }
+
+    constructor(
+        address acrossSpokePool_,
+        address entryPointAddress_,
+        address superBundler_,
+        address superRegistry_
+    )
+        SuperRegistryImplementer(superRegistry_)
+    {
         if (acrossSpokePool_ == address(0)) revert ADDRESS_NOT_VALID();
         if (entryPointAddress_ == address(0)) revert ADDRESS_NOT_VALID();
+        if (superBundler_ == address(0)) revert ADDRESS_NOT_VALID();
         acrossSpokePool = acrossSpokePool_;
         entryPointAddress = entryPointAddress_;
         superBundler = payable(superBundler_);
@@ -123,12 +142,34 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver {
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
-        // Execute the userOp through EntryPoint
-        try IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler) {
+
+        if (userOp.paymasterAndData.length == 0) {
+            // Execute the userOp through EntryPoint
+            try IMinimalEntryPoint(entryPointAddress).handleOps(userOps, superBundler) {
+                emit AcrossFundsReceivedAndExecuted(account);
+            } catch {
+                // no action, as funds are already transferred
+                emit AcrossFundsReceivedButExecutionFailed(account);
+            }
+        } else {
+            /// @dev TODO: note to auditors - users can grieve gas tank out of all its value
+            /// this is currently unfixed (issue 8 of previous audit)
+            uint256 gasCost = userOps[0].calculateGasCostInWei();
+            address superGasTank = superRegistry.getAddress(keccak256("SUPER_GAS_TANK_ID"));
+            if (address(this).balance < gasCost) {
+                uint256 balanceDiff = gasCost - address(this).balance;
+                ISuperGasTank(superGasTank).withdrawETH(balanceDiff, payable(address(this)));
+            }
+            // Execute the userOp through SuperNativePaymaster
+            try ISuperNativePaymaster(superRegistry.getAddress(keccak256("SUPER_NATIVE_PAYMASTER_ID"))).handleOps{
+                value: gasCost
+            }(userOps) { } catch {
+                // no action, as funds are already transferred
+                emit AcrossFundsReceivedButExecutionFailed(account);
+                return;
+            }
+
             emit AcrossFundsReceivedAndExecuted(account);
-        } catch {
-            // no action, as funds are already transferred
-            emit AcrossFundsReceivedButExecutionFailed(account);
         }
     }
 }

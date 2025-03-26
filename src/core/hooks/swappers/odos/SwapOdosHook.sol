@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -9,7 +9,6 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-
 import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title SwapOdosHook
@@ -31,12 +30,7 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 contract SwapOdosHook is BaseHook, ISuperHook {
     IOdosRouterV2 public odosRouterV2;
 
-    constructor(
-        address registry_,
-        address _routerV2
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address _routerV2) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
         odosRouterV2 = IOdosRouterV2(_routerV2);
     }
@@ -60,10 +54,13 @@ contract SwapOdosHook is BaseHook, ISuperHook {
         address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20), 0);
         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20, 4), 0);
 
+        address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
+
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(odosRouterV2),
-            value: 0,
+            value: inputToken == address(0) ? inputAmount : 0,
             callData: abi.encodeCall(
                 IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), pathDefinition, executor, referralCode)
             )
@@ -88,7 +85,7 @@ contract SwapOdosHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        
+
         if (outputToken == address(0)) {
             return account.balance;
         }

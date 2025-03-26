@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
@@ -164,7 +164,6 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         view
         returns (address signer, bytes32 leaf)
     {
-
         // Verify leaf and root are valid
         leaf = _createLeaf(userOpData, sigData.validUntil);
         if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
@@ -200,7 +199,21 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
     }
 
     function _createLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpData.callData, userOpData.gasFees, userOpData.sender, userOpData.nonce, validUntil, block.chainid, userOpData.initCode))));
+        return keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encode(
+                        userOpData.callData,
+                        userOpData.gasFees,
+                        userOpData.sender,
+                        userOpData.nonce,
+                        validUntil,
+                        block.chainid,
+                        userOpData.initCode
+                    )
+                )
+            )
+        );
     }
 
     function _createMessageHash(bytes32 merkleRoot) private pure returns (bytes32) {
@@ -220,7 +233,6 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
         returns (bool)
     {
         if (proof.length == 0) return false;
-        if (leaf == merkleRoot) return false;
 
         // Verify merkle proof
         bool isValid = MerkleProof.verify(proof, merkleRoot, leaf);

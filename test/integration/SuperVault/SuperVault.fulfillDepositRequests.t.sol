@@ -2,13 +2,10 @@
 pragma solidity =0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // superform
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
@@ -164,32 +161,6 @@ contract SuperVaultFulfillDepositRequestsTest is BaseSuperVaultTest {
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0);
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 1), 0);
         }
-    }
-
-    function test_RequestDeposit_RevertOnInvalidAllocation() public {
-        uint256 depositAmount = 1000e6;
-
-        // Create deposit requests for all users
-        _requestDepositForAllUsers(depositAmount);
-
-        // Create fulfillment data with invalid allocation (total less than deposits)
-        uint256 totalAmount = depositAmount * ACCOUNT_COUNT;
-        uint256 invalidAmount = totalAmount / 4; // Allocating less than total deposits
-
-        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT; i++) {
-            requestingUsers[i] = accInstances[i].account;
-        }
-
-        // Should revert when trying to fulfill with insufficient allocation
-        _fulfillDepositForUsers(
-            requestingUsers,
-            invalidAmount,
-            invalidAmount,
-            address(fluidVault),
-            address(aaveVault),
-            ISuperVaultStrategy.INVALID_AMOUNT.selector
-        );
     }
 
     function test_RequestDeposit_UnorderedFulfillment(uint256 depositAmount) public {

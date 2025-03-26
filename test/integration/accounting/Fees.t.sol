@@ -259,6 +259,5 @@ contract FeesTest is BaseTest {
 
         // profit should be 1% of SMALL*2 ( = amount*2)
         assertEq(feeBalanceAfter - feeBalanceBefore, amount * 100 / 10_000);
-
     }
 }

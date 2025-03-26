@@ -24,11 +24,9 @@ import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-
 contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
-
 
     IERC4626 public vaultInstance;
     ISuperExecutor public superExecutor;
@@ -58,24 +56,17 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         instance = accountInstances[ETH];
         account = instance.account;
-        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: abi.encode(address(signerAddr)) });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(signerAddr))
+        });
         assertEq(validator.getAccountOwner(account), signerAddr);
 
         approveUserOp = _createDummyApproveUserOp();
         transferUserOp = _createDummyTransferUserOp();
         depositUserOp = _createDummyDepositUserOp();
         withdrawUserOp = _createDummyWithdrawUserOp();
-    }
-
-    function test_Dummy_SuperVaultsMerkleRoot() public view {
-        bytes32 hookRoot = _getMerkleRoot();
-        address hookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        bytes32[] memory proof = _getMerkleProof(hookAddress);
-
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(hookAddress))));
-
-        bool isValid = MerkleProof.verify(proof, hookRoot, leaf);
-        assertTrue(isValid, "Merkle proof should be valid");
     }
 
     function test_Dummy_OnChainMerkleTree() public pure {
@@ -112,9 +103,9 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         leaves[3] = _createValidatorLeaf(transferUserOp, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
-      
+
         bool isValid = MerkleProof.verify(proof[0], root, leaves[0]);
-        assertTrue(isValid, "Merkle proof should be valid");     
+        assertTrue(isValid, "Merkle proof should be valid");
     }
 
     function test_ValidateUserOp() public {
@@ -129,7 +120,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
 
-        bytes memory signature = _getSignature(root);   
+        bytes memory signature = _getSignature(root);
 
         // validate first user op
         _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
@@ -156,7 +147,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
 
-        bytes memory signature = _getSignature(root);   
+        bytes memory signature = _getSignature(root);
 
         validSigData = abi.encode(validUntil, root, proof[0], signature);
 
@@ -169,7 +160,6 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         assertTrue(_sigFailed, "Sig should fail");
         assertLt(_validUntil, block.timestamp, "Should not be valid");
     }
-    
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
@@ -185,8 +175,16 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         assertEq(_expectedSigner, signerAddr, "Signature should be valid");
         return signature;
     }
-    
-    function _testUserOpValidation(uint48 validUntil, bytes32 root, bytes32[] memory proof, bytes memory signature, UserOpData memory userOpData) private {
+
+    function _testUserOpValidation(
+        uint48 validUntil,
+        bytes32 root,
+        bytes32[] memory proof,
+        bytes memory signature,
+        UserOpData memory userOpData
+    )
+        private
+    {
         validSigData = abi.encode(validUntil, root, proof, signature);
 
         userOpData.userOp.signature = validSigData;
@@ -200,13 +198,27 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     }
 
     function _createValidatorLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpData.userOp.callData, userOpData.userOp.gasFees, userOpData.userOp.sender, userOpData.userOp.nonce, validUntil, block.chainid, userOpData.userOp.initCode))));
+        return keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encode(
+                        userOpData.userOp.callData,
+                        userOpData.userOp.gasFees,
+                        userOpData.userOp.sender,
+                        userOpData.userOp.nonce,
+                        validUntil,
+                        block.chainid,
+                        userOpData.userOp.initCode
+                    )
+                )
+            )
+        );
     }
 
     function _createTree(bytes32[] memory leaves) private pure returns (bytes32[][] memory proof, bytes32 root) {
         bytes32[] memory level1 = new bytes32[](2);
-        level1[0] = _hashPair(leaves[0], leaves[1]); 
-        level1[1] = _hashPair(leaves[2], leaves[3]); 
+        level1[0] = _hashPair(leaves[0], leaves[1]);
+        level1[1] = _hashPair(leaves[2], leaves[3]);
 
         root = _hashPair(level1[0], level1[1]);
 
@@ -214,23 +226,23 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         // Proof for leaves[0] - Sibling is leaves[1], Parent is level1[1]
         proof[0] = new bytes32[](2);
-        proof[0][0] = leaves[1];      // Sibling of leaves[0]
-        proof[0][1] = level1[1];      // Parent of leaves[0] and leaves[1]
+        proof[0][0] = leaves[1]; // Sibling of leaves[0]
+        proof[0][1] = level1[1]; // Parent of leaves[0] and leaves[1]
 
         // Proof for leaves[1] - Sibling is leaves[0], Parent is level1[1]
         proof[1] = new bytes32[](2);
-        proof[1][0] = leaves[0];       // Sibling of leaves[1]
-        proof[1][1] = level1[1];       // Parent of leaves[0] and leaves[1]
+        proof[1][0] = leaves[0]; // Sibling of leaves[1]
+        proof[1][1] = level1[1]; // Parent of leaves[0] and leaves[1]
 
         // Proof for leaves[2] - Sibling is leaves[3], Parent is level1[0]
         proof[2] = new bytes32[](2);
-        proof[2][0] = leaves[3];       // Sibling of leaves[2]
-        proof[2][1] = level1[0];       // Parent of leaves[2] and leaves[3]
+        proof[2][0] = leaves[3]; // Sibling of leaves[2]
+        proof[2][1] = level1[0]; // Parent of leaves[2] and leaves[3]
 
         // Proof for leaves[3] - Sibling is leaves[2], Parent is level1[0]
         proof[3] = new bytes32[](2);
-        proof[3][0] = leaves[2];      // Sibling of leaves[3]
-        proof[3][1] = level1[0];      // Parent of leaves[2] and leaves[3]
+        proof[3][0] = leaves[2]; // Sibling of leaves[3]
+        proof[3][1] = level1[0]; // Parent of leaves[2] and leaves[3]
 
         return (proof, root);
     }

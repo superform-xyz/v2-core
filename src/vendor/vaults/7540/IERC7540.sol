@@ -247,12 +247,17 @@ interface IERC7540 is IERC7575 {
     /// @notice Check if a deposit request is pending
     /// @param requestId The id of the request to check
     /// @param controller The address of the controller
-    function pendingDepositRequest(uint256 requestId, address controller) external view returns (bool);
+    function pendingDepositRequest(uint256 requestId, address controller) external view returns (uint256);
 
     /// @notice Check if a deposit request is pending cancellation
     /// @param requestId The id of the request to check
     /// @param controller The address of the controller
     function pendingCancelDepositRequest(uint256 requestId, address controller) external view returns (bool);
+
+    /// @notice Check if a redeem request is pending
+    /// @param requestId The id of the request to check
+    /// @param controller The address of the controller
+    function pendingRedeemRequest(uint256 requestId, address controller) external view returns (uint256);
 
     /// @notice Get the amount of assets that can be claimed from a deposit request
     /// @param requestId The id of the request to check

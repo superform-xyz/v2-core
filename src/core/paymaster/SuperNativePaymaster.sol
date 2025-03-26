@@ -1,40 +1,41 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
-import { BasePaymaster } from "@account-abstraction/core/BasePaymaster.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
+import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
+// superform
+import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
+import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
+import { PaymasterGasCalculator } from "../libraries/PaymasterGasCalculator.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
-/// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.sol
-contract SuperNativePaymaster is BasePaymaster {
+/// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.so
+contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     using UserOperationLib for PackedUserOperation;
+
+    uint256 internal constant UINT128_BYTES = 16;
+    uint256 internal constant MAX_NODE_OPERATOR_PREMIUM = 10_000;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error ZERO_ADDRESS();
-    error EMPTY_MESSAGE_VALUE();
-    error INSUFFICIENT_BALANCE();
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {   
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {
         if (address(_entryPoint).code.length == 0) revert ZERO_ADDRESS();
-     }
+    }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Calculate the refund amount based on the max gas limit, max fee per gas, actual gas cost, and node
-    /// operator premium.
-    /// @param maxGasLimit The maximum gas limit for the operation.
-    /// @param maxFeePerGas The maximum fee per gas for the operation.
-    /// @param actualGasCost The actual gas cost for the operation.
-    /// @param nodeOperatorPremium The node operator premium for the operation.
 
+    /// @inheritdoc ISuperNativePaymaster
     function calculateRefund(
         uint256 maxGasLimit,
         uint256 maxFeePerGas,
@@ -45,7 +46,9 @@ contract SuperNativePaymaster is BasePaymaster {
         pure
         returns (uint256 refund)
     {
-        uint256 costWithPremium = (actualGasCost * (100 + nodeOperatorPremium)) / 100;
+        if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) revert INVALID_NODE_OPERATOR_PREMIUM();
+        uint256 costWithPremium =
+            Math.mulDiv(actualGasCost, MAX_NODE_OPERATOR_PREMIUM + nodeOperatorPremium, MAX_NODE_OPERATOR_PREMIUM);
 
         uint256 maxCost = maxGasLimit * maxFeePerGas;
         if (costWithPremium < maxCost) {
@@ -56,18 +59,19 @@ contract SuperNativePaymaster is BasePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Handle a batch of user operations.
-    /// @param ops The user operations to handle.
+    /// @inheritdoc ISuperNativePaymaster
     function handleOps(PackedUserOperation[] calldata ops) public payable {
-        if (address(this).balance == 0) {
-            revert EMPTY_MESSAGE_VALUE();
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success,) = payable(address(entryPoint)).call{ value: balance }("");
+            if (!success) revert INSUFFICIENT_BALANCE();
         }
-        (bool success, ) = payable(address(entryPoint)).call{value: msg.value}("");
-        if (!success) revert INSUFFICIENT_BALANCE();
+        // note: msg.sender is the SuperBundler on same chain, or a cross-chain Gateway contract on the destination
+        // chain
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -87,9 +91,29 @@ contract SuperNativePaymaster is BasePaymaster {
         if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
             revert INSUFFICIENT_BALANCE();
         }
-        (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
-            abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
+        // 52
+        uint256 maxGasLimitOffsetStart = UserOperationLib.PAYMASTER_DATA_OFFSET;
+        // 52 + 16 = 68
+        uint256 maxGasLimitOffsetEnd = maxGasLimitOffsetStart + UINT128_BYTES;
 
+        // 68
+        uint256 nodeOperatorPremiumOffsetStart = maxGasLimitOffsetEnd;
+        // 68 + 16 = 84
+        uint256 nodeOperatorPremiumOffsetEnd = nodeOperatorPremiumOffsetStart + UINT128_BYTES;
+
+        uint128 maxGasLimit = uint128(bytes16(userOp.paymasterAndData[maxGasLimitOffsetStart:maxGasLimitOffsetEnd]));
+
+        // verification + call  gas limit <= maxGasLimit
+        uint256 totalGasLimit =
+            PaymasterGasCalculator.getVerificationGasLimit(userOp) + PaymasterGasCalculator.getCallGasLimit(userOp);
+        if (maxGasLimit > totalGasLimit || maxGasLimit == 0) revert INVALID_MAX_GAS_LIMIT();
+
+        uint128 nodeOperatorPremium =
+            uint128(bytes16(userOp.paymasterAndData[nodeOperatorPremiumOffsetStart:nodeOperatorPremiumOffsetEnd]));
+
+        if (nodeOperatorPremium < 0 || nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
+            revert INVALID_NODE_OPERATOR_PREMIUM();
+        }
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
     }
 

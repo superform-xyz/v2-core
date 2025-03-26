@@ -6,15 +6,11 @@ import { BaseTest } from "../../BaseTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";

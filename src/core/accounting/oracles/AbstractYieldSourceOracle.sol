@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
@@ -76,6 +76,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         }
     }
 
+    /// @inheritdoc IYieldSourceOracle
     function getBalanceOfOwner(
         address yieldSourceAddress,
         address ownerOfShares

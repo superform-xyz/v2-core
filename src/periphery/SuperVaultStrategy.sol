@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 
 // External
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import { IERC7540 } from "../vendor/vaults/7540/IERC7540.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
+import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Core Interfaces
 import {
@@ -192,11 +193,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // Validate requests and determine total amount (assets for deposits, shares for redeem)
         vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
+
         // If deposit, check available balance
         if (isDeposit) {
             vars.availableAmount = _getTokenBalance(address(_asset), address(this));
+            for (uint256 i; i < hooksLength; ++i) {
+                address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+                try IERC7540(target).claimableDepositRequest(0, address(this)) returns (uint256 pendingDepositRequest) {
+                    vars.availableAmount += pendingDepositRequest;
+                } catch { }
+            }
+
             if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
         }
+
         /// @dev grab current PPS before processing hooks
         vars.pricePerShare = _getSuperVaultPPS();
 
@@ -353,20 +363,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // If the hook is non-accounting and the yield source is active, add the asset balance change to the yield
             // source's assets in transit
             if (vars.hookType == ISuperHook.HookType.NONACCOUNTING && yieldSources[vars.targetedYieldSource].isActive) {
-                try ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares)
-                {   
-                    if (outAmount == 0) revert INVALID_AMOUNT();
-                    if (isShares) {
-                        uint256 assetsOut = IYieldSourceOracle(yieldSources[vars.targetedYieldSource].oracle)
-                            .getAssetOutput(vars.targetedYieldSource, address(this), outAmount);
-                        yieldSourceAssetsInTransit[vars.targetedYieldSource] += assetsOut;
-                    } else {
-                        yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
-                    }
-                } catch {
-                    revert INVALID_HOOK();
+                (uint256 outAmount, bool isShares) = ISuperHookNonAccounting(hooks[i]).getUsedAssetsOrShares();
+                if (isShares) {
+                    outAmount = IERC4626(vars.targetedYieldSource).convertToAssets(outAmount);
                 }
+                yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
             }
+
             // Update prevHook for next iteration
             vars.prevHook = hooks[i];
         }
@@ -972,7 +975,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // Verify hook spent assets or SuperVault shares in full
         if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
-        return vars;
+        return (vars);
     }
 
     /// @notice Process inflow hook execution
@@ -1031,6 +1034,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
+
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
 

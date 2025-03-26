@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
@@ -66,7 +66,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
+        return IERC20(IERC7540(yieldSourceAddress).share()).balanceOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
