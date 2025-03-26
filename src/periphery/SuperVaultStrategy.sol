@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 
 // External
@@ -203,6 +205,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             // Validate requests and determine total amount (assets for deposits, shares for redeem)
             vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
+            console2.log("-----totalRequestedAmount", vars.totalRequestedAmount);
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
@@ -226,12 +229,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                         _processInflowHookExecution(hook, vars.prevHook, hookCalldata[i]);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
+                    console2.log("-----spentAmount", vars.spentAmount);
                     outAmount = amountOut;
                 } else {
                     (uint256 amount, uint256 amountOut) =
                         _processOutflowHookExecution(hook, vars.prevHook, hookCalldata[i], vars.pricePerShare);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
+                    console2.log("-----spentAmount", vars.spentAmount);
                     outAmount = amountOut;
                 }
                 if (
