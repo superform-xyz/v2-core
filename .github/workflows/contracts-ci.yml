@@ -110,7 +110,6 @@ jobs:
           echo "✅ Passed" >> $GITHUB_STEP_SUMMARY
 
   vnet-deploy:
-    needs: ["test"]
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/') || contains(github.ref, '-test-'))
     runs-on: "SuperformCore3"
     outputs:
