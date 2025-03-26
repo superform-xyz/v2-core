@@ -13,7 +13,6 @@ import {
     ISuperHook,
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
     ISuperHookOutflow
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -28,7 +27,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 64, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 96);
 /// @notice         bool lockForSP = _decodeBool(data, 97);
-contract ApproveAndRedeem4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookNonAccounting {
+contract ApproveAndRedeem4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 64;
@@ -76,13 +75,6 @@ contract ApproveAndRedeem4626VaultHook is BaseHook, ISuperHook, ISuperHookInflow
         });
         executions[3] =
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
-    }
-
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @return outAmount The amount of assets or shares processed by the hook
-    /// @return isShares Whether the amount is in shares
-    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (outAmount, false);
     }
 
     /*//////////////////////////////////////////////////////////////
