@@ -204,22 +204,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Validate requests and determine total amount (assets for deposits, shares for redeem)
             vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
 
-            // If deposit, check available balance
-            if (isDeposit) {
-                vars.availableAmount = _getTokenBalance(address(_asset), address(this));
-                for (uint256 i; i < hooksLength; ++i) {
-                    address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
-                    // maxMint
-                    try IERC7540(target).maxMint(address(this)) returns (uint256 pendingAmount) {
-                        vars.availableAmount += pendingAmount;
-                    } catch { }
-                }
-                
-                // TODO: Update YieldSourceOracle to return maxMint
-
-                if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
-            }
-
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
         } else {
@@ -311,9 +295,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
-            // TODO: fix for Centrifuge case
             // Verify hooks spent assets or SuperVault shares in full
-            //if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+            if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
             // Process user requests
             for (uint256 i; i < users.length; ++i) {
@@ -904,15 +887,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
     /// @param expectedHookType The expected type of hook
-    /// @param approvalToken Token to approve (address(0) if no approval needed)
-    /// @param approvalAmount Amount to approve
+    /// @param target The target of the hook
     function _executeHook(
         address hook,
         address prevHook,
         bytes memory hookCalldata,
         ISuperHook.HookType expectedHookType,
-        address approvalToken,
-        uint256 approvalAmount,
         address target
     )
         private
@@ -933,11 +913,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Execute the transaction
             (bool success,) = target.call{ value: executions[i].value }(executions[i].callData);
             if (!success) revert OPERATION_FAILED();
-        }
-
-        // Reset approval if needed
-        if (approvalToken != address(0)) {
-            _resetTokenApproval(approvalToken, target);
         }
     }
 
@@ -1038,7 +1013,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
 
         // Execute hook with asset approval
-        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, address(_asset), amount, target);
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, target);
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
     }
@@ -1093,8 +1068,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             prevHook,
             hookCalldata,
             ISuperHook.HookType.OUTFLOW,
-            address(0),
-            execVars.amountConvertedToUnderlyingShares,
             execVars.target
         );
 
@@ -1252,10 +1225,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         if (newTotalShares > 0) {
             state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
         }
-    }
-
-    function _resetTokenApproval(address token, address spender) private {
-        IERC20(token).forceApprove(spender, 0);
     }
 
     function _safeTokenTransfer(address token, address recipient, uint256 amount) private {
