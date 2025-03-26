@@ -218,7 +218,6 @@ contract SuperMerkleValidator is ERC7579ValidatorBase {
   ) private view returns (bool) {
     if (proof.length == 0) {
       if (leaf != merkleRoot) return false;
-      return true;
     }
 
     // Verify merkle proof
