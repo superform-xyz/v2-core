@@ -101,6 +101,7 @@ import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
+import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
@@ -162,6 +163,7 @@ struct Addresses {
     PeripheryRegistry peripheryRegistry;
     SuperNativePaymaster superNativePaymaster;
     SuperGasTank superGasTank;
+    MockTargetExecutor mockTargetExecutor;  
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -397,6 +399,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].superExecutor = ISuperExecutor(address(new SuperExecutor(address(A[i].superRegistry))));
             vm.label(address(A[i].superExecutor), SUPER_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A[i].superExecutor);
+
+            A[i].mockTargetExecutor = new MockTargetExecutor(address(A[i].superRegistry));
+            vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
+            contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor); 
 
             A[i].superLedgerConfiguration =
                 ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A[i].superRegistry))));
@@ -1171,6 +1177,26 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
+    function _processAcrossV3MessageWithoutDestinationAccount(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        uint256 warpTimestamp,
+        ExecutionReturnData memory executionData
+    )
+        internal
+    {
+        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
+            SPOKE_POOL_V3_ADDRESSES[srcChainId],
+            SPOKE_POOL_V3_ADDRESSES[dstChainId],
+            ACROSS_RELAYER,
+            warpTimestamp,
+            FORKS[dstChainId],
+            dstChainId,
+            srcChainId,
+            executionData.logs
+        );
+    }
+
     function _processDebridgeMessage(
         uint64 srcChainId,
         uint64 dstChainId,
@@ -1364,6 +1390,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             uint32(0),
             usePrevHookAmount,
             dstUserOpData
+        );
+    }
+
+    function _createAcrossV3ReceiveFundsAndCreateAccount(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data //the message to be sent to the target executor
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            _getContract(destinationChainId, MOCK_TARGET_EXECUTOR_KEY),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
         );
     }
 

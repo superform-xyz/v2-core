@@ -86,9 +86,11 @@ abstract contract Constants {
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
+    string public constant MOCK_TARGET_EXECUTOR_KEY = "MockTargetExecutor";
     string public constant ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "AcrossReceiveFundsAndExecuteGateway";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+    string public constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string public constant SUPER_ORACLE_KEY = "SuperOracle";
     string public constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";

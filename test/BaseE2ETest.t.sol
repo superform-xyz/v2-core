@@ -9,7 +9,7 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 
 import { INexus } from "../src/vendor/nexus/INexus.sol";
 import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
-import { BootstrapConfig, INexusBoostrap } from "../src/vendor/nexus/INexusBootstrap.sol";
+import { BootstrapConfig, INexusBootstrap } from "../src/vendor/nexus/INexusBootstrap.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 
 // Superform
@@ -22,7 +22,7 @@ import "./BaseTest.t.sol";
 contract BaseE2ETest is BaseTest {
     SuperMerkleValidator superMerkleValidator;
     INexusFactory nexusFactory;
-    INexusBoostrap nexusBootstrap;
+    INexusBootstrap nexusBootstrap;
     SuperExecutor superExecutorModule;
 
     bytes32 initSalt;
@@ -42,7 +42,7 @@ contract BaseE2ETest is BaseTest {
         vm.label(address(superMerkleValidator), "SuperMerkleValidator");
         nexusFactory = INexusFactory(CHAIN_1_NEXUS_FACTORY);
         vm.label(address(nexusFactory), "NexusFactory");
-        nexusBootstrap = INexusBoostrap(CHAIN_1_NEXUS_BOOTSTRAP);
+        nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
 
         superExecutorModule = SuperExecutor(_getContract(ETH, "SuperExecutor"));
@@ -65,7 +65,7 @@ contract BaseE2ETest is BaseTest {
         bytes memory initData = _getNexusInitData(registry, attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
-        address deployedAddress = nexusFactory.createAccount{ value: 1 ether }(initData, initSalt);
+        address deployedAddress = nexusFactory.createAccount(initData, initSalt);
 
         if (deployedAddress != computedAddress) revert("Nexus SCA addresses mismatch");
         return computedAddress;
