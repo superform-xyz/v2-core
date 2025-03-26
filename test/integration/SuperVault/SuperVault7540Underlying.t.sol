@@ -276,18 +276,16 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
     }
 
     function _fulfillRedemptions() internal {
-        uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
-        //uint256 centrifugeExpectedAssets = centrifugeVault.maxWithdraw(address(strategy));
-        
-
-        uint256 shares = strategy.pendingRedeemRequest(accountEth);
+        uint256 shares1 = strategy.pendingRedeemRequest(accountEth);
+        uint256 shares2 = strategy.pendingRedeemRequest(accInstances[2].account);
+        uint256 shares = shares1 + shares2;
         shares = shares / 2;
-        console2.log("----shares", shares);
-
-        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(shares);
-
-        uint256 fluidRedeemAmount = fluidVault.previewRedeem(shares);
-        console2.log("----fluidRedeemAmount", fluidRedeemAmount);
+        
+        uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
+        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(centrifugeRedeemShares);
+        
+        uint256 fluidBalance = fluidVault.balanceOf(address(strategy));
+        uint256 fluidRedeemAmount = fluidVault.previewRedeem(fluidBalance);
 
         address[] memory requestingUsers = new address[](2);
         requestingUsers[0] = accountEth;
