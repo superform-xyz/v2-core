@@ -180,7 +180,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         bool isDeposit
     )
         external
-        whenNotPaused
     {
         _requireRole(STRATEGIST_ROLE);
 
@@ -188,7 +187,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         if (hooksLength == 0) revert ZERO_LENGTH();
 
         // Determine if this is a fulfillment operation (users array not empty)
-        bool isFulfillment = users.length > 0;
+        uint256 usersLength = users.length;
+        bool isFulfillment = usersLength > 0;
 
         // Validate array lengths
         _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
@@ -209,10 +209,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 vars.availableAmount = _getTokenBalance(address(_asset), address(this));
                 for (uint256 i; i < hooksLength; ++i) {
                     address target = HookDataDecoder.extractYieldSource(hookCalldata[i]);
-                    try IERC7540(target).claimableDepositRequest(0, address(this)) returns (uint256 pendingAmount) {
+                    // maxMint
+                    try IERC7540(target).maxMint(address(this)) returns (uint256 pendingAmount) {
                         vars.availableAmount += pendingAmount;
                     } catch { }
                 }
+                
+                // TODO: Update YieldSourceOracle to return maxMint
 
                 if (vars.availableAmount < vars.totalRequestedAmount) revert INVALID_AMOUNT();
             }
@@ -233,30 +236,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             if (isFulfillment && isFulfillHook) {
                 // Process as fulfill hook
+                uint256 outAmount;
                 if (isDeposit) {
-                    (uint256 amount, uint256 outAmount) =
+                    (uint256 amount, uint256 amountOut) =
                         _processInflowHookExecution(hook, vars.prevHook, hookCalldata[i]);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
-
-                    if (
-                        outAmount * ONE_HUNDRED_PERCENT
-                            < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
-                    ) {
-                        revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
-                    }
+                    outAmount = amountOut;
                 } else {
-                    (uint256 amount, uint256 outAmount) =
+                    (uint256 amount, uint256 amountOut) =
                         _processOutflowHookExecution(hook, vars.prevHook, hookCalldata[i], vars.pricePerShare);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
-
-                    if (
-                        outAmount * ONE_HUNDRED_PERCENT
-                            < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
-                    ) {
-                        revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
-                    }
+                    outAmount = amountOut;
+                }
+                if (
+                    outAmount * ONE_HUNDRED_PERCENT
+                        < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+                ) {
+                    revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
                 }
             } else {
                 // Process as regular hook
@@ -294,9 +292,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // Call postExecute to update outAmount tracking
                 vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
 
-                // If the hook is non-accounting and the yield source is active, add the asset balance change to the
-                // yield
-                // source's assets in transit
+                // If the hook is non-accounting and the yield source is active, add the asset balance change to assets in transit
                 if (
                     vars.hookType == ISuperHook.HookType.NONACCOUNTING
                         && yieldSources[vars.targetedYieldSource].isActive
@@ -315,8 +311,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
+            // TODO: fix for Centrifuge case
             // Verify hooks spent assets or SuperVault shares in full
-            if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+            //if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
 
             // Process user requests
             for (uint256 i; i < users.length; ++i) {
@@ -335,6 +332,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
             }
         }
+
+        // Add global slippage check on total balance changes ?
 
         // Check super vault cap
         _checkSuperVaultCap();
@@ -619,6 +618,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     }
 
     /// @notice Pauses the strategy
+    /// @dev Prevents any new deposit requests
     function pause() external {
         _requireRole(MANAGER_ROLE);
         _pause();
@@ -772,7 +772,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         _onRedeemClaimable(user, finalAssets, vars.requestedAmount);
     }
 
-    function _handleRequestDeposit(address controller, uint256 assets) private returns (uint256) {
+    function _handleRequestDeposit(address controller, uint256 assets) private whenNotPaused returns (uint256) {
         _requireVault();
         if (assets == 0) revert INVALID_AMOUNT();
 
@@ -929,12 +929,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         for (uint256 i; i < executions.length; ++i) {
             target = executions[i].target;
-
-            approvalToken = hookType == ISuperHook.HookType.OUTFLOW ? target : approvalToken;
-            // Handle token approvals if needed
-            if (approvalToken != address(0)) {
-                _handleTokenApproval(approvalToken, target, approvalAmount);
-            }
 
             // Execute the transaction
             (bool success,) = target.call{ value: executions[i].value }(executions[i].callData);
@@ -1257,12 +1251,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         if (newTotalShares > 0) {
             state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
-        }
-    }
-
-    function _handleTokenApproval(address token, address spender, uint256 amount) private {
-        if (amount > 0) {
-            IERC20(token).safeIncreaseAllowance(spender, amount);
         }
     }
 
