@@ -1,0 +1,1305 @@
+{
+    "hooks": [
+        {
+            "hookName": "Deposit4626VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/4626/Deposit4626VaultHook.sol",
+            "type": "Deposit",
+            "natspec_comments": "/// @title Deposit4626VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);\n/// @notice         bool lockForSP = _decodeBool(data, 57);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to deposit",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap",
+                "Bridge",
+                "Withdraw"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Withdraw",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC4626YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "Withdraw4626VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/4626/Withdraw4626VaultHook.sol",
+            "type": "Withdraw",
+            "natspec_comments": "/// @title Withdraw4626VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);\n/// @notice         bool lockForSP = _decodeBool(data, 77);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "owner",
+                    "type": "address",
+                    "description": "Address of the owner",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "shares",
+                    "type": "uint256",
+                    "description": "Number of shares to withdraw",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Deposit",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC4626YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "Deposit5115VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/5115/Deposit5115VaultHook.sol",
+            "type": "Deposit",
+            "natspec_comments": "/// @title Deposit5115VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 108);\n/// @notice         bool lockForSP = _decodeBool(data, 109);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "tokenIn",
+                    "type": "address",
+                    "description": "Address of the input token",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to deposit",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "minSharesOut",
+                    "type": "uint256",
+                    "description": "Minimum shares to receive",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap",
+                "Bridge",
+                "Withdraw"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Withdraw",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC5115YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "Withdraw5115VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/5115/Withdraw5115VaultHook.sol",
+            "type": "Withdraw",
+            "natspec_comments": "/// @title Withdraw5115VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);\n/// @notice         bool burnFromInternalBalance = _decodeBool(data, 108);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 109);\n/// @notice         bool lockForSP = _decodeBool(data, 110);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "tokenOut",
+                    "type": "address",
+                    "description": "Address of the output token",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "shares",
+                    "type": "uint256",
+                    "description": "Number of shares to withdraw",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "minTokenOut",
+                    "type": "uint256",
+                    "description": "Minimum tokens to receive",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "burnFromInternalBalance",
+                    "type": "bool",
+                    "description": "Whether to burn from internal balance",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Deposit",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC5115YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "Deposit7540VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/7540/Deposit7540VaultHook.sol",
+            "type": "Deposit",
+            "natspec_comments": "/// @title Deposit7540VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);\n/// @notice         bool lockForSP = _decodeBool(data, 77);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "controller",
+                    "type": "address",
+                    "description": "Address of the controller",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to deposit",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap",
+                "Bridge",
+                "Withdraw"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Withdraw",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC7540YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "RequestDeposit7540VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol",
+            "type": "RequestDeposit",
+            "natspec_comments": "/// @title RequestDeposit7540VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "controller",
+                    "type": "address",
+                    "description": "Address of the controller",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to deposit",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [],
+            "postHookPossibilities": [],
+            "yieldSourceOracleIds": [
+                "ERC7540YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "Withdraw7540VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol",
+            "type": "Withdraw",
+            "natspec_comments": "/// @title Withdraw7540VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);\n/// @notice         bool lockForSP = _decodeBool(data, 77);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "owner",
+                    "type": "address",
+                    "description": "Address of the owner",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to withdraw",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Deposit",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC7540YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "RequestWithdraw7540VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/7540/RequestWithdraw7540VaultHook.sol",
+            "type": "RequestWithdraw",
+            "natspec_comments": "/// @title RequestWithdraw7540VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "controller",
+                    "type": "address",
+                    "description": "Address of the controller",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "shares",
+                    "type": "uint256",
+                    "description": "Number of shares to withdraw",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [],
+            "postHookPossibilities": [],
+            "yieldSourceOracleIds": [
+                "ERC7540YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "Deposit7575_7540VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/7575_7540/Deposit7575_7540VaultHook.sol",
+            "type": "Deposit",
+            "natspec_comments": "/// @title Deposit7575_7540VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address controller = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);\n/// @notice         bool lockForSP = _decodeBool(data, 77);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "controller",
+                    "type": "address",
+                    "description": "Address of the controller",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to deposit",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap",
+                "Bridge",
+                "Withdraw"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Withdraw",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC7540YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "Withdraw7575_7540VaultHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/vaults/7575_7540/Withdraw7575_7540VaultHook.sol",
+            "type": "Withdraw",
+            "natspec_comments": "/// @title Withdraw7575_7540VaultHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         address owner = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);\n/// @notice         bool lockForSP = _decodeBool(data, 77);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "owner",
+                    "type": "address",
+                    "description": "Address of the owner",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to withdraw",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Swap"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Deposit",
+                "Stake",
+                "Claim",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [
+                "ERC7540YieldSourceOracle"
+            ],
+            "tags": []
+        },
+        {
+            "hookName": "ApproveERC20Hook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/tokens/erc20/ApproveERC20Hook.sol",
+            "type": "Approve",
+            "natspec_comments": "/// @title ApproveERC20Hook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);\n/// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);",
+            "params": [
+                {
+                    "name": "token",
+                    "type": "address",
+                    "description": "Address of the token to approve",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "spender",
+                    "type": "address",
+                    "description": "Address of the spender to approve",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to approve",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Transfer",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "postHookPossibilities": [
+                "Transfer",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge",
+                "Stake",
+                "Unstake"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": []
+        },
+        {
+            "hookName": "TransferERC20Hook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/tokens/erc20/TransferERC20Hook.sol",
+            "type": "Transfer",
+            "natspec_comments": "/// @title TransferERC20Hook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);\n/// @notice         address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);",
+            "params": [
+                {
+                    "name": "token",
+                    "type": "address",
+                    "description": "Address of the token to transfer",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "to",
+                    "type": "address",
+                    "description": "Address of the recipient",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to transfer",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": []
+        },
+        {
+            "hookName": "Swap1InchHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/swappers/1inch/Swap1InchHook.sol",
+            "type": "Swap",
+            "natspec_comments": "/// @title Swap1InchHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         address dstToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);\n/// @notice         address dstReceiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);\n/// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);\n/// @notice         bytes calldata txData_ = BytesLib.slice(data, 72, txData_.length - 72);",
+            "params": [
+                {
+                    "name": "dstToken",
+                    "type": "address",
+                    "description": "Address of the destination token",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "dstReceiver",
+                    "type": "address",
+                    "description": "Address of the destination receiver",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "value",
+                    "type": "uint256",
+                    "description": "Value to send with the transaction",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "txData_",
+                    "type": "bytes",
+                    "description": "Transaction data for the swap",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": [
+                "oneinch"
+            ]
+        },
+        {
+            "hookName": "SwapOdosHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/swappers/odos/SwapOdosHook.sol",
+            "type": "Swap",
+            "natspec_comments": "/// @title SwapOdosHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);\n/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);\n/// @notice         address inputReceiver = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);\n/// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);\n/// @notice         uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);\n/// @notice         uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);\n/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);\n/// @notice         bytes pathDefinition = BytesLib.slice(data, 188, pathDefinition_paramLength);\n/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20), 0);\n/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20, 4), 0);\n/// @notice         bool usePreviousHookAmount = _decodeBool(data, 168 + pathDefinition_paramLength + 20 + 4);",
+            "params": [
+                {
+                    "name": "inputToken",
+                    "type": "address",
+                    "description": "Address of the input token",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "inputAmount",
+                    "type": "uint256",
+                    "description": "Amount of input token",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "inputReceiver",
+                    "type": "address",
+                    "description": "Address of the input receiver",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "outputToken",
+                    "type": "address",
+                    "description": "Address of the output token",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "outputQuote",
+                    "type": "uint256",
+                    "description": "Quote for the output amount",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "outputMin",
+                    "type": "uint256",
+                    "description": "Minimum output amount",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "pathDefinition_paramLength",
+                    "type": "uint256",
+                    "description": "Length of the path definition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "pathDefinition",
+                    "type": "bytes",
+                    "description": "Path definition for the swap",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "executor",
+                    "type": "address",
+                    "description": "Address of the executor",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "referralCode",
+                    "type": "uint32",
+                    "description": "Referral code for the swap",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePreviousHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": [
+                "odos"
+            ]
+        },
+        {
+            "hookName": "FluidStakeHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/stake/fluid/FluidStakeHook.sol",
+            "type": "Stake",
+            "natspec_comments": "/// @title FluidStakeHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);\n/// @notice         bool lockForSP = _decodeBool(data, 57);",
+            "preHookPossibilities": [
+                "Approve",
+                "Deposit"
+            ],
+            "postHookPossibilities": [],
+            "yieldSourceOracleIds": [
+                "FluidYieldSourceOracle"
+            ],
+            "tags": [
+                "fluid"
+            ]
+        },
+        {
+            "hookName": "FluidStakeWithPermitHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/stake/fluid/FluidStakeWithPermitHook.sol",
+            "type": "Stake",
+            "natspec_comments": "/// @title FluidStakeWithPermitHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);\n/// @notice         uint256 deadline = BytesLib.toUint256(BytesLib.slice(data, 56, 32), 0);\n/// @notice         uint8 v = BytesLib.toUint8(BytesLib.slice(data, 88, 1), 0);\n/// @notice         bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 89, 32), 0);\n/// @notice         bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 121, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 153);\n/// @notice         bool lockForSP = _decodeBool(data, 154);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to stake",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "deadline",
+                    "type": "uint256",
+                    "description": "Deadline for the permit",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "v",
+                    "type": "uint8",
+                    "description": "v component of the signature",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "r",
+                    "type": "bytes32",
+                    "description": "r component of the signature",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "s",
+                    "type": "bytes32",
+                    "description": "s component of the signature",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Deposit"
+            ],
+            "postHookPossibilities": [],
+            "yieldSourceOracleIds": [
+                "FluidYieldSourceOracle"
+            ],
+            "tags": [
+                "fluid"
+            ]
+        },
+        {
+            "hookName": "FluidUnstakeHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/stake/fluid/FluidUnstakeHook.sol",
+            "type": "Unstake",
+            "natspec_comments": "/// @title FluidUnstakeHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);\n/// @notice         bool lockForSP = _decodeBool(data, 57);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to unstake",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Deposit"
+            ],
+            "postHookPossibilities": [],
+            "yieldSourceOracleIds": [
+                "FluidYieldSourceOracle"
+            ],
+            "tags": [
+                "fluid"
+            ]
+        },
+        {
+            "hookName": "GearboxStakeHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/stake/gearbox/GearboxStakeHook.sol",
+            "type": "Stake",
+            "natspec_comments": "/// @title GearboxStakeHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);\n/// @notice         bool lockForSP = _decodeBool(data, 57);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to stake",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Deposit"
+            ],
+            "postHookPossibilities": [],
+            "yieldSourceOracleIds": [
+                "GearboxYieldSourceOracle"
+            ],
+            "tags": [
+                "gearbox"
+            ]
+        },
+        {
+            "hookName": "GearboxUnstakeHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol",
+            "type": "Unstake",
+            "natspec_comments": "/// @title GearboxUnstakeHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);\n/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);\n/// @notice         bool lockForSP = _decodeBool(data, 57);",
+            "params": [
+                {
+                    "name": "yieldSourceOracleId",
+                    "type": "bytes4",
+                    "description": "Identifier for the yield source oracle",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "amount",
+                    "type": "uint256",
+                    "description": "Amount to unstake",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "usePrevHookAmount",
+                    "type": "bool",
+                    "description": "Whether to use the amount from the previous hook",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "lockForSP",
+                    "type": "bool",
+                    "description": "Whether to lock for SuperPosition",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [
+                "Approve",
+                "Deposit"
+            ],
+            "postHookPossibilities": [],
+            "yieldSourceOracleIds": [
+                "GearboxYieldSourceOracle"
+            ],
+            "tags": [
+                "gearbox"
+            ]
+        },
+        {
+            "hookName": "YearnClaimOneRewardHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol",
+            "type": "Claim",
+            "natspec_comments": "/// @title YearnClaimOneRewardHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);\n/// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);",
+            "params": [
+                {
+                    "name": "yieldSource",
+                    "type": "address",
+                    "description": "Address of the yield source",
+                    "source": "backend_derived",
+                    "derivation": ""
+                },
+                {
+                    "name": "rewardToken",
+                    "type": "address",
+                    "description": "Address of the reward token",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [],
+            "postHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Transfer",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": [
+                "yearn"
+            ]
+        },
+        {
+            "hookName": "GearboxClaimRewardHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol",
+            "type": "Claim",
+            "natspec_comments": "/// @title GearboxClaimRewardHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);",
+            "params": [
+                {
+                    "name": "farmingPool",
+                    "type": "address",
+                    "description": "Address of the farming pool",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [],
+            "postHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Transfer",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": [
+                "gearbox"
+            ]
+        },
+        {
+            "hookName": "FluidClaimRewardHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/claim/fluid/FluidClaimRewardHook.sol",
+            "type": "Claim",
+            "natspec_comments": "/// @title FluidClaimRewardHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);",
+            "params": [
+                {
+                    "name": "stakingRewards",
+                    "type": "address",
+                    "description": "Address of the staking rewards contract",
+                    "source": "backend_derived",
+                    "derivation": ""
+                }
+            ],
+            "preHookPossibilities": [],
+            "postHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Transfer",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": [
+                "fluid"
+            ]
+        },
+        {
+            "hookName": "AcrossSendFundsAndExecuteOnDstHook",
+            "githubLink": "https://github.com/superform-xyz/v2-contracts/blob/audit-%231-freeze/src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol",
+            "type": "Bridge",
+            "natspec_comments": "/// @title AcrossSendFundsAndExecuteOnDstHook\n/// @author Superform Labs\n/// @dev data has the following structure\n/// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);\n/// @notice         address recipient = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);\n/// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);\n/// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);\n/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);\n/// @notice         uint256 outputAmount = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);\n/// @notice         uint256 destinationChainId = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);\n/// @notice         address exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 188, 20), 0);\n/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 208, 4), 0);\n/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 212, 4), 0);\n/// @notice         bool usePrevHookAmount = _decodeBool(data, 216);\n/// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);\n/// @dev inputAmount and outputAmount have to be predicted by the SuperBundler",
+            "preHookPossibilities": [
+                "Approve",
+                "Transfer",
+                "Withdraw",
+                "Swap"
+            ],
+            "postHookPossibilities": [
+                "Approve",
+                "Deposit",
+                "Withdraw",
+                "Swap",
+                "Bridge"
+            ],
+            "yieldSourceOracleIds": [],
+            "tags": [
+                "across"
+            ]
+        }
+    ]
+}

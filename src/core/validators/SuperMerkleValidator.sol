@@ -12,230 +12,217 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 /// @author Superform Labs
 /// @notice A userOp validator contract
 contract SuperMerkleValidator is ERC7579ValidatorBase {
-    /*//////////////////////////////////////////////////////////////
+  /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    struct SignatureData {
-        uint48 validUntil;
-        bytes32 merkleRoot;
-        bytes32[] proof;
-        bytes signature;
-    }
+  struct SignatureData {
+    uint48 validUntil;
+    bytes32 merkleRoot;
+    bytes32[] proof;
+    bytes signature;
+  }
 
-    struct UserOpData {
-        address sender;
-        uint256 nonce;
-        bytes callData;
-        bytes initCode;
-        bytes32 gasFees;
-    }
+  struct UserOpData {
+    address sender;
+    uint256 nonce;
+    bytes callData;
+    bytes initCode;
+    bytes32 gasFees;
+  }
 
-    error INVALID_PROOF();
-    error NOT_INITIALIZED();
-    error ALREADY_INITIALIZED();
+  error INVALID_PROOF();
+  error NOT_INITIALIZED();
+  error ALREADY_INITIALIZED();
 
-    mapping(address => bool) private _initialized;
-    mapping(address => address) private accountOwners;
+  mapping(address => bool) private _initialized;
+  mapping(address => address) private accountOwners;
 
-    /*//////////////////////////////////////////////////////////////
+  /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function isInitialized(address account) external view returns (bool) {
-        return _initialized[account];
-    }
+  function isInitialized(address account) external view returns (bool) {
+    return _initialized[account];
+  }
 
-    function namespace() public pure returns (string memory) {
-        return "MerkleUserOpValidator-v0.0.1";
-    }
+  function namespace() public pure returns (string memory) {
+    return "MerkleUserOpValidator-v0.0.1";
+  }
 
-    function isModuleType(uint256 typeID) external pure override returns (bool) {
-        return typeID == TYPE_VALIDATOR;
-    }
+  function isModuleType(uint256 typeID) external pure override returns (bool) {
+    return typeID == TYPE_VALIDATOR;
+  }
 
-    function getAccountOwner(address account) external view returns (address) {
-        return accountOwners[account];
-    }
+  function getAccountOwner(address account) external view returns (address) {
+    return accountOwners[account];
+  }
 
-    /*//////////////////////////////////////////////////////////////
+  /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata data) external {
-        if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
-        _initialized[msg.sender] = true;
-        address owner = abi.decode(data, (address));
-        accountOwners[msg.sender] = owner;
-    }
+  function onInstall(bytes calldata data) external {
+    if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
+    _initialized[msg.sender] = true;
+    address owner = abi.decode(data, (address));
+    accountOwners[msg.sender] = owner;
+  }
 
-    function onUninstall(bytes calldata) external {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-        _initialized[msg.sender] = false;
-        delete accountOwners[msg.sender];
-    }
+  function onUninstall(bytes calldata) external {
+    if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+    _initialized[msg.sender] = false;
+    delete accountOwners[msg.sender];
+  }
 
-    /// @notice Validate a user operation
-    /// @param _userOp The user operation to validate
-    function validateUserOp(
-        PackedUserOperation calldata _userOp,
-        bytes32
-    )
-        external
-        view
-        override
-        returns (ValidationData)
-    {
-        if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
+  /// @notice Validate a user operation
+  /// @param _userOp The user operation to validate
+  function validateUserOp(
+    PackedUserOperation calldata _userOp,
+    bytes32
+  ) external view override returns (ValidationData) {
+    if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
 
-        // Decode signature
-        SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
-        UserOpData memory userOpData = UserOpData({
-            sender: _userOp.sender,
-            nonce: _userOp.nonce,
-            callData: _userOp.callData,
-            initCode: _userOp.initCode,
-            gasFees: _userOp.gasFees
-        });
+    // Decode signature
+    SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
+    UserOpData memory userOpData = UserOpData({
+      sender: _userOp.sender,
+      nonce: _userOp.nonce,
+      callData: _userOp.callData,
+      initCode: _userOp.initCode,
+      gasFees: _userOp.gasFees
+    });
 
-        // Process signature
-        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
+    // Process signature
+    (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
 
-        // Validate
-        bool isValid =
-            _isSignatureValid(signer, userOpData.sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
+    // Validate
+    bool isValid = _isSignatureValid(
+      signer,
+      userOpData.sender,
+      sigData.validUntil,
+      sigData.merkleRoot,
+      leaf,
+      sigData.proof
+    );
 
-        return _packValidationData(!isValid, sigData.validUntil, 0);
-    }
+    return _packValidationData(!isValid, sigData.validUntil, 0);
+  }
 
-    /// @notice Validate a signature with sender
-    function isValidSignatureWithSender(
-        address sender,
-        bytes32,
-        bytes calldata data
-    )
-        external
-        view
-        override
-        returns (bytes4)
-    {
-        if (!_initialized[sender]) revert NOT_INITIALIZED();
+  /// @notice Validate a signature with sender
+  function isValidSignatureWithSender(
+    address sender,
+    bytes32,
+    bytes calldata data
+  ) external view override returns (bytes4) {
+    if (!_initialized[sender]) revert NOT_INITIALIZED();
 
-        // Decode data
-        (SignatureData memory sigData, UserOpData memory userOpData) = _decodeSignatureAndUserOpData(data, sender);
+    // Decode data
+    (SignatureData memory sigData, UserOpData memory userOpData) = _decodeSignatureAndUserOpData(data, sender);
 
-        // Process signature
-        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
+    // Process signature
+    (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
 
-        // Validate
-        bool isValid = _isSignatureValid(signer, sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
+    // Validate
+    bool isValid = _isSignatureValid(signer, sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
 
-        return isValid ? bytes4(0x1626ba7e) : bytes4("");
-    }
+    return isValid ? bytes4(0x1626ba7e) : bytes4("");
+  }
 
-    /// @notice Validate a signature with data
-    function validateSignatureWithData(
-        bytes32,
-        bytes calldata sigDataRaw,
-        bytes calldata userOpDataRaw
-    )
-        external
-        view
-        virtual
-        returns (bool validSig)
-    {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+  /// @notice Validate a signature with data
+  function validateSignatureWithData(
+    bytes32,
+    bytes calldata sigDataRaw,
+    bytes calldata userOpDataRaw
+  ) external view virtual returns (bool validSig) {
+    if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
 
-        // Decode signature and user operation data
-        SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
-        UserOpData memory userOpData = _decodeUserOpData(userOpDataRaw, msg.sender);
+    // Decode signature and user operation data
+    SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
+    UserOpData memory userOpData = _decodeUserOpData(userOpDataRaw, msg.sender);
 
-        // Process signature
-        (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
+    // Process signature
+    (address signer, bytes32 leaf) = _processSignature(sigData, userOpData);
 
-        return _isSignatureValid(signer, msg.sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
-    }
+    return _isSignatureValid(signer, msg.sender, sigData.validUntil, sigData.merkleRoot, leaf, sigData.proof);
+  }
 
-    /*//////////////////////////////////////////////////////////////
+  /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _processSignature(
-        SignatureData memory sigData,
-        UserOpData memory userOpData
-    )
-        private
-        view
-        returns (address signer, bytes32 leaf)
-    {
-        // Verify leaf and root are valid
-        leaf = _createLeaf(userOpData, sigData.validUntil);
-        if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+  function _processSignature(
+    SignatureData memory sigData,
+    UserOpData memory userOpData
+  ) private view returns (address signer, bytes32 leaf) {
+    // Verify leaf and root are valid
+    leaf = _createLeaf(userOpData, sigData.validUntil);
+    if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // Get signer
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-        signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
-    }
+    // Get signer
+    bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+    bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+    signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+  }
 
-    function _decodeSignatureData(bytes memory sigDataRaw) private pure returns (SignatureData memory) {
-        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proof, bytes memory signature) =
-            abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes));
-        return SignatureData(validUntil, merkleRoot, proof, signature);
-    }
+  function _decodeSignatureData(bytes memory sigDataRaw) private pure returns (SignatureData memory) {
+    (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proof, bytes memory signature) = abi.decode(
+      sigDataRaw,
+      (uint48, bytes32, bytes32[], bytes)
+    );
+    return SignatureData(validUntil, merkleRoot, proof, signature);
+  }
 
-    function _decodeUserOpData(bytes memory userOpDataRaw, address sender) private pure returns (UserOpData memory) {
-        (uint256 nonce, bytes memory callData, bytes32 gasFees, bytes memory initCode) =
-            abi.decode(userOpDataRaw, (uint256, bytes, bytes32, bytes));
-        return UserOpData(sender, nonce, callData, initCode, gasFees);
-    }
+  function _decodeUserOpData(bytes memory userOpDataRaw, address sender) private pure returns (UserOpData memory) {
+    (uint256 nonce, bytes memory callData, bytes32 gasFees, bytes memory initCode) = abi.decode(
+      userOpDataRaw,
+      (uint256, bytes, bytes32, bytes)
+    );
+    return UserOpData(sender, nonce, callData, initCode, gasFees);
+  }
 
-    function _decodeSignatureAndUserOpData(
-        bytes memory data,
-        address sender
-    )
-        private
-        pure
-        returns (SignatureData memory, UserOpData memory)
-    {
-        (bytes memory sigDataRaw, bytes memory userOpDataRaw) = abi.decode(data, (bytes, bytes));
-        return (_decodeSignatureData(sigDataRaw), _decodeUserOpData(userOpDataRaw, sender));
-    }
+  function _decodeSignatureAndUserOpData(
+    bytes memory data,
+    address sender
+  ) private pure returns (SignatureData memory, UserOpData memory) {
+    (bytes memory sigDataRaw, bytes memory userOpDataRaw) = abi.decode(data, (bytes, bytes));
+    return (_decodeSignatureData(sigDataRaw), _decodeUserOpData(userOpDataRaw, sender));
+  }
 
-    function _createLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(
-            bytes.concat(
-                keccak256(
-                    abi.encode(
-                        userOpData.callData,
-                        userOpData.gasFees,
-                        userOpData.sender,
-                        userOpData.nonce,
-                        validUntil,
-                        block.chainid,
-                        userOpData.initCode
-                    )
-                )
+  function _createLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
+    return
+      keccak256(
+        bytes.concat(
+          keccak256(
+            abi.encode(
+              userOpData.callData,
+              userOpData.gasFees,
+              userOpData.sender,
+              userOpData.nonce,
+              validUntil,
+              block.chainid,
+              userOpData.initCode
             )
-        );
+          )
+        )
+      );
+  }
+
+  function _createMessageHash(bytes32 merkleRoot) private pure returns (bytes32) {
+    return keccak256(abi.encode(namespace(), merkleRoot));
+  }
+
+  function _isSignatureValid(
+    address signer,
+    address sender,
+    uint48 validUntil,
+    bytes32 merkleRoot,
+    bytes32 leaf,
+    bytes32[] memory proof
+  ) private view returns (bool) {
+    if (proof.length == 0) {
+      if (leaf != merkleRoot) return false;
+      return true;
     }
 
-    function _createMessageHash(bytes32 merkleRoot) private pure returns (bytes32) {
-        return keccak256(abi.encode(namespace(), merkleRoot));
-    }
-
-    function _isSignatureValid(
-        address signer,
-        address sender,
-        uint48 validUntil,
-        bytes32 merkleRoot,
-        bytes32 leaf,
-        bytes32[] memory proof
-    )
-        private
-        view
-        returns (bool)
-    {
-        if (proof.length == 0) return false;
-
-        // Verify merkle proof
-        bool isValid = MerkleProof.verify(proof, merkleRoot, leaf);
-        return isValid && signer == accountOwners[sender] && validUntil >= block.timestamp;
-    }
+    // Verify merkle proof
+    bool isValid = MerkleProof.verify(proof, merkleRoot, leaf);
+    return isValid && signer == accountOwners[sender] && validUntil >= block.timestamp;
+  }
 }
