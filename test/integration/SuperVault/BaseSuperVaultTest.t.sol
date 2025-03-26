@@ -196,12 +196,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_7540_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
-        hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false
+        hooksData[1] = _createApproveAndDeposit7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), vault.share(), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -231,7 +231,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createRequestRedeem7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), vault.share(), redeemShares, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), redeemShares, false
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
