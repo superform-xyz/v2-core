@@ -389,7 +389,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 totalAssets = currentFluidVaultAssets + currentAaveVaultAssets;
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
         bytes[] memory hooksData = new bytes[](2);
 
@@ -518,7 +518,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // fulfill deposits
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](3);
         fulfillHooksAddresses[0] = depositHookAddress;
@@ -527,14 +527,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         bytes[] memory fulfillHooksData = new bytes[](3);
         // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), vars.depositAmount, false, false
+        fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), address(asset), vars.depositAmount, false, false
         );
-        fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), vars.depositAmount, false, false
+        fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), address(asset), vars.depositAmount, false, false
         );
-        fulfillHooksData[2] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), vars.depositAmount, false, false
+        fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), address(asset), vars.depositAmount, false, false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
@@ -636,7 +636,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // fulfill deposits
         {
-            address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+            address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
             address[] memory fulfillHooksAddresses = new address[](3);
             fulfillHooksAddresses[0] = depositHookAddress;
@@ -645,14 +645,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
             bytes[] memory fulfillHooksData = new bytes[](3);
             // allocate up to the max allocation rate in the two Vaults
-            fulfillHooksData[0] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), vars.depositAmount, false, false
+            fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), address(asset), vars.depositAmount, false, false
             );
-            fulfillHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), vars.depositAmount, false, false
+            fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), address(asset), vars.depositAmount, false, false
             );
-            fulfillHooksData[2] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), vars.depositAmount, false, false
+            fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), address(asset), vars.depositAmount, false, false
             );
 
             uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
@@ -684,7 +684,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
 
             address[] memory hooksAddresses = new address[](2);
-            hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+            hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
             hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
             bytes[] memory hooksData = new bytes[](2);
 
