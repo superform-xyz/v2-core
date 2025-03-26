@@ -192,15 +192,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         uint256 usersLength = users.length;
         bool isFulfillment = usersLength > 0;
 
-        // Validate array lengths
-        _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
-
         ExecutionVars memory vars;
         vars.hooksLength = hooksLength;
         vars.isFulfillment = isFulfillment;
 
         // If fulfillment operation, validate and prepare additional parameters
         if (isFulfillment) {
+            // Validate array lengths
+            _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
+            
             if (expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
             // Validate requests and determine total amount (assets for deposits, shares for redeem)
