@@ -201,7 +201,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
         hooksData[1] = _createApproveAndRequestDeposit7540HookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), vault.share(), depositAmount, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -216,7 +216,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), address(asset), depositAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -556,7 +556,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(strategy), redeemSharesVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, vault1, address(strategy), redeemSharesVault1, false, false
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), redeemSharesVault2, false, false
