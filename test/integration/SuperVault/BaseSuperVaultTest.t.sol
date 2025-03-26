@@ -227,10 +227,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) internal {
         address[] memory redeemHooksAddresses = new address[](1);
-        redeemHooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+        redeemHooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REQUEST_WITHDRAW_7540_VAULT_HOOK_KEY);
 
         bytes[] memory redeemHooksData = new bytes[](1);
-        redeemHooksData[0] = _createApproveAndRequestRedeem7540VaultHookData(
+        redeemHooksData[0] = _createApproveAndRequestWithdraw7540VaultHookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), vault.share(), redeemShares, false
         );
 
