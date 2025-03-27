@@ -171,7 +171,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
     }
 
     function _fulfillSV5115Deposit(uint256 amount) internal {
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY);
 
         address[] memory hooks_ = new address[](1);
         hooks_[0] = depositHookAddress;
@@ -183,7 +183,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         console2.log("preview deposit", expectedShares);
 
         bytes[] memory hookCalldata = new bytes[](1);
-        hookCalldata[0] = _createDeposit5115VaultHookData(
+        hookCalldata[0] = _createApproveAndDeposit5115VaultHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             pendleEthenaAddress,
             address(asset),
