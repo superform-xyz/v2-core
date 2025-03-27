@@ -1121,7 +1121,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("\n=== First Reallocation: Target 50/25/25 ===");
 
         // Set up hooks for reallocation
-        vars.withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        vars.withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         vars.depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         // Perform first reallocation to 50/25/25
