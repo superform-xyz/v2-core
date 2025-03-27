@@ -218,23 +218,23 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         address deposit7540HookAddress = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = depositHookAddress;
-        fulfillHooksAddresses[1] = deposit7540HookAddress;
-
-        bytes[] memory fulfillHooksData = new bytes[](2);
-        fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(asset), amountPerVault, false, false
-        );
+        fulfillHooksAddresses[0] = deposit7540HookAddress;
+        fulfillHooksAddresses[1] = depositHookAddress;
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = fluidVault.convertToShares(amountPerVault);
 
         // 7540 claim deposit
         uint256 maxDeposit = centrifugeVault.maxDeposit(address(strategy));
-        expectedAssetsOrSharesOut[1] = centrifugeVault.maxMint(address(strategy));
+        console2.log("----maxDeposit", maxDeposit);
+        expectedAssetsOrSharesOut[0] = centrifugeVault.maxMint(address(strategy));
+        expectedAssetsOrSharesOut[1] = fluidVault.convertToShares(amountPerVault);
 
-        fulfillHooksData[1] = _createDeposit7540VaultHookData(
+        bytes[] memory fulfillHooksData = new bytes[](2);
+        fulfillHooksData[0] = _createDeposit7540VaultHookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxDeposit, false, false
+        );
+        fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(asset), amountPerVault, false, false
         );
 
         vm.prank(STRATEGIST);
