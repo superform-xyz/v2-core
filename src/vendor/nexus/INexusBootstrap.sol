@@ -9,7 +9,7 @@ struct BootstrapConfig {
     bytes data;
 }
 
-interface INexusBoostrap {
+interface INexusBootstrap {
     /// @notice Initializes the Nexus account with multiple modules.
     /// @dev Intended to be called by the Nexus with a delegatecall.
     /// @param validators The configuration array for validator modules.

@@ -2,31 +2,30 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-
 // Superform
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src//core/hooks/BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { IPermit2Single } from "../../../vendor/uniswap/permit2/IPermit2Single.sol";
+import { ISuperHook, ISuperHookResult } from "../../../src//core/interfaces/ISuperHook.sol";
 
-/// @title TransferWithPermit2Hook
+import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+
+/// @title ApproveWithPermit2Hook
 /// @dev data has the following structure
-/// @notice         address from = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
-/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 80);
-contract TransferWithPermit2Hook is BaseHook, ISuperHook {
+/// @notice         uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 60, 6), 0));
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 66);
+contract ApproveWithPermit2Hook is BaseHook, ISuperHook {
     using SafeCast for uint256;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-
     address public permit2;
 
     constructor(
@@ -53,23 +52,23 @@ contract TransferWithPermit2Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address from = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
-        address token = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-        bool usePrevHookAmount = _decodeBool(data, 80);
+        uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, 60, 6), 0));
+        bool usePrevHookAmount = _decodeBool(data, 66);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount().toUint160();
         }
 
-        if (token == address(0) || from == address(0)) revert ADDRESS_NOT_VALID();
+        if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(permit2),
             value: 0,
-            callData: abi.encodeCall(IPermit2Single.transferFrom, (from, to, amount, token))
+            callData: abi.encodeCall(IAllowanceTransfer.approve, (token, spender, amount, expiration))
         });
     }
 
@@ -78,20 +77,11 @@ contract TransferWithPermit2Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, address, bytes memory data) external {
-        outAmount = _getBalance(data);
+        outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address, bytes memory data) external {
-        outAmount = _getBalance(data) - outAmount;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address token = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-        return IERC20(token).balanceOf(to);
+        outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
     }
 }
