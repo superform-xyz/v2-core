@@ -391,7 +391,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
         bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveAndRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(fluidVault), address(strategy),initialFluidVaultBalance, false, false
+        );
+        hooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(aaveVault), address(asset), initialAaveVaultBalance, false, false
+        );
 
         uint256 amountToReallocate = initialFluidVaultBalance.mulDiv(3000, 10_000);
         uint256 assetAmountToReallocate = fluidVault.convertToAssets(amountToReallocate);
@@ -1061,7 +1068,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("NewVault:", newRatio, "%");
     }
 
-    function test_4_Allocate_Simple_Vault_Caps() public {
+    function test_4_Rebalance_Test() public {
         VaultCapTestVars memory vars;
         vars.depositAmount = 1000e6;
 
