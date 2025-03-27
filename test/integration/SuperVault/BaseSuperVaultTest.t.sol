@@ -194,13 +194,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {
-        address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(asset), address(vault), depositAmount, false);
-        hooksData[1] = _createApproveAndRequestDeposit7540HookData(
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndRequestDeposit7540HookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), address(asset), depositAmount, false
         );
 
