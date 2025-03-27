@@ -205,7 +205,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             // Validate requests and determine total amount (assets for deposits, shares for redeem)
             vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
-            console2.log("-----totalRequestedAmount", vars.totalRequestedAmount);
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
@@ -229,14 +228,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                         _processInflowHookExecution(hook, vars.prevHook, hookCalldata[i]);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
-                    console2.log("-----spentAmount", vars.spentAmount);
                     outAmount = amountOut;
                 } else {
                     (uint256 amount, uint256 amountOut) =
                         _processOutflowHookExecution(hook, vars.prevHook, hookCalldata[i], vars.pricePerShare);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
-                    console2.log("-----spentAmount", vars.spentAmount);
                     outAmount = amountOut;
                 }
                 if (
@@ -281,7 +278,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // Call postExecute to update outAmount tracking
                 vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
 
-                // If the hook is non-accounting and the yield source is active, add the asset balance change to assets in transit
+                // If the hook is non-accounting and the yield source is active, add the asset balance change to assets
+                // in transit
                 if (
                     vars.hookType == ISuperHook.HookType.NONACCOUNTING
                         && yieldSources[vars.targetedYieldSource].isActive
@@ -301,13 +299,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
             // Verify hooks spent assets or SuperVault shares in full
-            console2.log("----spentAmount", vars.spentAmount);
-            console2.log("----totalRequestedAmount", vars.totalRequestedAmount);
-            console2.log("----difference", vars.totalRequestedAmount - vars.spentAmount);
-            if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
-
-            // Add slippage here, update pending to reflect the slippage
-            // OR allow partial fulfillments 
+            if (vars.spentAmount * ONE_HUNDRED_PERCENT < vars.totalRequestedAmount * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())) {
+                revert INVALID_AMOUNT();
+            }
 
             // Process user requests
             for (uint256 i; i < usersLength; ++i) {
@@ -951,52 +945,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
     }
 
-    /// @notice Process hooks for both deposit and redeem fulfillment
-    /// @param hooks Array of hook addresses
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param vars Fulfillment variables
-    /// @param isDeposit Whether this is a deposit fulfillment
-    /// @return vars Updated fulfillment variables
-    function _processHooks(
-        address[] calldata hooks,
-        bytes[] memory hookCalldata,
-        FulfillmentVars memory vars,
-        uint256[] memory expectedAssetsOrSharesOut,
-        bool isDeposit
-    )
-        private
-        returns (FulfillmentVars memory)
-    {
-        ProcessHooksLocalVars memory locals;
-        locals.hooksLength = hooks.length;
-
-        // Process each hook in sequence
-        for (uint256 i; i < locals.hooksLength; ++i) {
-            // Process hook executions
-            if (isDeposit) {
-                (locals.amount, locals.outAmount) =
-                    _processInflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i]);
-            } else {
-                (locals.amount, locals.outAmount) =
-                    _processOutflowHookExecution(hooks[i], vars.prevHook, hookCalldata[i], vars.pricePerShare);
-            }
-
-            if (expectedAssetsOrSharesOut[i] == 0) revert INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
-
-            vars.prevHook = hooks[i];
-            vars.spentAmount += locals.amount;
-            if (
-                locals.outAmount * ONE_HUNDRED_PERCENT
-                    < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
-            ) revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
-        }
-
-        // Verify hook spent assets or SuperVault shares in full
-        if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
-
-        return (vars);
-    }
-
     /// @notice Process inflow hook execution
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
@@ -1069,13 +1017,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
         // Execute hook and track balances
-        _executeHook(
-            hook,
-            prevHook,
-            hookCalldata,
-            ISuperHook.HookType.OUTFLOW,
-            execVars.target
-        );
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, execVars.target);
 
         execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
 

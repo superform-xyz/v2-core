@@ -134,19 +134,6 @@ interface ISuperVaultStrategy {
         uint256 outAmount;
     }
 
-    struct FulfillmentVars {
-        // Common variables used in both deposit and redeem flows
-        uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
-        uint256 spentAmount; // Running total of assets/shares spent in hooks
-        uint256 pricePerShare; // Current price per share, used for calculations
-        uint256 requestedAmount; // Individual user's requested amount
-        address prevHook; // Previous hook in sequence for hook chaining
-        // Deposit-specific variables
-        uint256 availableAmount; // Only used in deposit to check initial balance
-        // Variables for share calculations
-        uint256 shares; // Used in deposit for minting shares
-    }
-
     /// @notice Local variables struct for executeHooks to avoid stack too deep
     struct ExecuteHooksVars {
         uint256 hooksLength;
@@ -189,20 +176,6 @@ interface ISuperVaultStrategy {
     struct YieldSourceTVL {
         address source;
         uint256 tvl;
-    }
-
-    struct ProcessHooksLocalVars {
-        // Hook execution variables
-        uint256 hooksLength;
-        uint256 targetedSourcesCount;
-        address target;
-        // Hook execution results
-        uint256 amount;
-        address hookTarget;
-        uint256 outAmount;
-        // Arrays for tracking
-        address[] targetedYieldSources;
-        address[] resizedArray;
     }
 
     /*//////////////////////////////////////////////////////////////
