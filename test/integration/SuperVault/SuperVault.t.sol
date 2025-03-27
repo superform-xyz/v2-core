@@ -60,8 +60,11 @@ contract SuperVaultTest is MerkleReader, BaseSuperVaultTest {
         strategy.pause();
         vm.stopPrank();
 
+        vm.startPrank(accountEth);
+        asset.approve(address(vault), depositAmount);
         vm.expectRevert(Pausable.EnforcedPause.selector);
-        _requestDeposit(depositAmount);
+        vault.requestDeposit(depositAmount, accountEth, accountEth);
+        vm.stopPrank();
 
         vm.startPrank(MANAGER);
         strategy.unpause();
