@@ -29,7 +29,7 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IERC4626(yieldSourceAddress).convertToShares(assetsIn);
+        return IERC4626(yieldSourceAddress).previewDeposit(assetsIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -43,7 +43,7 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IERC4626(yieldSourceAddress).convertToAssets(sharesIn);
+        return IERC4626(yieldSourceAddress).previewRedeem(sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
