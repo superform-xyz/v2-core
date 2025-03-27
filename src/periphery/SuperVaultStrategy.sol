@@ -208,6 +208,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
+            console2.log("----vars.pricePerShare", vars.pricePerShare);
         } else {
             // Standard hook execution setup
             vars.inflowTargets = new address[](hooksLength);
@@ -999,15 +1000,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     {
         OutflowExecutionVars memory execVars;
 
+        console2.log("----pricePerShare", pricePerShare);
+
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
+        console2.log("----execVars.amount", execVars.amount);
 
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
+        //execVars.amountOfAssets = IERC7540(_vault).convertToAssets(execVars.amount);
+        console2.log("----execVars.amountOfAssets", execVars.amountOfAssets);
 
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
-
+        console2.log("----execVars.amountConvertedToUnderlyingShares", execVars.amountConvertedToUnderlyingShares);
+        
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 

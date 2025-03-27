@@ -204,7 +204,8 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             poolId, trancheId, address(strategy), assetId, uint128(amountToDeposit), uint128(expectedShares)
         );
 
-        console2.log("---- Claimable deposit request", centrifugeVault.claimableDepositRequest(0, address(strategy)));
+        console2.log("------ Claimable deposit request", centrifugeVault.claimableDepositRequest(0, address(strategy)));
+        console2.log("------ Max deposit", centrifugeVault.maxDeposit(address(strategy)));
     }
 
     function _fulfillDepositRequests(uint256 amountToDeposit) internal {
@@ -277,15 +278,24 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
     function _fulfillRedemptions() internal {
         uint256 shares1 = strategy.pendingRedeemRequest(accountEth);
+        //IERC20(vault.share()).balanceOf(accountEth);
+        console2.log("----shares1", shares1);
         uint256 shares2 = strategy.pendingRedeemRequest(accInstances[2].account);
-        uint256 shares = shares1 + shares2;
-        shares = shares / 2;
+        console2.log("----shares2", shares2);
+        uint256 shares = (shares1 + shares2) / 2;
+        console2.log("----shares", shares);
+
+        console2.log("----sharesAsAssets", vault.convertToAssets(shares));
+
+        console2.log("----fluid assets to shares", fluidVault.convertToShares(shares));
         
         uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
-        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(centrifugeRedeemShares);
+        console2.log("----centrifugeRedeemShares", centrifugeRedeemShares);
+        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(shares);
         
         uint256 fluidBalance = fluidVault.balanceOf(address(strategy));
-        uint256 fluidRedeemAmount = fluidVault.previewRedeem(fluidBalance);
+        uint256 fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
+        uint256 fluidRedeemAmount = fluidVault.previewRedeem(shares);
 
         address[] memory requestingUsers = new address[](2);
         requestingUsers[0] = accountEth;
