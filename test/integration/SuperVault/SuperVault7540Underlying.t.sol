@@ -127,30 +127,30 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
-        console2.log("user1 pending deposit", strategy.pendingDepositRequest(accountEth));
-        console2.log("pps After Request Deposit1", _getSuperVaultPricePerShare());
+        console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountEth));
+        console2.log("\n pps After Request Deposit1", _getSuperVaultPricePerShare());
 
         // Request deposit into superVault as user2
         deal(address(asset), accInstances[2].account, amount);
         _requestDepositForAccount(accInstances[2], amount);
 
-        console2.log("pps After Request Deposit2", _getSuperVaultPricePerShare());
+        console2.log("\n pps After Request Deposit2", _getSuperVaultPricePerShare());
 
         // Request deposit into 7540 vault
         _requestCentrifugeDeposit(amount);
-        console2.log("pps After Request Centrifuge Deposit", _getSuperVaultPricePerShare());
+        console2.log("\n pps After Request Centrifuge Deposit", _getSuperVaultPricePerShare());
 
         // Deposit into underlying vaults as strategy
         _fulfillDepositRequests(amount * 2);
-        console2.log("pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
+        console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
 
         // Claim deposit into superVault as user1
         _claimDeposit(amount);
-        console2.log("User1 SV Share Balance After Claim Deposit", vault.balanceOf(accountEth));
+        console2.log("\n User1 SV Share Balance After Claim Deposit", vault.balanceOf(accountEth));
 
         // Claim deposit into superVault as user2
         _claimDepositForAccount(accInstances[2], amount);
-        console2.log("User2 SV Share Balance After Claim Deposit", vault.balanceOf(accInstances[2].account));
+        console2.log("\n User2 SV Share Balance After Claim Deposit", vault.balanceOf(accInstances[2].account));
 
         // --- REDEMPTIONS ---
         vm.warp(block.timestamp + 10 weeks);
@@ -160,8 +160,8 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         uint256 amountToRedeemAcc2 = IERC20(vault.share()).balanceOf(accInstances[2].account);
         __requestRedeem(accInstances[2], amountToRedeemAcc2, false);
 
-        console2.log("user1 pending redeem", strategy.pendingRedeemRequest(accountEth));
-        console2.log("user2 pending redeem", strategy.pendingRedeemRequest(accInstances[2].account));
+        console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountEth));
+        console2.log("\n user2 pending redeem", strategy.pendingRedeemRequest(accInstances[2].account));
 
         _requestCentrifugeRedeem();
 
@@ -235,7 +235,12 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxDeposit, false, false
         );
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(asset), amountPerVault, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(asset),
+            amountPerVault,
+            false,
+            false
         );
 
         vm.prank(STRATEGIST);
@@ -288,11 +293,11 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("----sharesAsAssets", vault.convertToAssets(shares));
 
         console2.log("----fluid assets to shares", fluidVault.convertToShares(shares));
-        
+
         uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
         console2.log("----centrifugeRedeemShares", centrifugeRedeemShares);
         uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(shares);
-        
+
         uint256 fluidBalance = fluidVault.balanceOf(address(strategy));
         uint256 fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
         uint256 fluidRedeemAmount = fluidVault.previewRedeem(shares);

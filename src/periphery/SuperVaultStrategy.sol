@@ -208,7 +208,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
-            console2.log("----vars.pricePerShare", vars.pricePerShare);
+            console2.log("\n--------EXECUTING FULFILMENT");
+            console2.log("PPS before fulfil", vars.pricePerShare);
         } else {
             // Standard hook execution setup
             vars.inflowTargets = new address[](hooksLength);
@@ -300,7 +301,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
             // Verify hooks spent assets or SuperVault shares in full
-            if (vars.spentAmount * ONE_HUNDRED_PERCENT < vars.totalRequestedAmount * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())) {
+            if (
+                vars.spentAmount * ONE_HUNDRED_PERCENT
+                    < vars.totalRequestedAmount * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+            ) {
                 revert INVALID_AMOUNT();
             }
 
@@ -436,6 +440,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             if (yieldSources[source].isActive) {
                 // Add yield source's TVL to total assets
                 uint256 tvl = _getTvlByOwnerOfShares(source);
+                console2.log("----tvl", tvl);
+                console2.log("----yieldSourceAssetsInTransit[source]", yieldSourceAssetsInTransit[source]);
                 totalAssets_ += tvl + yieldSourceAssetsInTransit[source];
                 sourceTVLs[activeSourceCount++] =
                     YieldSourceTVL({ source: source, tvl: tvl + yieldSourceAssetsInTransit[source] });
@@ -734,6 +740,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
+        /*
+        vars.pricePerShare = _getSuperVaultPPS();
+
+        console2.log("PPS AFTER FULFIL", vars.pricePerShare);
+        */
 
         _onDepositClaimable(user, vars.requestedAmount, vars.shares);
     }
@@ -1014,7 +1025,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
         console2.log("----execVars.amountConvertedToUnderlyingShares", execVars.amountConvertedToUnderlyingShares);
-        
+
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
