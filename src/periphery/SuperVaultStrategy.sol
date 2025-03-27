@@ -200,7 +200,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         if (isFulfillment) {
             // Validate array lengths
             _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
-            
+
             if (expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
             // Validate requests and determine total amount (assets for deposits, shares for redeem)
@@ -301,7 +301,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
             // Verify hooks spent assets or SuperVault shares in full
+            console2.log("----spentAmount", vars.spentAmount);
+            console2.log("----totalRequestedAmount", vars.totalRequestedAmount);
+            console2.log("----difference", vars.totalRequestedAmount - vars.spentAmount);
             if (vars.spentAmount != vars.totalRequestedAmount) revert INVALID_AMOUNT();
+
+            // Add slippage here, update pending to reflect the slippage
+            // OR allow partial fulfillments 
 
             // Process user requests
             for (uint256 i; i < usersLength; ++i) {
@@ -314,14 +320,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                     _processRedeem(user, state, vars);
                 }
             }
-        } else if (vars.inflowCount > 0) {
-            // Resize array if needed for regular hook execution
-            if (vars.inflowCount < vars.hooksLength) {
-                vars.inflowTargets = _resizeAddressArray(vars.inflowTargets, vars.inflowCount);
-            }
         }
 
-        // Add global slippage check on total balance changes ?
+        // TODO: Add global slippage check on total balance changes
 
         // Check super vault cap
         _checkSuperVaultCap();
