@@ -10,6 +10,8 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperDestinationValidator
 /// @author Superform Labs
 /// @notice A destination validator contract
@@ -127,7 +129,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
         override
         returns (bool)
     {
-        return (signer == sender || signer == _accountOwners[sender]) && validUntil >= block.timestamp;
+        console2.log("signer", signer);
+        console2.log("sender", sender);
+        console2.log("_accountOwners[sender]", _accountOwners[sender]);
+        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
     }
 
     /*//////////////////////////////////////////////////////////////
