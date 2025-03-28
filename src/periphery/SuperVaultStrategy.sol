@@ -221,10 +221,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Determine if this is a fulfill hook
             bool isFulfillHook = _isFulfillRequestsHook(hook);
 
-            if (isFulfillment) {
-                if (!isFulfillHook) {
-                    revert INVALID_HOOK();
-                }
+            if (isFulfillment && isFulfillHook) {
+                // if (!isFulfillHook) {
+                //     revert INVALID_HOOK();
+                // }
+                
                 // Process as fulfill hook
                 uint256 outAmount;
                 if (isDeposit) {
