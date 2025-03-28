@@ -16,7 +16,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 
 // Superform
 import { BaseTest } from "../../BaseTest.t.sol";
-import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
+import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
 
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
@@ -24,32 +24,52 @@ import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
+import "forge-std/console2.sol";
+
+contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
+
+    struct DestinationData {
+        uint256 nonce;
+        bytes callData;
+        uint64 chainId;
+        address sender;
+    }
+    struct SignatureData {
+        uint48 validUntil;
+        bytes32 merkleRoot;
+        bytes32[] proof;
+        bytes signature;
+    }
+
 
     IERC4626 public vaultInstance;
     ISuperExecutor public superExecutor;
     AccountInstance public instance;
     address public account;
 
-    SuperMerkleValidator public validator;
+    SuperDestinationValidator public validator;
     bytes public validSigData;
 
-    UserOpData approveUserOp;
-    UserOpData transferUserOp;
-    UserOpData depositUserOp;
-    UserOpData withdrawUserOp;
+    DestinationData approveDestinationData;
+    DestinationData transferDestinationData;
+    DestinationData depositDestinationData;
+    DestinationData withdrawDestinationData;
 
     uint256 privateKey;
     address signerAddr;
+
+    uint256 executorNonce;
+
+    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
     function setUp() public override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
-        validator = SuperMerkleValidator(_getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY));
+        validator = SuperDestinationValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
 
         (signerAddr, privateKey) = makeAddrAndKey("The signer");
         vm.label(signerAddr, "The signer");
@@ -63,39 +83,11 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         });
         assertEq(validator.getAccountOwner(account), signerAddr);
 
-        approveUserOp = _createDummyApproveUserOp();
-        transferUserOp = _createDummyTransferUserOp();
-        depositUserOp = _createDummyDepositUserOp();
-        withdrawUserOp = _createDummyWithdrawUserOp();
-    }
-
-    function test_Dummy_1LeafMerkleTree() public pure {
-        bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode("leaf 0"))));
-
-        bytes32 root = leaves[0];
-        bytes32[] memory proof = new bytes32[](0);
-
-        bool isValid = MerkleProof.verify(proof, root, leaves[0]);
-        assertTrue(isValid, "Merkle proof for leaf 0 should be valid");
-    }
-
-    function test_ValidateUserOp_1LeafMerkleTree() public {
-
-        uint48 validUntil = uint48(block.timestamp + 1 hours);
-
-        // simulate a merkle tree with 4 leaves (4 user ops)
-        bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
-
-        bytes32 root = leaves[0];
-        bytes32[] memory proof = new bytes32[](0);
-
-
-        bytes memory signature = _getSignature(root);
-
-        // validate first user op
-        _testUserOpValidation(validUntil, root, proof, signature, approveUserOp);
+        executorNonce = 0;
+        approveDestinationData = _createDummyApproveDestinationData(executorNonce);
+        transferDestinationData = _createDummyTransferDestinationData(executorNonce);
+        depositDestinationData = _createDummyDepositDestinationData(executorNonce);
+        withdrawDestinationData = _createDummyWithdrawDestinationData(executorNonce);
     }
 
     function test_Dummy_OnChainMerkleTree() public pure {
@@ -126,10 +118,10 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     function test_Dummy_OnChainMerkleTree_WithActualUserOps() public view {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[3] = _createValidatorLeaf(transferUserOp, validUntil);
+        leaves[0] = _createValidatorLeaf(approveDestinationData, validUntil);
+        leaves[1] = _createValidatorLeaf(transferDestinationData, validUntil);
+        leaves[2] = _createValidatorLeaf(depositDestinationData, validUntil);
+        leaves[3] = _createValidatorLeaf(withdrawDestinationData, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
 
@@ -137,57 +129,57 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         assertTrue(isValid, "Merkle proof should be valid");
     }
 
-    function test_ValidateUserOp() public {
+    function test_IsValidSignatureWithSender() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createValidatorLeaf(depositUserOp, validUntil);
-        leaves[3] = _createValidatorLeaf(withdrawUserOp, validUntil);
+        leaves[0] = _createValidatorLeaf(approveDestinationData, validUntil);
+        leaves[1] = _createValidatorLeaf(transferDestinationData, validUntil);
+        leaves[2] = _createValidatorLeaf(depositDestinationData, validUntil);
+        leaves[3] = _createValidatorLeaf(withdrawDestinationData, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
 
         bytes memory signature = _getSignature(root);
 
-        // validate first user op
-        _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
+        vm.startPrank(signerAddr);
+        validator.onInstall(abi.encode(signerAddr));
 
-        // validate second user op
-        _testUserOpValidation(validUntil, root, proof[1], signature, transferUserOp);
+        // validate first execution
+        _testDestinationDataValidation(validUntil, root, proof[0], signature, approveDestinationData);
 
-        // validate third user op
-        _testUserOpValidation(validUntil, root, proof[2], signature, depositUserOp);
+        // validate second execution
+        _testDestinationDataValidation(validUntil, root, proof[1], signature, transferDestinationData);
 
-        // validate fourth user op
-        _testUserOpValidation(validUntil, root, proof[3], signature, withdrawUserOp);
+        // validate third execution
+        _testDestinationDataValidation(validUntil, root, proof[2], signature, depositDestinationData);
+
+        // validate fourth execution
+        _testDestinationDataValidation(validUntil, root, proof[3], signature, withdrawDestinationData);
+        vm.stopPrank();
     }
 
-    function test_ExpiredSignature() public {
+    function test_ExpiredSignature() public view {
         uint48 validUntil = uint48(block.timestamp - 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createValidatorLeaf(depositUserOp, validUntil);
-        leaves[3] = _createValidatorLeaf(withdrawUserOp, validUntil);
+        leaves[0] = _createValidatorLeaf(approveDestinationData, validUntil);
+        leaves[1] = _createValidatorLeaf(transferDestinationData, validUntil);
+        leaves[2] = _createValidatorLeaf(depositDestinationData, validUntil);
+        leaves[3] = _createValidatorLeaf(withdrawDestinationData, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
 
         bytes memory signature = _getSignature(root);
 
-        validSigData = abi.encode(validUntil, root, proof[0], signature);
+        bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], signature);
+        bytes memory destinationDataRaw = abi.encode(approveDestinationData.nonce, approveDestinationData.callData, approveDestinationData.chainId, approveDestinationData.sender);
 
-        approveUserOp.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(approveUserOp.userOp, bytes32(0));
-        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
-        bool _sigFailed = rawResult & 1 == 1;
-        uint48 _validUntil = uint48(rawResult >> 160);
+        bytes4 validationResult = validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
 
-        assertTrue(_sigFailed, "Sig should fail");
-        assertLt(_validUntil, block.timestamp, "Should not be valid");
+        assertEq(validationResult, bytes4(""), "Sig should be invalid");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -205,39 +197,33 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         return signature;
     }
 
-    function _testUserOpValidation(
+    function _testDestinationDataValidation(
         uint48 validUntil,
         bytes32 root,
         bytes32[] memory proof,
         bytes memory signature,
-        UserOpData memory userOpData
+        DestinationData memory destinationData
     )
-        private
+        private 
+        view
     {
-        validSigData = abi.encode(validUntil, root, proof, signature);
+        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, signature);
+        bytes memory destinationDataRaw = abi.encode(destinationData.nonce, destinationData.callData, destinationData.chainId, destinationData.sender);
 
-        userOpData.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, bytes32(0));
-        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
-        bool _sigFailed = rawResult & 1 == 1;
-        uint48 _validUntil = uint48(rawResult >> 160);
-
-        assertFalse(_sigFailed, "Sig should be valid");
-        assertGt(_validUntil, block.timestamp, "validUntil should be valid");
+        bytes4 validationResult = validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
+        assertEq(validationResult, VALID_SIGNATURE, "Sig should be valid");
     }
 
-    function _createValidatorLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
+    function _createValidatorLeaf(DestinationData memory destinationData, uint48 validUntil) private view returns (bytes32) {
         return keccak256(
             bytes.concat(
                 keccak256(
                     abi.encode(
-                        userOpData.userOp.callData,
-                        userOpData.userOp.gasFees,
-                        userOpData.userOp.sender,
-                        userOpData.userOp.nonce,
-                        validUntil,
-                        block.chainid,
-                        userOpData.userOp.initCode
+                        destinationData.callData,
+                        uint64(block.chainid),
+                        destinationData.sender,
+                        destinationData.nonce,
+                        validUntil
                     )
                 )
             )
@@ -276,39 +262,39 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         return (proof, root);
     }
 
-    function _createDummyApproveUserOp() private returns (UserOpData memory) {
-        return instance.getExecOps(
-            address(this),
-            0,
+    function _createDummyApproveDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        return DestinationData(
+            nonce,
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
-            address(instance.defaultValidator)
+            uint64(block.chainid),
+            signerAddr
         );
     }
 
-    function _createDummyTransferUserOp() private returns (UserOpData memory) {
-        return instance.getExecOps(
-            address(this),
-            0,
+    function _createDummyTransferDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        return DestinationData(
+            nonce,
             abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
-            address(instance.defaultValidator)
+            uint64(block.chainid),
+            signerAddr
         );
     }
 
-    function _createDummyDepositUserOp() private returns (UserOpData memory) {
-        return instance.getExecOps(
-            address(this),
-            0,
+    function _createDummyDepositDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        return DestinationData(
+            nonce,
             abi.encodeWithSelector(IERC4626.deposit.selector, 1e18, address(this)),
-            address(instance.defaultValidator)
+            uint64(block.chainid),
+            signerAddr
         );
     }
 
-    function _createDummyWithdrawUserOp() private returns (UserOpData memory) {
-        return instance.getExecOps(
-            address(this),
-            0,
+    function _createDummyWithdrawDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        return DestinationData(
+            nonce,
             abi.encodeWithSelector(IERC4626.withdraw.selector, 1e18, address(this)),
-            address(instance.defaultValidator)
+            uint64(block.chainid),
+            signerAddr
         );
     }
 }

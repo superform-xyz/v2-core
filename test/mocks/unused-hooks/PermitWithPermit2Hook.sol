@@ -2,16 +2,16 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Superform
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { IPermit2Single } from "../../../vendor/uniswap/permit2/IPermit2Single.sol";
-import { IAllowanceTransfer } from "../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { ISuperHook, ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { IPermit2Single } from "../../../src/vendor/uniswap/permit2/IPermit2Single.sol";
+import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
 /// @title PermitWithPermit2Hook
 /// @dev data has the following structure

@@ -11,6 +11,7 @@ import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
 import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
+import { AcrossTargetExecutor } from "../src/core/executors/AcrossTargetExecutor.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
@@ -19,6 +20,7 @@ import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConf
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
+import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
 import { SuperGasTank } from "../src/core/paymaster/SuperGasTank.sol";
 // -- hooks
@@ -89,6 +91,7 @@ contract DeployV2 is Script, Configuration {
 
     struct DeployedContracts {
         address superExecutor;
+        address acrossTargetExecutor;
         address superRegistry;
         address superLedger;
         address pendleLedger;
@@ -101,6 +104,7 @@ contract DeployV2 is Script, Configuration {
         address peripheryRegistry;
         address superVaultFactory;
         address superMerkleValidator;
+        address superDestinationValidator;
         address superNativePaymaster;
         address superGasTank;
     }
@@ -218,6 +222,7 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
+
         // Deploy SuperLedgerConfiguration
         deployedContracts.superLedgerConfiguration = __deployContract(
             deployer,
@@ -304,6 +309,25 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
             type(SuperMerkleValidator).creationCode
         );
+
+        // Deploy SuperDestinationValidator
+        deployedContracts.superDestinationValidator = __deployContract(
+            deployer,
+            SUPER_DESTINATION_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
+            type(SuperDestinationValidator).creationCode
+        );
+
+        // Deploy AcrossTargetExecutor
+        deployedContracts.acrossTargetExecutor = __deployContract(
+            deployer,
+            ACROSS_TARGET_EXECUTOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
+            abi.encodePacked(type(AcrossTargetExecutor).creationCode, abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationValidator, configuration.nexusFactories[chainId]))
+        );
+
 
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);

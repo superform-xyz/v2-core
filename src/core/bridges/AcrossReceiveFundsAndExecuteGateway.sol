@@ -55,6 +55,8 @@ contract AcrossReceiveFundsAndExecuteGateway is IAcrossV3Receiver, SuperRegistry
     address payable public immutable superBundler;
     address public immutable superNativePaymaster;
 
+    error ADDRESS_NOT_VALID();
+
     receive() external payable { }
 
     constructor(
