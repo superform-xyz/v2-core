@@ -244,7 +244,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                           INDIVIDUAL TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_Bridge_To_ETH_And_Deposit_With_SuperTargetExecutor() public {
+    function test_Bridge_To_ETH_And_Deposit_With_AcrossTargetExecutor() public {
         uint256 amountPerVault = 1e8 / 2;
 
         // ETH IS DST
@@ -266,17 +266,17 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             );
 
             // execution data
-            bytes memory executionData = _createExecutionData_SuperTargetExecutor(eth7540HooksAddresses, eth7540HooksData);
+            bytes memory executionData = _createExecutionData_AcrossTargetExecutor(eth7540HooksAddresses, eth7540HooksData);
 
             // account creation data
             (validatorSigner, validatorSignerPrivateKey) = makeAddrAndKey("The signer");
             vm.label(validatorSigner, "The signer");
-            (bytes memory accountCreationData, address precomputedAddress) = _createAccountCreationData_SuperTargetExecutor(address(validatorOnETH), validatorSigner, address(superTargetExecutorOnETH), CHAIN_1_NEXUS_FACTORY, CHAIN_1_NEXUS_BOOTSTRAP);
+            (bytes memory accountCreationData, address precomputedAddress) = _createAccountCreationData_AcrossTargetExecutor(address(validatorOnETH), validatorSigner, address(superTargetExecutorOnETH), CHAIN_1_NEXUS_FACTORY, CHAIN_1_NEXUS_BOOTSTRAP);
             accountToUse = precomputedAddress;
             // signature data
             uint48 validUntil = uint48(block.timestamp + 100 days);
             uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnETH).nonce();
-            bytes memory signatureData = _createSignatureData_SuperTargetExecutor(executionData, uint64(ETH), precomputedAddress, nonce, validUntil, SuperValidatorBase(address(validatorOnETH)).namespace(), validatorSigner, validatorSignerPrivateKey);
+            bytes memory signatureData = _createSignatureData_AcrossTargetExecutor(executionData, uint64(ETH), precomputedAddress, nonce, validUntil, SuperValidatorBase(address(validatorOnETH)).namespace(), validatorSigner, validatorSignerPrivateKey);
 
             // @dev final data
             targetExecutorMessage = abi.encode(accountCreationData, executionData, signatureData, address(0), amountPerVault/2);
@@ -307,7 +307,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault/2, false);
-        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData_SuperTargetExecutor(
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData_AcrossTargetExecutor(
             underlyingBase_USDC,
             underlyingETH_USDC,
             amountPerVault / 2,
@@ -926,7 +926,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     }
     
     // Creates userOpData for the given chainId
-    function _createExecutionData_SuperTargetExecutor(
+    function _createExecutionData_AcrossTargetExecutor(
         address[] memory hooksAddresses,
         bytes[] memory hooksData
     )
@@ -940,7 +940,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
     }
 
-    function _createAccountCreationData_SuperTargetExecutor(address validatorOnDestinationChain, address theSigner, address executorOnDestinationChain, address nexusFactory, address nexusBootstrap)
+    function _createAccountCreationData_AcrossTargetExecutor(address validatorOnDestinationChain, address theSigner, address executorOnDestinationChain, address nexusFactory, address nexusBootstrap)
         internal
         returns (bytes memory, address)
     {
@@ -967,7 +967,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         return (abi.encode(initData, initSalt), precomputedAddress);
     }
 
-    function _createSignatureData_SuperTargetExecutor(bytes memory executionData, uint64 dstChainId, address account, uint256 nonce, uint48 validUntil, string memory hashNamespace, address signer, uint256 signerPrivateKey) internal pure returns (bytes memory) {
+    function _createSignatureData_AcrossTargetExecutor(bytes memory executionData, uint64 dstChainId, address account, uint256 nonce, uint48 validUntil, string memory hashNamespace, address signer, uint256 signerPrivateKey) internal pure returns (bytes memory) {
          // @dev sigData needs the following fields:
         //      - uint48 validUntil
         //      - bytes32 merkleRoot

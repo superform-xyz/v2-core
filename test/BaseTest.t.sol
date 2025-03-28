@@ -1449,7 +1449,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
-    function _createAcrossV3ReceiveFundsAndExecuteHookData_SuperTargetExecutor(
+    function _createAcrossV3ReceiveFundsAndExecuteHookData_AcrossTargetExecutor(
         address inputToken,
         address outputToken,
         uint256 inputAmount,
