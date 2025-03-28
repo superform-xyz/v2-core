@@ -19,6 +19,7 @@ abstract contract Constants {
     string internal constant SUPER_REGISTRY_KEY = "SuperRegistry";
     string internal constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
+    string internal constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
@@ -100,6 +101,14 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_BASE_SEPOLIA = address(0);
     address internal constant ODOS_ROUTER_OP_SEPOLIA = address(0);
 
+    // Nexus Factory addresses per chain
+    address internal constant NEXUS_FACTORY_MAINNET = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+    address internal constant NEXUS_FACTORY_BASE = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+    address internal constant NEXUS_FACTORY_OPTIMISM = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+    address internal constant NEXUS_FACTORY_ARB_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+    address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+    address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
@@ -134,6 +143,7 @@ abstract contract Constants {
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+    string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string internal constant SUPER_GAS_TANK_KEY = "SuperGasTank";
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";

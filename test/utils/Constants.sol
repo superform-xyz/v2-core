@@ -82,6 +82,7 @@ abstract contract Constants {
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
     string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
+    string public constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
@@ -194,6 +195,10 @@ abstract contract Constants {
     bytes1 constant MODE_VALIDATION = 0x00;
     address public constant CHAIN_1_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address public constant CHAIN_1_NEXUS_BOOTSTRAP = 0x000000F5b753Fdd20C5CA2D7c1210b3Ab1EA5903;
+
+
+    address public constant CHAIN_10_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A; //not the real address
+    address public constant CHAIN_8453_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A; //not the real address
 
     // Yield sources
 }

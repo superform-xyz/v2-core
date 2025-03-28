@@ -2,13 +2,13 @@
 pragma solidity 0.8.28;
 
 // external
-import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
+
 
 /// @title SuperDestinationValidator
 /// @author Superform Labs
@@ -127,7 +127,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         override
         returns (bool)
     {
-        return signer == sender && validUntil >= block.timestamp;
+        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -24,6 +24,8 @@ import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
+import "forge-std/console2.sol";
+
 contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -127,7 +129,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         assertTrue(isValid, "Merkle proof should be valid");
     }
 
-    function test_IsValidSignatureWithSender() public view {
+    function test_IsValidSignatureWithSender() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
@@ -141,6 +143,9 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
 
         bytes memory signature = _getSignature(root);
 
+        vm.startPrank(signerAddr);
+        validator.onInstall(abi.encode(signerAddr));
+
         // validate first execution
         _testDestinationDataValidation(validUntil, root, proof[0], signature, approveDestinationData);
 
@@ -152,6 +157,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
 
         // validate fourth execution
         _testDestinationDataValidation(validUntil, root, proof[3], signature, withdrawDestinationData);
+        vm.stopPrank();
     }
 
     function test_ExpiredSignature() public view {

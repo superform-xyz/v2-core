@@ -8,6 +8,7 @@ import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { IAcrossTargetExecutor } from "../src/core/interfaces/IAcrossTargetExecutor.sol";
 
 // Superform contracts
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
@@ -15,6 +16,7 @@ import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
+import { AcrossTargetExecutor } from "../src/core/executors/AcrossTargetExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
@@ -125,6 +127,7 @@ struct Addresses {
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
+    ISuperExecutor acrossTargetExecutor;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
@@ -214,6 +217,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     mapping(uint64 chainId => address) public SPOKE_POOL_V3_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_GATE_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_ADMIN_ADDRESSES;
+    mapping(uint64 chainId => address) public NEXUS_FACTORY_ADDRESSES;
 
     /// @dev mappings
 
@@ -444,6 +448,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].superDestinationValidator = new SuperDestinationValidator();
             vm.label(address(A[i].superDestinationValidator), SUPER_DESTINATION_VALIDATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_DESTINATION_VALIDATOR_KEY] = address(A[i].superDestinationValidator);  
+
+            A[i].acrossTargetExecutor = ISuperExecutor(address(new AcrossTargetExecutor(address(A[i].superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], address(A[i].superDestinationValidator), NEXUS_FACTORY_ADDRESSES[chainIds[i]])));
+            vm.label(address(A[i].acrossTargetExecutor), ACROSS_TARGET_EXECUTOR_KEY);
+            contractAddresses[chainIds[i]][ACROSS_TARGET_EXECUTOR_KEY] = address(A[i].acrossTargetExecutor);
 
             /// @dev action oracles
             A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A[i].superRegistry));
@@ -929,6 +937,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
         vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
 
+
+        mapping(uint64 => address) storage nexusFactoryAddressesMap = NEXUS_FACTORY_ADDRESSES;
+        nexusFactoryAddressesMap[ETH] = CHAIN_1_NEXUS_FACTORY;
+        vm.label(nexusFactoryAddressesMap[ETH], "NexusFactoryETH");
+        nexusFactoryAddressesMap[OP] = CHAIN_10_NEXUS_FACTORY;
+        vm.label(nexusFactoryAddressesMap[OP], "NexusFactoryOP");
+        nexusFactoryAddressesMap[BASE] = CHAIN_8453_NEXUS_FACTORY;
+        vm.label(nexusFactoryAddressesMap[BASE], "NexusFactoryBASE");
+
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
         existingUnderlyingTokens[ETH][DAI_KEY] = CHAIN_1_DAI;
@@ -1092,6 +1109,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
+    
+    function _createSourceMerkleTree() internal {
+    
+    }
 
     function _getExecOps(
         AccountInstance memory instance,
@@ -1152,6 +1173,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     enum RELAYER_TYPE {
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE
+    }
+
+    function _processAcrossV3Message_AcrossTargetExecutor(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        uint256 warpTimestamp,
+        ExecutionReturnData memory executionData,
+        RELAYER_TYPE relayerType,
+        address account
+    )
+        internal
+    {
+        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossTargetExecutor.AcrossTargetExecutorReceivedButNotEnoughBalance(account);
+        } else {
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossTargetExecutor.AcrossTargetExecutorExecuted(account);
+        }
+        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
+            SPOKE_POOL_V3_ADDRESSES[srcChainId],
+            SPOKE_POOL_V3_ADDRESSES[dstChainId],
+            ACROSS_RELAYER,
+            warpTimestamp,
+            FORKS[dstChainId],
+            dstChainId,
+            srcChainId,
+            executionData.logs
+        );
     }
 
     function _processAcrossV3Message(
@@ -1396,6 +1446,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             uint32(0),
             usePrevHookAmount,
             dstUserOpData
+        );
+    }
+
+    function _createAcrossV3ReceiveFundsAndExecuteHookData_AcrossTargetExecutor(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            _getContract(destinationChainId, ACROSS_TARGET_EXECUTOR_KEY),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
         );
     }
 
