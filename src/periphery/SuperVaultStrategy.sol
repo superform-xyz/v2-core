@@ -1014,7 +1014,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
         console2.log("----execVars.amountConvertedToUnderlyingShares", execVars.amountConvertedToUnderlyingShares);
-        
+
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
@@ -1034,7 +1034,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Get hook type
             ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
 
-            if (hookType == ISuperHook.HookType.OUTFLOW || hookType == ISuperHook.HookType.NONACCOUNTING) {
+            if (hookType == ISuperHook.HookType.OUTFLOW) {
                 if (yieldSourceAssetsInTransit[execVars.target] >= outAmount) {
                     yieldSourceAssetsInTransit[execVars.target] -= outAmount;
                 }
