@@ -221,7 +221,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Determine if this is a fulfill hook
             bool isFulfillHook = _isFulfillRequestsHook(hook);
 
-            if (isFulfillment && isFulfillHook) {
+            if (isFulfillment) {
+                if (!isFulfillHook) {
+                    revert INVALID_HOOK();
+                }
                 // Process as fulfill hook
                 uint256 outAmount;
                 if (isDeposit) {
@@ -374,7 +377,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             depositState.maxMint += vars.sharesNeeded;
 
             // Call vault callback instead of emitting event directly
-            _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded);
+            _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded, vars.currentPricePerShare);
         }
 
         // Process accumulated shares for redeemers
@@ -397,7 +400,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 redeemState.maxWithdraw += vars.finalAssets;
 
                 // Call vault callback instead of emitting event directly
-                _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed);
+                _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed, vars.currentPricePerShare);
             }
         }
     }
@@ -680,12 +683,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         return IERC4626(source).totalAssets();
     }
 
-    function _onRedeemClaimable(address redeemer, uint256 assets, uint256 shares) private {
-        ISuperVault(_vault).onRedeemClaimable(redeemer, assets, shares);
+    function _onRedeemClaimable(address redeemer, uint256 assets, uint256 shares, uint256 averageWithdrawPrice) private {
+        ISuperVault(_vault).onRedeemClaimable(redeemer, assets, shares, averageWithdrawPrice);
     }
 
-    function _onDepositClaimable(address depositor, uint256 assets, uint256 shares) private {
-        ISuperVault(_vault).onDepositClaimable(depositor, assets, shares);
+    function _onDepositClaimable(address depositor, uint256 assets, uint256 shares, uint256 averageDepositPrice) private {
+        ISuperVault(_vault).onDepositClaimable(depositor, assets, shares, averageDepositPrice);
     }
 
     function _getTvlByOwnerOfShares(address source) private view returns (uint256) {
@@ -726,7 +729,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         ISuperVault(_vault).mintShares(vars.shares);
 
-        _onDepositClaimable(user, vars.requestedAmount, vars.shares);
+        _onDepositClaimable(user, vars.requestedAmount, vars.shares, vars.pricePerShare);
     }
 
     function _processRedeem(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
@@ -744,7 +747,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         ISuperVault(_vault).burnShares(vars.requestedAmount);
 
-        _onRedeemClaimable(user, finalAssets, vars.requestedAmount);
+        _onRedeemClaimable(user, finalAssets, vars.requestedAmount, vars.pricePerShare);
     }
 
     function _handleRequestDeposit(address controller, uint256 assets) private whenNotPaused returns (uint256) {
