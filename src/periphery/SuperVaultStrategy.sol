@@ -60,9 +60,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     IERC20 private _asset;
     uint8 private _vaultDecimals;
 
-    // Role-based access control
-    mapping(bytes32 role => address roleAddress) public addresses;
-
     // Global configuration
     uint256 private superVaultCap;
 
@@ -70,6 +67,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     FeeConfig private feeConfig;
     FeeConfig private proposedFeeConfig;
     uint256 private feeConfigEffectiveTime;
+
+    // Registry
+    IPeripheryRegistry private peripheryRegistry;
 
     // Hook root configuration
     bytes32 private hookRoot;
@@ -81,9 +81,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     bool public proposedEmergencyWithdrawable;
     uint256 public emergencyWithdrawableEffectiveTime;
 
+    // Role-based access control
+    mapping(bytes32 role => address roleAddress) public addresses;
+
     // Yield source configuration
     mapping(address source => YieldSource sourceConfig) private yieldSources;
+    mapping(address source => YieldSource sourceConfig) private asyncYieldSources;
     address[] private yieldSourcesList;
+    address[] private asyncYieldSourcesList;
 
     // Request tracking
     mapping(address controller => SuperVaultState state) private superVaultState;
@@ -93,8 +98,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
     // Track assets in transit from vault to two-step yield sources
     mapping(address yieldSource => uint256 assetsInTransit) private yieldSourceAssetsInTransit;
-
-    IPeripheryRegistry private peripheryRegistry;
 
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
@@ -467,7 +470,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external {
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync) external {
         _requireRole(MANAGER_ROLE);
         YieldSource storage yieldSource = yieldSources[source];
 
@@ -476,8 +479,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             if (oracle == address(0)) revert ZERO_ADDRESS();
             if (yieldSource.oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
 
-            yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
-            yieldSourcesList.push(source);
+            if (isAsync) {
+                asyncYieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
+                asyncYieldSourcesList.push(source);
+            } else {
+                yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
+                yieldSourcesList.push(source);
+            }
             emit YieldSourceAdded(source, oracle);
         } else if (actionType == 1) {
             if (oracle == address(0)) revert ZERO_ADDRESS();

@@ -245,7 +245,8 @@ interface ISuperVaultStrategy {
     ///        1 - Update oracle,
     ///        2 - Toggle activation (oracle param ignored).
     /// @param activate Boolean flag for activation when actionType is 2.
-    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
+    /// @param isAsync Boolean flag for async yield source
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync) external;
 
     /// @notice Propose or execute a hook root update
     /// @dev if newRoot is 0, executes the proposed hook root update
