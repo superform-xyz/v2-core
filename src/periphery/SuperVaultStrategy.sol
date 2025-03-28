@@ -282,7 +282,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // in transit
                 if (
                     vars.hookType == ISuperHook.HookType.NONACCOUNTING
-                        && yieldSources[vars.targetedYieldSource].isActive
+                        && asyncYieldSources[vars.targetedYieldSource].isActive
                 ) {
                     (uint256 outAmount, bool isShares) = ISuperHookNonAccounting(hook).getUsedAssetsOrShares();
                     if (isShares) {
@@ -985,6 +985,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, target);
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
+
+        if (asyncYieldSources[target].isActive) {
+            yieldSourceAssetsInTransit[target] += outAmount;
+        }
     }
 
     /// @notice Struct for outflow execution variables
