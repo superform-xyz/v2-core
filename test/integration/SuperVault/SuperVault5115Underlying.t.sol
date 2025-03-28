@@ -87,14 +87,16 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             address(pendleEthenaAddress),
             _getContract(ETH, ERC5115_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            false
         );
 
         strategy.manageYieldSource(
             CHAIN_1_SUSDE,
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            true
         );
 
         strategy.proposeOrExecuteHookRoot(_getMerkleRoot());

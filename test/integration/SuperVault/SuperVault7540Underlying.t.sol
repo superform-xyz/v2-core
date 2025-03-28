@@ -85,13 +85,15 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             address(fluidVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            false
         );
         strategy.manageYieldSource(
             address(centrifugeVault),
             _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            true
         );
         vm.stopPrank();
 
