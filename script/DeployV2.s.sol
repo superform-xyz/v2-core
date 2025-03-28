@@ -11,7 +11,7 @@ import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
 import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
-import { SuperTargetExecutor } from "../src/core/executors/SuperTargetExecutor.sol";
+import { AcrossTargetExecutor } from "../src/core/executors/AcrossTargetExecutor.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
@@ -91,7 +91,7 @@ contract DeployV2 is Script, Configuration {
 
     struct DeployedContracts {
         address superExecutor;
-        address superTargetExecutor;
+        address acrossTargetExecutor;
         address superRegistry;
         address superLedger;
         address pendleLedger;
@@ -222,13 +222,13 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
-        // Deploy SuperTargetExecutor
-        deployedContracts.superTargetExecutor = __deployContract(
+        // Deploy AcrossTargetExecutor
+        deployedContracts.acrossTargetExecutor = __deployContract(
             deployer,
-            SUPER_TARGET_EXECUTOR_KEY,
+            ACROSS_TARGET_EXECUTOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_TARGET_EXECUTOR_KEY),
-            abi.encodePacked(type(SuperTargetExecutor).creationCode, abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationValidator, configuration.nexusFactories[chainId]))
+            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
+            abi.encodePacked(type(AcrossTargetExecutor).creationCode, abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationValidator, configuration.nexusFactories[chainId]))
         );
 
 

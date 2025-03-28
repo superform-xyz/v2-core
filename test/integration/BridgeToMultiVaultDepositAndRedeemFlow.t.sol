@@ -36,7 +36,7 @@ import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import { ISuperTargetExecutor } from "../../src/core/interfaces/ISuperTargetExecutor.sol";
+import { IAcrossTargetExecutor } from "../../src/core/interfaces/IAcrossTargetExecutor.sol";
 
 contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IERC7540 public vaultInstance7540ETH;
@@ -69,9 +69,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     ISuperExecutor public superExecutorOnETH;
     ISuperExecutor public superExecutorOnOP;
 
-    ISuperTargetExecutor public superTargetExecutorOnBase;
-    ISuperTargetExecutor public superTargetExecutorOnETH;
-    ISuperTargetExecutor public superTargetExecutorOnOP;
+    IAcrossTargetExecutor public superTargetExecutorOnBase;
+    IAcrossTargetExecutor public superTargetExecutorOnETH;
+    IAcrossTargetExecutor public superTargetExecutorOnOP;
 
     IValidator public validatorOnBase;
     IValidator public validatorOnETH;
@@ -158,9 +158,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         superExecutorOnOP = ISuperExecutor(_getContract(OP, SUPER_EXECUTOR_KEY));
 
         // Set up the super target executors
-        superTargetExecutorOnBase = ISuperTargetExecutor(_getContract(BASE, SUPER_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnETH = ISuperTargetExecutor(_getContract(ETH, SUPER_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnOP = ISuperTargetExecutor(_getContract(OP, SUPER_TARGET_EXECUTOR_KEY));
+        superTargetExecutorOnBase = IAcrossTargetExecutor(_getContract(BASE, ACROSS_TARGET_EXECUTOR_KEY));
+        superTargetExecutorOnETH = IAcrossTargetExecutor(_getContract(ETH, ACROSS_TARGET_EXECUTOR_KEY));
+        superTargetExecutorOnOP = IAcrossTargetExecutor(_getContract(OP, ACROSS_TARGET_EXECUTOR_KEY));
 
         // Set up the destination validators
         validatorOnBase = IValidator(_getContract(BASE, SUPER_DESTINATION_VALIDATOR_KEY));
@@ -275,7 +275,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             accountToUse = precomputedAddress;
             // signature data
             uint48 validUntil = uint48(block.timestamp + 100 days);
-            uint256 nonce = ISuperTargetExecutor(superTargetExecutorOnETH).nonce();
+            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnETH).nonce();
             bytes memory signatureData = _createSignatureData_SuperTargetExecutor(executionData, uint64(ETH), precomputedAddress, nonce, validUntil, SuperValidatorBase(address(validatorOnETH)).namespace(), validatorSigner, validatorSignerPrivateKey);
 
             // @dev final data
@@ -320,7 +320,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
 
         // EXECUTE ETH
-        _processAcrossV3Message(
+        _processAcrossV3Message_AcrossTargetExecutor(
             BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountToUse
         );
 

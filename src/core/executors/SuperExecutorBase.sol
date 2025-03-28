@@ -36,13 +36,9 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         return _initialized[account];
     }
 
-    function name() external pure returns (string memory) {
-        return _name();
-    }
+    function name() external view virtual returns (string memory);
 
-    function version() external pure returns (string memory) {
-        return _version();
-    }
+    function version() external view virtual returns (string memory);
 
     function isModuleType(uint256 typeID) external pure override returns (bool) {
         return typeID == TYPE_EXECUTOR;
@@ -70,10 +66,6 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _name() internal pure virtual returns (string memory);
-    function _version() internal pure virtual returns (string memory);
-
-
     function _execute(address account, ExecutorEntry memory entry) internal virtual {
         uint256 hooksLen = entry.hooksAddresses.length;
 
@@ -92,7 +84,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         }
     }
    
-    function _updateAccounting(address account, address hook, bytes memory hookData) internal {
+    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             ISuperLedgerConfiguration ledgerConfiguration =

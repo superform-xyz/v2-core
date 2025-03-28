@@ -8,13 +8,13 @@ import { INexusFactory } from "../../vendor/nexus/INexusFactory.sol";
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 
 // Superform
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
+import { IAcrossTargetExecutor } from "../interfaces/IAcrossTargetExecutor.sol";
 
-import "forge-std/console2.sol";
-
-/// @title SuperTargetExecutor
+/// @title AcrossTargetExecutor
 /// @author Superform Labs
 /// @notice Executor for destination chains of Superform
 /// @notice This contract acts as a gateway for receiving funds from the Across Protocol
@@ -43,7 +43,7 @@ import "forge-std/console2.sol";
 ///     3. Chain B: This contract receives funds + message
 ///     4. Chain B: Contract transfers tokens to user's account
 ///     5. Chain B: Executes deposit into new Superform
-contract SuperTargetExecutor is SuperExecutorBase, IAcrossV3Receiver {
+contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTargetExecutor {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -54,11 +54,15 @@ contract SuperTargetExecutor is SuperExecutorBase, IAcrossV3Receiver {
     INexusFactory public immutable nexusFactory;
     uint256 public nonce;
 
+    // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
+    bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error INVALID_ACCOUNT();
     error INVALID_SIGNATURE();
+    error ADDRESS_NOT_ACCOUNT();
 
     constructor(address registry_, address acrossSpokePool_, address superDestinationValidator_, address nexusFactory_) SuperExecutorBase(registry_) {
         if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -66,7 +70,17 @@ contract SuperTargetExecutor is SuperExecutorBase, IAcrossV3Receiver {
         superDestinationValidator = superDestinationValidator_;
         nexusFactory = INexusFactory(nexusFactory_);
     }
-    receive() external payable { }
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    function name() external pure override returns (string memory) {
+        return "AcrossTargetExecutor";
+    }
+
+    function version() external pure override returns (string memory) {
+        return "0.0.1";
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -89,8 +103,13 @@ contract SuperTargetExecutor is SuperExecutorBase, IAcrossV3Receiver {
         //      - bytes signature
         // @dev executor calldata represents the ExecutorEntry object (hooksAddresses, hooksData)
         (bytes memory initData, bytes memory executorCalldata, bytes memory sigData, address account, uint256 intentAmount) = abi.decode(message, (bytes, bytes, bytes, address, uint256));
+
+        if (account.code.length > 0) {
+            string memory accountId = IERC7579Account(account).accountId();
+            if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
+        }
         // @dev we need to create the account   
-        if (initData.length > 0) {
+        if (initData.length > 0 && account.code.length == 0) {
             (bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32));
             address computedAddress = nexusFactory.computeAccountAddress(factoryInitData, salt);
             account = nexusFactory.createAccount(factoryInitData, salt);
@@ -103,14 +122,18 @@ contract SuperTargetExecutor is SuperExecutorBase, IAcrossV3Receiver {
 
         // @dev check if the account has sufficient balance before proceeding
         if (intentAmount != 0 && token.balanceOf(account) < intentAmount) {
-            emit AcrossFundsReceivedButNotEnoughBalance(account);
+            emit AcrossTargetExecutorReceivedButNotEnoughBalance(account);
             return;
         }
 
+
+        uint256 _nonce = nonce;
+        nonce++;
+
         // @dev validate execution
-        bytes memory destinationData = abi.encode(nonce, executorCalldata, uint64(block.chainid), account);
+        bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account);
         bytes4 validationResult = IValidator(superDestinationValidator).isValidSignatureWithSender(account, bytes32(0), abi.encode(sigData, destinationData));
-        if (validationResult != bytes4(0x1626ba7e)) revert INVALID_SIGNATURE();
+        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
 
         // @dev _execute -> executeFromExecutor -> SuperExecutorBase.execute
         Execution[] memory execs = new Execution[](1);
@@ -121,19 +144,6 @@ contract SuperTargetExecutor is SuperExecutorBase, IAcrossV3Receiver {
         });
         _execute(account, execs);
 
-        nonce++;
-        emit AcrossFundsReceivedAndExecuted(account);
-    }
-
-
-    /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _name() internal pure override returns (string memory) {
-        return "SuperTargetExecutor";
-    }
-
-    function _version() internal pure override returns (string memory) {
-        return "0.0.1";
+        emit AcrossTargetExecutorExecuted(account);
     }
 }

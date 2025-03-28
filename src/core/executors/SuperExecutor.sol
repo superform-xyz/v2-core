@@ -10,13 +10,13 @@ contract SuperExecutor is SuperExecutorBase {
     constructor(address registry_) SuperExecutorBase(registry_) { }
 
     /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
+                                 VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _name() internal pure override returns (string memory) {
+    function name() external pure override returns (string memory) {
         return "SuperExecutor";
     }
 
-    function _version() internal pure override returns (string memory) {
+    function version() external pure override returns (string memory) {
         return "0.0.1";
     }
 }

@@ -82,7 +82,7 @@ abstract contract Constants {
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
     string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
-    string public constant SUPER_TARGET_EXECUTOR_KEY = "SuperTargetExecutor";
+    string public constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
