@@ -405,10 +405,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A[i].superExecutor), SUPER_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A[i].superExecutor);
 
-<<<<<<< HEAD
-         
-=======
->>>>>>> 1aa624ce905b615dcdc67fd53e78f8876d8bfdae
             A[i].mockTargetExecutor = new MockTargetExecutor(address(A[i].superRegistry));
             vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor); 
@@ -1423,7 +1419,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
-<<<<<<< HEAD
     function _createAcrossV3ReceiveFundsAndExecuteHookData_SuperTargetExecutor(
         address inputToken,
         address outputToken,
@@ -1453,8 +1448,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
-=======
->>>>>>> 1aa624ce905b615dcdc67fd53e78f8876d8bfdae
     function _createAcrossV3ReceiveFundsAndCreateAccount(
         address inputToken,
         address outputToken,
