@@ -1052,7 +1052,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Get hook type
             ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
 
-            if (hookType == ISuperHook.HookType.OUTFLOW) {
+            if (hookType == ISuperHook.HookType.OUTFLOW && asyncYieldSources[execVars.target].isActive) {
                 if (yieldSourceAssetsInTransit[execVars.target] >= outAmount) {
                     yieldSourceAssetsInTransit[execVars.target] -= outAmount;
                 }
