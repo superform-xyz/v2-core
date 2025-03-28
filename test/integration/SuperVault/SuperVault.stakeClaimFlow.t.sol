@@ -105,13 +105,15 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             address(gearboxVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            false
         );
         strategyGearSuperVault.manageYieldSource(
             gearboxStakingAddr,
             _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            true
         );
         vm.stopPrank();
 
