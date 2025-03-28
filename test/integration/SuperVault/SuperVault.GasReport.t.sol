@@ -119,7 +119,7 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false);
         vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
