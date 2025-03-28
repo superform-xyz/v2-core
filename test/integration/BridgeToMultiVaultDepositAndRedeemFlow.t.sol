@@ -697,7 +697,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
         executeOp(depositOpData);
 
-        assertApproxEqRel(IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH), userExpectedShares, 1e10, "User shares are not as expected");
+        assertEq(IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH), userExpectedShares, "User shares are not as expected");
 
         userShares = IERC20(vaultInstance7540ETH.share()).balanceOf(accountETH);
     }
