@@ -31,6 +31,7 @@ abstract contract Configuration is Constants {
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
         mapping(uint64 chainId => address okxRouter) okxRouters;
+        mapping(uint64 chainId => address nexusFactory) nexusFactories;
         SuperPositionData[] superPositions;
     }
 
@@ -104,5 +105,13 @@ abstract contract Configuration is Constants {
         configuration.okxRouters[ARB_SEPOLIA_CHAIN_ID] = OKX_ROUTER_ARB_SEPOLIA;
         configuration.okxRouters[BASE_SEPOLIA_CHAIN_ID] = OKX_ROUTER_BASE_SEPOLIA;
         configuration.okxRouters[OP_SEPOLIA_CHAIN_ID] = OKX_ROUTER_OP_SEPOLIA;
+
+
+        configuration.nexusFactories[MAINNET_CHAIN_ID] = NEXUS_FACTORY_MAINNET;
+        configuration.nexusFactories[BASE_CHAIN_ID] = NEXUS_FACTORY_BASE;
+        configuration.nexusFactories[OPTIMISM_CHAIN_ID] = NEXUS_FACTORY_OPTIMISM;
+        configuration.nexusFactories[ARB_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_ARB_SEPOLIA;
+        configuration.nexusFactories[BASE_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_BASE_SEPOLIA;
+        configuration.nexusFactories[OP_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_OP_SEPOLIA;
     }
 }

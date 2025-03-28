@@ -15,6 +15,7 @@ import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
+import { SuperTargetExecutor } from "../src/core/executors/SuperTargetExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
@@ -125,6 +126,7 @@ struct Addresses {
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
+    ISuperExecutor superTargetExecutor;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
@@ -214,6 +216,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     mapping(uint64 chainId => address) public SPOKE_POOL_V3_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_GATE_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_ADMIN_ADDRESSES;
+    mapping(uint64 chainId => address) public NEXUS_FACTORY_ADDRESSES;
 
     /// @dev mappings
 
@@ -402,6 +405,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             vm.label(address(A[i].superExecutor), SUPER_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A[i].superExecutor);
 
+         
             A[i].mockTargetExecutor = new MockTargetExecutor(address(A[i].superRegistry));
             vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor); 
@@ -444,6 +448,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].superDestinationValidator = new SuperDestinationValidator();
             vm.label(address(A[i].superDestinationValidator), SUPER_DESTINATION_VALIDATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_DESTINATION_VALIDATOR_KEY] = address(A[i].superDestinationValidator);  
+
+            A[i].superTargetExecutor = ISuperExecutor(address(new SuperTargetExecutor(address(A[i].superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], address(A[i].superDestinationValidator), NEXUS_FACTORY_ADDRESSES[chainIds[i]])));
+            vm.label(address(A[i].superTargetExecutor), SUPER_TARGET_EXECUTOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_TARGET_EXECUTOR_KEY] = address(A[i].superTargetExecutor);
 
             /// @dev action oracles
             A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A[i].superRegistry));
@@ -929,6 +937,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
         vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
 
+
+        mapping(uint64 => address) storage nexusFactoryAddressesMap = NEXUS_FACTORY_ADDRESSES;
+        nexusFactoryAddressesMap[ETH] = CHAIN_1_NEXUS_FACTORY;
+        vm.label(nexusFactoryAddressesMap[ETH], "NexusFactoryETH");
+        nexusFactoryAddressesMap[OP] = CHAIN_10_NEXUS_FACTORY;
+        vm.label(nexusFactoryAddressesMap[OP], "NexusFactoryOP");
+        nexusFactoryAddressesMap[BASE] = CHAIN_8453_NEXUS_FACTORY;
+        vm.label(nexusFactoryAddressesMap[BASE], "NexusFactoryBASE");
+
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
         existingUnderlyingTokens[ETH][DAI_KEY] = CHAIN_1_DAI;
@@ -1092,6 +1109,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
+    
+    function _createSourceMerkleTree() internal {
+    
+    }
 
     function _getExecOps(
         AccountInstance memory instance,
@@ -1396,6 +1417,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             uint32(0),
             usePrevHookAmount,
             dstUserOpData
+        );
+    }
+
+    function _createAcrossV3ReceiveFundsAndExecuteHookData_SuperTargetExecutor(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            _getContract(destinationChainId, SUPER_TARGET_EXECUTOR_KEY),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
         );
     }
 

@@ -127,7 +127,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         override
         returns (bool)
     {
-        return signer == sender && validUntil >= block.timestamp;
+        return (signer == sender || signer == _accountOwners[sender]) && validUntil >= block.timestamp;
     }
 
     /*//////////////////////////////////////////////////////////////
