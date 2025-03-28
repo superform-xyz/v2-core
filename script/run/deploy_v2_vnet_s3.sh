@@ -260,23 +260,23 @@ get_salt() {
 # Array to store VNET IDs for cleanup
 declare -a VNET_IDS
 
-delete_vnet() {
-    local vnet_id=$1
-    log "INFO" "Deleting VNET: $vnet_id"
-    curl -s -X DELETE \
-        "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
-        -H "X-Access-Key: ${TENDERLY_ACCESS_KEY}"
-}
+#delete_vnet() {
+#    local vnet_id=$1
+#    log "INFO" "Deleting VNET: $vnet_id"
+#    curl -s -X DELETE \
+#        "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
+#        -H "X-Access-Key: ${TENDERLY_ACCESS_KEY}"
+#}
 
-cleanup_vnets() {
-    log "INFO" "Cleaning up VNETs..."
-    for vnet_id in "${VNET_IDS[@]}"; do
-        delete_vnet "$vnet_id"
-    done
-}
+#cleanup_vnets() {
+#    log "INFO" "Cleaning up VNETs..."
+#    for vnet_id in "${VNET_IDS[@]}"; do
+#        delete_vnet "$vnet_id"
+#    done
+#}
 
 # Set up trap to cleanup VNETs on script exit due to error
-trap 'cleanup_vnets' ERR
+#trap 'cleanup_vnets' ERR
 
 generate_slug() {
     local network=$1
@@ -567,10 +567,9 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    -vvv \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Ethereum"
-    cleanup_vnets
     exit 1
 fi
 wait
@@ -585,10 +584,9 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    -vvv \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Base"
-    cleanup_vnets
     exit 1
 fi
 wait
@@ -603,10 +601,9 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    -vvv \
+    $(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Optimism"
-    cleanup_vnets
     exit 1
 fi
 wait
@@ -686,7 +683,6 @@ update_latest_file() {
             log "DEBUG" "Current working directory: $(pwd)"
             log "DEBUG" "Listing parent directory:"
             ls -la "$(dirname "$network_dir")" || true
-            cleanup_vnets
             exit 1
         fi
         
@@ -696,7 +692,6 @@ update_latest_file() {
             log "ERROR" "Failed to parse JSON from contract file for $network_slug"
             log "DEBUG" "Raw file contents:"
             cat "$contracts_file" | xxd
-            cleanup_vnets
             exit 1
         fi
         
@@ -705,7 +700,6 @@ update_latest_file() {
         # Validate JSON format
         if [ -z "$contracts" ]; then
             log "ERROR" "Empty or invalid JSON in contract file for $network_slug"
-            cleanup_vnets
             exit 1
         fi
         
@@ -728,31 +722,22 @@ update_latest_file() {
         esac
         
         # Debug output for all parameters
-        log "DEBUG" "Parameters for network update:"
-        log "DEBUG" "network_slug: $network_slug"
-        log "DEBUG" "vnet_id: $vnet_id"
-        log "DEBUG" "new_counter: $new_counter"
-        log "DEBUG" "contracts (formatted):"
         echo "$contracts" | jq '.' >&2
-        log "DEBUG" "current content:"
         echo "$content" | jq '.' >&2
         
         # Validate all inputs before jq operation
         if ! echo "$contracts" | jq '.' >/dev/null 2>&1; then
             log "ERROR" "contracts is not valid JSON"
-            cleanup_vnets
             exit 1
         fi
         
         if ! echo "$content" | jq '.' >/dev/null 2>&1; then
             log "ERROR" "content is not valid JSON"
-            cleanup_vnets
             exit 1
         fi
         
         if ! [[ "$new_counter" =~ ^[0-9]+$ ]]; then
             log "ERROR" "new_counter is not a valid number: $new_counter"
-            cleanup_vnets
             exit 1
         fi
         
@@ -770,7 +755,6 @@ update_latest_file() {
         # Validate the result
         if [ $? -ne 0 ]; then
             log "ERROR" "jq command failed"
-            cleanup_vnets
             exit 1
         fi
         
@@ -811,7 +795,6 @@ update_latest_file() {
             log "SUCCESS" "Successfully uploaded latest.json to S3"
         else
             log "ERROR" "Failed to upload latest.json to S3"
-            cleanup_vnets
             exit 1
         fi    
     fi
