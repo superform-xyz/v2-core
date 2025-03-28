@@ -1092,7 +1092,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Add Euler vault as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(eulerVaultAddr, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(eulerVaultAddr, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false);
         vm.stopPrank();
 
         // Get initial balances
@@ -1666,7 +1666,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // disable fluid vault entirely
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, false);
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, false, false);
         vm.stopPrank();
 
         // check new balances
@@ -1718,7 +1718,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // re-enable fluid vault
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, true);
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, true, false);
         vm.stopPrank();
 
         // try allocate again
@@ -1772,7 +1772,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false);
         vm.stopPrank();
 
         vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
@@ -2512,9 +2512,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Replace aaveVault with ruggableVault in the strategy
         vm.startPrank(SV_MANAGER);
-        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true); // Add
+        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false); // Add
 
-        strategy.manageYieldSource(ruggableVault, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true); // Add
+        strategy.manageYieldSource(ruggableVault, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false); // Add
             // ruggableVault
         vm.stopPrank();
     }
