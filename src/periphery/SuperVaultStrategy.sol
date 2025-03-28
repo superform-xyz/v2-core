@@ -260,15 +260,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // Build executions for this hook
                 vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-                if (vars.hookType == ISuperHook.HookType.INFLOW || vars.hookType == ISuperHook.HookType.OUTFLOW) {
-                    if (!yieldSources[vars.targetedYieldSource].isActive) {
-                        revert YIELD_SOURCE_NOT_ACTIVE();
-                    }
-                    if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                        vars.inflowTargets[vars.inflowCount++] = vars.targetedYieldSource;
-                    }
-                }
-
                 for (uint256 j = 0; j < vars.executions.length; ++j) {
                     // Execute the transaction
                     (vars.success,) =
