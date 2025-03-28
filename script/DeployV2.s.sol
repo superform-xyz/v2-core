@@ -222,16 +222,6 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
-        // Deploy AcrossTargetExecutor
-        deployedContracts.acrossTargetExecutor = __deployContract(
-            deployer,
-            ACROSS_TARGET_EXECUTOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
-            abi.encodePacked(type(AcrossTargetExecutor).creationCode, abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationValidator, configuration.nexusFactories[chainId]))
-        );
-
-
 
         // Deploy SuperLedgerConfiguration
         deployedContracts.superLedgerConfiguration = __deployContract(
@@ -327,6 +317,15 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
             type(SuperDestinationValidator).creationCode
+        );
+
+        // Deploy AcrossTargetExecutor
+        deployedContracts.acrossTargetExecutor = __deployContract(
+            deployer,
+            ACROSS_TARGET_EXECUTOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
+            abi.encodePacked(type(AcrossTargetExecutor).creationCode, abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationValidator, configuration.nexusFactories[chainId]))
         );
 
 
