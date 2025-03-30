@@ -226,10 +226,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             bool isFulfillHook = _isFulfillRequestsHook(hook);
 
             if (isFulfillment && isFulfillHook) {
-                // if (!isFulfillHook) {
-                //     revert INVALID_HOOK();
-                // }
-                
                 // Process as fulfill hook
                 uint256 outAmount;
                 if (isDeposit) {
@@ -252,6 +248,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                     revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
                 }
             } else {
+                // TODO: add comment outlining 3 cases of flows
                 // Process as regular hook
                 if (!peripheryRegistry.isHookRegistered(hook)) revert INVALID_HOOK();
 
@@ -293,19 +290,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
                 // Update prevHook for next iteration
                 vars.prevHook = hook;
-            }
+            } 
         }
 
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
-            // Verify hooks spent assets or SuperVault shares in full
-            if (
-                vars.spentAmount * ONE_HUNDRED_PERCENT
-                    < vars.totalRequestedAmount * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
-            ) {
-                revert INVALID_AMOUNT();
-            }
-
             // Process user requests
             for (uint256 i; i < usersLength; ++i) {
                 address user = users[i];
@@ -739,7 +728,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
-        state.pendingDepositRequest = 0;
+        state.pendingDepositRequest= 0;
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
@@ -978,7 +967,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         address target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
-        if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+        if (!yieldSource.isActive || !asyncYieldSources[target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
 
         // Execute hook with asset approval
@@ -986,8 +975,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
 
+        if (outAmount == 0) revert INVALID_AMOUNT(); // Rename to 0 amount out
+
         if (asyncYieldSources[target].isActive) {
-            yieldSourceAssetsInTransit[target] += outAmount;
+            if (outAmount > yieldSourceAssetsInTransit[target]) {
+                yieldSourceAssetsInTransit[target] -= outAmount;
+            }
         }
     }
 
@@ -1037,7 +1030,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
-        if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+        if (!yieldSources[execVars.target].isActive || !asyncYieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
@@ -1052,7 +1045,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Get hook type
             ISuperHook.HookType hookType = ISuperHookResult(hook).hookType();
 
-            if (hookType == ISuperHook.HookType.OUTFLOW && asyncYieldSources[execVars.target].isActive) {
+            if (asyncYieldSources[execVars.target].isActive) {
                 if (yieldSourceAssetsInTransit[execVars.target] >= outAmount) {
                     yieldSourceAssetsInTransit[execVars.target] -= outAmount;
                 }
