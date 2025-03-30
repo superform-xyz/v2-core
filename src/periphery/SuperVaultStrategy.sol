@@ -491,7 +491,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 yieldSource.isActive = true;
                 emit YieldSourceReactivated(source);
             } else {
-                if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+                if (!yieldSource.isActive && !asyncYieldSources[source].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
                 if (IYieldSourceOracle(oracle).getTVLByOwnerOfShares(source, address(this)) > 0) {
                     revert INVALID_AMOUNT();
                 }
@@ -967,7 +967,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         address target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
-        if (!yieldSource.isActive || !asyncYieldSources[target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+        if (!yieldSource.isActive && !asyncYieldSources[target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
 
         // Execute hook with asset approval
@@ -1019,7 +1019,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
-        //execVars.amountOfAssets = IERC7540(_vault).convertToAssets(execVars.amount);
         console2.log("----execVars.amountOfAssets", execVars.amountOfAssets);
 
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
@@ -1030,7 +1029,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
-        if (!yieldSources[execVars.target].isActive || !asyncYieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+        if (!yieldSources[execVars.target].isActive && !asyncYieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
