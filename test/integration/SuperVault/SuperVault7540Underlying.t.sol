@@ -17,9 +17,11 @@ import { IInvestmentManager } from "../../mocks/centrifuge/IInvestmentManager.so
 import { IPoolManager } from "../../mocks/centrifuge/IPoolManager.sol";
 import { ITranche } from "../../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../../mocks/centrifuge/IRoot.sol";
+
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
+import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
@@ -277,7 +279,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         vm.prank(rootManager);
         investmentManager.fulfillRedeemRequest(
-            poolId, trancheId, address(strategy), assetId, uint128(centrifugeRedeem), uint128(expectedAssetsOut)
+            poolId, trancheId, address(strategy), assetId, uint128(expectedAssetsOut), uint128(centrifugeRedeem)
         );
 
         console2.log("---- PPS After Centrifuge Fulfill Redeem", _getSuperVaultPricePerShare());
@@ -285,24 +287,17 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
     function _fulfillRedemptions() internal {
         uint256 shares1 = strategy.pendingRedeemRequest(accountEth);
-        //IERC20(vault.share()).balanceOf(accountEth);
-        console2.log("----shares1", shares1);
         uint256 shares2 = strategy.pendingRedeemRequest(accInstances[2].account);
-        console2.log("----shares2", shares2);
         uint256 shares = (shares1 + shares2) / 2;
-        console2.log("----shares", shares);
 
-        console2.log("----sharesAsAssets", vault.convertToAssets(shares));
-
-        console2.log("----fluid assets to shares", fluidVault.convertToShares(shares));
-
-        uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
-        console2.log("----centrifugeRedeemShares", centrifugeRedeemShares);
-        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(shares);
-
-        uint256 fluidBalance = fluidVault.balanceOf(address(strategy));
+        // uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
+        // uint256 centrifugeExpectedAssets = centrifugeVault.maxWithdraw(address(strategy));
+        uint256 sharesAsAssets = shares.mulDiv(_getSuperVaultPricePerShare(), 1e18, Math.Rounding.Floor);
+        uint256 assetsAsCentrifugeShares = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY)).getShareOutput(address(centrifugeVault), address(asset), sharesAsAssets);
+        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(assetsAsCentrifugeShares);
+        
         uint256 fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
-        uint256 fluidRedeemAmount = fluidVault.previewRedeem(shares);
+        uint256 fluidRedeemAmount = fluidVault.convertToAssets(fluidRedeemShares);
 
         address[] memory requestingUsers = new address[](2);
         requestingUsers[0] = accountEth;
@@ -330,6 +325,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(centrifugeVault),
             address(centrifugeVault.share()),
+            //centrifugeRedeemShares,
             shares,
             false,
             false
@@ -338,6 +334,9 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         expectedAssetsOrSharesOut[0] = fluidRedeemAmount;
         expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
+
+        console2.log("----expectedAssetsOrSharesOut[0]", expectedAssetsOrSharesOut[0]);
+        console2.log("----expectedAssetsOrSharesOut[1]", expectedAssetsOrSharesOut[1]);
 
         vm.prank(STRATEGIST);
         strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
