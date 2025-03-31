@@ -248,7 +248,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                     revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
                 }
             } else {
-                // TODO: add comment outlining 3 cases of flows
+                // TODO: add comment outlining 3 flow cases
                 // Process as regular hook
                 if (!peripheryRegistry.isHookRegistered(hook)) revert INVALID_HOOK();
 
@@ -275,7 +275,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // Call postExecute to update outAmount tracking
                 vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
 
-                // If the hook is non-accounting and the yield source is active, add the asset balance change to assetsInTransit
+                // If the hook is non-accounting and the yield source is active, add the asset balance change to
+                // assetsInTransit
                 if (
                     vars.hookType == ISuperHook.HookType.NONACCOUNTING
                         && asyncYieldSources[vars.targetedYieldSource].isActive
@@ -285,13 +286,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                         outAmount = IERC4626(vars.targetedYieldSource).convertToAssets(outAmount);
                     }
                     yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
-                    console2.log("----yieldSourceAssetsInTransit[vars.targetedYieldSource]", yieldSourceAssetsInTransit[vars.targetedYieldSource]);
+                    console2.log(
+                        "----yieldSourceAssetsInTransit[vars.targetedYieldSource]",
+                        yieldSourceAssetsInTransit[vars.targetedYieldSource]
+                    );
                     console2.log("----outAmount", outAmount);
                 }
 
                 // Update prevHook for next iteration
                 vars.prevHook = hook;
-            } 
+            }
         }
 
         // For fulfill operations, process the user requests after all hooks are executed
@@ -460,7 +464,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync) external {
+    function manageYieldSource(
+        address source,
+        address oracle,
+        uint8 actionType,
+        bool activate,
+        bool isAsync
+    )
+        external
+    {
         _requireRole(MANAGER_ROLE);
         YieldSource storage yieldSource = yieldSources[source];
 
@@ -690,11 +702,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         return IERC4626(source).totalAssets();
     }
 
-    function _onRedeemClaimable(address redeemer, uint256 assets, uint256 shares, uint256 averageWithdrawPrice) private {
+    function _onRedeemClaimable(
+        address redeemer,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageWithdrawPrice
+    )
+        private
+    {
         ISuperVault(_vault).onRedeemClaimable(redeemer, assets, shares, averageWithdrawPrice);
     }
 
-    function _onDepositClaimable(address depositor, uint256 assets, uint256 shares, uint256 averageDepositPrice) private {
+    function _onDepositClaimable(
+        address depositor,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageDepositPrice
+    )
+        private
+    {
         ISuperVault(_vault).onDepositClaimable(depositor, assets, shares, averageDepositPrice);
     }
 
@@ -731,15 +757,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
-        state.pendingDepositRequest= 0;
+        state.pendingDepositRequest = vars.requestedAmount >= vars.spentAmount ? vars.requestedAmount - vars.spentAmount : 0;
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
-        /*
-        vars.pricePerShare = _getSuperVaultPPS();
-
-        console2.log("PPS AFTER FULFIL", vars.pricePerShare);
-        */
 
         _onDepositClaimable(user, vars.requestedAmount, vars.shares, vars.pricePerShare);
     }
@@ -753,7 +774,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
 
         state.sharePricePointCursor = lastConsumedIndex;
-        state.pendingRedeemRequest = 0;
+        state.pendingRedeemRequest = state.pendingRedeemRequest >= vars.spentAmount ? state.pendingRedeemRequest - vars.spentAmount : 0;
 
         state.maxWithdraw += finalAssets;
 
@@ -970,7 +991,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         address target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
+
         if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
 
         // Execute hook with asset approval
@@ -982,7 +1005,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // TODO: Is this meant to be converted to shares?
         if (asyncYieldSources[target].isActive) {
-            if (outAmount <= yieldSourceAssetsInTransit[target]) {
+            if (yieldSourceAssetsInTransit[target] >= outAmount) {
                 yieldSourceAssetsInTransit[target] -= outAmount;
             }
         }
