@@ -768,7 +768,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         ISuperVault(_vault).burnShares(vars.requestedAmount);
 
-        _onRedeemClaimable(user, finalAssets, state.pendingRedeemRequest, vars.pricePerShare);
+        _onRedeemClaimable(user, finalAssets, state.pendingRedeemRequest, state.averageWithdrawPrice);
     }
 
     function _handleRequestDeposit(address controller, uint256 assets) private whenNotPaused returns (uint256) {
