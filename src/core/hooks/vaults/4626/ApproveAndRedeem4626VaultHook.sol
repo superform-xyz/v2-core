@@ -63,9 +63,8 @@ contract ApproveAndRedeem4626VaultHook is BaseHook, ISuperHook, ISuperHookInflow
         if (yieldSource == address(0) || owner == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](4);
-        executions[0] = Execution(
-          { target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) 
-          });
+        executions[0] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
         executions[1] =
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, shares)) });
         executions[2] = Execution({
