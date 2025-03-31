@@ -484,12 +484,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             if (isAsync) {
                 asyncYieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
                 asyncYieldSourcesList.push(source);
-                yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
-                yieldSourcesList.push(source);
-            } else {
-                yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
-                yieldSourcesList.push(source);
             }
+            yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
+            yieldSourcesList.push(source);
             emit YieldSourceAdded(source, oracle);
         } else if (actionType == 1) {
             if (oracle == address(0)) revert ZERO_ADDRESS();
@@ -780,7 +777,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         ISuperVault(_vault).burnShares(vars.requestedAmount);
 
-        _onRedeemClaimable(user, finalAssets, vars.requestedAmount, vars.pricePerShare);
+        _onRedeemClaimable(user, finalAssets, vars.requestedAmount, vars.pricePerShare); // TOD0: For partials, should requestedAmount not be the pendingRedeemRequest?
     }
 
     function _handleRequestDeposit(address controller, uint256 assets) private whenNotPaused returns (uint256) {
@@ -1003,12 +1000,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         if (outAmount == 0) revert ZERO_OUTPUT_AMOUNT();
 
-        // TODO: Is this meant to be converted to shares?
+        // TODO: Is this meant to be converted to assets
+        console2.log("----assetsInTransit[target] Before inflow", yieldSourceAssetsInTransit[target]);
         if (asyncYieldSources[target].isActive) {
-            if (yieldSourceAssetsInTransit[target] >= outAmount) {
-                yieldSourceAssetsInTransit[target] -= outAmount;
+            uint256 assetsOut = IYieldSourceOracle(asyncYieldSources[target].oracle).getAssetOutput(target, address(_asset), outAmount);
+            if (yieldSourceAssetsInTransit[target] >= assetsOut) {
+                yieldSourceAssetsInTransit[target] -= assetsOut;
             }
         }
+        console2.log("----assetsInTransit[target] After inflow", yieldSourceAssetsInTransit[target]);
     }
 
     /// @notice Struct for outflow execution variables
