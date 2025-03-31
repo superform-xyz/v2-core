@@ -184,6 +184,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // Determine if this is a fulfillment operation (users array not empty)
         uint256 usersLength = args.users.length;
         bool isFulfillment = usersLength > 0;
+        bool isDeposit;
 
         ExecutionVars memory vars;
         vars.hooksLength = hooksLength;
@@ -217,8 +218,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Get hook type
             vars.hookContract = ISuperHook(hook);
             vars.hookType = ISuperHookResult(hook).hookType();
-
-            bool isDeposit;
 
             if (isFulfillHook) {
                 vars.targetedYieldSource = HookDataDecoder.extractYieldSource(args.hookCalldata[i]);
