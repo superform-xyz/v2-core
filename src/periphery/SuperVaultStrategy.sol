@@ -214,6 +214,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Determine if this is a fulfill hook
             bool isFulfillHook = _isFulfillRequestsHook(hook);
 
+            // Get hook type
+            vars.hookContract = ISuperHook(hook);
+            vars.hookType = ISuperHookResult(hook).hookType();
+
+            bool isDeposit;
+
             if (isFulfillHook) {
                 vars.targetedYieldSource = HookDataDecoder.extractYieldSource(args.hookCalldata[i]);
 
@@ -225,13 +231,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             if (isFulfillment && isFulfillHook) {
                 // Process as fulfill hook
                 uint256 outAmount;
-                if (args.isDeposit) {
+                if (vars.hookType == ISuperHook.HookType.INFLOW) {
+                    isDeposit = true;
                     (uint256 amount, uint256 amountOut) =
                         _processInflowHookExecution(hook, vars.prevHook, args.hookCalldata[i]);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
                     outAmount = amountOut;
                 } else {
+                    isDeposit = false;
                     (uint256 amount, uint256 amountOut) =
                         _processOutflowHookExecution(hook, vars.prevHook, args.hookCalldata[i], vars.pricePerShare);
                     vars.prevHook = hook;
@@ -247,10 +255,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             } else {
                 // Process as regular hook
                 if (!peripheryRegistry.isHookRegistered(hook)) revert INVALID_HOOK();
-
-                // Get hook type
-                vars.hookContract = ISuperHook(hook);
-                vars.hookType = ISuperHookResult(hook).hookType();
 
                 // Call preExecute to initialize outAmount tracking
                 vars.hookContract.preExecute(vars.prevHook, address(this), args.hookCalldata[i]);
@@ -296,7 +300,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 address user = args.users[i];
                 SuperVaultState storage state = superVaultState[user];
 
-                if (args.isDeposit) {
+                if (isDeposit) {
                     _processDeposit(user, state, vars);
                 } else {
                     _processRedeem(user, state, vars);
