@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 
 // External
@@ -211,8 +209,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
-            console2.log("\n--------EXECUTING FULFILMENT");
-            console2.log("PPS before fulfil", vars.pricePerShare);
         } else {
             // Standard hook execution setup
             vars.inflowTargets = new address[](hooksLength);
@@ -297,11 +293,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                         outAmount = IERC4626(vars.targetedYieldSource).convertToAssets(outAmount);
                     }
                     yieldSourceAssetsInTransit[vars.targetedYieldSource] += outAmount;
-                    console2.log(
-                        "----yieldSourceAssetsInTransit[vars.targetedYieldSource]",
-                        yieldSourceAssetsInTransit[vars.targetedYieldSource]
-                    );
-                    console2.log("----outAmount", outAmount);
                 }
 
                 // Update prevHook for next iteration
@@ -440,8 +431,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             if (yieldSources[source].isActive) {
                 // Add yield source's TVL to total assets
                 uint256 tvl = _getTvlByOwnerOfShares(source);
-                console2.log("----tvl", tvl);
-                console2.log("----yieldSourceAssetsInTransit[source]", yieldSourceAssetsInTransit[source]);
                 totalAssets_ += tvl + yieldSourceAssetsInTransit[source];
                 sourceTVLs[activeSourceCount++] =
                     YieldSourceTVL({ source: source, tvl: tvl + yieldSourceAssetsInTransit[source] });
@@ -1006,14 +995,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         if (outAmount == 0) revert ZERO_OUTPUT_AMOUNT();
 
-        console2.log("----assetsInTransit[target] Before inflow", yieldSourceAssetsInTransit[target]);
         if (asyncYieldSources[target].isActive) {
             uint256 assetsOut = IYieldSourceOracle(asyncYieldSources[target].oracle).getAssetOutput(target, address(_asset), outAmount);
             if (yieldSourceAssetsInTransit[target] >= assetsOut) {
                 yieldSourceAssetsInTransit[target] -= assetsOut;
             }
         }
-        console2.log("----assetsInTransit[target] After inflow", yieldSourceAssetsInTransit[target]);
     }
 
     /// @notice Struct for outflow execution variables
@@ -1043,19 +1030,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     {
         OutflowExecutionVars memory execVars;
 
-        console2.log("----pricePerShare", pricePerShare);
-
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
-        console2.log("----execVars.amount", execVars.amount);
 
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
-        console2.log("----execVars.amountOfAssets", execVars.amountOfAssets);
 
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
-        console2.log("----execVars.amountConvertedToUnderlyingShares", execVars.amountConvertedToUnderlyingShares);
 
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
