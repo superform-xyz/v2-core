@@ -290,12 +290,8 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         uint256 shares2 = strategy.pendingRedeemRequest(accInstances[2].account);
         uint256 shares = (shares1 + shares2) / 2;
 
-        uint256 sharesAsAssets = shares.mulDiv(_getSuperVaultPricePerShare(), 1e18, Math.Rounding.Floor);
-        console2.log("----sharesAsAssets", sharesAsAssets);
-        uint256 assetsAsCentrifugeShares = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY)).getShareOutput(address(centrifugeVault), address(asset), sharesAsAssets);
-        console2.log("----assetsAsCentrifugeShares", assetsAsCentrifugeShares);
-        //uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(assetsAsCentrifugeShares);
-        //console2.log("----centrifugeExpectedAssets", assetsAsCentrifugeShares);
+        (uint256 centrifugeShares, uint256 centrifugeExpectedAssets) = _getCentrifugeSharesInAssets();
+
         uint256 fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
         uint256 fluidRedeemAmount = fluidVault.convertToAssets(fluidRedeemShares);
 
@@ -325,18 +321,26 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(centrifugeVault),
             address(centrifugeVault.share()),
-            shares,
+            centrifugeShares,
             false,
             false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         expectedAssetsOrSharesOut[0] = fluidRedeemAmount;
-        expectedAssetsOrSharesOut[1] = assetsAsCentrifugeShares;
+        expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
 
         vm.prank(STRATEGIST);
         strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
 
         console2.log("---- PPS After Fulfill Redemptions", _getSuperVaultPricePerShare());
+    }
+
+    function _getCentrifugeSharesInAssets() internal view returns (uint256 centrifugeShares, uint256 centrifugeExpectedAssets) {
+        centrifugeShares = centrifugeVault.maxRedeem(address(strategy));
+        uint256 centrifugeSharesInAssets = centrifugeShares.mulDiv(_getSuperVaultPricePerShare(), 1e18, Math.Rounding.Floor);
+
+        uint256 assetsAsCentrifugeShares = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY)).getShareOutput(address(centrifugeVault), address(asset), centrifugeSharesInAssets);
+        centrifugeExpectedAssets = centrifugeVault.convertToAssets(assetsAsCentrifugeShares);
     }
 }
