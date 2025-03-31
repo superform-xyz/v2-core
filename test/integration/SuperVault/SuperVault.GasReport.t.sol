@@ -190,8 +190,7 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         // check new balances

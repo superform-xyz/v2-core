@@ -296,8 +296,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: minAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: minAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -342,8 +341,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
     }
@@ -378,8 +376,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
     }
@@ -417,8 +414,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();

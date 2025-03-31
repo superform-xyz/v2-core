@@ -203,8 +203,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         console2.log("---- Pending deposit request", centrifugeVault.pendingDepositRequest(0, address(strategy)));
@@ -262,8 +261,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
 
@@ -293,8 +291,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         console2.log("---- PPS After Centrifuge Request Redeem", _getSuperVaultPricePerShare());
@@ -360,8 +357,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         console2.log("---- PPS After Fulfill Redemptions", _getSuperVaultPricePerShare());

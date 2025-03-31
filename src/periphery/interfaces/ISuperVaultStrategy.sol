@@ -136,7 +136,6 @@ interface ISuperVaultStrategy {
         address[] hooks;
         bytes[] hookCalldata;
         uint256[] expectedAssetsOrSharesOut;
-        bool isDeposit;
     }
 
     /// @notice Local variables struct for executeHooks to avoid stack too deep

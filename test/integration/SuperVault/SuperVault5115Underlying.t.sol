@@ -207,8 +207,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 users: users,
                 hooks: hooks_,
                 hookCalldata: hookCalldata,
-                expectedAssetsOrSharesOut: minAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: minAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -256,8 +255,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooks_,
                 hookCalldata: hookCalldata,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -293,8 +291,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();

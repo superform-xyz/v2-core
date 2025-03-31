@@ -346,8 +346,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -429,8 +428,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: vars.requestingUsers,
                 hooks: vars.fulfillHooksAddresses,
                 hookCalldata: vars.fulfillHooksData,
-                expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -470,8 +468,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -515,8 +512,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -557,8 +553,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -604,8 +599,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -669,8 +663,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -723,8 +716,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -1014,8 +1006,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                     users: users,
                     hooks: finalHooksAddresses,
                     hookCalldata: finalHooksData,
-                    expectedAssetsOrSharesOut: new uint256[](0),
-                    isDeposit: false
+                    expectedAssetsOrSharesOut: new uint256[](0)
                 })
             );
             vm.stopPrank();
@@ -1277,8 +1268,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -1321,8 +1311,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: false
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();

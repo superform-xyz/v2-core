@@ -592,8 +592,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                isDeposit: true
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
@@ -738,8 +737,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                     users: requestingUsers,
                     hooks: fulfillHooksAddresses,
                     hookCalldata: fulfillHooksData,
-                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                    isDeposit: true
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
                 })
             );
             vm.stopPrank();
@@ -1050,8 +1048,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -1560,8 +1557,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -1613,8 +1609,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -1757,8 +1752,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -1819,8 +1813,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -1839,8 +1832,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -2052,8 +2044,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -2145,8 +2136,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](0),
-                isDeposit: false
+                expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
         vm.stopPrank();
@@ -2592,8 +2582,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
                     users: new address[](0),
                     hooks: hooksAddresses,
                     hookCalldata: hooksData,
-                    expectedAssetsOrSharesOut: new uint256[](0),
-                    isDeposit: false
+                    expectedAssetsOrSharesOut: new uint256[](0)
                 })
             );
             vm.stopPrank();
