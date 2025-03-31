@@ -126,13 +126,17 @@ interface ISuperVaultStrategy {
         uint256 totalRequestedAmount;
         uint256 spentAmount;
         uint256 pricePerShare;
-        uint256 availableAmount;
         uint256 requestedAmount;
         uint256 shares;
-        // Execute hooks specific
-        uint256 inflowCount;
-        address[] inflowTargets;
-        uint256 outAmount;
+    }
+
+    /// @notice Arguments for the execute function
+    struct ExecuteArgs {
+        address[] users;
+        address[] hooks;
+        bytes[] hookCalldata;
+        uint256[] expectedAssetsOrSharesOut;
+        bool isDeposit;
     }
 
     /// @notice Local variables struct for executeHooks to avoid stack too deep
@@ -210,20 +214,10 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @notice Execute hooks with support for fulfilling user requests
-    /// @param users Optional array of users for request fulfillment (empty if not fulfilling requests)
-    /// @param hooks Array of hooks to execute in sequence
-    /// @param hookCalldata Array of calldata for each hook
-    /// @param expectedAssetsOrSharesOut Optional array of expected minimum output values (required for fulfillment)
-    /// @param isDeposit Whether to process as deposits (true) or withdrawals (false) when fulfilling
-    function execute(
-        address[] calldata users,
-        address[] calldata hooks,
-        bytes[] memory hookCalldata,
-        uint256[] memory expectedAssetsOrSharesOut,
-        bool isDeposit
-    )
-        external;
+    /// @param args Execution arguments containing all parameters
+    function execute(ExecuteArgs calldata args) external;
 
     /// @notice Match redeem requests with deposit requests directly
     /// @param redeemUsers Array of users with pending redeem requests
@@ -247,7 +241,14 @@ interface ISuperVaultStrategy {
     ///        2 - Toggle activation (oracle param ignored).
     /// @param activate Boolean flag for activation when actionType is 2.
     /// @param isAsync Boolean flag for async yield source
-    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync) external;
+    function manageYieldSource(
+        address source,
+        address oracle,
+        uint8 actionType,
+        bool activate,
+        bool isAsync
+    )
+        external;
 
     /// @notice Propose or execute a hook root update
     /// @dev if newRoot is 0, executes the proposed hook root update

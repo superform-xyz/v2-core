@@ -10,6 +10,7 @@ import { console2 } from "forge-std/console2.sol";
 // superform
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
 contract SuperVaultGasReportTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
@@ -184,9 +185,15 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
-        vm.stopPrank();
-
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         // check new balances
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));

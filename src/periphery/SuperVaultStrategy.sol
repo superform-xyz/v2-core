@@ -175,22 +175,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function execute(
-        address[] calldata users,
-        address[] calldata hooks,
-        bytes[] memory hookCalldata,
-        uint256[] memory expectedAssetsOrSharesOut,
-        bool isDeposit
-    )
-        external
-    {
+    function execute(ExecuteArgs calldata args) external {
         _requireRole(STRATEGIST_ROLE);
 
-        uint256 hooksLength = hooks.length;
+        uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
 
         // Determine if this is a fulfillment operation (users array not empty)
-        uint256 usersLength = users.length;
+        uint256 usersLength = args.users.length;
         bool isFulfillment = usersLength > 0;
 
         ExecutionVars memory vars;
@@ -200,18 +192,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // If fulfillment operation, validate and prepare additional parameters
         if (isFulfillment) {
             // Validate array lengths
-            _validateFulfillHooksArrays(hooksLength, hookCalldata.length);
+            _validateFulfillHooksArrays(hooksLength, args.hookCalldata.length);
 
-            if (expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
+            if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
             // Validate requests and determine total amount (assets for deposits, shares for redeem)
-            vars.totalRequestedAmount = _validateRequests(usersLength, users, isDeposit);
+            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, args.isDeposit);
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
-        } else {
-            // Standard hook execution setup
-            vars.inflowTargets = new address[](hooksLength);
         }
 
         // Process hooks
@@ -220,13 +209,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // 2. isFulfillment && !isFulfillHook -> Process as regular hook
         // 3. !isFulfillment && isFulfillHook -> Process as regular hook
         for (uint256 i = 0; i < hooksLength; ++i) {
-            address hook = hooks[i];
+            address hook = args.hooks[i];
 
             // Determine if this is a fulfill hook
             bool isFulfillHook = _isFulfillRequestsHook(hook);
 
             if (isFulfillHook) {
-                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(args.hookCalldata[i]);
 
                 if (!yieldSources[vars.targetedYieldSource].isActive) {
                     revert YIELD_SOURCE_NOT_ACTIVE();
@@ -236,22 +225,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             if (isFulfillment && isFulfillHook) {
                 // Process as fulfill hook
                 uint256 outAmount;
-                if (isDeposit) {
+                if (args.isDeposit) {
                     (uint256 amount, uint256 amountOut) =
-                        _processInflowHookExecution(hook, vars.prevHook, hookCalldata[i]);
+                        _processInflowHookExecution(hook, vars.prevHook, args.hookCalldata[i]);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
                     outAmount = amountOut;
                 } else {
                     (uint256 amount, uint256 amountOut) =
-                        _processOutflowHookExecution(hook, vars.prevHook, hookCalldata[i], vars.pricePerShare);
+                        _processOutflowHookExecution(hook, vars.prevHook, args.hookCalldata[i], vars.pricePerShare);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
                     outAmount = amountOut;
                 }
                 if (
                     outAmount * ONE_HUNDRED_PERCENT
-                        < expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+                        < args.expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
                 ) {
                     revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
                 }
@@ -264,13 +253,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 vars.hookType = ISuperHookResult(hook).hookType();
 
                 // Call preExecute to initialize outAmount tracking
-                vars.hookContract.preExecute(vars.prevHook, address(this), hookCalldata[i]);
+                vars.hookContract.preExecute(vars.prevHook, address(this), args.hookCalldata[i]);
 
                 // Extract targeted yield source from hook calldata
-                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(args.hookCalldata[i]);
 
                 // Build executions for this hook
-                vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
+                vars.executions = vars.hookContract.build(vars.prevHook, address(this), args.hookCalldata[i]);
 
                 for (uint256 j; j < vars.executions.length; ++j) {
                     // Execute the transaction
@@ -280,7 +269,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 }
 
                 // Call postExecute to update outAmount tracking
-                vars.hookContract.postExecute(vars.prevHook, address(this), hookCalldata[i]);
+                vars.hookContract.postExecute(vars.prevHook, address(this), args.hookCalldata[i]);
 
                 // If the hook is non-accounting and the yield source is active, add the asset balance change to
                 // assetsInTransit
@@ -304,10 +293,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         if (isFulfillment) {
             // Process user requests
             for (uint256 i; i < usersLength; ++i) {
-                address user = users[i];
+                address user = args.users[i];
                 SuperVaultState storage state = superVaultState[user];
 
-                if (isDeposit) {
+                if (args.isDeposit) {
                     _processDeposit(user, state, vars);
                 } else {
                     _processRedeem(user, state, vars);
@@ -318,7 +307,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         _checkSuperVaultCap();
 
         // Emit appropriate event
-        emit ExecutionCompleted(hooks, isFulfillment, users.length, vars.spentAmount);
+        emit ExecutionCompleted(args.hooks, isFulfillment, args.users.length, vars.spentAmount);
     }
 
     /// @param redeemUsers Array of users with pending redeem requests

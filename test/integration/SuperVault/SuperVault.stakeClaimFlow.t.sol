@@ -251,7 +251,11 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndRequestDeposit7540HookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), address(asset), depositAmount, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearSuperVault),
+            address(asset),
+            depositAmount,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -275,7 +279,12 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         bytes[] memory fulfillHooksData = new bytes[](1);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), address(asset), depositAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxVault),
+            address(asset),
+            depositAmount,
+            false,
+            false
         );
 
         uint256[] memory minAssetsOrSharesOut = new uint256[](1);
@@ -283,7 +292,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         strategyGearSuperVault.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: minAssetsOrSharesOut,
+                isDeposit: true
+            })
         );
         vm.stopPrank();
 
@@ -323,7 +338,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         vm.prank(STRATEGIST);
         strategyGearSuperVault.execute(
-            new address[](0), hooksAddresses, hooksData, new uint256[](0), false
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
         );
     }
 
@@ -353,7 +374,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         vm.prank(STRATEGIST);
         strategyGearSuperVault.execute(
-            new address[](0), hooksAddresses, hooksData, new uint256[](0), false
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
         );
     }
 
@@ -386,7 +413,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         strategyGearSuperVault.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
         );
         vm.stopPrank();
     }

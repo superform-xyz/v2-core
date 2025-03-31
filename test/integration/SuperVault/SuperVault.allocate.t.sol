@@ -12,6 +12,7 @@ import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { console2 } from "forge-std/console2.sol";
 
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
 contract SuperVaultAllocateTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
@@ -285,7 +286,9 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false);
+        strategy.manageYieldSource(
+            address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
         vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -346,7 +349,15 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
 
         // check new balances
