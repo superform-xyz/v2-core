@@ -230,7 +230,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
                 if (!yieldSources[vars.targetedYieldSource].isActive) {
                     revert YIELD_SOURCE_NOT_ACTIVE();
-                } 
+                }
             }
 
             if (isFulfillment && isFulfillHook) {
@@ -751,7 +751,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
-        state.pendingDepositRequest = vars.requestedAmount >= vars.spentAmount ? vars.requestedAmount - vars.spentAmount : 0;
+        state.pendingDepositRequest =
+            vars.requestedAmount >= vars.spentAmount ? vars.requestedAmount - vars.spentAmount : 0;
         state.maxMint += vars.shares;
 
         ISuperVault(_vault).mintShares(vars.shares);
@@ -768,7 +769,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
 
         state.sharePricePointCursor = lastConsumedIndex;
-        state.pendingRedeemRequest = state.pendingRedeemRequest >= vars.spentAmount ? state.pendingRedeemRequest - vars.spentAmount : 0;
+        state.pendingRedeemRequest =
+            state.pendingRedeemRequest >= vars.spentAmount ? state.pendingRedeemRequest - vars.spentAmount : 0;
 
         state.maxWithdraw += finalAssets;
 
@@ -996,7 +998,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         if (outAmount == 0) revert ZERO_OUTPUT_AMOUNT();
 
         if (asyncYieldSources[target].isActive) {
-            uint256 assetsOut = IYieldSourceOracle(asyncYieldSources[target].oracle).getAssetOutput(target, address(_asset), outAmount);
+            uint256 assetsOut =
+                IYieldSourceOracle(asyncYieldSources[target].oracle).getAssetOutput(target, address(_asset), outAmount);
             if (yieldSourceAssetsInTransit[target] >= assetsOut) {
                 yieldSourceAssetsInTransit[target] -= assetsOut;
             }
