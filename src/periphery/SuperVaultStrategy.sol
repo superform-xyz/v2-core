@@ -219,6 +219,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         }
 
         // Process hooks
+        // @dev There are 3 possible flows:
+        // 1. isFulfillment && isFulfillHook -> Process as fulfill hook
+        // 2. isFulfillment && !isFulfillHook -> Process as regular hook
+        // 3. !isFulfillment && isFulfillHook -> Process as regular hook
         for (uint256 i = 0; i < hooksLength; ++i) {
             address hook = hooks[i];
 
@@ -248,7 +252,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                     revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
                 }
             } else {
-                // TODO: add comment outlining 3 flow cases
                 // Process as regular hook
                 if (!peripheryRegistry.isHookRegistered(hook)) revert INVALID_HOOK();
 
@@ -312,9 +315,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 }
             }
         }
-
-        // TODO: Add global slippage check on total balance changes
-
         // Check super vault cap
         _checkSuperVaultCap();
 
@@ -1000,7 +1000,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         if (outAmount == 0) revert ZERO_OUTPUT_AMOUNT();
 
-        // TODO: Is this meant to be converted to assets
         console2.log("----assetsInTransit[target] Before inflow", yieldSourceAssetsInTransit[target]);
         if (asyncYieldSources[target].isActive) {
             uint256 assetsOut = IYieldSourceOracle(asyncYieldSources[target].oracle).getAssetOutput(target, address(_asset), outAmount);
