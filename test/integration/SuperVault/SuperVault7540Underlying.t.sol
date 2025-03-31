@@ -290,12 +290,12 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         uint256 shares2 = strategy.pendingRedeemRequest(accInstances[2].account);
         uint256 shares = (shares1 + shares2) / 2;
 
-        // uint256 centrifugeRedeemShares = centrifugeVault.maxRedeem(address(strategy));
-        // uint256 centrifugeExpectedAssets = centrifugeVault.maxWithdraw(address(strategy));
         uint256 sharesAsAssets = shares.mulDiv(_getSuperVaultPricePerShare(), 1e18, Math.Rounding.Floor);
+        console2.log("----sharesAsAssets", sharesAsAssets);
         uint256 assetsAsCentrifugeShares = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY)).getShareOutput(address(centrifugeVault), address(asset), sharesAsAssets);
-        uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(assetsAsCentrifugeShares);
-        
+        console2.log("----assetsAsCentrifugeShares", assetsAsCentrifugeShares);
+        //uint256 centrifugeExpectedAssets = centrifugeVault.convertToAssets(assetsAsCentrifugeShares);
+        //console2.log("----centrifugeExpectedAssets", assetsAsCentrifugeShares);
         uint256 fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
         uint256 fluidRedeemAmount = fluidVault.convertToAssets(fluidRedeemShares);
 
@@ -304,11 +304,11 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         requestingUsers[1] = accInstances[2].account;
 
         address redeemHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
-        address withdraw7540HookAddress = _getHookAddress(ETH, APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
+        address redeem7540HookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
         fulfillHooksAddresses[0] = redeemHookAddress;
-        fulfillHooksAddresses[1] = withdraw7540HookAddress;
+        fulfillHooksAddresses[1] = redeem7540HookAddress;
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
@@ -321,11 +321,10 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             false
         );
 
-        fulfillHooksData[1] = _createApproveAndWithdraw7540VaultHookData(
+        fulfillHooksData[1] = _createApproveAndRedeem7540VaultHookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(centrifugeVault),
             address(centrifugeVault.share()),
-            //centrifugeRedeemShares,
             shares,
             false,
             false
@@ -333,10 +332,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         expectedAssetsOrSharesOut[0] = fluidRedeemAmount;
-        expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
-
-        console2.log("----expectedAssetsOrSharesOut[0]", expectedAssetsOrSharesOut[0]);
-        console2.log("----expectedAssetsOrSharesOut[1]", expectedAssetsOrSharesOut[1]);
+        expectedAssetsOrSharesOut[1] = assetsAsCentrifugeShares;
 
         vm.prank(STRATEGIST);
         strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
