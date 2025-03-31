@@ -184,7 +184,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         // Determine if this is a fulfillment operation (users array not empty)
         uint256 usersLength = args.users.length;
         bool isFulfillment = usersLength > 0;
-        bool isDeposit;
+        /// @dev the first hook in fulfilment dictates the type used through the function
+        FulfillmentType fulfillmentType;
 
         ExecutionVars memory vars;
         vars.hooksLength = hooksLength;
@@ -228,14 +229,24 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // Process as fulfill hook
                 uint256 outAmount;
                 if (vars.hookType == ISuperHook.HookType.INFLOW) {
-                    isDeposit = true;
+                    if (fulfillmentType == FulfillmentType.REDEEM) {
+                        revert INVALID_FULFILMENT_TYPE();
+                    } else if (fulfillmentType == FulfillmentType.UNSET) {
+                        fulfillmentType = FulfillmentType.DEPOSIT;
+                    }
+
                     (uint256 amount, uint256 amountOut) =
                         _processInflowHookExecution(hook, vars.prevHook, args.hookCalldata[i]);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
                     outAmount = amountOut;
                 } else {
-                    isDeposit = false;
+                    if (fulfillmentType == FulfillmentType.DEPOSIT) {
+                        revert INVALID_FULFILMENT_TYPE();
+                    } else if (fulfillmentType == FulfillmentType.UNSET) {
+                        fulfillmentType = FulfillmentType.REDEEM;
+                    }
+
                     (uint256 amount, uint256 amountOut) =
                         _processOutflowHookExecution(hook, vars.prevHook, args.hookCalldata[i], vars.pricePerShare);
                     vars.prevHook = hook;
@@ -291,15 +302,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
-            // Validate requests and determine total amount (assets for deposits, shares for redeem)
-            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, isDeposit);
+            // Validate requests and determine total amount (assets for deposits, shares for redeems)
+            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, fulfillmentType);
 
             // Process user requests
             for (uint256 i; i < usersLength; ++i) {
                 address user = args.users[i];
                 SuperVaultState storage state = superVaultState[user];
 
-                if (isDeposit) {
+                if (fulfillmentType == FulfillmentType.DEPOSIT) {
                     _processDeposit(user, state, vars);
                 } else {
                     _processRedeem(user, state, vars);
@@ -360,6 +371,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Verify deposit was fully matched
             if (vars.remainingShares > 0) revert INCOMPLETE_DEPOSIT_MATCH();
 
+            _updateAverageDepositPrice(depositState, vars.sharesNeeded, vars.depositAssets);
+
             // Add share price point for the deposit
             depositState.sharePricePoints.push(
                 SharePricePoint({ shares: vars.sharesNeeded, pricePerShare: vars.currentPricePerShare })
@@ -370,7 +383,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             depositState.maxMint += vars.sharesNeeded;
 
             // Call vault callback instead of emitting event directly
-            _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded, state.averageDepositPrice);
+            _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded, depositState.averageDepositPrice);
         }
 
         // Process accumulated shares for redeemers
@@ -393,7 +406,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 redeemState.maxWithdraw += vars.finalAssets;
 
                 // Call vault callback instead of emitting event directly
-                _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed, state.averageWithdrawPrice);
+                _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed, redeemState.averageWithdrawPrice);
             }
         }
     }
@@ -730,17 +743,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         vars.requestedAmount = state.pendingDepositRequest;
         vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
 
-        uint256 newTotalUserShares = state.maxMint + vars.shares;
-
-        if (newTotalUserShares > 0) {
-            uint256 existingUserAssets = 0;
-            if (state.maxMint > 0 && state.averageDepositPrice > 0) {
-                existingUserAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
-            }
-
-            uint256 newTotalUserAssets = existingUserAssets + vars.requestedAmount;
-            state.averageDepositPrice = newTotalUserAssets.mulDiv(PRECISION, newTotalUserShares, Math.Rounding.Floor);
-        }
+        _updateAverageDepositPrice(state, vars.shares, vars.requestedAmount);
 
         state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
         state.pendingDepositRequest =
@@ -877,19 +880,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     /// @notice Validate requests and get total amount
     /// @param usersLength Length of users array
     /// @param users Array of user addresses
-    /// @param isDeposit Whether this is a deposit request validation
+    /// @param fulfillmentType The fulfillment type
     /// @return totalRequested Total amount requested (assets for deposits, shares for redeems)
     function _validateRequests(
         uint256 usersLength,
         address[] calldata users,
-        bool isDeposit
+        FulfillmentType fulfillmentType
     )
         private
         view
         returns (uint256 totalRequested)
     {
+        if (fulfillmentType == FulfillmentType.UNSET) revert FULFILMENT_TYPE_UNSET();
         for (uint256 i; i < usersLength; ++i) {
-            uint256 pendingRequest = isDeposit
+            uint256 pendingRequest = fulfillmentType == FulfillmentType.DEPOSIT
                 ? superVaultState[users[i]].pendingDepositRequest
                 : superVaultState[users[i]].pendingRedeemRequest;
 
@@ -996,17 +1000,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 yieldSourceAssetsInTransit[target] -= assetsOut;
             }
         }
-    }
-
-    /// @notice Struct for outflow execution variables
-    struct OutflowExecutionVars {
-        uint256 amount;
-        uint256 amountOfAssets;
-        uint256 amountConvertedToUnderlyingShares;
-        uint256 balanceAssetBefore;
-        uint256 balanceAssetAfter;
-        address target;
-        address yieldSource;
     }
 
     /// @notice Process outflow hook execution
@@ -1194,6 +1187,26 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         if (newTotalShares > 0) {
             state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+        }
+    }
+
+    function _updateAverageDepositPrice(
+        SuperVaultState storage state,
+        uint256 newShares,
+        uint256 depositAssets
+    )
+        private
+    {
+        uint256 existingUserAssets = 0;
+        uint256 newTotalUserShares = state.maxMint + newShares;
+
+        if (newTotalUserShares > 0) {
+            if (state.maxMint > 0 && state.averageDepositPrice > 0) {
+                existingUserAssets = state.maxMint.mulDiv(state.averageDepositPrice, PRECISION, Math.Rounding.Floor);
+            }
+
+            uint256 newTotalUserAssets = existingUserAssets + depositAssets;
+            state.averageDepositPrice = newTotalUserAssets.mulDiv(PRECISION, newTotalUserShares, Math.Rounding.Floor);
         }
     }
 
