@@ -38,6 +38,7 @@ import { Redeem5115VaultHook } from "../src/core/hooks/vaults/5115/Redeem5115Vau
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { ApproveAndDeposit4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ApproveAndRedeem4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndRedeem4626VaultHook.sol";
 // -- erc7540
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
@@ -45,7 +46,8 @@ import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-
+import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
+import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
@@ -138,12 +140,15 @@ struct Addresses {
     ApproveAndDeposit5115VaultHook approveAndDeposit5115VaultHook;
     ApproveAndRequestDeposit7540VaultHook approveAndRequestDeposit7540VaultHook;
     Redeem4626VaultHook redeem4626VaultHook;
+    ApproveAndRedeem4626VaultHook approveAndRedeem4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
     Redeem5115VaultHook redeem5115VaultHook;
     Deposit7540VaultHook deposit7540VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestRedeem7540VaultHook requestRedeem7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
+    ApproveAndWithdraw7540VaultHook approveAndWithdraw7540VaultHook;
+    ApproveAndRedeem7540VaultHook approveAndRedeem7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     Swap1InchHook swap1InchHook;
     SwapOdosHook swapOdosHook;
@@ -550,6 +555,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][REDEEM_4626_VAULT_HOOK_KEY]
             );
 
+            A[i].approveAndRedeem4626VaultHook =
+                new ApproveAndRedeem4626VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].approveAndRedeem4626VaultHook), APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY] =
+                address(A[i].approveAndRedeem4626VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultWithdrawals,
+                address(A[i].approveAndRedeem4626VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY]
+            );
+
             A[i].deposit5115VaultHook = new Deposit5115VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].deposit5115VaultHook), DEPOSIT_5115_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = address(A[i].deposit5115VaultHook);
@@ -668,6 +689,38 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
+            );
+
+            A[i].approveAndWithdraw7540VaultHook =
+                new ApproveAndWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].approveAndWithdraw7540VaultHook), APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] =
+                address(A[i].approveAndWithdraw7540VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultWithdrawals,
+                address(A[i].approveAndWithdraw7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY]
+            );
+
+            A[i].approveAndRedeem7540VaultHook =
+                new ApproveAndRedeem7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].approveAndRedeem7540VaultHook), APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] =
+                address(A[i].approveAndRedeem7540VaultHook);
+            hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] = Hook(
+                APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.VaultWithdrawals,
+                address(A[i].approveAndRedeem7540VaultHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY]
             );
 
             A[i].swap1InchHook = new Swap1InchHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ONE_INCH_ROUTER);
@@ -839,10 +892,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             // Register fulfillRequests hooks
             peripheryRegistry.registerHook(address(A[i].deposit4626VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].redeem4626VaultHook), true);
+            peripheryRegistry.registerHook(address(A[i].approveAndRedeem4626VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].deposit5115VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].redeem5115VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].requestDeposit7540VaultHook), false);
             peripheryRegistry.registerHook(address(A[i].requestRedeem7540VaultHook), false);
+
             // Register remaining hooks
             peripheryRegistry.registerHook(address(A[i].approveAndDeposit4626VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].approveAndDeposit5115VaultHook), true);
@@ -850,7 +905,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             peripheryRegistry.registerHook(address(A[i].approveErc20Hook), false);
             peripheryRegistry.registerHook(address(A[i].transferErc20Hook), false);
             peripheryRegistry.registerHook(address(A[i].deposit7540VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].withdraw7540VaultHook), true);
+            peripheryRegistry.registerHook(address(A[i].withdraw7540VaultHook), false);
+            peripheryRegistry.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].swap1InchHook), false);
             peripheryRegistry.registerHook(address(A[i].swapOdosHook), false);
             peripheryRegistry.registerHook(address(A[i].approveAndSwapOdosHook), false);
@@ -1368,6 +1424,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
     }
 
+    function _createApproveAndRedeem4626HookData(
+        bytes4 yieldSourceOracleId,
+        address vault,
+        address token,
+        address owner,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, owner, amount, usePrevHookAmount, lockForSP);
+    }
+
     function _create5115RedeemHookData(
         bytes4 yieldSourceOracleId,
         address vault,
@@ -1578,6 +1650,36 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         returns (bytes memory)
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createApproveAndWithdraw7540VaultHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        address token,
+        uint256 amount,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount, lockForSP);
+    }
+
+    function _createApproveAndRedeem7540VaultHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        address token,
+        uint256 shares,
+        bool usePrevHookAmount,
+        bool lockForSP
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount, lockForSP);
     }
 
     function _createDeposit5115VaultHookData(

@@ -521,18 +521,20 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     /// @param user The user whose deposit is claimable
     /// @param assets The amount of assets deposited
     /// @param shares The amount of shares to be received
-    function onDepositClaimable(address user, uint256 assets, uint256 shares) external {
+    /// @param averageDepositPrice The average price of the deposit
+    function onDepositClaimable(address user, uint256 assets, uint256 shares, uint256 averageDepositPrice) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
-        emit DepositClaimable(user, REQUEST_ID, assets, shares);
+        emit DepositClaimable(user, REQUEST_ID, assets, shares, averageDepositPrice);
     }
 
     /// @notice Callback function for when a redeem becomes claimable
     /// @param user The user whose redeem is claimable
     /// @param assets The amount of assets to be received
     /// @param shares The amount of shares redeemed
-    function onRedeemClaimable(address user, uint256 assets, uint256 shares) external {
+    /// @param averageWithdrawPrice The average price of the redeem
+    function onRedeemClaimable(address user, uint256 assets, uint256 shares, uint256 averageWithdrawPrice) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
-        emit RedeemClaimable(user, REQUEST_ID, assets, shares);
+        emit RedeemClaimable(user, REQUEST_ID, assets, shares, averageWithdrawPrice);
     }
 
     /*//////////////////////////////////////////////////////////////

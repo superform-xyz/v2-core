@@ -389,9 +389,27 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         uint256 totalAssets = currentFluidVaultAssets + currentAaveVaultAssets;
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
         bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveAndRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(fluidVault),
+            address(strategy),
+            initialFluidVaultBalance,
+            false,
+            false
+        );
+        hooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(asset),
+            initialAaveVaultBalance,
+            false,
+            false
+        );
 
         uint256 amountToReallocate = initialFluidVaultBalance.mulDiv(3000, 10_000);
         uint256 assetAmountToReallocate = fluidVault.convertToAssets(amountToReallocate);
@@ -505,9 +523,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // add vaults to SV
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
-        strategy.manageYieldSource(address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
-        strategy.manageYieldSource(address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(
+            address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
+        strategy.manageYieldSource(
+            address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
+        strategy.manageYieldSource(
+            address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
         vm.stopPrank();
 
         // use 3 users to perform deposits
@@ -518,7 +542,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         // fulfill deposits
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](3);
         fulfillHooksAddresses[0] = depositHookAddress;
@@ -527,14 +551,29 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         bytes[] memory fulfillHooksData = new bytes[](3);
         // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), vars.depositAmount, false, false
+        fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vars.vault1),
+            address(asset),
+            vars.depositAmount,
+            false,
+            false
         );
-        fulfillHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), vars.depositAmount, false, false
+        fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vars.vault2),
+            address(asset),
+            vars.depositAmount,
+            false,
+            false
         );
-        fulfillHooksData[2] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), vars.depositAmount, false, false
+        fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vars.vault3),
+            address(asset),
+            vars.depositAmount,
+            false,
+            false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
@@ -548,11 +587,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+            })
         );
         vm.stopPrank();
-
         // claim deposits
         for (uint256 i; i < 3; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
@@ -624,9 +667,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // add vaults to SV
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
-        strategy.manageYieldSource(address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
-        strategy.manageYieldSource(address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(
+            address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
+        strategy.manageYieldSource(
+            address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
+        strategy.manageYieldSource(
+            address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
         vm.stopPrank();
 
         // use 3 users to perform deposits
@@ -638,7 +687,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // fulfill deposits
         {
-            address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+            address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
             address[] memory fulfillHooksAddresses = new address[](3);
             fulfillHooksAddresses[0] = depositHookAddress;
@@ -647,14 +696,29 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
             bytes[] memory fulfillHooksData = new bytes[](3);
             // allocate up to the max allocation rate in the two Vaults
-            fulfillHooksData[0] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault1), vars.depositAmount, false, false
+            fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(vars.vault1),
+                address(asset),
+                vars.depositAmount,
+                false,
+                false
             );
-            fulfillHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault2), vars.depositAmount, false, false
+            fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(vars.vault2),
+                address(asset),
+                vars.depositAmount,
+                false,
+                false
             );
-            fulfillHooksData[2] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vars.vault3), vars.depositAmount, false, false
+            fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(vars.vault3),
+                address(asset),
+                vars.depositAmount,
+                false,
+                false
             );
 
             uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
@@ -668,8 +732,13 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             }
 
             vm.startPrank(STRATEGIST);
-            strategy.fulfillRequests(
-                requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
+            strategy.execute(
+                ISuperVaultStrategy.ExecuteArgs({
+                    users: requestingUsers,
+                    hooks: fulfillHooksAddresses,
+                    hookCalldata: fulfillHooksData,
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+                })
             );
             vm.stopPrank();
         }
@@ -688,7 +757,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
 
             address[] memory hooksAddresses = new address[](2);
-            hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+            hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
             hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
             bytes[] memory hooksData = new bytes[](2);
 
@@ -909,7 +978,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(
+            address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
         vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -972,9 +1043,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
-
         // check new balances
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
@@ -1065,7 +1142,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("NewVault:", newRatio, "%");
     }
 
-    function test_4_Allocate_Simple_Vault_Caps() public {
+    function test_4_Rebalance_Test() public {
         VaultCapTestVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -1089,7 +1166,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Add Euler vault as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(eulerVaultAddr, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(eulerVaultAddr, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false);
         vm.stopPrank();
 
         // Get initial balances
@@ -1118,7 +1195,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("\n=== First Reallocation: Target 50/25/25 ===");
 
         // Set up hooks for reallocation
-        vars.withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        vars.withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         vars.depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         // Perform first reallocation to 50/25/25
@@ -1475,9 +1552,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
-
         // check new balances
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
@@ -1521,9 +1604,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
-
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
             + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
         assertApproxEqRel(
@@ -1658,12 +1747,21 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
 
         // disable fluid vault entirely
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, false);
+        strategy.manageYieldSource(
+            address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, false, false
+        );
         vm.stopPrank();
 
         // check new balances
@@ -1710,19 +1808,34 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
 
         // re-enable fluid vault
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, true);
+        strategy.manageYieldSource(
+            address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 2, true, false
+        );
         vm.stopPrank();
 
         // try allocate again
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
-
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
             + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
         assertApproxEqRel(
@@ -1769,7 +1882,9 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(
+            address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
         vm.stopPrank();
 
         vars.initialFluidVaultPPS = fluidVault.convertToAssets(1e18);
@@ -1924,9 +2039,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
-
         vm.warp(block.timestamp + 20 days);
 
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -2010,9 +2131,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
-
         vm.warp(block.timestamp + 20 days);
 
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -2450,7 +2577,14 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
             // Execute allocation
             vm.startPrank(STRATEGIST);
-            strategy.executeHooks(hooksAddresses, hooksData);
+            strategy.execute(
+                ISuperVaultStrategy.ExecuteArgs({
+                    users: new address[](0),
+                    hooks: hooksAddresses,
+                    hookCalldata: hooksData,
+                    expectedAssetsOrSharesOut: new uint256[](0)
+                })
+            );
             vm.stopPrank();
 
             // Check final balances
@@ -2509,9 +2643,11 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Replace aaveVault with ruggableVault in the strategy
         vm.startPrank(SV_MANAGER);
-        strategy.manageYieldSource(address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true); // Add
+        strategy.manageYieldSource(
+            address(fluidVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        ); // Add
 
-        strategy.manageYieldSource(ruggableVault, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true); // Add
+        strategy.manageYieldSource(ruggableVault, _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false); // Add
             // ruggableVault
         vm.stopPrank();
     }
