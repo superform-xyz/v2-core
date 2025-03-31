@@ -272,7 +272,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 // Build executions for this hook
                 vars.executions = vars.hookContract.build(vars.prevHook, address(this), hookCalldata[i]);
 
-                for (uint256 j = 0; j < vars.executions.length; ++j) {
+                for (uint256 j; j < vars.executions.length; ++j) {
                     // Execute the transaction
                     (vars.success,) =
                         vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
