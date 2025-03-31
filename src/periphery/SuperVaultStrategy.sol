@@ -197,9 +197,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
-            // Validate requests and determine total amount (assets for deposits, shares for redeem)
-            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, args.isDeposit);
-
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
         }
@@ -294,6 +291,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         // For fulfill operations, process the user requests after all hooks are executed
         if (isFulfillment) {
+            // Validate requests and determine total amount (assets for deposits, shares for redeem)
+            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, isDeposit);
+
             // Process user requests
             for (uint256 i; i < usersLength; ++i) {
                 address user = args.users[i];
