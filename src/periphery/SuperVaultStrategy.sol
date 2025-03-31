@@ -757,7 +757,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         ISuperVault(_vault).mintShares(vars.shares);
 
-        _onDepositClaimable(user, state.pendingDepositRequest, vars.shares, vars.pricePerShare);
+        _onDepositClaimable(user, state.pendingDepositRequest, vars.shares, state.averageDepositPrice);
     }
 
     function _processRedeem(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
