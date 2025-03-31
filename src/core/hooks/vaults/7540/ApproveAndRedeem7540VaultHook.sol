@@ -26,7 +26,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract ApproveAndRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow{
+contract ApproveAndRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -63,7 +63,7 @@ contract ApproveAndRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflow
         executions[0] =
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
         executions[1] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, shares)) });
         executions[2] = Execution({
             target: yieldSource,
             value: 0,
