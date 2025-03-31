@@ -759,7 +759,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         ISuperVault(_vault).mintShares(vars.shares);
 
-        _onDepositClaimable(user, vars.requestedAmount, vars.shares, vars.pricePerShare);
+        _onDepositClaimable(user, state.pendingDepositRequest, vars.shares, vars.pricePerShare);
     }
 
     function _processRedeem(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
@@ -777,7 +777,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         ISuperVault(_vault).burnShares(vars.requestedAmount);
 
-        _onRedeemClaimable(user, finalAssets, vars.requestedAmount, vars.pricePerShare); // TOD0: For partials, should requestedAmount not be the pendingRedeemRequest?
+        _onRedeemClaimable(user, finalAssets, state.pendingRedeemRequest, vars.pricePerShare);
     }
 
     function _handleRequestDeposit(address controller, uint256 assets) private whenNotPaused returns (uint256) {
