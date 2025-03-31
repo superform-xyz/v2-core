@@ -370,7 +370,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             depositState.maxMint += vars.sharesNeeded;
 
             // Call vault callback instead of emitting event directly
-            _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded, vars.currentPricePerShare);
+            _onDepositClaimable(depositor, vars.depositAssets, vars.sharesNeeded, state.averageDepositPrice);
         }
 
         // Process accumulated shares for redeemers
@@ -393,7 +393,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 redeemState.maxWithdraw += vars.finalAssets;
 
                 // Call vault callback instead of emitting event directly
-                _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed, vars.currentPricePerShare);
+                _onRedeemClaimable(redeemer, vars.finalAssets, sharesUsed, state.averageWithdrawPrice);
             }
         }
     }
