@@ -229,6 +229,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             // Determine if this is a fulfill hook
             bool isFulfillHook = _isFulfillRequestsHook(hook);
 
+            if (isFulfillHook) {
+                vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata[i]);
+
+                if (!yieldSources[vars.targetedYieldSource].isActive) {
+                    revert YIELD_SOURCE_NOT_ACTIVE();
+                } 
+            }
+
             if (isFulfillment && isFulfillHook) {
                 // Process as fulfill hook
                 uint256 outAmount;
@@ -989,8 +997,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         address target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
 
-        if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
-
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
 
         // Execute hook with asset approval
@@ -1055,7 +1061,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
         execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
-        if (!yieldSources[execVars.target].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
         execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
