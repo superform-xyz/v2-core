@@ -341,7 +341,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -349,55 +357,82 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
     }
 
+    // Local variables struct for _fulfillRedeem
+    struct FulfillRedeemLocalVars {
+        address[] requestingUsers;
+        address withdrawHookAddress;
+        address[] fulfillHooksAddresses;
+        uint256 fluidSharesOut;
+        uint256 aaveSharesOut;
+        bytes[] fulfillHooksData;
+        uint256 totalSvAssets;
+        uint256 pricePerShare;
+        uint256 amountForVault1;
+        uint256 amountForVault2;
+        uint256 underlyingSharesForVault1;
+        uint256 underlyingSharesForVault2;
+        uint256[] expectedAssetsOrSharesOut;
+    }
+
     function _fulfillRedeem(uint256 redeemShares, address vault1, address vault2) internal {
         /// @dev with preserve percentages based on USD value allocation
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accountEth;
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        FulfillRedeemLocalVars memory vars;
 
-        address[] memory fulfillHooksAddresses = new address[](2);
-        fulfillHooksAddresses[0] = withdrawHookAddress;
-        fulfillHooksAddresses[1] = withdrawHookAddress;
+        vars.requestingUsers = new address[](1);
+        vars.requestingUsers[0] = accountEth;
+        vars.withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
 
-        (uint256 fluidSharesOut, uint256 aaveSharesOut) = _calculateVaultShares(redeemShares);
+        vars.fulfillHooksAddresses = new address[](2);
+        vars.fulfillHooksAddresses[0] = vars.withdrawHookAddress;
+        vars.fulfillHooksAddresses[1] = vars.withdrawHookAddress;
 
-        bytes[] memory fulfillHooksData = new bytes[](2);
+        (vars.fluidSharesOut, vars.aaveSharesOut) = _calculateVaultShares(redeemShares);
+
+        vars.fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults based on USD value allocation
-        fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
+        vars.fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             vault1,
             vault1,
             address(strategy),
-            fluidSharesOut,
+            vars.fluidSharesOut,
             false,
             false
         );
 
-        fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
+        vars.fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             vault2,
             vault2,
             address(strategy),
-            aaveSharesOut,
+            vars.aaveSharesOut,
             false,
             false
         );
 
-        (uint256 totalSvAssets,) = strategy.totalAssets();
-        uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
+        (vars.totalSvAssets,) = strategy.totalAssets();
+        vars.pricePerShare = vars.totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
 
-        uint256 amountForVault1 = fluidSharesOut * 1e18 / pricePerShare;
-        uint256 amountForVault2 = aaveSharesOut * 1e18 / pricePerShare;
+        vars.amountForVault1 = vars.fluidSharesOut * 1e18 / vars.pricePerShare;
+        vars.amountForVault2 = vars.aaveSharesOut * 1e18 / vars.pricePerShare;
 
-        uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
-        uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
+        vars.underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(vars.amountForVault1);
+        vars.underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(vars.amountForVault2);
 
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToAssets(underlyingSharesForVault1);
-        expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
+        vars.expectedAssetsOrSharesOut = new uint256[](2);
+        vars.expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToAssets(vars.underlyingSharesForVault1);
+        vars.expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(vars.underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: vars.requestingUsers,
+                hooks: vars.fulfillHooksAddresses,
+                hookCalldata: vars.fulfillHooksData,
+                expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
     }
 
@@ -430,7 +465,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
         vm.stopPrank();
     }
 
@@ -467,7 +510,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
         vm.stopPrank();
     }
 
@@ -501,7 +552,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
         vm.stopPrank();
     }
 
@@ -540,7 +599,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
         expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
         vm.startPrank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
         vm.stopPrank();
     }
 
@@ -597,7 +664,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         console2.log("----requestingUsersLength", requestingUsers.length);
         vm.startPrank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
     }
 
@@ -643,7 +718,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
     }
 
@@ -926,7 +1009,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
             // Execute all hooks in a single transaction
             vm.startPrank(STRATEGIST);
-            strategy.execute(users, finalHooksAddresses, finalHooksData, new uint256[](0), false);
+            strategy.execute(
+                ISuperVaultStrategy.ExecuteArgs({
+                    users: users,
+                    hooks: finalHooksAddresses,
+                    hookCalldata: finalHooksData,
+                    expectedAssetsOrSharesOut: new uint256[](0),
+                    isDeposit: false
+                })
+            );
             vm.stopPrank();
         }
 
@@ -1181,7 +1272,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, expectedAssetsOrSharesOut, false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
     }
 
@@ -1217,7 +1316,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             false
         );
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, expectedAssetsOrSharesOut, false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
     }
 

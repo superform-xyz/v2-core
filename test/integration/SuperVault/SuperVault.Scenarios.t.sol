@@ -587,9 +587,16 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
         vm.stopPrank();
-
         // claim deposits
         for (uint256 i; i < 3; ++i) {
             _claimDepositForAccount(accInstances[i], vars.depositAmount);
@@ -726,7 +733,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             }
 
             vm.startPrank(STRATEGIST);
-            strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+            strategy.execute(
+                ISuperVaultStrategy.ExecuteArgs({
+                    users: requestingUsers,
+                    hooks: fulfillHooksAddresses,
+                    hookCalldata: fulfillHooksData,
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                    isDeposit: true
+                })
+            );
             vm.stopPrank();
         }
 
@@ -1030,9 +1045,16 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
-
         // check new balances
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
@@ -1533,9 +1555,16 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
-
         // check new balances
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
@@ -1579,9 +1608,16 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
-
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
             + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
         assertApproxEqRel(
@@ -1716,7 +1752,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
 
         // disable fluid vault entirely
@@ -1770,7 +1814,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
 
         // re-enable fluid vault
@@ -1782,9 +1834,16 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // try allocate again
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
-
         vars.finalTotalValue = aaveVault.convertToAssets(vars.finalAaveVaultBalance)
             + fluidVault.convertToAssets(vars.finalFluidVaultBalance);
         assertApproxEqRel(
@@ -1988,9 +2047,16 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
-
         vm.warp(block.timestamp + 20 days);
 
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -2074,9 +2140,16 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
-
         vm.warp(block.timestamp + 20 days);
 
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -2514,7 +2587,15 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
             // Execute allocation
             vm.startPrank(STRATEGIST);
-            strategy.execute(new address[](0), hooksAddresses, hooksData, new uint256[](0), false);
+            strategy.execute(
+                ISuperVaultStrategy.ExecuteArgs({
+                    users: new address[](0),
+                    hooks: hooksAddresses,
+                    hookCalldata: hooksData,
+                    expectedAssetsOrSharesOut: new uint256[](0),
+                    isDeposit: false
+                })
+            );
             vm.stopPrank();
 
             // Check final balances

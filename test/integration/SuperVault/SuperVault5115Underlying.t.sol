@@ -202,10 +202,17 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = expectedShares;
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: users,
+                hooks: hooks_,
+                hookCalldata: hookCalldata,
+                expectedAssetsOrSharesOut: minAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
         vm.stopPrank();
         console2.log("-------SVShare balance", IStandardizedYield(pendleEthenaAddress).balanceOf(address(strategy)));
-
         uint256 pps = _getPPS();
         console2.log("PPS AFTER FULFILL DEPOSIT", pps);
     }
@@ -244,8 +251,15 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(new address[](0), hooks_, hookCalldata, new uint256[](0), false);
-
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooks_,
+                hookCalldata: hookCalldata,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
     }
 
@@ -274,9 +288,15 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[0] = underlyingAssetsOut;
 
         vm.startPrank(STRATEGIST);
-
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
-
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
+        );
         vm.stopPrank();
     }
 
