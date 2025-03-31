@@ -55,6 +55,7 @@ abstract contract Constants {
     string public constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string public constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string public constant APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY = "ApproveAndWithdraw7540VaultHook";
+    string public constant APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRedeem7540VaultHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
