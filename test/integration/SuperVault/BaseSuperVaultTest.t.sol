@@ -323,11 +323,17 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         // Split the deposit between two hooks
         uint256 halfAmount = depositAmount / 2;
-        fulfillHooksData[0] =
-            _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), halfAmount, false, false);
+        fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), halfAmount, false, false
+        );
 
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(asset), depositAmount - halfAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            address(asset),
+            depositAmount - halfAmount,
+            false,
+            false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -335,9 +341,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
@@ -360,11 +364,23 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults based on USD value allocation
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, vault1, address(strategy), fluidSharesOut, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault1,
+            vault1,
+            address(strategy),
+            fluidSharesOut,
+            false,
+            false
         );
 
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), aaveSharesOut, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            vault2,
+            address(strategy),
+            aaveSharesOut,
+            false,
+            false
         );
 
         (uint256 totalSvAssets,) = strategy.totalAssets();
@@ -381,9 +397,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 
@@ -416,9 +430,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
     }
 
@@ -455,9 +467,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
     }
 
@@ -491,9 +501,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
     }
 
@@ -532,9 +540,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
         expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
         vm.startPrank(STRATEGIST);
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
         vm.stopPrank();
     }
 
@@ -556,10 +562,22 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, vault1, address(strategy), redeemSharesVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault1,
+            vault1,
+            address(strategy),
+            redeemSharesVault1,
+            false,
+            false
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), redeemSharesVault2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            vault2,
+            address(strategy),
+            redeemSharesVault2,
+            false,
+            false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -579,9 +597,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         console2.log("----requestingUsersLength", requestingUsers.length);
         vm.startPrank(STRATEGIST);
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 
@@ -605,19 +621,29 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, vault1, address(strategy), redeemSharesVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault1,
+            vault1,
+            address(strategy),
+            redeemSharesVault1,
+            false,
+            false
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), redeemSharesVault2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            vault2,
+            address(strategy),
+            redeemSharesVault2,
+            false,
+            false
         );
 
         vm.startPrank(STRATEGIST);
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
-        );
+        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
         vm.stopPrank();
     }
 
@@ -1142,7 +1168,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         vm.startPrank(STRATEGIST);
         hooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, sourceVault, address(strategy), sharesToRedeem, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            sourceVault,
+            sourceVault,
+            address(strategy),
+            sharesToRedeem,
+            false,
+            false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, address(asset), assetsToMove, true, false
@@ -1168,7 +1200,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         vm.startPrank(STRATEGIST);
         hooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, sourceVault, address(strategy), sharesToRedeem, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            sourceVault,
+            sourceVault,
+            address(strategy),
+            sharesToRedeem,
+            false,
+            false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),
