@@ -43,7 +43,6 @@ import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
 import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
@@ -142,7 +141,6 @@ struct Addresses {
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
     RequestRedeem7540VaultHook requestRedeem7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
-    ApproveAndWithdraw7540VaultHook approveAndWithdraw7540VaultHook;
     ApproveAndRedeem7540VaultHook approveAndRedeem7540VaultHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     Swap1InchHook swap1InchHook;
@@ -671,22 +669,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
             );
 
-            A[i].approveAndWithdraw7540VaultHook =
-                new ApproveAndWithdraw7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
-            vm.label(address(A[i].approveAndWithdraw7540VaultHook), APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndWithdraw7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.VaultWithdrawals,
-                address(A[i].approveAndWithdraw7540VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY]
-            );
-
             A[i].approveAndRedeem7540VaultHook =
                 new ApproveAndRedeem7540VaultHook(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveAndRedeem7540VaultHook), APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
@@ -886,7 +868,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             peripheryRegistry.registerHook(address(A[i].transferErc20Hook), false);
             peripheryRegistry.registerHook(address(A[i].deposit7540VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].withdraw7540VaultHook), false);
-            peripheryRegistry.registerHook(address(A[i].approveAndWithdraw7540VaultHook), false);
             peripheryRegistry.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
             peripheryRegistry.registerHook(address(A[i].swap1InchHook), false);
             peripheryRegistry.registerHook(address(A[i].swapOdosHook), false);
