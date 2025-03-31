@@ -577,6 +577,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(underlyingSharesForVault2);
         }
 
+        console2.log("----requestingUsersLength", requestingUsers.length);
         vm.startPrank(STRATEGIST);
         strategy.execute(
             requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
@@ -1166,8 +1167,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
 
         vm.startPrank(STRATEGIST);
-        hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, address(strategy), sharesToRedeem, false, false
+        hooksData[0] = _createApproveAndRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), sourceVault, sourceVault, address(strategy), sharesToRedeem, false, false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),
