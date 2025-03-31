@@ -25,6 +25,7 @@ import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYie
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
 contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
     using Math for uint256;
@@ -197,7 +198,15 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(new address[](0), requestHooksAddresses, requestHooksData, new uint256[](0), false);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: requestHooksAddresses,
+                hookCalldata: requestHooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         console2.log("---- Pending deposit request", centrifugeVault.pendingDepositRequest(0, address(strategy)));
 
         uint256 expectedShares = centrifugeVault.convertToShares(amountToDeposit);
@@ -248,7 +257,15 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: true
+            })
+        );
 
         // Update share price points for each user
         uint256 pps = _getSuperVaultPricePerShare();
@@ -271,8 +288,15 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(new address[](0), requestHooksAddresses, requestHooksData, new uint256[](0), false);
-
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: requestHooksAddresses,
+                hookCalldata: requestHooksData,
+                expectedAssetsOrSharesOut: new uint256[](0),
+                isDeposit: false
+            })
+        );
         console2.log("---- PPS After Centrifuge Request Redeem", _getSuperVaultPricePerShare());
 
         uint256 expectedAssetsOut = centrifugeVault.convertToAssets(centrifugeRedeem);
@@ -331,16 +355,29 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
 
         vm.prank(STRATEGIST);
-        strategy.execute(requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false);
-
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                isDeposit: false
+            })
+        );
         console2.log("---- PPS After Fulfill Redemptions", _getSuperVaultPricePerShare());
     }
 
-    function _getCentrifugeSharesInAssets() internal view returns (uint256 centrifugeShares, uint256 centrifugeExpectedAssets) {
+    function _getCentrifugeSharesInAssets()
+        internal
+        view
+        returns (uint256 centrifugeShares, uint256 centrifugeExpectedAssets)
+    {
         centrifugeShares = centrifugeVault.maxRedeem(address(strategy));
-        uint256 centrifugeSharesInAssets = centrifugeShares.mulDiv(_getSuperVaultPricePerShare(), 1e18, Math.Rounding.Floor);
+        uint256 centrifugeSharesInAssets =
+            centrifugeShares.mulDiv(_getSuperVaultPricePerShare(), 1e18, Math.Rounding.Floor);
 
-        uint256 assetsAsCentrifugeShares = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY)).getShareOutput(address(centrifugeVault), address(asset), centrifugeSharesInAssets);
+        uint256 assetsAsCentrifugeShares = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY))
+            .getShareOutput(address(centrifugeVault), address(asset), centrifugeSharesInAssets);
         centrifugeExpectedAssets = centrifugeVault.convertToAssets(assetsAsCentrifugeShares);
     }
 }
