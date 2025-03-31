@@ -113,7 +113,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
             0,
             false, // addYieldSource
-            true
+            false
         );
         vm.stopPrank();
 
