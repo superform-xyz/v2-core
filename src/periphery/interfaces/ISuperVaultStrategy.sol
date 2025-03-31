@@ -8,9 +8,16 @@ import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 /// @author SuperForm Labs
 /// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 interface ISuperVaultStrategy {
+    enum FulfillmentType {
+        UNSET,
+        DEPOSIT,
+        REDEEM
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
+
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
@@ -35,6 +42,8 @@ interface ISuperVaultStrategy {
     error ZERO_OUTPUT_AMOUNT();
     error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
+    error FULFILMENT_TYPE_UNSET();
+    error INVALID_FULFILMENT_TYPE();
     error INVALID_BALANCE_CHANGE();
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
@@ -180,6 +189,17 @@ interface ISuperVaultStrategy {
     struct YieldSourceTVL {
         address source;
         uint256 tvl;
+    }
+
+    /// @notice Struct for outflow execution variables
+    struct OutflowExecutionVars {
+        uint256 amount;
+        uint256 amountOfAssets;
+        uint256 amountConvertedToUnderlyingShares;
+        uint256 balanceAssetBefore;
+        uint256 balanceAssetAfter;
+        address target;
+        address yieldSource;
     }
 
     /*//////////////////////////////////////////////////////////////
