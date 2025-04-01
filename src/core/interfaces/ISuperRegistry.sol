@@ -32,4 +32,8 @@ interface ISuperRegistry {
     /// @param id_ The ID.
     /// @return The address.
     function getAddress(bytes32 id_) external view returns (address);
+
+    /// @dev Check if an executor is allowed to call the SuperLedger.
+    /// @param executor The executor to check.
+    function isExecutorAllowed(address executor) external view returns (bool);
 }

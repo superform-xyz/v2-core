@@ -35,7 +35,7 @@ abstract contract BaseLedger is ISuperLedger {
     }
 
     modifier onlyExecutor() {
-        if (_getAddress(SUPER_EXECUTOR_ID) != msg.sender) revert NOT_AUTHORIZED();
+        if (!_isExecutorAllowed(msg.sender)) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -192,5 +192,10 @@ abstract contract BaseLedger is ISuperLedger {
     function _getAddress(bytes32 id_) internal view returns (address) {
         ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
         return registry.getAddress(id_);
+    }
+
+    function _isExecutorAllowed(address executor) internal view returns (bool) {
+        ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
+        return registry.isExecutorAllowed(executor);
     }
 }

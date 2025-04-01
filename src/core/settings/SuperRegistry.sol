@@ -3,9 +3,11 @@ pragma solidity 0.8.28;
 
 // external
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { IModule, MODULE_TYPE_EXECUTOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 
 // Superform
 import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
+import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 
 /// @title SuperRegistry
 /// @author Superform Labs
@@ -15,6 +17,7 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(bytes32 => address) public addresses;
+    mapping(address => bool) public isExecutorAllowed;
 
     constructor(address owner_) Ownable(owner_) { }
 
@@ -26,6 +29,16 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
         if (address_ == address(0)) revert INVALID_ADDRESS();
         addresses[id_] = address_;
         emit AddressSet(id_, address_);
+
+        if (address_.code.length > 0) {
+            try IModule(address_).isModuleType(MODULE_TYPE_EXECUTOR) returns (bool isExecutor) {
+                if (isExecutor) {
+                    isExecutorAllowed[address_] = true;
+            }
+            } catch {
+                // do nothing
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

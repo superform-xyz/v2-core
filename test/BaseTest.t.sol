@@ -2,6 +2,8 @@
 pragma solidity >=0.8.28;
 
 import { Helpers } from "./utils/Helpers.sol";
+import { SignatureHelper } from "./utils/SignatureHelper.sol";
+import { MerkleTreeHelper } from "./utils/MerkleTreeHelper.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 // Superform interfaces
 import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
@@ -19,8 +21,7 @@ import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { AcrossTargetExecutor } from "../src/core/executors/AcrossTargetExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
-import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
-import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receiver.sol";
+import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.sol";
 
 // hooks
 
@@ -99,7 +100,7 @@ import {
 
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
@@ -112,12 +113,17 @@ import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 // SuperformNativePaymaster
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
 
-import { SuperGasTank } from "../src/core/paymaster/SuperGasTank.sol";
 
 // Nexus and Rhinestone overrides to allow for SuperformNativePaymaster
 import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFactory.sol";
 import { getFactory, getHelper, getStorageCompliance } from "modulekit/test/utils/Storage.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
+
+import { BootstrapConfig, INexusBootstrap } from "../src/vendor/nexus/INexusBootstrap.sol";
+import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
+import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
+import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import "forge-std/console2.sol";
 
@@ -128,7 +134,6 @@ struct Addresses {
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISuperExecutor acrossTargetExecutor;
-    AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
@@ -167,11 +172,10 @@ struct Addresses {
     SuperDestinationValidator superDestinationValidator;
     PeripheryRegistry peripheryRegistry;
     SuperNativePaymaster superNativePaymaster;
-    SuperGasTank superGasTank;
     MockTargetExecutor mockTargetExecutor;  
 }
 
-contract BaseTest is Helpers, RhinestoneModuleKit {
+contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -246,6 +250,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
     mapping(uint64 chainId => string forkUrl) public RPC_URLS;
 
+    mapping(uint64 chainId => address validatorSigner) public validatorSigners;
+    mapping(uint64 chainId => uint256 validatorSignerPrivateKey) public validatorSignerPrivateKeys;
+
     string public ETHEREUM_RPC_URL = vm.envString(ETHEREUM_RPC_URL_KEY); // Native token: ETH
     string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
     string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
@@ -291,6 +298,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
         // Fund underlying tokens
         _fundUnderlyingTokens(1e18);
+        
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -426,20 +434,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].superNativePaymaster = new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR));
             vm.label(address(A[i].superNativePaymaster), SUPER_NATIVE_PAYMASTER_KEY);
             contractAddresses[chainIds[i]][SUPER_NATIVE_PAYMASTER_KEY] = address(A[i].superNativePaymaster);
-
-            A[i].superGasTank = new SuperGasTank(address(this));
-            vm.label(address(A[i].superGasTank), SUPER_GAS_TANK_KEY);
-            contractAddresses[chainIds[i]][SUPER_GAS_TANK_KEY] = address(A[i].superGasTank);
-            payable(address(A[i].superGasTank)).transfer(10 ether);
-
-            A[i].acrossReceiveFundsAndExecuteGateway = new AcrossReceiveFundsAndExecuteGateway(
-                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], ENTRYPOINT_ADDR, SUPER_BUNDLER, address(A[i].superRegistry)
-            );
-            vm.label(address(A[i].acrossReceiveFundsAndExecuteGateway), ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY);
-            contractAddresses[chainIds[i]][ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY] =
-                address(A[i].acrossReceiveFundsAndExecuteGateway);
-            SuperGasTank(payable(A[i].superGasTank)).addToAllowlist(address(this));
-            SuperGasTank(payable(A[i].superGasTank)).addToAllowlist(address(A[i].acrossReceiveFundsAndExecuteGateway));
 
             A[i].superMerkleValidator = new SuperMerkleValidator();
             vm.label(address(A[i].superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
@@ -886,6 +880,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 module: _getContract(chainIds[i], SUPER_EXECUTOR_KEY),
                 data: ""
             });
+            instance.installModule({
+                moduleTypeId: MODULE_TYPE_EXECUTOR,
+                module: _getContract(chainIds[i], ACROSS_TARGET_EXECUTOR_KEY),
+                data: ""
+            });
+            instance.installModule({
+                moduleTypeId: MODULE_TYPE_VALIDATOR,
+                module: _getContract(chainIds[i], SUPER_DESTINATION_VALIDATOR_KEY),
+                data: abi.encode(validatorSigners[chainIds[i]])
+            });
             vm.label(instance.account, accountName);
 
             // create random accounts to be used as users
@@ -1026,6 +1030,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
         // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
+
+
+        for (uint256 i = 0; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+
+            (validatorSigners[chainIds[i]], validatorSignerPrivateKeys[chainIds[i]]) = makeAddrAndKey("The signer");
+            vm.label(validatorSigners[chainIds[i]], "The signer");
+        }
     }
 
     function _fundUnderlyingTokens(uint256 amount) internal {
@@ -1055,7 +1067,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
                 keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
-                keccak256(bytes(SUPER_GAS_TANK_ID)), _getContract(chainIds[i], SUPER_GAS_TANK_KEY)
+                keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainIds[i], ACROSS_TARGET_EXECUTOR_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(
                 keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainIds[i], SUPER_NATIVE_PAYMASTER_KEY)
@@ -1175,7 +1187,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         ENOUGH_BALANCE
     }
 
-    function _processAcrossV3Message_AcrossTargetExecutor(
+    function _processAcrossV3Message(
         uint64 srcChainId,
         uint64 dstChainId,
         uint256 warpTimestamp,
@@ -1204,34 +1216,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         );
     }
 
-    function _processAcrossV3Message(
-        uint64 srcChainId,
-        uint64 dstChainId,
-        uint256 warpTimestamp,
-        ExecutionReturnData memory executionData,
-        RELAYER_TYPE relayerType,
-        address account
-    )
-        internal
-    {
-        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
-            vm.expectEmit(true, true, true, true);
-            emit IAcrossV3Receiver.AcrossFundsReceivedButNotEnoughBalance(account);
-        } else {
-            vm.expectEmit(true, true, true, true);
-            emit IAcrossV3Receiver.AcrossFundsReceivedAndExecuted(account);
-        }
-        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
-            SPOKE_POOL_V3_ADDRESSES[srcChainId],
-            SPOKE_POOL_V3_ADDRESSES[dstChainId],
-            ACROSS_RELAYER,
-            warpTimestamp,
-            FORKS[dstChainId],
-            dstChainId,
-            srcChainId,
-            executionData.logs
-        );
-    }
 
     function _processAcrossV3MessageWithoutDestinationAccount(
         uint64 srcChainId,
@@ -1288,6 +1272,94 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         pure
     {
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
+                                 ACROSS TARGET EXECUTOR HELPERS
+    //////////////////////////////////////////////////////////////*/
+      struct TargetExecutorMessage {
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        address validator;
+        address signer;
+        uint256 signerPrivateKey;
+        address targetExecutor;
+        address nexusFactory;
+        address nexusBootstrap;
+        uint256 nonce;
+        uint64 chainId;
+        uint256 amount;
+        address account;
+    }
+
+    function _createTargetExecutorMessage(TargetExecutorMessage memory messageData) internal returns (bytes memory, address) {
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory executionData = _createExecutionData_AcrossTargetExecutor(messageData.hooksAddresses, messageData.hooksData);
+
+        address accountToUse;
+        bytes memory accountCreationData;
+        if (messageData.account == address(0)) {
+            (accountCreationData, accountToUse) = _createAccountCreationData_AcrossTargetExecutor(messageData.validator, messageData.signer, messageData.targetExecutor, messageData.nexusFactory, messageData.nexusBootstrap);
+        } else {
+            accountToUse = messageData.account;
+            accountCreationData = bytes("");
+        }
+        
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createDestinationValidatorLeaf(executionData, messageData.chainId, accountToUse, messageData.nonce, validUntil);
+
+        (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
+        
+        bytes memory signature = _createSignature(SuperValidatorBase(address(messageData.validator)).namespace(), merkleRoot, messageData.signer, messageData.signerPrivateKey);
+        bytes memory signatureData = _createSignatureData_AcrossTargetExecutor(validUntil, merkleRoot, merkleProof[0], signature);
+        
+        return (abi.encode(accountCreationData, executionData, signatureData, /**address(0) to create account*/messageData.account, messageData.amount), accountToUse);
+    }
+
+    function _createSignatureData_AcrossTargetExecutor(uint48 validUntil, bytes32 merkleRoot, bytes32[] memory merkleProof, bytes memory signature) internal pure returns (bytes memory) {
+        return abi.encode(validUntil, merkleRoot, merkleProof, signature);
+    }
+
+     function _createExecutionData_AcrossTargetExecutor(
+        address[] memory hooksAddresses,
+        bytes[] memory hooksData
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+         ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+    }
+
+    function _createAccountCreationData_AcrossTargetExecutor(address validatorOnDestinationChain, address theSigner, address executorOnDestinationChain, address nexusFactory, address nexusBootstrap)
+        internal
+        returns (bytes memory, address)
+    {
+          // create validators
+        BootstrapConfig[] memory validators = new BootstrapConfig[](1);
+        validators[0] = BootstrapConfig({ module: validatorOnDestinationChain, data: abi.encode(theSigner) });
+        // create executors
+        BootstrapConfig[] memory executors = new BootstrapConfig[](1);
+        executors[0] = BootstrapConfig({ module: address(executorOnDestinationChain), data: "" });
+        // create hooks
+        BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
+        // create fallbacks
+        BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
+        address[] memory attesters = new address[](1);
+        attesters[0] = address(MANAGER);
+        uint8 threshold = 1;
+        MockRegistry nexusRegistry = new MockRegistry();
+        bytes memory initData = INexusBootstrap(nexusBootstrap).getInitNexusCalldata(
+            validators, executors, hook, fallbacks, IERC7484(nexusRegistry), attesters, threshold
+        );
+        bytes32 initSalt = bytes32(keccak256("SIGNER_SALT"));
+
+        address precomputedAddress = INexusFactory(nexusFactory).computeAccountAddress(initData, initSalt);
+        return (abi.encode(initData, initSalt), precomputedAddress);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1419,37 +1491,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount,
-        uint64 destinationChainId,
-        bool usePrevHookAmount,
-        uint256 intentAmount,
-        UserOpData memory userOpData
-    )
-        internal
-        view
-        returns (bytes memory hookData)
-    {
-        bytes memory dstUserOpData = _encodeUserOp(userOpData, intentAmount);
-        hookData = abi.encodePacked(
-            uint256(0),
-            _getContract(destinationChainId, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
-            inputToken,
-            outputToken,
-            inputAmount,
-            outputAmount,
-            uint256(destinationChainId),
-            address(0),
-            uint32(10 minutes), // this can be a max of 360 minutes
-            uint32(0),
-            usePrevHookAmount,
-            dstUserOpData
-        );
-    }
-
-    function _createAcrossV3ReceiveFundsAndExecuteHookData_AcrossTargetExecutor(
         address inputToken,
         address outputToken,
         uint256 inputAmount,

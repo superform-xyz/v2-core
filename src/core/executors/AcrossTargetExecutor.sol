@@ -14,6 +14,8 @@ import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Ac
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
 import { IAcrossTargetExecutor } from "../interfaces/IAcrossTargetExecutor.sol";
 
+import "forge-std/console2.sol";
+
 /// @title AcrossTargetExecutor
 /// @author Superform Labs
 /// @notice Executor for destination chains of Superform
@@ -119,6 +121,9 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
         // @dev send tokens to the smart account
         IERC20 token = IERC20(tokenSent);
         token.safeTransfer(account, amount);
+
+        console2.log("-------------------------------- token balance", token.balanceOf(account));
+        console2.log("-------------------------------- intentAmount",  intentAmount);
 
         // @dev check if the account has sufficient balance before proceeding
         if (intentAmount != 0 && token.balanceOf(account) < intentAmount) {

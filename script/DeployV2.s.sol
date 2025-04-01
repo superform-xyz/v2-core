@@ -18,11 +18,10 @@ import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { AcrossReceiveFundsAndExecuteGateway } from "../src/core/bridges/AcrossReceiveFundsAndExecuteGateway.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
-import { SuperGasTank } from "../src/core/paymaster/SuperGasTank.sol";
+
 // -- hooks
 // ---- | swappers
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
@@ -97,8 +96,6 @@ contract DeployV2 is Script, Configuration {
         address pendleLedger;
         address superLedgerConfiguration;
         address superPositionSentinel;
-        address acrossReceiveFundsGateway;
-        address acrossReceiveFundsAndExecuteGateway;
         address mockValidatorModule;
         address oracleRegistry;
         address peripheryRegistry;
@@ -106,7 +103,6 @@ contract DeployV2 is Script, Configuration {
         address superMerkleValidator;
         address superDestinationValidator;
         address superNativePaymaster;
-        address superGasTank;
     }
 
     struct HookAddresses {
@@ -250,15 +246,6 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(ERC5115Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
-        // Deploy SuperGasTank
-        deployedContracts.superGasTank = __deployContract(
-            deployer,
-            SUPER_GAS_TANK_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_GAS_TANK_KEY),
-            abi.encodePacked(type(SuperGasTank).creationCode, abi.encode(configuration.owner))
-        );
-
         // Deploy SuperNativePaymaster
         deployedContracts.superNativePaymaster = __deployContract(
             deployer,
@@ -266,31 +253,10 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_NATIVE_PAYMASTER_KEY),
             abi.encodePacked(
-                type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT), deployedContracts.superGasTank
+                type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT)
             )
         );
-
-        // Deploy AcrossReceiveFundsAndExecuteGateway
-        deployedContracts.acrossReceiveFundsAndExecuteGateway = __deployContract(
-            deployer,
-            ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, ACROSS_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY),
-            abi.encodePacked(
-                type(AcrossReceiveFundsAndExecuteGateway).creationCode,
-                abi.encode(
-                    configuration.acrossSpokePoolV3s[chainId],
-                    ENTRY_POINT,
-                    configuration.bundler,
-                    deployedContracts.superRegistry
-                )
-            )
-        );
-
-        SuperGasTank(payable(deployedContracts.superGasTank)).addToAllowlist(
-            deployedContracts.acrossReceiveFundsAndExecuteGateway
-        );
-        SuperGasTank(payable(deployedContracts.superGasTank)).addToAllowlist(configuration.owner);
+        
 
         // Deploy SuperVaultFactory
         deployedContracts.superVaultFactory = __deployContract(
@@ -345,7 +311,7 @@ contract DeployV2 is Script, Configuration {
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
         superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setAddress(keccak256(bytes(SUPER_GAS_TANK_ID)), _getContract(chainId, SUPER_GAS_TANK_KEY));
+        superRegistry.setAddress(keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainId, ACROSS_TARGET_EXECUTOR_KEY));
         superRegistry.setAddress(
             keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainId, SUPER_NATIVE_PAYMASTER_KEY)
         );

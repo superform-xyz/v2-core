@@ -6,35 +6,24 @@ import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
 // Superform
-import { SuperRegistry } from "../../src/core/settings/SuperRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
 
 // Vault Interfaces
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
 import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
-import { IRestrictionManager } from "../mocks/centrifuge/IRestrictionManager.sol";
 import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
 import { IPoolManager } from "../mocks/centrifuge/IPoolManager.sol";
 import { ITranche } from "../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../mocks/centrifuge/IRoot.sol";
-import { MockRegistry } from "../mocks/MockRegistry.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
-import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
-
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import { IAcrossTargetExecutor } from "../../src/core/interfaces/IAcrossTargetExecutor.sol";
 
@@ -167,7 +156,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         validatorOnETH = IValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnOP = IValidator(_getContract(OP, SUPER_DESTINATION_VALIDATOR_KEY));
 
-
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         superLedgerOP = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
 
@@ -204,6 +192,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         vm.selectFork(FORKS[OP]);
         deal(underlyingOP_USDC, odosRouters[OP], 1e18);
+
+        (validatorSigner, validatorSignerPrivateKey) = makeAddrAndKey("The signer");
+        vm.label(validatorSigner, "The signer");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -243,7 +234,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           INDIVIDUAL TESTS
     //////////////////////////////////////////////////////////////*/
-
     function test_Bridge_To_ETH_And_Deposit_With_AcrossTargetExecutor() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -265,21 +255,24 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault/2, true
             );
 
-            // execution data
-            bytes memory executionData = _createExecutionData_AcrossTargetExecutor(eth7540HooksAddresses, eth7540HooksData);
 
-            // account creation data
-            (validatorSigner, validatorSignerPrivateKey) = makeAddrAndKey("The signer");
-            vm.label(validatorSigner, "The signer");
-            (bytes memory accountCreationData, address precomputedAddress) = _createAccountCreationData_AcrossTargetExecutor(address(validatorOnETH), validatorSigner, address(superTargetExecutorOnETH), CHAIN_1_NEXUS_FACTORY, CHAIN_1_NEXUS_BOOTSTRAP);
-            accountToUse = precomputedAddress;
-            // signature data
-            uint48 validUntil = uint48(block.timestamp + 100 days);
             uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnETH).nonce();
-            bytes memory signatureData = _createSignatureData_AcrossTargetExecutor(executionData, uint64(ETH), precomputedAddress, nonce, validUntil, SuperValidatorBase(address(validatorOnETH)).namespace(), validatorSigner, validatorSignerPrivateKey);
+            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+                hooksAddresses: eth7540HooksAddresses,
+                hooksData: eth7540HooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                nonce: nonce,
+                chainId: uint64(ETH),
+                amount: amountPerVault/2,
+                account: address(0)
+            });
 
-            // @dev final data
-            targetExecutorMessage = abi.encode(accountCreationData, executionData, signatureData, address(0), amountPerVault/2);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
         {
             address share = IERC7540(yieldSource7540AddressETH_USDC).share();
@@ -307,7 +300,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault/2, false);
-        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData_AcrossTargetExecutor(
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC,
             underlyingETH_USDC,
             amountPerVault / 2,
@@ -320,7 +313,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
 
         // EXECUTE ETH
-        _processAcrossV3Message_AcrossTargetExecutor(
+        _processAcrossV3Message(
             BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountToUse
         );
 
@@ -338,18 +331,37 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
         // PREPARE ETH DATA
-        address[] memory eth7540HooksAddresses = new address[](2);
-        eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        eth7540HooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+        bytes memory targetExecutorMessage;
+        {
+            address[] memory eth7540HooksAddresses = new address[](2);
+            eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+            eth7540HooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
-        bytes[] memory eth7540HooksData = new bytes[](2);
-        eth7540HooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
-        eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
-        );
+            bytes[] memory eth7540HooksData = new bytes[](2);
+            eth7540HooksData[0] =
+                _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
+            eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
+                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+            );
 
-        UserOpData memory ethUserOpData = _createUserOpData(eth7540HooksAddresses, eth7540HooksData, ETH);
+            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnETH).nonce();
+            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+                hooksAddresses: eth7540HooksAddresses,
+                hooksData: eth7540HooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigners[ETH],
+                signerPrivateKey: validatorSignerPrivateKeys[ETH],
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                nonce: nonce,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: accountETH
+            });
+
+            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+        }
 
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
@@ -365,12 +377,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC,
             underlyingETH_USDC,
-            amountPerVault / 2,
-            amountPerVault / 2,
+            amountPerVault,
+            amountPerVault,
             ETH,
             true,
-            amountPerVault,
-            ethUserOpData
+            targetExecutorMessage
         );
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
@@ -401,7 +412,23 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
-        UserOpData memory baseUserOpData = _createUserOpData(new address[](0), new bytes[](0), BASE);
+        uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonce();
+        TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            hooksAddresses: new address[](0),
+            hooksData: new bytes[](0),
+            validator: address(validatorOnBase),
+            signer: validatorSigners[BASE],
+            signerPrivateKey: validatorSignerPrivateKeys[BASE],
+            targetExecutor: address(superTargetExecutorOnBase),
+            nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+            nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+            nonce: nonce,
+            chainId: uint64(BASE),
+            amount: 0,
+            account: accountBase
+        });
+        (bytes memory targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+
 
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
@@ -435,8 +462,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 amountPerVault,
                 BASE,
                 true,
-                amountPerVault,
-                baseUserOpData
+                targetExecutorMessage
             );
         } else {
             ethHooksData[0] =
@@ -448,8 +474,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 amountPerVault / 2,
                 BASE,
                 true,
-                amountPerVault / 2,
-                baseUserOpData
+                targetExecutorMessage
             );
         }
 
@@ -480,21 +505,41 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // OP IS DST
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
+        bytes memory targetExecutorMessage;
+        {
+            // PREPARE OP DATA
+            address[] memory opHooksAddresses = new address[](2);
+            opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+            opHooksAddresses[1] = _getHookAddress(OP, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+            bytes[] memory opHooksData = new bytes[](2);
+            opHooksData[0] =
+                _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, amountPerVault, false);
+            opHooksData[1] = _createDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressOP_USDCe, amountPerVault, true, false
+            );
+
+
+            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnOP).nonce();
+            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+                hooksAddresses: opHooksAddresses,
+                hooksData: opHooksData,
+                validator: address(validatorOnOP),
+                signer: validatorSigners[OP],
+                signerPrivateKey: validatorSignerPrivateKeys[OP],
+                targetExecutor: address(superTargetExecutorOnOP),
+                nexusFactory: CHAIN_10_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_10_NEXUS_BOOTSTRAP,
+                nonce: nonce,
+                chainId: uint64(OP),
+                amount: amountPerVault,
+                account: accountOP
+            });
+
+            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+        }
+
         uint256 previewDepositAmountOP = vaultInstance4626OP.previewDeposit(amountPerVault);
-
-        // PREPARE OP DATA
-        address[] memory opHooksAddresses = new address[](2);
-        opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-        opHooksAddresses[1] = _getHookAddress(OP, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        bytes[] memory opHooksData = new bytes[](2);
-        opHooksData[0] =
-            _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, amountPerVault, false);
-        opHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSource4626AddressOP_USDCe, amountPerVault, true, false
-        );
-
-        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
 
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
@@ -516,8 +561,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             amountPerVault,
             OP,
             true,
-            amountPerVault,
-            opUserOpData
+            targetExecutorMessage
         );
 
         UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE);
@@ -579,13 +623,33 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // BASE IS DST
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
 
+        bytes memory targetExecutorMessage;
+        {
+            // PREPARE BASE DATA
+            address[] memory baseHooksAddresses = new address[](0);
+            bytes[] memory baseHooksData = new bytes[](0);
+
+            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonce();
+            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+                hooksAddresses: baseHooksAddresses,
+                hooksData: baseHooksData,
+                validator: address(validatorOnBase),
+                signer: validatorSigners[BASE],
+                signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetExecutor: address(superTargetExecutorOnBase),
+                nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+                nonce: nonce,
+                chainId: uint64(BASE),
+                amount: assetOutAmount,
+                account: accountBase
+            });
+
+            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+
+        }
+
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
-
-        // PREPARE BASE DATA
-        address[] memory baseHooksAddresses = new address[](0);
-        bytes[] memory baseHooksData = new bytes[](0);
-
-        UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE);
 
         // OP IS SRC
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
@@ -620,8 +684,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 // amount
             BASE,
             true,
-            assetOutAmount,
-            baseUserOpData
+            targetExecutorMessage
         );
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
@@ -922,98 +985,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(
             IERC20(underlyingOP_USDCe).balanceOf(accountOP),
             userBalanceUnderlyingBefore + expectedAssetOutAmount - expectedFee
-        );
-    }
-    
-    // Creates userOpData for the given chainId
-    function _createExecutionData_AcrossTargetExecutor(
-        address[] memory hooksAddresses,
-        bytes[] memory hooksData
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-         ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
-    }
-
-    function _createAccountCreationData_AcrossTargetExecutor(address validatorOnDestinationChain, address theSigner, address executorOnDestinationChain, address nexusFactory, address nexusBootstrap)
-        internal
-        returns (bytes memory, address)
-    {
-          // create validators
-        BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({ module: validatorOnDestinationChain, data: abi.encode(theSigner) });
-        // create executors
-        BootstrapConfig[] memory executors = new BootstrapConfig[](1);
-        executors[0] = BootstrapConfig({ module: address(executorOnDestinationChain), data: "" });
-        // create hooks
-        BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
-        // create fallbacks
-        BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
-        address[] memory attesters = new address[](1);
-        attesters[0] = address(MANAGER);
-        uint8 threshold = 1;
-        MockRegistry nexusRegistry = new MockRegistry();
-        bytes memory initData = INexusBootstrap(nexusBootstrap).getInitNexusCalldata(
-            validators, executors, hook, fallbacks, IERC7484(nexusRegistry), attesters, threshold
-        );
-        bytes32 initSalt = bytes32(keccak256("SIGNER_SALT"));
-
-        address precomputedAddress = INexusFactory(nexusFactory).computeAccountAddress(initData, initSalt);
-        return (abi.encode(initData, initSalt), precomputedAddress);
-    }
-
-    function _createSignatureData_AcrossTargetExecutor(bytes memory executionData, uint64 dstChainId, address account, uint256 nonce, uint48 validUntil, string memory hashNamespace, address signer, uint256 signerPrivateKey) internal pure returns (bytes memory) {
-         // @dev sigData needs the following fields:
-        //      - uint48 validUntil
-        //      - bytes32 merkleRoot
-        //      - bytes32[] proof
-        //      - bytes signature
-        (bytes32 merkleRoot, bytes32[] memory merkleProof) = _createDestinationMerkleTree(executionData, dstChainId, account, nonce, validUntil);
-
-        bytes memory signature = _createSignature(hashNamespace, merkleRoot, signer, signerPrivateKey);
-
-        return abi.encode(validUntil, merkleRoot, merkleProof, signature);
-    }
-
-    function _createSignature(string memory hashNamespace, bytes32 merkleRoot, address signer, uint256 signerPrivateKey) internal pure returns (bytes memory signature) {
-        if (signer == address(0) || signerPrivateKey == 0) revert("signer not set");
-        
-        bytes32 messageHash = keccak256(abi.encode(hashNamespace, merkleRoot));
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, ethSignedMessageHash);
-        signature = abi.encodePacked(r, s, v);
-
-        // test sig here; fail early if invalid
-        address _expectedSigner = ECDSA.recover(ethSignedMessageHash, signature);
-        assertEq(_expectedSigner, signer, "Signature should be valid");
-    }
-
-    function _createDestinationMerkleTree(bytes memory executionData, uint64 dstChainId, address account, uint256 nonce, uint48 validUntil) internal pure returns (bytes32 merkleRoot, bytes32[] memory merkleProof) {
-        bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createDestinationMerkleTreeLeaf(executionData, dstChainId, account, nonce, validUntil);
-
-        merkleRoot = leaves[0];
-        merkleProof = new bytes32[](0);
-    }
-
-    function _createDestinationMerkleTreeLeaf(bytes memory executionData, uint64 dstChainId, address account, uint256 nonce, uint48 validUntil) internal pure returns (bytes32) {
-         return keccak256(
-            bytes.concat(
-                keccak256(
-                    abi.encode(
-                        executionData,
-                        dstChainId,
-                        account,
-                        nonce,
-                        validUntil
-                    )
-                )
-            )
         );
     }
 
