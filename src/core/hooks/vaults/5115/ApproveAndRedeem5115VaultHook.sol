@@ -117,8 +117,8 @@ contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflow
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
-    function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        return IERC4626(data.extractYieldSource()).balanceOf(account);
+    function _getBalance(address account, bytes memory) private view returns (uint256) {
+        return IERC20(asset).balanceOf(account);
     }
 
     function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
