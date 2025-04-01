@@ -354,6 +354,7 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
