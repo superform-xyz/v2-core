@@ -20,6 +20,7 @@ abstract contract BaseLedger is ISuperLedger {
     using SafeERC20 for IERC20;
 
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
+    ISuperRegistry public immutable superRegistry;
 
     mapping(address user => uint256) public usersAccumulatorShares;
     mapping(address user => uint256) public usersAccumulatorCostBasis;
@@ -29,9 +30,10 @@ abstract contract BaseLedger is ISuperLedger {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    constructor(address superLedgerConfiguration_) {
-        if (superLedgerConfiguration_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+    constructor(address superLedgerConfiguration_, address superRegistry_) {
+        if (superLedgerConfiguration_ == address(0) || superRegistry_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         superLedgerConfiguration = SuperLedgerConfiguration(superLedgerConfiguration_);
+        superRegistry = ISuperRegistry(superRegistry_);
     }
 
     modifier onlyExecutor() {
@@ -190,12 +192,10 @@ abstract contract BaseLedger is ISuperLedger {
     }
 
     function _getAddress(bytes32 id_) internal view returns (address) {
-        ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
-        return registry.getAddress(id_);
+        return superRegistry.getAddress(id_);
     }
 
     function _isExecutorAllowed(address executor) internal view returns (bool) {
-        ISuperRegistry registry = ISuperRegistry(superLedgerConfiguration.superRegistry());
-        return registry.isExecutorAllowed(executor);
+        return superRegistry.isExecutorAllowed(executor);
     }
 }

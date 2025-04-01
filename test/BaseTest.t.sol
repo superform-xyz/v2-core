@@ -435,12 +435,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A[i].superLedgerConfiguration);
 
             A[i].superLedger =
-                ISuperLedger(address(new SuperLedger{ salt: SALT }(address(A[i].superLedgerConfiguration))));
+                ISuperLedger(address(new SuperLedger{ salt: SALT }(address(A[i].superLedgerConfiguration), address(A[i].superRegistry))));
             vm.label(address(A[i].superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A[i].superLedger);
 
             A[i].erc1155Ledger =
-                ISuperLedger(address(new ERC5115Ledger{ salt: SALT }(address(A[i].superLedgerConfiguration))));
+                ISuperLedger(address(new ERC5115Ledger{ salt: SALT }(address(A[i].superLedgerConfiguration), address(A[i].superRegistry))));
             vm.label(address(A[i].erc1155Ledger), ERC1155_LEDGER_KEY);
             contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A[i].erc1155Ledger);
 

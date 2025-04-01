@@ -234,7 +234,7 @@ contract DeployV2 is Script, Configuration {
             SUPER_LEDGER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
-            abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+            abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry))
         );
 
         // Deploy ERC5115Ledger
@@ -243,7 +243,7 @@ contract DeployV2 is Script, Configuration {
             ERC1155_LEDGER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
-            abi.encodePacked(type(ERC5115Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+            abi.encodePacked(type(ERC5115Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry))
         );
 
         // Deploy SuperNativePaymaster
