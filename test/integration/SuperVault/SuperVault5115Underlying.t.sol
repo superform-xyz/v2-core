@@ -248,16 +248,6 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             false
         );
 
-        // hookCalldata[0] = _create5115RedeemHookData(
-        //     bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
-        //     pendleEthenaAddress,
-        //     tokenOut,
-        //     underlyingSharesOut,
-        //     underlyingAssetsOut,
-        //     false,
-        //     false
-        // );
-
         hookCalldata[1] =
             abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
 
