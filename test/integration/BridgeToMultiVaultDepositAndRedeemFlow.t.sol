@@ -485,7 +485,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
 
         _processAcrossV3Message(
-            ETH, BASE, WARP_START_TIME + 10 seconds, executeOp(ethUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+            ETH, BASE, WARP_START_TIME + 10 seconds, executeOp(ethUserOpData), RELAYER_TYPE.NO_HOOKS, accountBase
         );
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 10 seconds);
 
@@ -690,7 +690,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
 
         _processAcrossV3Message(
-            OP, BASE, WARP_START_TIME, executeOp(opUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+            OP, BASE, WARP_START_TIME, executeOp(opUserOpData), RELAYER_TYPE.NO_HOOKS, accountBase
         );
 
         vm.selectFork(FORKS[BASE]);

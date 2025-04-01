@@ -9,6 +9,7 @@ interface IAcrossTargetExecutor {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+    event AcrossTargetExecutorReceivedButNoHooks();
     event AcrossTargetExecutorExecuted(address indexed account);
     event AcrossTargetExecutorReceivedButNotEnoughBalance(address indexed account);
 

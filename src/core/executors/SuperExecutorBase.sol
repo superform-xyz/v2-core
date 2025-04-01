@@ -70,7 +70,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         uint256 hooksLen = entry.hooksAddresses.length;
 
         // nothing to execute
-        if (hooksLen == 0) return;
+        if (hooksLen == 0) revert NO_HOOKS();
         if (hooksLen != entry.hooksData.length) revert LENGTH_MISMATCH();
 
         // execute each strategy

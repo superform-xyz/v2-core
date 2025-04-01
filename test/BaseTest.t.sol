@@ -1321,7 +1321,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     enum RELAYER_TYPE {
         NOT_ENOUGH_BALANCE,
-        ENOUGH_BALANCE
+        ENOUGH_BALANCE,
+        NO_HOOKS
     }
 
     function _processAcrossV3Message(
@@ -1337,9 +1338,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
             emit IAcrossTargetExecutor.AcrossTargetExecutorReceivedButNotEnoughBalance(account);
-        } else {
+        } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
             emit IAcrossTargetExecutor.AcrossTargetExecutorExecuted(account);
+        } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
+            vm.expectEmit(true, true, true, true);
+            emit IAcrossTargetExecutor.AcrossTargetExecutorReceivedButNoHooks();
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
@@ -1470,7 +1474,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
          ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
+        console2.log("length of execution ", (abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute))).length);
         return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
     }
 
