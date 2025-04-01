@@ -8,9 +8,16 @@ import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 /// @author SuperForm Labs
 /// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 interface ISuperVaultStrategy {
+    enum FulfillmentType {
+        UNSET,
+        DEPOSIT,
+        REDEEM
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
+
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
@@ -32,8 +39,11 @@ interface ISuperVaultStrategy {
     error INSUFFICIENT_FUNDS();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
+    error ZERO_OUTPUT_AMOUNT();
     error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
+    error FULFILMENT_TYPE_UNSET();
+    error INVALID_FULFILMENT_TYPE();
     error INVALID_BALANCE_CHANGE();
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
@@ -55,6 +65,7 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
     error DEPOSIT_FAILURE_INVALID_TARGET();
+    error INSUFFICIENT_SHARES();
     error INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -82,6 +93,7 @@ interface ISuperVaultStrategy {
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
     event HooksExecuted(address[] hooks);
+    event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 spentAmount);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
@@ -91,51 +103,43 @@ interface ISuperVaultStrategy {
         address recipient; // Fee recipient address
     }
 
-    struct SharePricePoint {
-        /// @notice Number of shares at this price point
-        uint256 shares;
-        /// @notice Price per share in asset decimals when these shares were minted
-        uint256 pricePerShare;
-    }
-
     struct SuperVaultState {
         uint256 pendingDepositRequest;
         uint256 pendingRedeemRequest;
         uint256 maxMint;
         uint256 maxWithdraw;
-        uint256 sharePricePointCursor;
+        uint256 accumulatorShares;
+        uint256 accumulatorCostBasis;
         uint256 averageDepositPrice;
         uint256 averageWithdrawPrice;
-        SharePricePoint[] sharePricePoints;
     }
 
-    struct FulfillmentVars {
-        // Common variables used in both deposit and redeem flows
-        uint256 totalRequestedAmount; // Total amount of assets/shares requested across all users
-        uint256 spentAmount; // Running total of assets/shares spent in hooks
-        uint256 pricePerShare; // Current price per share, used for calculations
-        uint256 requestedAmount; // Individual user's requested amount
-        address prevHook; // Previous hook in sequence for hook chaining
-        // Deposit-specific variables
-        uint256 availableAmount; // Only used in deposit to check initial balance
-        // Variables for share calculations
-        uint256 shares; // Used in deposit for minting shares
+    /// @notice Combined execution variables for all hook types
+    struct ExecutionVars {
+        // Common variables
+        uint256 hooksLength;
+        address prevHook;
+        address targetedYieldSource;
+        bool success;
+        ISuperHook hookContract;
+        ISuperHook.HookType hookType;
+        Execution[] executions;
+        // Fulfill hooks specific
+        bool isFulfillment;
+        uint256 totalRequestedAmount;
+        uint256 spentAmount;
+        uint256 pricePerShare;
+        uint256 requestedAmount;
+        uint256 shares;
     }
 
-    struct MatchVars {
-        // Variables for deposit processing
-        uint256 depositAssets; // Assets requested in the deposit
-        uint256 sharesNeeded; // Total shares needed for this deposit
-        uint256 remainingShares; // Remaining shares needed to fulfill deposit
-        // Variables for redeem processing
-        uint256 redeemShares; // Shares available from redeemer
-        uint256 sharesToUse; // Shares to take from current redeemer
-        // Variables for historical assets calculation
-        uint256 lastConsumedIndex; // Last consumed share price point index
-        uint256 finalAssets; // Final assets after fee calculation
-        // Price tracking
-        uint256 currentPricePerShare; // Current price per share for calculations
-        uint256 totalAssets; // Total assets across all yield sources
+    /// @notice Arguments for the execute function
+    struct ExecuteArgs {
+        address[] users;
+        address[] hooks;
+        bytes[] hookCalldata;
+        bytes32[][] hookProofs;
+        uint256[] expectedAssetsOrSharesOut;
     }
 
     /// @notice Local variables struct for executeHooks to avoid stack too deep
@@ -156,6 +160,22 @@ interface ISuperVaultStrategy {
         bool success;
     }
 
+    struct MatchVars {
+        // Variables for deposit processing
+        uint256 depositAssets; // Assets requested in the deposit
+        uint256 sharesNeeded; // Total shares needed for this deposit
+        uint256 remainingShares; // Remaining shares needed to fulfill deposit
+        // Variables for redeem processing
+        uint256 redeemShares; // Shares available from redeemer
+        uint256 sharesToUse; // Shares to take from current redeemer
+        // Variables for historical assets calculation
+        uint256 lastConsumedIndex; // Last consumed share price point index
+        uint256 finalAssets; // Final assets after fee calculation
+        // Price tracking
+        uint256 currentPricePerShare; // Current price per share for calculations
+        uint256 totalAssets; // Total assets across all yield sources
+    }
+
     struct YieldSource {
         address oracle; // Associated yield source oracle address
         bool isActive; // Whether the source is active
@@ -166,18 +186,15 @@ interface ISuperVaultStrategy {
         uint256 tvl;
     }
 
-    struct ProcessHooksLocalVars {
-        // Hook execution variables
-        uint256 hooksLength;
-        uint256 targetedSourcesCount;
-        address target;
-        // Hook execution results
+    /// @notice Struct for outflow execution variables
+    struct OutflowExecutionVars {
         uint256 amount;
-        address hookTarget;
-        uint256 outAmount;
-        // Arrays for tracking
-        address[] targetedYieldSources;
-        address[] resizedArray;
+        uint256 amountOfAssets;
+        uint256 amountConvertedToUnderlyingShares;
+        uint256 balanceAssetBefore;
+        uint256 balanceAssetAfter;
+        address target;
+        address yieldSource;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -211,30 +228,15 @@ interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Fulfill deposit requests for multiple users
-    /// @param users Array of users with pending deposit requests
-    /// @param hooks Array of hooks to use for deposits
-    /// @param hookCalldata Array of calldata for hooks
-    /// @param minAssetsOrSharesOut Array of minimum assets or shares out for each hook
-    /// @param isDeposit Whether the requests are deposits or redeems
-    function fulfillRequests(
-        address[] calldata users,
-        address[] calldata hooks,
-        bytes[] calldata hookCalldata,
-        uint256[] calldata minAssetsOrSharesOut,
-        bool isDeposit
-    )
-        external;
+
+    /// @notice Execute hooks with support for fulfilling user requests
+    /// @param args Execution arguments containing all parameters
+    function execute(ExecuteArgs calldata args) external;
 
     /// @notice Match redeem requests with deposit requests directly
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
     function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external;
-
-    /// @notice Execute arbitrary hooks with proper validation based on hook type
-    /// @param hooks Array of hooks to execute in sequence
-    /// @param hookCalldata Array of calldata for each hook
-    function executeHooks(address[] calldata hooks, bytes[] calldata hookCalldata) external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
@@ -252,7 +254,15 @@ interface ISuperVaultStrategy {
     ///        1 - Update oracle,
     ///        2 - Toggle activation (oracle param ignored).
     /// @param activate Boolean flag for activation when actionType is 2.
-    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
+    /// @param isAsync Boolean flag for async yield source
+    function manageYieldSource(
+        address source,
+        address oracle,
+        uint8 actionType,
+        bool activate,
+        bool isAsync
+    )
+        external;
 
     /// @notice Propose or execute a hook root update
     /// @dev if newRoot is 0, executes the proposed hook root update

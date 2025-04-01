@@ -12,6 +12,7 @@ import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { console2 } from "forge-std/console2.sol";
 
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
 contract SuperVaultAllocateTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
@@ -67,7 +68,7 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
         console2.log("Target FluidVault assets:", vars.targetFluidVaultAssets);
         console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
 
-        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
@@ -124,7 +125,7 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         hooksAddresses[0] = withdrawHookAddress;
@@ -200,7 +201,7 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
@@ -285,7 +286,9 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(
+            address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
         vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -346,7 +349,15 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
 
         // check new balances

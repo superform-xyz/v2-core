@@ -87,14 +87,16 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             address(pendleEthenaAddress),
             _getContract(ETH, ERC5115_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            false
         );
 
         strategy.manageYieldSource(
             CHAIN_1_SUSDE,
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            true
         );
 
         strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
@@ -138,7 +140,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         vm.warp(block.timestamp + 50 weeks);
         uint256 pricePerShare = _getPPS();
         console2.log("\n PPS BEFORE REDEEM", pricePerShare);
-        
+
         // Step 4: Request Redeem
         _requestRedeem(userShares);
 
@@ -171,7 +173,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
     }
 
     function _fulfillSV5115Deposit(uint256 amount) internal {
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY);
 
         address[] memory hooks_ = new address[](1);
         hooks_[0] = depositHookAddress;
@@ -183,7 +185,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         console2.log("preview deposit", expectedShares);
 
         bytes[] memory hookCalldata = new bytes[](1);
-        hookCalldata[0] = _createDeposit5115VaultHookData(
+        hookCalldata[0] = _createApproveAndDeposit5115VaultHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             pendleEthenaAddress,
             address(asset),
@@ -200,10 +202,17 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = expectedShares;
 
         vm.startPrank(STRATEGIST);
-        strategy.fulfillRequests(users, hooks_, hookCalldata, minAssetsOrSharesOut, true);
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: users,
+                hooks: hooks_,
+                hookCalldata: hookCalldata,
+                hookProofs: _getMerkleProofsForAddresses(hooks_),
+                expectedAssetsOrSharesOut: minAssetsOrSharesOut
+            })
+        );
         vm.stopPrank();
         console2.log("-------SVShare balance", IStandardizedYield(pendleEthenaAddress).balanceOf(address(strategy)));
-
         uint256 pps = _getPPS();
         console2.log("PPS AFTER FULFILL DEPOSIT", pps);
     }
@@ -242,8 +251,15 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooks_, hookCalldata);
-
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooks_,
+                hookCalldata: hookCalldata,
+                hookProofs: _getMerkleProofsForAddresses(hooks_),
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         vm.stopPrank();
     }
 
@@ -272,11 +288,15 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[0] = underlyingAssetsOut;
 
         vm.startPrank(STRATEGIST);
-
-        strategy.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+            })
         );
-
         vm.stopPrank();
     }
 

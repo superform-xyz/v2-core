@@ -10,6 +10,7 @@ import { console2 } from "forge-std/console2.sol";
 // superform
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
 contract SuperVaultGasReportTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
@@ -119,7 +120,9 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(MANAGER);
-        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(
+            address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
         vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
@@ -182,9 +185,15 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(hooksAddresses, hooksData);
-        vm.stopPrank();
-
+        strategy.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
         // check new balances
         vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));

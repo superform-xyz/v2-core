@@ -105,13 +105,15 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             address(gearboxVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            false
         );
         strategyGearSuperVault.manageYieldSource(
             gearboxStakingAddr,
             _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false // addYieldSource
+            false, // addYieldSource
+            false
         );
         vm.stopPrank();
 
@@ -244,14 +246,16 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                         PRIVATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function __requestDeposit_Gearbox_SV(uint256 depositAmount) private {
-        address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(asset), address(gearSuperVault), depositAmount, false);
-        hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), depositAmount, false
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndRequestDeposit7540HookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearSuperVault),
+            address(asset),
+            depositAmount,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -264,7 +268,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
 
-        address depositHookAddress = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = depositHookAddress;
@@ -274,22 +278,34 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         // allocate up to the max allocation rate in the two Vaults
-        fulfillHooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(gearboxVault), depositAmount, false, false
+        fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxVault),
+            address(asset),
+            depositAmount,
+            false,
+            false
         );
 
         uint256[] memory minAssetsOrSharesOut = new uint256[](1);
         minAssetsOrSharesOut[0] = gearboxVault.convertToShares(depositAmount);
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, minAssetsOrSharesOut, true
+        strategyGearSuperVault.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                expectedAssetsOrSharesOut: minAssetsOrSharesOut
+            })
         );
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getGearSuperVaultPricePerShare();
         uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
-        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
+
+        _trackDeposit(accountEth, shares, depositAmount);
     }
 
     function __claimDeposit_Gearbox_SV(uint256 depositAmount) private {
@@ -322,7 +338,15 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.executeHooks(hooksAddresses, hooksData);
+        strategyGearSuperVault.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
     }
 
     function _requestRedeem_Gearbox_SV(uint256 shares) internal {
@@ -350,14 +374,22 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.executeHooks(hooksAddresses, hooksData);
+        strategyGearSuperVault.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](0)
+            })
+        );
     }
 
     function _fulfillRedeem_Gearbox_SV() internal {
         /// @dev with preserve percentages based on USD value allocation
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
-        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -365,8 +397,9 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
 
         bytes[] memory fulfillHooksData = new bytes[](1);
-        fulfillHooksData[0] = _createRedeem4626HookData(
+        fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxVault),
             address(gearboxVault),
             address(strategyGearSuperVault),
             shares,
@@ -380,19 +413,25 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[0] = underlyingShares;
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.fulfillRequests(
-            requestingUsers, fulfillHooksAddresses, fulfillHooksData, expectedAssetsOrSharesOut, false
+        strategyGearSuperVault.execute(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+            })
         );
         vm.stopPrank();
     }
 
     function _claimWithdraw_Gearbox_SV(uint256 assets) internal {
         address[] memory claimHooksAddresses = new address[](1);
-        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+        claimHooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
 
         bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), assets, false, false
+        claimHooksData[0] = _createApproveAndWithdraw7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), vault.share(), assets, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =

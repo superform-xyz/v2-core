@@ -2,10 +2,11 @@
 pragma solidity 0.8.28;
 
 // External
-import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
@@ -25,7 +26,7 @@ import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 /// @title SuperVault
 /// @author SuperForm Labs
 /// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
-contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
+contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -404,7 +405,15 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC7540Deposit
-    function deposit(uint256 assets, address receiver, address controller) public returns (uint256 shares) {
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address controller
+    )
+        public
+        nonReentrant
+        returns (uint256 shares)
+    {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(controller);
 
@@ -429,13 +438,13 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         shares = deposit(assets, receiver, msg.sender);
     }
 
     /// @inheritdoc IERC7540Deposit
-    function mint(uint256 shares, address receiver, address controller) public returns (uint256 assets) {
+    function mint(uint256 shares, address receiver, address controller) public nonReentrant returns (uint256 assets) {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(controller);
 
@@ -456,12 +465,21 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function mint(uint256 shares, address receiver) public override returns (uint256 assets) {
+    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
         assets = mint(shares, receiver, msg.sender);
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(uint256 assets, address receiver, address owner) public override returns (uint256 shares) {
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    )
+        public
+        override
+        nonReentrant
+        returns (uint256 shares)
+    {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
@@ -483,7 +501,16 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     }
 
     /// @inheritdoc IERC4626
-    function redeem(uint256 shares, address receiver, address owner) public override returns (uint256 assets) {
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    )
+        public
+        override
+        nonReentrant
+        returns (uint256 assets)
+    {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
@@ -521,18 +548,20 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault {
     /// @param user The user whose deposit is claimable
     /// @param assets The amount of assets deposited
     /// @param shares The amount of shares to be received
-    function onDepositClaimable(address user, uint256 assets, uint256 shares) external {
+    /// @param averageDepositPrice The average price of the deposit
+    function onDepositClaimable(address user, uint256 assets, uint256 shares, uint256 averageDepositPrice) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
-        emit DepositClaimable(user, REQUEST_ID, assets, shares);
+        emit DepositClaimable(user, REQUEST_ID, assets, shares, averageDepositPrice);
     }
 
     /// @notice Callback function for when a redeem becomes claimable
     /// @param user The user whose redeem is claimable
     /// @param assets The amount of assets to be received
     /// @param shares The amount of shares redeemed
-    function onRedeemClaimable(address user, uint256 assets, uint256 shares) external {
+    /// @param averageWithdrawPrice The average price of the redeem
+    function onRedeemClaimable(address user, uint256 assets, uint256 shares, uint256 averageWithdrawPrice) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
-        emit RedeemClaimable(user, REQUEST_ID, assets, shares);
+        emit RedeemClaimable(user, REQUEST_ID, assets, shares, averageWithdrawPrice);
     }
 
     /*//////////////////////////////////////////////////////////////
