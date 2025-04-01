@@ -31,7 +31,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 160);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 161);
 /// @notice         bool lockForSP = _decodeBool(data, 162);
-contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
