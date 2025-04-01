@@ -405,7 +405,15 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     }
 
     /// @inheritdoc IERC7540Deposit
-    function deposit(uint256 assets, address receiver, address controller) public nonReentrant returns (uint256 shares) {
+    function deposit(
+        uint256 assets,
+        address receiver,
+        address controller
+    )
+        public
+        nonReentrant
+        returns (uint256 shares)
+    {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(controller);
 
@@ -462,7 +470,16 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(uint256 assets, address receiver, address owner) public override nonReentrant returns (uint256 shares) {
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address owner
+    )
+        public
+        override
+        nonReentrant
+        returns (uint256 shares)
+    {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
@@ -484,7 +501,16 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     }
 
     /// @inheritdoc IERC4626
-    function redeem(uint256 shares, address receiver, address owner) public override nonReentrant returns (uint256 assets) {
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    )
+        public
+        override
+        nonReentrant
+        returns (uint256 assets)
+    {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
