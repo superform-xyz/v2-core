@@ -200,6 +200,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
+        } else {
+            if (args.hookProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
         }
 
         // Process hooks
@@ -260,8 +262,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                     revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
                 }
             } else {
-                // Process as regular hook
-                if (!peripheryRegistry.isHookRegistered(hook)) revert INVALID_HOOK();
+                //  when is fulfillHook is false, regardless of the status of isFulfillment or not, we only check with
+                // "isHookAllowed".
+                if (!isFulfillHook && !isHookAllowed(hook, args.hookProofs[i])) revert INVALID_HOOK();
 
                 // Call preExecute to initialize outAmount tracking
                 vars.hookContract.preExecute(vars.prevHook, address(this), args.hookCalldata[i]);

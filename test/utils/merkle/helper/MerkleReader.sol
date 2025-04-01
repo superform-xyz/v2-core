@@ -40,7 +40,7 @@ abstract contract MerkleReader is StdCheats, BaseTest {
 
         v.treeJson = vm.readFile(string.concat(vm.projectRoot(), basePathForTreeDump, Strings.toString(0), ".json"));
 
-        for (uint256 i; i < 6; ++i) {
+        for (uint256 i; i < 30; ++i) {
             v.encodedHookAddress =
                 vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), hooksAddressQueryAppend));
             v.encodedProof = vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), proofQueryAppend));

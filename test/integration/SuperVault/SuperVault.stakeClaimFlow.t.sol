@@ -296,6 +296,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: minAssetsOrSharesOut
             })
         );
@@ -341,6 +342,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
@@ -376,6 +378,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
@@ -414,6 +417,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
