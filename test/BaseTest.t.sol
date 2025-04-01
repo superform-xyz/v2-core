@@ -173,7 +173,7 @@ struct Addresses {
     PeripheryRegistry peripheryRegistry;
     SuperNativePaymaster superNativePaymaster;
     SuperGasTank superGasTank;
-    MockTargetExecutor mockTargetExecutor;  
+    MockTargetExecutor mockTargetExecutor;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit {
@@ -413,7 +413,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             A[i].mockTargetExecutor = new MockTargetExecutor(address(A[i].superRegistry));
             vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
-            contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor); 
+            contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor);
 
             A[i].superLedgerConfiguration =
                 ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(A[i].superRegistry))));
@@ -452,9 +452,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
 
             A[i].superDestinationValidator = new SuperDestinationValidator();
             vm.label(address(A[i].superDestinationValidator), SUPER_DESTINATION_VALIDATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_DESTINATION_VALIDATOR_KEY] = address(A[i].superDestinationValidator);  
+            contractAddresses[chainIds[i]][SUPER_DESTINATION_VALIDATOR_KEY] = address(A[i].superDestinationValidator);
 
-            A[i].acrossTargetExecutor = ISuperExecutor(address(new AcrossTargetExecutor(address(A[i].superRegistry), SPOKE_POOL_V3_ADDRESSES[chainIds[i]], address(A[i].superDestinationValidator), NEXUS_FACTORY_ADDRESSES[chainIds[i]])));
+            A[i].acrossTargetExecutor = ISuperExecutor(
+                address(
+                    new AcrossTargetExecutor(
+                        address(A[i].superRegistry),
+                        SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
+                        address(A[i].superDestinationValidator),
+                        NEXUS_FACTORY_ADDRESSES[chainIds[i]]
+                    )
+                )
+            );
             vm.label(address(A[i].acrossTargetExecutor), ACROSS_TARGET_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][ACROSS_TARGET_EXECUTOR_KEY] = address(A[i].acrossTargetExecutor);
 
@@ -993,7 +1002,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
         vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
 
-
         mapping(uint64 => address) storage nexusFactoryAddressesMap = NEXUS_FACTORY_ADDRESSES;
         nexusFactoryAddressesMap[ETH] = CHAIN_1_NEXUS_FACTORY;
         vm.label(nexusFactoryAddressesMap[ETH], "NexusFactoryETH");
@@ -1165,10 +1173,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                          HELPERS
     //////////////////////////////////////////////////////////////*/
-    
-    function _createSourceMerkleTree() internal {
-    
-    }
+
+    function _createSourceMerkleTree() internal { }
 
     function _getExecOps(
         AccountInstance memory instance,
@@ -1343,6 +1349,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         internal
         pure
     {
+        console2.log("feeBalanceAfter", feeBalanceAfter);
+        console2.log("expected fee", feeBalanceBefore + expectedFee);
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 

@@ -54,16 +54,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
 
-    struct SharePricePoint {
-        /// @notice Number of shares at this price point
-        uint256 shares;
-        /// @notice Price per share in asset decimals when these shares were minted
-        uint256 pricePerShare;
+    // Update state tracking
+    struct SuperVaultState {
+        uint256 accumulatorShares;
+        uint256 accumulatorCostBasis;
     }
 
-    mapping(address user => uint256 sharePricePointCursor) public userSharePricePointCursors;
-
-    mapping(address user => SharePricePoint[] sharePricePoints) public userSharePricePoints;
+    // Track state for each user
+    mapping(address user => SuperVaultState) private superVaultStates;
 
     function setUp() public virtual override {
         super.setUp();
@@ -353,7 +351,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
         uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
-        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
+
+        _trackDeposit(accountEth, shares, depositAmount);
     }
 
     // Local variables struct for _fulfillRedeem
@@ -1324,31 +1323,21 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         internal
         returns (uint256, uint256)
     {
-        uint256 historicalAssets = 0;
-        SharePricePoint[] memory sharePricePoints = userSharePricePoints[accountEth];
-        uint256 sharePricePointsLength = sharePricePoints.length;
-        uint256 remainingShares = requestedShares;
-        uint256 currentIndex = userSharePricePointCursors[accountEth];
-        uint256 lastConsumedIndex = currentIndex;
+        // Use the weighted average approach to calculate historical assets
+        SuperVaultState storage state = superVaultStates[accountEth];
 
-        // Calculate historicalAssets for each share price point
-        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0; ++j) {
-            SharePricePoint memory point = sharePricePoints[j];
-            uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
-
-            // Update point's remaining shares or mark for deletion
-            if (sharesFromPoint == point.shares) {
-                // Point fully consumed, move cursor
-                lastConsumedIndex = j + 1;
-                userSharePricePointCursors[accountEth]++;
-            } else if (sharesFromPoint < point.shares) {
-                // Point partially consumed, update shares
-                sharePricePoints[j].shares -= sharesFromPoint;
-            }
-
-            remainingShares -= sharesFromPoint;
+        // Check for insufficient shares
+        if (requestedShares > state.accumulatorShares) {
+            revert("INSUFFICIENT_SHARES");
         }
+
+        // Calculate cost basis proportionally based on requested shares
+        uint256 historicalAssets =
+            requestedShares.mulDiv(state.accumulatorCostBasis, state.accumulatorShares, Math.Rounding.Floor);
+
+        // Update user's accumulator state
+        state.accumulatorShares -= requestedShares;
+        state.accumulatorCostBasis -= historicalAssets;
 
         // Calculate current value and process fees
         uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
@@ -1356,6 +1345,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFeesFromAssets(currentAssets, historicalAssets);
 
         return (superformFee, recipientFee);
+    }
+
+    // Update function to track deposits
+    function _trackDeposit(address user, uint256 shares, uint256 assets) internal {
+        SuperVaultState storage state = superVaultStates[user];
+        state.accumulatorShares += shares;
+        state.accumulatorCostBasis += assets;
     }
 
     function _deriveSuperVaultFeesFromAssets(
