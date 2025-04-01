@@ -31,7 +31,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     address public morpho;
     IMorpho public morphoInterface;
-    IMorpho.MarketParams public marketParams;
+    MarketParams public marketParams;
 
     uint256 private constant AMOUNT_POSITION = 80;
 
@@ -73,7 +73,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (loanToken == address(0) || collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
-        marketParams = IMorpho.MarketParams({
+        marketParams = MarketParams({
             loanToken: loanToken,
             collateralToken: collateralToken,
             oracle: oracle,

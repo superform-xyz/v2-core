@@ -27,9 +27,9 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                STORAGE
     //////////////////////////////////////////////////////////////*/
-    IMorpho public morpho;
-
-    IMorpho.MarketParams public marketParams;
+    address public morpho;
+    IMorpho public morphoInterface;
+    MarketParams public marketParams;
 
     uint256 private constant ASSETS_POSITION = 80;
 
@@ -38,7 +38,8 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     constructor(address registry_, address morpho_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (morpho_ == address(0)) revert ZERO_ADDRESS();
-        morpho = IMorpho(morpho_);
+        morpho = morpho_;
+        morphoInterface = IMorpho(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////
