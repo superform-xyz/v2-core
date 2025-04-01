@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
-
 // External
 import { IERC7540 } from "../vendor/vaults/7540/IERC7540.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
-import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
@@ -25,15 +25,15 @@ import {
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
-import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
-import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
+import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
+import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
-contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
+contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -153,6 +153,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         external
         returns (uint256 assetsOrSharesOut)
     {
+        _requireVault();
         if (operation == Operation.DepositRequest) {
             assetsOrSharesOut = _handleRequestDeposit(controller, amount);
         } else if (operation == Operation.CancelDeposit) {
@@ -165,8 +166,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
             assetsOrSharesOut = _handleCancelRedeem(controller);
         } else if (operation == Operation.ClaimRedeem) {
             assetsOrSharesOut = _handleClaimWithdraw(controller, amount);
-        } else {
-            revert ACCESS_DENIED();
         }
     }
 
@@ -175,7 +174,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function execute(ExecuteArgs calldata args) external {
+    function execute(ExecuteArgs calldata args) external nonReentrant {
         _requireRole(STRATEGIST_ROLE);
 
         uint256 hooksLength = args.hooks.length;
@@ -329,7 +328,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
     /// @param redeemUsers Array of users with pending redeem requests
     /// @param depositUsers Array of users with pending deposit requests
-    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external whenNotPaused {
+    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external {
         _requireRole(STRATEGIST_ROLE);
         uint256 redeemLength = redeemUsers.length;
         uint256 depositLength = depositUsers.length;
@@ -773,7 +772,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     }
 
     function _handleRequestDeposit(address controller, uint256 assets) private whenNotPaused returns (uint256) {
-        _requireVault();
         if (assets == 0) revert INVALID_AMOUNT();
 
         _safeTokenTransferFrom(address(_asset), msg.sender, address(this), assets);
@@ -785,7 +783,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     }
 
     function _handleCancelDeposit(address controller, uint256 assets) private returns (uint256) {
-        _requireVault();
         if (assets == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -796,7 +793,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     }
 
     function _handleClaimDeposit(address controller, uint256 shares) private returns (uint256) {
-        _requireVault();
         if (shares == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -807,7 +803,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     }
 
     function _handleRequestRedeem(address controller, uint256 shares) private returns (uint256) {
-        _requireVault();
         if (shares == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
@@ -817,14 +812,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     }
 
     function _handleCancelRedeem(address controller) internal returns (uint256) {
-        _requireVault();
         SuperVaultState storage state = superVaultState[controller];
         state.pendingRedeemRequest = 0;
         return 0;
     }
 
     function _handleClaimWithdraw(address controller, uint256 assets) private returns (uint256) {
-        _requireVault();
         if (assets == 0) revert INVALID_AMOUNT();
 
         SuperVaultState storage state = superVaultState[controller];
