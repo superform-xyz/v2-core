@@ -3,7 +3,8 @@ pragma solidity 0.8.28;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
-import { IMorpho } from "../../../vendor/morpho/IMorpho.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IMorpho, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
