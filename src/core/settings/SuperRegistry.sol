@@ -29,16 +29,15 @@ contract SuperRegistry is Ownable2Step, ISuperRegistry {
         if (address_ == address(0)) revert INVALID_ADDRESS();
         addresses[id_] = address_;
         emit AddressSet(id_, address_);
+    }
 
-        if (address_.code.length > 0) {
-            try IModule(address_).isModuleType(MODULE_TYPE_EXECUTOR) returns (bool isExecutor) {
-                if (isExecutor) {
-                    isExecutorAllowed[address_] = true;
-            }
-            } catch {
-                // do nothing
-            }
-        }
+    /// @inheritdoc ISuperRegistry
+    function setExecutor(bytes32 id_, address address_) external override onlyOwner {
+        if (address_ == address(0)) revert INVALID_ADDRESS();
+        if (!IModule(address_).isModuleType(MODULE_TYPE_EXECUTOR)) revert NOT_EXECUTOR();
+        addresses[id_] = address_;
+        isExecutorAllowed[address_] = true;
+        emit AddressSet(id_, address_);
     }
 
     /*//////////////////////////////////////////////////////////////

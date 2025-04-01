@@ -1202,10 +1202,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)),
                 _getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)
             );
-            SuperRegistry(address(superRegistry)).setAddress(
+            SuperRegistry(address(superRegistry)).setExecutor(
                 keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainIds[i], SUPER_EXECUTOR_KEY)
             );
-            SuperRegistry(address(superRegistry)).setAddress(
+            SuperRegistry(address(superRegistry)).setExecutor(
                 keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainIds[i], ACROSS_TARGET_EXECUTOR_KEY)
             );
             SuperRegistry(address(superRegistry)).setAddress(

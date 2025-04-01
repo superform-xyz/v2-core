@@ -13,6 +13,7 @@ interface ISuperRegistry {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error NOT_EXECUTOR();
     error INVALID_ACCOUNT();
     error INVALID_ADDRESS();
 
@@ -24,6 +25,11 @@ interface ISuperRegistry {
     /// @param id_ The ID.
     /// @param address_ The address.
     function setAddress(bytes32 id_, address address_) external;
+
+    /// @dev Set an executor address.
+    /// @param id_ The ID.
+    /// @param address_ The address.
+    function setExecutor(bytes32 id_, address address_) external;
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

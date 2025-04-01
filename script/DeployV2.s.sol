@@ -310,8 +310,8 @@ contract DeployV2 is Script, Configuration {
         superRegistry.setAddress(
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
-        superRegistry.setAddress(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setAddress(keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainId, ACROSS_TARGET_EXECUTOR_KEY));
+        superRegistry.setExecutor(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
+        superRegistry.setExecutor(keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainId, ACROSS_TARGET_EXECUTOR_KEY));
         superRegistry.setAddress(
             keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainId, SUPER_NATIVE_PAYMASTER_KEY)
         );
