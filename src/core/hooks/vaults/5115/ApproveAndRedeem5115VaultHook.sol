@@ -24,17 +24,16 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
-/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 76, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 96, 32), 0);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 128, 32), 0);
-/// @notice         bool burnFromInternalBalance = _decodeBool(data, 160);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 161);
-/// @notice         bool lockForSP = _decodeBool(data, 162);
+/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 44, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 64, 32), 0);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 96, 32), 0);
+/// @notice         bool burnFromInternalBalance = _decodeBool(data, 128);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 129);
+/// @notice         bool lockForSP = _decodeBool(data, 130);
 contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
+    uint256 private constant AMOUNT_POSITION = 64;
 
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
@@ -54,19 +53,18 @@ contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflow
     {
         address yieldSource = data.extractYieldSource();
         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
-        address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 76, 20), 0);
-        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 96, 32), 0);
-        uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 128, 32), 0);
-        bool burnFromInternalBalance = _decodeBool(data, 160);
-        bool usePrevHookAmount = _decodeBool(data, 161);
+        address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 44, 20), 0);
+        uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 64, 32), 0);
+        uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 96, 32), 0);
+        bool burnFromInternalBalance = _decodeBool(data, 128);
+        bool usePrevHookAmount = _decodeBool(data, 129);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0) || tokenIn == address(0) || tokenOut == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](4);
         executions[0] =
@@ -92,7 +90,7 @@ contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflow
         asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 162);
+        lockForSP = _decodeBool(data, 130);
         spToken = data.extractYieldSource();
     }
 
