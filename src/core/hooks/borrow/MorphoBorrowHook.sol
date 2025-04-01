@@ -10,6 +10,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../BaseHook.sol";
 import { ISuperHook } from "../../interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 
 /// @title MorphoBorrowHook
@@ -64,7 +65,8 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
         uint256 amount = _decodeAmount(data);
-        uint256 lltv = _decodeLltv(data);
+        uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+        bool usePrevHookAmount = BytesLib.decodeBool(BytesLib.slice(data, 144, 1));
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -89,7 +91,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         executions[1] =
             Execution({ target: collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, amount)) });
         executions[2] =
-            Execution({ target: morpho_ , value: 0, callData: abi.encodeCall(IMorpho.supplyCollateral, (loanToken, collateralToken, oracle, irm, lltv), collateralAmount, account, "") });
+            Execution({ target: morpho , value: 0, callData: abi.encodeCall(IMorpho.supplyCollateral, (loanToken, collateralToken, oracle, irm, lltv), collateralAmount, account, "") });
         executions[3] =
             Execution({ target: loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, amount)) });
             
@@ -117,6 +119,6 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        return IERC20(collateralToken).balanceOf(account);
+        // return IERC20(collateralToken).balanceOf(account);
     }
 }
