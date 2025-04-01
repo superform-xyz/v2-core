@@ -105,9 +105,9 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         vm.stopPrank();
     }
 
-    function test_SuperVault_5115_Underlying_E2EFlow() public {
+    function test_SuperVault_5115_Underlying_E2E_Flow() public {
         console2.log("\n");
-        console2.log("----test_SuperVault_5115_Underlying_E2EFlow-----");
+        console2.log("----test_SuperVault_5115_Underlying_E2E_Flow-----");
         vm.selectFork(FORKS[ETH]);
 
         // Record initial balances
@@ -221,7 +221,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         requestingUsers[0] = account;
 
         address[] memory hooks_ = new address[](2);
-        hooks_[0] = _getHookAddress(ETH, REDEEM_5115_VAULT_HOOK_KEY);
+        hooks_[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY);
         hooks_[1] = _getHookAddress(ETH, ETHENA_COOLDOWN_SHARES_HOOK_KEY);
 
         uint256 shares = strategy.pendingRedeemRequest(account);
@@ -236,15 +236,27 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         console2.log("underlyingAssetsOut", underlyingAssetsOut);
 
         bytes[] memory hookCalldata = new bytes[](2);
-        hookCalldata[0] = _create5115RedeemHookData(
+        hookCalldata[0] = _createApproveAndRedeem5115VaultHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             pendleEthenaAddress,
+            pendleEthena.yieldToken(),
             tokenOut,
             underlyingSharesOut,
             underlyingAssetsOut,
             false,
+            false,
             false
         );
+
+        // hookCalldata[0] = _create5115RedeemHookData(
+        //     bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+        //     pendleEthenaAddress,
+        //     tokenOut,
+        //     underlyingSharesOut,
+        //     underlyingAssetsOut,
+        //     false,
+        //     false
+        // );
 
         hookCalldata[1] =
             abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
