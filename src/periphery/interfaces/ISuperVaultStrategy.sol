@@ -138,6 +138,7 @@ interface ISuperVaultStrategy {
         address[] users;
         address[] hooks;
         bytes[] hookCalldata;
+        bytes32[][] hookProofs;
         uint256[] expectedAssetsOrSharesOut;
     }
 

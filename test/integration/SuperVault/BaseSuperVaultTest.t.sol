@@ -344,6 +344,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -427,6 +428,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: vars.requestingUsers,
                 hooks: vars.fulfillHooksAddresses,
                 hookCalldata: vars.fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(vars.fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
             })
         );
@@ -467,6 +469,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -511,6 +514,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -552,6 +556,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -598,6 +603,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -662,6 +668,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -715,6 +722,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1005,6 +1013,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                     users: users,
                     hooks: finalHooksAddresses,
                     hookCalldata: finalHooksData,
+                    hookProofs: _getMerkleProofsForAddresses(finalHooksAddresses),
                     expectedAssetsOrSharesOut: new uint256[](0)
                 })
             );
@@ -1267,6 +1276,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1310,6 +1320,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
+                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1450,5 +1461,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             newArray[i] = array[i];
         }
         return newArray;
+    }
+
+    function _getMerkleProofsForAddresses(address[] memory hookAddresses_) internal view returns (bytes32[][] memory) {
+        bytes32[][] memory proofs = new bytes32[][](hookAddresses_.length);
+
+        for (uint256 i = 0; i < hookAddresses_.length; i++) {
+            proofs[i] = _getMerkleProof(hookAddresses_[i]);
+        }
+
+        return proofs;
     }
 }

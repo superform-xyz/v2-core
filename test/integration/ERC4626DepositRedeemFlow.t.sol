@@ -129,13 +129,13 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
     }
 
     function test_RebalanceCrossChain_4626_Mainnet_Flow() public {
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         uint256 amount = 1e8;
         uint256 previewRedeemAmount = vaultInstanceEth.previewRedeem(vaultInstanceEth.previewDeposit(amount));
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         // PREPARE DST DATA
         address[] memory dstHooksAddresses = new address[](2);
@@ -156,7 +156,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
             _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecuteOnDst));
 
         // ETH is SRC
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
         address[] memory srcHooksAddresses = new address[](4);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -186,7 +186,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
         UserOpData memory srcUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
-        _processAcrossV3Message(ETH, BASE, 0, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(
+            ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+        );
     }
 
     struct LocalVars {

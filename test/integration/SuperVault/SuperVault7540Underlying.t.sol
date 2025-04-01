@@ -98,6 +98,9 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             false, // addYieldSource
             true
         );
+        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
+        vm.warp(block.timestamp + 7 days);
+        strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
 
         address share = centrifugeVault.share();
@@ -203,6 +206,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
+                hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
@@ -261,6 +265,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -291,6 +296,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
+                hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](0)
             })
         );
@@ -357,6 +363,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
