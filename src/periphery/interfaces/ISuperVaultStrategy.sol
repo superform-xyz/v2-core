@@ -65,6 +65,7 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
     error DEPOSIT_FAILURE_INVALID_TARGET();
+    error INSUFFICIENT_SHARES();
     error INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -102,22 +103,15 @@ interface ISuperVaultStrategy {
         address recipient; // Fee recipient address
     }
 
-    struct SharePricePoint {
-        /// @notice Number of shares at this price point
-        uint256 shares;
-        /// @notice Price per share in asset decimals when these shares were minted
-        uint256 pricePerShare;
-    }
-
     struct SuperVaultState {
         uint256 pendingDepositRequest;
         uint256 pendingRedeemRequest;
         uint256 maxMint;
         uint256 maxWithdraw;
-        uint256 sharePricePointCursor;
+        uint256 accumulatorShares;
+        uint256 accumulatorCostBasis;
         uint256 averageDepositPrice;
         uint256 averageWithdrawPrice;
-        SharePricePoint[] sharePricePoints;
     }
 
     /// @notice Combined execution variables for all hook types

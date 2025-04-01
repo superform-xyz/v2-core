@@ -270,11 +270,11 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             })
         );
 
-        // Update share price points for each user
+        // Track deposits for each user
         uint256 pps = _getSuperVaultPricePerShare();
         uint256 shares = amount.mulDiv(1e18, pps);
-        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pps }));
-        userSharePricePoints[accInstances[2].account].push(SharePricePoint({ shares: shares, pricePerShare: pps }));
+        _trackDeposit(accountEth, shares, amount);
+        _trackDeposit(accInstances[2].account, shares, amount);
     }
 
     function _requestCentrifugeRedeem() internal {
