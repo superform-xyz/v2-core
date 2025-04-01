@@ -64,7 +64,9 @@ contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflow
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0) || tokenIn == address(0) || tokenOut == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0) || tokenIn == address(0) || tokenOut == address(0)) {
+            revert ADDRESS_NOT_VALID();
+        }
 
         executions = new Execution[](4);
         executions[0] =
