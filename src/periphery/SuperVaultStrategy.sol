@@ -373,10 +373,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
             _updateAverageDepositPrice(depositState, vars.sharesNeeded, vars.depositAssets);
 
-            // Add share price point for the deposit
-            depositState.sharePricePoints.push(
-                SharePricePoint({ shares: vars.sharesNeeded, pricePerShare: vars.currentPricePerShare })
-            );
+            // Update accumulators
+            depositState.accumulatorShares += vars.sharesNeeded;
+            depositState.accumulatorCostBasis += vars.depositAssets;
 
             // Clear deposit request and update state
             depositState.pendingDepositRequest = 0;
@@ -394,15 +393,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
                 address redeemer = redeemUsers[i];
                 SuperVaultState storage redeemState = superVaultState[redeemer];
 
-                // Calculate historical assets and process fees once for total shares used
-                (vars.finalAssets, vars.lastConsumedIndex) =
+                // Calculate historical assets and process fees for total shares used
+                (vars.finalAssets,) =
                     _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
-                // Update share price point cursor
-                if (vars.lastConsumedIndex > redeemState.sharePricePointCursor) {
-                    redeemState.sharePricePointCursor = vars.lastConsumedIndex;
-                }
 
-                // Update maxWithdraw and emit event once
+                // Update maxWithdraw and emit event
                 redeemState.maxWithdraw += vars.finalAssets;
 
                 // Call vault callback instead of emitting event directly
@@ -745,7 +740,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
 
         _updateAverageDepositPrice(state, vars.shares, vars.requestedAmount);
 
-        state.sharePricePoints.push(SharePricePoint({ shares: vars.shares, pricePerShare: vars.pricePerShare }));
+        // Add share amount and cost basis to accumulators
+        state.accumulatorShares += vars.shares;
+        state.accumulatorCostBasis += vars.requestedAmount;
+
         state.pendingDepositRequest =
             vars.requestedAmount >= vars.spentAmount ? vars.requestedAmount - vars.spentAmount : 0;
         state.maxMint += vars.shares;
@@ -758,12 +756,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
     function _processRedeem(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
         vars.requestedAmount = state.pendingRedeemRequest;
 
-        uint256 lastConsumedIndex;
         uint256 finalAssets;
-        (finalAssets, lastConsumedIndex) =
-            _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
+        (finalAssets,) = _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
 
-        state.sharePricePointCursor = lastConsumedIndex;
         state.pendingRedeemRequest =
             state.pendingRedeemRequest >= vars.spentAmount ? state.pendingRedeemRequest - vars.spentAmount : 0;
 
@@ -1108,46 +1103,42 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         uint256 currentPricePerShare
     )
         private
-        returns (uint256 finalAssets, uint256 lastConsumedIndex)
+        returns (uint256 finalAssets, uint256)
     {
-        // Calculate historical assets and update share price points
-        (finalAssets, lastConsumedIndex) =
-            _calculateHistoricalAssetsAndUpdatePoints(state, requestedShares, state.sharePricePointCursor);
+        // Calculate cost basis based on requested shares
+        uint256 historicalAssets = _calculateCostBasis(state, requestedShares);
 
         // Process fees and get final assets
-        finalAssets = _processFees(requestedShares, currentPricePerShare, finalAssets);
+        finalAssets = _processFees(requestedShares, currentPricePerShare, historicalAssets);
 
         // Update average withdraw price if needed
         if (requestedShares > 0) {
             _updateAverageWithdrawPrice(state, requestedShares, finalAssets);
         }
+
+        return (finalAssets, 0); // Return 0 for the second parameter since we no longer use lastConsumedIndex
     }
 
-    function _calculateHistoricalAssetsAndUpdatePoints(
+    /// @notice Calculate cost basis for requested shares using weighted average approach
+    /// @param state User's vault state
+    /// @param requestedShares Shares being redeemed
+    function _calculateCostBasis(
         SuperVaultState storage state,
-        uint256 requestedShares,
-        uint256 currentIndex
+        uint256 requestedShares
     )
         private
-        returns (uint256 historicalAssets, uint256 lastConsumedIndex)
+        returns (uint256 costBasis)
     {
-        uint256 remainingShares = requestedShares;
-        lastConsumedIndex = currentIndex;
-        uint256 sharePricePointsLength = state.sharePricePoints.length;
+        if (requestedShares > state.accumulatorShares) revert INSUFFICIENT_SHARES();
 
-        for (uint256 j = currentIndex; j < sharePricePointsLength && remainingShares > 0; ++j) {
-            SharePricePoint memory point = state.sharePricePoints[j];
-            uint256 sharesFromPoint = point.shares > remainingShares ? remainingShares : point.shares;
-            historicalAssets += sharesFromPoint.mulDiv(point.pricePerShare, PRECISION, Math.Rounding.Floor);
+        // Calculate cost basis proportionally
+        costBasis = requestedShares.mulDiv(state.accumulatorCostBasis, state.accumulatorShares, Math.Rounding.Floor);
 
-            if (sharesFromPoint == point.shares) {
-                lastConsumedIndex = j + 1;
-            } else if (sharesFromPoint < point.shares) {
-                state.sharePricePoints[j].shares -= sharesFromPoint;
-            }
+        // Update user's accumulator state
+        state.accumulatorShares -= requestedShares;
+        state.accumulatorCostBasis -= costBasis;
 
-            remainingShares -= sharesFromPoint;
-        }
+        return costBasis;
     }
 
     function _processFees(
@@ -1158,13 +1149,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable {
         private
         returns (uint256 finalAssets)
     {
+        // Calculate current value of the shares at current price
         uint256 currentValue = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
 
+        // Apply fees only on profit
         finalAssets = _calculateAndTransferFee(currentValue, historicalAssets);
 
+        // Ensure we don't exceed available balance
         uint256 balanceOfStrategy = _getTokenBalance(address(_asset), address(this));
-
         finalAssets = finalAssets > balanceOfStrategy ? balanceOfStrategy : finalAssets;
+
+        return finalAssets;
     }
 
     function _updateAverageWithdrawPrice(

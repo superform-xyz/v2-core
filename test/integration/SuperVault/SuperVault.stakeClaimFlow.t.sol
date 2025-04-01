@@ -303,7 +303,8 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         (uint256 pricePerShare) = _getGearSuperVaultPricePerShare();
         uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
-        userSharePricePoints[accountEth].push(SharePricePoint({ shares: shares, pricePerShare: pricePerShare }));
+
+        _trackDeposit(accountEth, shares, depositAmount);
     }
 
     function __claimDeposit_Gearbox_SV(uint256 depositAmount) private {
