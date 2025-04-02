@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IMorpho, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -31,7 +31,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
     address public morpho;
-    IMorpho public morphoInterface;
+    IMorphoBase public morphoInterface;
     MarketParams public marketParams;
 
     uint256 private constant AMOUNT_POSITION = 80;
@@ -42,7 +42,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     constructor(address registry_, address morpho_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (morpho_ == address(0)) revert ZERO_ADDRESS();
         morpho = morpho_;
-        morphoInterface = IMorpho(morpho_);
+        morphoInterface = IMorphoBase(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,7 +66,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
         uint256 amount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-        bool usePrevHookAmount = BytesLib.decodeBool(BytesLib.slice(data, 144, 1));
+        bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1));
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -85,17 +85,15 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
 
         uint256 collateralAmount = _deriveCollateralAmount(amount);
 
-        executions = new Execution[](5);
+        executions = new Execution[](4);
         executions[0] =
             Execution({ target: collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         executions[1] =
             Execution({ target: collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, amount)) });
         executions[2] =
-            Execution({ target: morpho , value: 0, callData: abi.encodeCall(IMorpho.supplyCollateral, (loanToken, collateralToken, oracle, irm, lltv), collateralAmount, account, "") });
+            Execution({ target: morpho , value: 0, callData: abi.encodeCall(IMorphoBase.supplyCollateral, marketParams, collateralAmount, account, "") });
         executions[3] =
-            Execution({ target: loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, amount)) });
-            
-            
+            Execution({ target: morpho, value: 0, callData: abi.encodeCall(IMorphoBase.borrow, (loanToken, collateralToken, oracle, irm, lltv), amount, 0, account, account) });    
     }
 
     /*//////////////////////////////////////////////////////////////
