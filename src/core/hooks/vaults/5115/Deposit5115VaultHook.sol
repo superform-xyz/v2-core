@@ -9,7 +9,12 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookContextAware
+} from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Deposit5115VaultHook
@@ -22,10 +27,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
 /// @notice         bool lockForSP = _decodeBool(data, 109);
-contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
 
     constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
 
@@ -47,7 +53,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
         uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 108);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -83,6 +89,11 @@ contract Deposit5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

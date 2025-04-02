@@ -8,8 +8,7 @@ import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpo
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -27,11 +26,12 @@ import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
-contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
+contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable spokePoolV3;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 216;
 
     struct AcrossV3DepositAndExecuteData {
         uint256 value;
@@ -78,7 +78,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
         acrossV3DepositAndExecuteData.exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 188, 20), 0);
         acrossV3DepositAndExecuteData.fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 208, 4), 0);
         acrossV3DepositAndExecuteData.exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 212, 4), 0);
-        acrossV3DepositAndExecuteData.usePrevHookAmount = _decodeBool(data, 216);
+        acrossV3DepositAndExecuteData.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         acrossV3DepositAndExecuteData.message = BytesLib.slice(data, 217, data.length - 217);
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
@@ -123,4 +123,9 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address, bytes memory) external view { }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
 }

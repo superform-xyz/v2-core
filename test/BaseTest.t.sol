@@ -116,7 +116,6 @@ import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 // SuperformNativePaymaster
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
 
-
 // Nexus and Rhinestone overrides to allow for SuperformNativePaymaster
 import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFactory.sol";
 import { getFactory, getHelper, getStorageCompliance } from "modulekit/test/utils/Storage.sol";
@@ -178,7 +177,7 @@ struct Addresses {
     SuperDestinationValidator superDestinationValidator;
     PeripheryRegistry peripheryRegistry;
     SuperNativePaymaster superNativePaymaster;
-    MockTargetExecutor mockTargetExecutor;  
+    MockTargetExecutor mockTargetExecutor;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper {
@@ -264,7 +263,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
     string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
 
-
     bool constant DEBUG = false;
 
     string constant DEFAULT_ACCOUNT = "NEXUS";
@@ -308,7 +306,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         // Fund underlying tokens
         _fundUnderlyingTokens(1e18);
-        
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -435,13 +432,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A[i].superLedgerConfiguration);
 
-            A[i].superLedger =
-                ISuperLedger(address(new SuperLedger{ salt: SALT }(address(A[i].superLedgerConfiguration), address(A[i].superRegistry))));
+            A[i].superLedger = ISuperLedger(
+                address(
+                    new SuperLedger{ salt: SALT }(address(A[i].superLedgerConfiguration), address(A[i].superRegistry))
+                )
+            );
             vm.label(address(A[i].superLedger), SUPER_LEDGER_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_KEY] = address(A[i].superLedger);
 
-            A[i].erc1155Ledger =
-                ISuperLedger(address(new ERC5115Ledger{ salt: SALT }(address(A[i].superLedgerConfiguration), address(A[i].superRegistry))));
+            A[i].erc1155Ledger = ISuperLedger(
+                address(
+                    new ERC5115Ledger{ salt: SALT }(address(A[i].superLedgerConfiguration), address(A[i].superRegistry))
+                )
+            );
             vm.label(address(A[i].erc1155Ledger), ERC1155_LEDGER_KEY);
             contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A[i].erc1155Ledger);
 
@@ -526,8 +529,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][TRANSFER_ERC20_HOOK_KEY]);
             hooksAddresses[1] = address(A[i].transferErc20Hook);
-
-
 
             A[i].deposit4626VaultHook =
                 new Deposit4626VaultHook{ salt: SALT }(_getContract(chainIds[i], "SuperRegistry"));
@@ -712,7 +713,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[12] = address(A[i].requestRedeem7540VaultHook);
 
-
             A[i].deposit7540VaultHook =
                 new Deposit7540VaultHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].deposit7540VaultHook), DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -775,11 +775,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY]
-            );  
+            );
             hooksAddresses[16] = address(A[i].approveAndRedeem7540VaultHook);
 
             A[i].swap1InchHook =
-                            new Swap1InchHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ONE_INCH_ROUTER);
+                new Swap1InchHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ONE_INCH_ROUTER);
             vm.label(address(A[i].swap1InchHook), SWAP_1INCH_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_1INCH_HOOK_KEY] = address(A[i].swap1InchHook);
             hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY] = Hook(
@@ -1210,7 +1210,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
         //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
 
-
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
@@ -1397,7 +1396,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-
     function _processAcrossV3MessageWithoutDestinationAccount(
         uint64 srcChainId,
         uint64 dstChainId,
@@ -1457,11 +1455,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 
-
     /*//////////////////////////////////////////////////////////////
                                  ACROSS TARGET EXECUTOR HELPERS
     //////////////////////////////////////////////////////////////*/
-      struct TargetExecutorMessage {
+    struct TargetExecutorMessage {
         address[] hooksAddresses;
         bytes[] hooksData;
         address validator;
@@ -1476,35 +1473,74 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address account;
     }
 
-    function _createTargetExecutorMessage(TargetExecutorMessage memory messageData) internal returns (bytes memory, address) {
+    function _createTargetExecutorMessage(TargetExecutorMessage memory messageData)
+        internal
+        returns (bytes memory, address)
+    {
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory executionData = _createExecutionData_AcrossTargetExecutor(messageData.hooksAddresses, messageData.hooksData);
+        bytes memory executionData =
+            _createExecutionData_AcrossTargetExecutor(messageData.hooksAddresses, messageData.hooksData);
 
         address accountToUse;
         bytes memory accountCreationData;
         if (messageData.account == address(0)) {
-            (accountCreationData, accountToUse) = _createAccountCreationData_AcrossTargetExecutor(messageData.validator, messageData.signer, messageData.targetExecutor, messageData.nexusFactory, messageData.nexusBootstrap);
+            (accountCreationData, accountToUse) = _createAccountCreationData_AcrossTargetExecutor(
+                messageData.validator,
+                messageData.signer,
+                messageData.targetExecutor,
+                messageData.nexusFactory,
+                messageData.nexusBootstrap
+            );
         } else {
             accountToUse = messageData.account;
             accountCreationData = bytes("");
         }
-        
+
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createDestinationValidatorLeaf(executionData, messageData.chainId, accountToUse, messageData.nonce, validUntil);
+        leaves[0] = _createDestinationValidatorLeaf(
+            executionData, messageData.chainId, accountToUse, messageData.nonce, validUntil
+        );
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
-        
-        bytes memory signature = _createSignature(SuperValidatorBase(address(messageData.validator)).namespace(), merkleRoot, messageData.signer, messageData.signerPrivateKey);
-        bytes memory signatureData = _createSignatureData_AcrossTargetExecutor(validUntil, merkleRoot, merkleProof[0], signature);
-        
-        return (abi.encode(accountCreationData, executionData, signatureData, /**address(0) to create account*/messageData.account, messageData.amount), accountToUse);
+
+        bytes memory signature = _createSignature(
+            SuperValidatorBase(address(messageData.validator)).namespace(),
+            merkleRoot,
+            messageData.signer,
+            messageData.signerPrivateKey
+        );
+        bytes memory signatureData =
+            _createSignatureData_AcrossTargetExecutor(validUntil, merkleRoot, merkleProof[0], signature);
+
+        return (
+            abi.encode(
+                accountCreationData,
+                executionData,
+                signatureData,
+                /**
+                 * address(0) to create account
+                 */
+                messageData.account,
+                messageData.amount
+            ),
+            accountToUse
+        );
     }
 
-    function _createSignatureData_AcrossTargetExecutor(uint48 validUntil, bytes32 merkleRoot, bytes32[] memory merkleProof, bytes memory signature) internal pure returns (bytes memory) {
+    function _createSignatureData_AcrossTargetExecutor(
+        uint48 validUntil,
+        bytes32 merkleRoot,
+        bytes32[] memory merkleProof,
+        bytes memory signature
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encode(validUntil, merkleRoot, merkleProof, signature);
     }
 
-     function _createExecutionData_AcrossTargetExecutor(
+    function _createExecutionData_AcrossTargetExecutor(
         address[] memory hooksAddresses,
         bytes[] memory hooksData
     )
@@ -1512,17 +1548,26 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-         ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        console2.log("length of execution ", (abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute))).length);
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        console2.log(
+            "length of execution ",
+            (abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute))).length
+        );
         return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
     }
 
-    function _createAccountCreationData_AcrossTargetExecutor(address validatorOnDestinationChain, address theSigner, address executorOnDestinationChain, address nexusFactory, address nexusBootstrap)
+    function _createAccountCreationData_AcrossTargetExecutor(
+        address validatorOnDestinationChain,
+        address theSigner,
+        address executorOnDestinationChain,
+        address nexusFactory,
+        address nexusBootstrap
+    )
         internal
         returns (bytes memory, address)
     {
-          // create validators
+        // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
         validators[0] = BootstrapConfig({ module: validatorOnDestinationChain, data: abi.encode(theSigner) });
         // create executors
@@ -1917,7 +1962,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address executor,
         I1InchAggregationRouterV6.SwapDescription memory desc,
         bytes memory permit,
-        bytes memory data
+        bytes memory data,
+        bool usePrevHookAmount
     )
         internal
         pure
@@ -1927,7 +1973,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data
         );
 
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), _calldata);
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
     function _create1InchUnoswapToHookData(
@@ -1937,7 +1983,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         Address fromTokenUint256,
         uint256 decodedFromAmount,
         uint256 minReturn,
-        Address dex
+        Address dex,
+        bool usePrevHookAmount
     )
         internal
         pure
@@ -1952,7 +1999,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             dex
         );
 
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), _calldata);
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
     function _create1InchClipperSwapToHookData(
@@ -1960,7 +2007,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address dstToken,
         address exchange,
         Address srcToken,
-        uint256 amount
+        uint256 amount,
+        bool usePrevHookAmount
     )
         internal
         pure
@@ -1979,7 +2027,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             bytes32(0)
         );
 
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), _calldata);
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
     function _createOdosSwapHookData(
@@ -2005,11 +2053,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             outputToken,
             outputQuote,
             outputMin,
+            usePrevHookAmount,
             pathDefinition.length,
             pathDefinition,
             executor,
-            referralCode,
-            usePrevHookAmount
+            referralCode
         );
     }
 
