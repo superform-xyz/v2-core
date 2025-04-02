@@ -23,6 +23,9 @@ contract SuperMerkleValidator is SuperValidatorBase {
         bytes callData;
         bytes initCode;
         bytes32 gasFees;
+        bytes32 accountGasLimits;
+        uint256 preVerificationGas;
+        bytes paymasterAndData;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -48,7 +51,10 @@ contract SuperMerkleValidator is SuperValidatorBase {
             nonce: _userOp.nonce,
             callData: _userOp.callData,
             initCode: _userOp.initCode,
-            gasFees: _userOp.gasFees
+            gasFees: _userOp.gasFees,
+            accountGasLimits: _userOp.accountGasLimits,
+            preVerificationGas: _userOp.preVerificationGas,
+            paymasterAndData: _userOp.paymasterAndData
         });
 
         // Process signature
@@ -128,7 +134,10 @@ contract SuperMerkleValidator is SuperValidatorBase {
                         userOpData.nonce,
                         validUntil,
                         block.chainid,
-                        userOpData.initCode
+                        userOpData.initCode,
+                        userOpData.accountGasLimits,
+                        userOpData.preVerificationGas,
+                        userOpData.paymasterAndData
                     )
                 )
             )
@@ -157,9 +166,9 @@ contract SuperMerkleValidator is SuperValidatorBase {
     }
 
     function _decodeUserOpData(bytes memory userOpDataRaw, address sender) private pure returns (UserOpData memory) {
-        (uint256 nonce, bytes memory callData, bytes32 gasFees, bytes memory initCode) =
-            abi.decode(userOpDataRaw, (uint256, bytes, bytes32, bytes));
-        return UserOpData(sender, nonce, callData, initCode, gasFees);
+        (uint256 nonce, bytes memory callData, bytes32 gasFees, bytes memory initCode, bytes32 accountGasLimits, uint256 preVerificationGas, bytes memory paymasterAndData) =
+            abi.decode(userOpDataRaw, (uint256, bytes, bytes32, bytes, bytes32, uint256, bytes));
+        return UserOpData(sender, nonce, callData, initCode, gasFees, accountGasLimits, preVerificationGas, paymasterAndData);
     }
 
     function _decodeSignatureAndUserOpData(

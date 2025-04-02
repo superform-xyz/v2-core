@@ -53,7 +53,10 @@ abstract contract MerkleTreeHelper {
                         userOpData.userOp.nonce,
                         validUntil,
                         block.chainid,
-                        userOpData.userOp.initCode
+                        userOpData.userOp.initCode,
+                        userOpData.userOp.accountGasLimits,
+                        userOpData.userOp.preVerificationGas,
+                        userOpData.userOp.paymasterAndData
                     )
                 )
             )

@@ -193,6 +193,7 @@ contract BaseE2ETest is BaseTest {
     /*//////////////////////////////////////////////////////////////
                                 VALIDATOR HELPER METHODS
     //////////////////////////////////////////////////////////////*/
+    //TODO: use helper
     function _createLeaves(PackedUserOperation memory userOp, uint48 validUntil) private view returns (bytes32[] memory leaves) {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](4);
         for (uint256 i; i < 4; ++i) {
@@ -205,7 +206,7 @@ contract BaseE2ETest is BaseTest {
         }
     }
     function _hashUserOp(PackedUserOperation memory userOp, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(userOp.callData, userOp.gasFees, userOp.sender, userOp.nonce, validUntil, block.chainid, userOp.initCode))));
+        return keccak256(bytes.concat(keccak256(abi.encode(userOp.callData, userOp.gasFees, userOp.sender, userOp.nonce, validUntil, block.chainid, userOp.initCode, userOp.accountGasLimits, userOp.preVerificationGas, userOp.paymasterAndData))));
     }
     // @dev needs 4 leaves to create the merkle tree
     function _createTree(bytes32[] memory leaves) private pure returns (bytes32[] memory proof, bytes32 root) {
