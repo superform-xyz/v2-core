@@ -4,7 +4,7 @@ pragma solidity 0.8.28;
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
+import { IMorphoBase, IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -29,6 +29,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     address public morpho;
     IMorphoBase public morphoInterface;
+    IMorphoStaticTyping public morphoStaticTyping;
 
     struct BuildHookLocalVars {
         address loanToken;
@@ -45,6 +46,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         if (morpho_ == address(0)) revert ZERO_ADDRESS();
         morpho = morpho_;
         morphoInterface = IMorphoBase(morpho_);
+        morphoStaticTyping = IMorphoStaticTyping(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////
