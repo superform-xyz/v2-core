@@ -52,7 +52,7 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](4);
         executions[0] =
