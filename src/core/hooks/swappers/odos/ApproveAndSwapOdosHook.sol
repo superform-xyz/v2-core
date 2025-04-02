@@ -100,6 +100,11 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+
+        if (outputToken == address(0)) {
+            return account.balance;
+        }
+
         return IERC20(outputToken).balanceOf(account);
     }
 
