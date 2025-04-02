@@ -35,6 +35,16 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
 
     uint256 private constant AMOUNT_POSITION = 80;
 
+    struct BuildHookLocalVars {
+      address loanToken;
+      address collateralToken;
+      address oracle;
+      address irm;
+      uint256 amount;
+      uint256 lltv;
+      bool usePrevHookAmount;
+    }
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -59,34 +69,28 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-        uint256 amount = _decodeAmount(data);
-        uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-        bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
+        BuildHookLocalVars memory vars = _decodeHookData(data);
 
-        if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+        if (vars.usePrevHookAmount) {
+            vars.amount = ISuperHookResult(prevHook).outAmount();
         }
 
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (loanToken == address(0) || collateralToken == address(0)) revert ADDRESS_NOT_VALID();
+        if (vars.amount == 0) revert AMOUNT_NOT_VALID();
+        if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
-        MarketParams memory marketParams = _generateMarketParams(loanToken, collateralToken, oracle, irm, lltv);
+        MarketParams memory marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 collateralAmount = _deriveCollateralAmount(amount);
+        uint256 collateralAmount = _deriveCollateralAmount(vars.amount);
 
         executions = new Execution[](4);
         executions[0] =
-            Execution({ target: collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         executions[1] =
-            Execution({ target: collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, amount)) });
+            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount)) });
         executions[2] =
             Execution({ target: morpho , value: 0, callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, collateralAmount, account, "")) });
         executions[3] =
-            Execution({ target: morpho, value: 0, callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, amount, 0, account, account)) });    
+            Execution({ target: morpho, value: 0, callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account)) });    
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -95,17 +99,28 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
 
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external {
-
+        // store current balance
+        outAmount = _getBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external {
-
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
+        address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
+        address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+        uint256 amount = _decodeAmount(data);
+        uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+        bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
+    }
 
     function _deriveCollateralAmount(uint256 amount) internal view returns (uint256) {
         // TODO: Implement this
@@ -131,6 +146,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        // return IERC20(collateralToken).balanceOf(account);
+        address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        return IERC20(collateralToken).balanceOf(account);
     }
 }
