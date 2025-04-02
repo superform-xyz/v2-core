@@ -110,12 +110,12 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external {
         // store current balance
-        outAmount = _getBalance(account, data);
+        outAmount = _getLoanBalance(account, data);
     }
 
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
+        outAmount = _getLoanBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -173,8 +173,13 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }
 
-    function _getBalance(address account, bytes memory data) private view returns (uint256) {
+    function _getCollateralBalance(address account, bytes memory data) private view returns (uint256) {
         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         return IERC20(collateralToken).balanceOf(account);
+    }
+
+    function _getLoanBalance(address account, bytes memory data) private view returns (uint256) {
+        address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        return IERC20(loanToken).balanceOf(account);
     }
 }
