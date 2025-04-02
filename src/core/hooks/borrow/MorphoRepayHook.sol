@@ -95,7 +95,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         outAmount = _getBalance(account, data);
     }
 
-    // TODO: check if this is correct
+    // TODO: check if this is correct, should the balances be swapped?
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
