@@ -29,6 +29,9 @@ import { IAcrossV3Receiver } from "../src/vendor/bridges/across/IAcrossV3Receive
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
 
+// borrow hooks
+import { MorphoBorrowHook } from "../src/core/hooks/borrow/MorphoBorrowHook.sol";
+
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
@@ -133,6 +136,7 @@ struct Addresses {
     ISuperExecutor acrossTargetExecutor;
     AcrossReceiveFundsAndExecuteGateway acrossReceiveFundsAndExecuteGateway;
     ApproveERC20Hook approveErc20Hook;
+    MorphoBorrowHook morphoBorrowHook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
     ApproveAndSwapOdosHook approveAndSwapOdosHook;
@@ -192,9 +196,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         VaultDeposits,
         VaultWithdrawals,
         Bridges,
-        Swaps,
         Stakes,
         Claims,
+        Loans,
+        Swaps,
         None
     }
 
@@ -920,6 +925,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             A[i].ethenaUnstakeHook = new EthenaUnstakeHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].ethenaUnstakeHook), ETHENA_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
+
+            A[i].morphoBorrowHook = new MorphoBorrowHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
+            vm.label(address(A[i].morphoBorrowHook), MORPHO_BORROW_HOOK_KEY);
+            hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].morphoBorrowHook);
+            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = Hook(
+                MORPHO_BORROW_HOOK_KEY,
+                HookCategory.Loans,
+                HookCategory.None,
+                address(A[i].morphoBorrowHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
         }
 
         return A;
@@ -1004,6 +1021,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
             peripheryRegistry.registerHook(address(A[i].approveAndGearboxStakeHook), false);
             peripheryRegistry.registerHook(address(A[i].gearboxUnstakeHook), false);
             peripheryRegistry.registerHook(address(A[i].yearnClaimOneRewardHook), false);
+            peripheryRegistry.registerHook(address(A[i].morphoBorrowHook), false);
 
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             peripheryRegistry.registerHook(address(A[i].ethenaCooldownSharesHook), false);
@@ -1092,6 +1110,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
         existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
         existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
         existingUnderlyingTokens[ETH][USDE_KEY] = CHAIN_1_USDE;
+        existingUnderlyingTokens[ETH][WST_ETH_KEY] = CHAIN_1_WST_ETH;
         // Optimism tokens
         existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
