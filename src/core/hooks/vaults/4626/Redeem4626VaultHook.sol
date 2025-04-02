@@ -58,7 +58,7 @@ contract Redeem4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, I
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || owner == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({

@@ -49,7 +49,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] =

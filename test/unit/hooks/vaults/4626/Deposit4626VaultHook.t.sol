@@ -64,11 +64,6 @@ contract Deposit4626VaultHookTest is BaseTest {
         yieldSource = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), _encodeData(false, false));
-
-        // account is address(0)
-        yieldSource = _yieldSource;
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(0), _encodeData(false, false));
     }
 
     function test_Build_RevertIf_AmountZero() public {
