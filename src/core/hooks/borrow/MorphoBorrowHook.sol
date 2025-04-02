@@ -51,7 +51,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address registry_, address morpho_) BaseHook(registry_, HookType.NONACCOUNTING) {
-        if (morpho_ == address(0)) revert ZERO_ADDRESS();
+        if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoInterface = IMorphoBase(morpho_);
     }
