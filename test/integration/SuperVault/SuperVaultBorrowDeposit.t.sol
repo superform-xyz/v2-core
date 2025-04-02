@@ -57,6 +57,62 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.label(morpho, "Morpho");
 
 
+        vm.startPrank(SV_MANAGER);
+
+        // Deploy vault trio
+        (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
+            ISuperVaultFactory.VaultCreationParams({
+                asset: address(asset),
+                name: "SuperVault Morpho",
+                symbol: "svMorpho",
+                manager: SV_MANAGER,
+                strategist: STRATEGIST,
+                emergencyAdmin: EMERGENCY_ADMIN,
+                feeRecipient: TREASURY,
+                superVaultCap: SUPER_VAULT_CAP
+            })
+        );
+        vm.label(vaultAddr, "MorphoSuperVault");
+        vm.label(strategyAddr, "MorphoSuperVaultStrategy");
+        vm.label(escrowAddr, "MorphoSuperVaultEscrow");
+
+        // Cast addresses to contract types
+        vault = SuperVault(vaultAddr);
+        escrow = SuperVaultEscrow(escrowAddr);
+        strategy = SuperVaultStrategy(strategyAddr);
+
+        // Add a new yield source as manager
+        strategy.manageYieldSource(
+            address(fluidVault),
+            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            0,
+            false, // addYieldSource
+            false
+        );
+        vm.stopPrank();
+
+        vm.startPrank(SV_MANAGER);
+        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
+        vm.warp(block.timestamp + 7 days);
+        strategy.proposeOrExecuteHookRoot(bytes32(0));
+
+        strategy.proposeVaultFeeConfigUpdate(100, TREASURY);
+        vm.warp(block.timestamp + 1 weeks);
+        strategy.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
+        
+        vm.startPrank(MANAGER);
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
+            feePercent: 0,
+            feeRecipient: TREASURY,
+            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
+        });
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+        vm.stopPrank();
     }
     
 }
