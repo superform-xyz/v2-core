@@ -189,7 +189,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         FulfillmentType fulfillmentType;
 
         ExecutionVars memory vars;
-
+        // it is possible to send some elements of this array as 0 value (if prevAmount for that hook is unused in non
+        // fulfillment case)
         if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
         // If fulfillment operation, validate and prepare additional parameters
@@ -254,6 +255,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                     vars.spentAmount += amount;
                     vars.outAmount = amountOut;
                 }
+
+                if (args.expectedAssetsOrSharesOut[i] == 0) revert ZERO_EXPECTED_VALUE();
                 if (
                     vars.outAmount * ONE_HUNDRED_PERCENT
                         < args.expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
@@ -269,6 +272,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
                 if (usePrevHookAmount && vars.prevHook != address(0)) {
                     vars.outAmount = _getPreviousHookOutAmount(vars.prevHook);
+                    if (args.expectedAssetsOrSharesOut[i] == 0) revert ZERO_EXPECTED_VALUE();
                     if (
                         vars.outAmount * ONE_HUNDRED_PERCENT
                             < args.expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())

@@ -931,6 +931,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 maxTransfers = vars.sourceCount * vars.destCount;
         address[] memory allHooksAddresses = new address[](maxTransfers * 2);
         bytes[] memory allHooksData = new bytes[](maxTransfers * 2);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](maxTransfers * 2);
         uint256 hookIndex = 0;
 
         // Create a matrix of transfers from sources to destinations
@@ -979,6 +980,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                             true,
                             false
                         );
+                        expectedAssetsOrSharesOut[hookIndex] =
+                            IERC4626(vars.sources[i]).previewRedeem(vars.sharesToRedeem);
+
                         hookIndex++;
 
                         // Update remaining amounts
@@ -998,10 +1002,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (hookIndex > 0) {
             address[] memory finalHooksAddresses = new address[](hookIndex);
             bytes[] memory finalHooksData = new bytes[](hookIndex);
-
+            uint256[] memory finalExpectedAssetsOrSharesOut = new uint256[](hookIndex);
             for (uint256 i = 0; i < hookIndex; i++) {
                 finalHooksAddresses[i] = allHooksAddresses[i];
                 finalHooksData[i] = allHooksData[i];
+                finalExpectedAssetsOrSharesOut[i] = expectedAssetsOrSharesOut[i];
             }
 
             address[] memory users = new address[](0);
@@ -1014,7 +1019,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                     hooks: finalHooksAddresses,
                     hookCalldata: finalHooksData,
                     hookProofs: _getMerkleProofsForAddresses(finalHooksAddresses),
-                    expectedAssetsOrSharesOut: new uint256[](0)
+                    expectedAssetsOrSharesOut: finalExpectedAssetsOrSharesOut
                 })
             );
             vm.stopPrank();
@@ -1270,7 +1275,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, address(asset), assetsToMove, true, false
         );
 
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = 0;
+        expectedAssetsOrSharesOut[1] = IERC4626(sourceVault).previewRedeem(sharesToRedeem);
+
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
@@ -1314,7 +1322,10 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             true,
             false
         );
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = 0;
+        expectedAssetsOrSharesOut[1] = IERC4626(sourceVault).previewRedeem(sharesToRedeem);
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),

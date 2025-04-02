@@ -207,7 +207,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
                 hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
         console2.log("---- Pending deposit request", centrifugeVault.pendingDepositRequest(0, address(strategy)));
@@ -297,7 +297,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
                 hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
         console2.log("---- PPS After Centrifuge Request Redeem", _getSuperVaultPricePerShare());

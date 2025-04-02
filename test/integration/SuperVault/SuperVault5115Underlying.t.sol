@@ -259,7 +259,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 hooks: hooks_,
                 hookCalldata: hookCalldata,
                 hookProofs: _getMerkleProofsForAddresses(hooks_),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](2)
             })
         );
         vm.stopPrank();
