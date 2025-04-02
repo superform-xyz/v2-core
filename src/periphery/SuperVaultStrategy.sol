@@ -20,7 +20,9 @@ import {
     ISuperHookResult,
     ISuperHookOutflow,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting
+    ISuperHookNonAccounting,
+    ISuperHookResultOutflow,
+    ISuperHookContextAware
 } from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -174,7 +176,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function execute(ExecuteArgs calldata args) external nonReentrant {
+    function executeHooks(ExecuteArgs calldata args) external nonReentrant {
         _requireRole(STRATEGIST_ROLE);
 
         uint256 hooksLength = args.hooks.length;
@@ -187,15 +189,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         FulfillmentType fulfillmentType;
 
         ExecutionVars memory vars;
-        vars.hooksLength = hooksLength;
-        vars.isFulfillment = isFulfillment;
+
+        if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
         // If fulfillment operation, validate and prepare additional parameters
         if (isFulfillment) {
             // Validate array lengths
             _validateFulfillHooksArrays(hooksLength, args.hookCalldata.length);
-
-            if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
@@ -225,10 +225,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                     revert YIELD_SOURCE_NOT_ACTIVE();
                 }
             }
+            vars.outAmount;
 
             if (isFulfillment && isFulfillHook) {
                 // Process as fulfill hook
-                uint256 outAmount;
                 if (vars.hookType == ISuperHook.HookType.INFLOW) {
                     if (fulfillmentType == FulfillmentType.REDEEM) {
                         revert INVALID_FULFILMENT_TYPE();
@@ -240,7 +240,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                         _processInflowHookExecution(hook, vars.prevHook, args.hookCalldata[i]);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
-                    outAmount = amountOut;
+                    vars.outAmount = amountOut;
                 } else {
                     if (fulfillmentType == FulfillmentType.DEPOSIT) {
                         revert INVALID_FULFILMENT_TYPE();
@@ -252,18 +252,30 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                         _processOutflowHookExecution(hook, vars.prevHook, args.hookCalldata[i], vars.pricePerShare);
                     vars.prevHook = hook;
                     vars.spentAmount += amount;
-                    outAmount = amountOut;
+                    vars.outAmount = amountOut;
                 }
                 if (
-                    outAmount * ONE_HUNDRED_PERCENT
+                    vars.outAmount * ONE_HUNDRED_PERCENT
                         < args.expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
                 ) {
-                    revert MINIMUM_OUTPUT_AMOUNT_NOT_MET();
+                    revert MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET();
                 }
             } else {
                 //  when is fulfillHook is false, regardless of the status of isFulfillment or not, we only check with
                 // "isHookAllowed".
                 if (!isFulfillHook && !isHookAllowed(hook, args.hookProofs[i])) revert INVALID_HOOK();
+
+                bool usePrevHookAmount = _decodeHookUsePrevHookAmount(hook, args.hookCalldata[i]);
+
+                if (usePrevHookAmount && vars.prevHook != address(0)) {
+                    vars.outAmount = _getPreviousHookOutAmount(vars.prevHook);
+                    if (
+                        vars.outAmount * ONE_HUNDRED_PERCENT
+                            < args.expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+                    ) {
+                        revert MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET();
+                    }
+                }
 
                 // Call preExecute to initialize outAmount tracking
                 vars.hookContract.preExecute(vars.prevHook, address(this), args.hookCalldata[i]);
@@ -692,6 +704,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     function _decodeHookAmount(address hook, bytes memory hookCalldata) private pure returns (uint256 amount) {
         return ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
+    }
+
+    function _decodeHookUsePrevHookAmount(address hook, bytes memory hookCalldata) private pure returns (bool) {
+        try ISuperHookContextAware(hook).decodeUsePrevHookAmount(hookCalldata) returns (bool usePrevHookAmount) {
+            return usePrevHookAmount;
+        } catch {
+            // for non context aware hooks we always return false to avoid performing the slippage check
+            return false;
+        }
+    }
+
+    function _getPreviousHookOutAmount(address prevHook) private view returns (uint256) {
+        return ISuperHookResultOutflow(prevHook).outAmount();
     }
 
     function _total4626Assets(address source) private view returns (uint256) {

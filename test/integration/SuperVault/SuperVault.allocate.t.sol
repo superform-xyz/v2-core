@@ -349,7 +349,7 @@ contract SuperVaultAllocateTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,

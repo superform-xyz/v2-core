@@ -69,11 +69,16 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
         uint256 value = uint256(bytes32(data[40:USE_PREV_HOOK_AMOUNT_POSITION]));
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         bytes calldata txData_ = data[73:];
+
         bytes memory updatedTxData =
             _validateTxData(account, dstToken, dstReceiver, prevHook, usePrevHookAmount, txData_);
 
         executions = new Execution[](1);
-        executions[0] = Execution({ target: address(aggregationRouter), value: value, callData: updatedTxData });
+        executions[0] = Execution({
+            target: address(aggregationRouter),
+            value: value,
+            callData: usePrevHookAmount ? updatedTxData : txData_
+        });
     }
 
     /*//////////////////////////////////////////////////////////////

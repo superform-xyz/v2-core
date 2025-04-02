@@ -587,7 +587,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -733,7 +733,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             }
 
             vm.startPrank(STRATEGIST);
-            strategy.execute(
+            strategy.executeHooks(
                 ISuperVaultStrategy.ExecuteArgs({
                     users: requestingUsers,
                     hooks: fulfillHooksAddresses,
@@ -1045,7 +1045,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -1363,7 +1363,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             address(fluidVault),
             address(vars.ruggableVault),
             expectedAssetsOrSharesOut,
-            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector
+            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET.selector
         );
 
         expectedAssetsOrSharesOut[1] = sharesVault2 - sharesVault2 * 1e3 / 1e5; //1% slippage
@@ -1555,7 +1555,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -1608,7 +1608,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -1752,7 +1752,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -1814,7 +1814,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         vm.startPrank(STRATEGIST);
         vm.expectRevert(ISuperVaultStrategy.YIELD_SOURCE_NOT_ACTIVE.selector);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -1834,7 +1834,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // try allocate again
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -2047,7 +2047,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -2140,7 +2140,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // Perform allocation
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -2489,7 +2489,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             address(fluidVault),
             vars.ruggableVault,
             vars.expectedAssetsOrSharesOut,
-            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_NOT_MET.selector
+            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET.selector
         );
 
         vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 / 2;
@@ -2587,7 +2587,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
             // Execute allocation
             vm.startPrank(STRATEGIST);
-            strategy.execute(
+            strategy.executeHooks(
                 ISuperVaultStrategy.ExecuteArgs({
                     users: new address[](0),
                     hooks: hooksAddresses,

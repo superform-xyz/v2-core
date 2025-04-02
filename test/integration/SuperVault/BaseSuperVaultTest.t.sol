@@ -339,7 +339,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -423,7 +423,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(vars.underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: vars.requestingUsers,
                 hooks: vars.fulfillHooksAddresses,
@@ -464,7 +464,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -509,7 +509,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -551,7 +551,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -598,7 +598,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
         expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -663,7 +663,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         console2.log("----requestingUsersLength", requestingUsers.length);
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -717,7 +717,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -1008,7 +1008,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
             // Execute all hooks in a single transaction
             vm.startPrank(STRATEGIST);
-            strategy.execute(
+            strategy.executeHooks(
                 ISuperVaultStrategy.ExecuteArgs({
                     users: users,
                     hooks: finalHooksAddresses,
@@ -1271,7 +1271,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -1315,7 +1315,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             false
         );
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,

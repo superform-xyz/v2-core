@@ -201,7 +201,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: requestHooksAddresses,
@@ -260,7 +260,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -291,7 +291,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: requestHooksAddresses,
@@ -358,7 +358,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,

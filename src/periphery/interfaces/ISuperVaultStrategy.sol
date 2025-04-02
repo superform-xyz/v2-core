@@ -63,10 +63,12 @@ interface ISuperVaultStrategy {
     error INVALID_PERFORMANCE_FEE_BPS();
     error INVALID_EMERGENCY_WITHDRAWAL();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
-    error MINIMUM_OUTPUT_AMOUNT_NOT_MET();
     error DEPOSIT_FAILURE_INVALID_TARGET();
     error INSUFFICIENT_SHARES();
     error INVALID_EXPECTED_ASSETS_OR_SHARES_OUT();
+    error MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET();
+    error MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -117,15 +119,14 @@ interface ISuperVaultStrategy {
     /// @notice Combined execution variables for all hook types
     struct ExecutionVars {
         // Common variables
-        uint256 hooksLength;
         address prevHook;
         address targetedYieldSource;
         bool success;
         ISuperHook hookContract;
         ISuperHook.HookType hookType;
+        uint256 outAmount;
         Execution[] executions;
         // Fulfill hooks specific
-        bool isFulfillment;
         uint256 totalRequestedAmount;
         uint256 spentAmount;
         uint256 pricePerShare;
@@ -231,7 +232,7 @@ interface ISuperVaultStrategy {
 
     /// @notice Execute hooks with support for fulfilling user requests
     /// @param args Execution arguments containing all parameters
-    function execute(ExecuteArgs calldata args) external;
+    function executeHooks(ExecuteArgs calldata args) external;
 
     /// @notice Match redeem requests with deposit requests directly
     /// @param redeemUsers Array of users with pending redeem requests
