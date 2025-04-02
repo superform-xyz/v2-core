@@ -120,6 +120,15 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         uint256 amount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
         bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
+        vars = BuildHookLocalVars({ 
+            loanToken: loanToken, 
+            collateralToken: collateralToken, 
+            oracle: oracle, 
+            irm: irm, 
+            amount: amount, 
+            lltv: lltv, 
+            usePrevHookAmount: usePrevHookAmount 
+        });
     }
 
     function _deriveCollateralAmount(uint256 amount) internal view returns (uint256) {
@@ -137,7 +146,6 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         });
     }
     
-
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
