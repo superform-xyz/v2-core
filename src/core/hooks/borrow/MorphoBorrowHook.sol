@@ -3,9 +3,11 @@ pragma solidity 0.8.28;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { IOracle } from "../../../vendor/morpho/IOracle.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
@@ -81,7 +83,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 collateralAmount = _deriveCollateralAmount(vars.amount);
+        uint256 collateralAmount = _deriveCollateralAmount(vars.amount, vars.oracle);
 
         executions = new Execution[](4);
         executions[0] =
@@ -89,7 +91,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         executions[1] = Execution({
             target: vars.collateralToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+            callData: abi.encodeCall(IERC20.approve, (morpho, collateralAmount))
         });
         executions[2] = Execution({
             target: morpho,
@@ -141,9 +143,13 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         });
     }
 
-    function _deriveCollateralAmount(uint256 amount) internal view returns (uint256) {
-        // TODO: Implement this
-        //return amount * marketParams.lltv / 10000;
+    /// @dev `price()` Returns the price of 1 asset of collateral token quoted in 1 asset of loan token, scaled by 1e36.
+    /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
+    /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
+    /// decimals of precision.
+    function _deriveCollateralAmount(uint256 loanAmount, address oracleAddress) internal view returns (uint256 collateralAmount) {
+        IOracle oracle = IOracle(oracleAddress);
+        collateralAmount = Math.mulDiv(loanAmount, oracle.price(), 1e36); // TODO: check if this is correct
     }
 
     function _generateMarketParams(
