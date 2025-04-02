@@ -99,7 +99,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             true
         );
 
-        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
+        strategy.proposeOrExecuteHookRoot(hookRootPerChain[ETH]);
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();

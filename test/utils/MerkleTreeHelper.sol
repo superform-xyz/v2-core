@@ -19,6 +19,25 @@ import "forge-std/console2.sol";
 
 
 abstract contract MerkleTreeHelper {
+    mapping(uint64 chainId => bytes32[]) public hookLeavesPerChain;
+    mapping(uint64 chainId => bytes32[][]) public hookProofsPerChain;
+    mapping(uint64 chainId => bytes32) public hookRootPerChain;
+
+    /*//////////////////////////////////////////////////////////////
+                                 HOOKS TREE HELPERS
+    //////////////////////////////////////////////////////////////*/
+    function _createHooksTree(uint64 chainId, address[] memory hooksAddresses) internal returns (bytes32[][] memory proof, bytes32 root) {
+        bytes32[] memory leaves = new bytes32[](hooksAddresses.length);
+        for(uint256 i = 0; i < hooksAddresses.length; i++) {
+            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(hooksAddresses[i]))));
+        }
+
+        hookLeavesPerChain[chainId] = leaves;
+
+        (proof, root) = _createValidatorMerkleTree(hookLeavesPerChain[chainId]);
+        hookProofsPerChain[chainId] = proof;
+        hookRootPerChain[chainId] = root;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  SOURCE CHAIN HELPERS

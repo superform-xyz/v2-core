@@ -122,7 +122,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             false
         );
 
-        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
+        strategy.proposeOrExecuteHookRoot(hookRootPerChain[ETH]);
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
@@ -1464,10 +1464,22 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _getMerkleProofsForAddresses(address[] memory hookAddresses_) internal view returns (bytes32[][] memory) {
-        bytes32[][] memory proofs = new bytes32[][](hookAddresses_.length);
+        uint64 chainId = ETH; //used for SuperVault tests
 
+        uint256[] memory indexes = new uint256[](hookAddresses_.length);
         for (uint256 i = 0; i < hookAddresses_.length; i++) {
-            proofs[i] = _getMerkleProof(hookAddresses_[i]);
+            for (uint256 j = 0; j < hookListPerChain[chainId].length; j++) {
+                if (hookListPerChain[chainId][j] == hookAddresses_[i]) {
+                    indexes[i] = j;
+                    break;
+                }
+            }
+        }
+
+        bytes32[][] memory proofs = new bytes32[][](hookAddresses_.length);
+        for (uint256 i = 0; i < hookAddresses_.length; i++) {
+            uint256 idx = indexes[i];
+            proofs[i] = hookProofsPerChain[chainId][idx];
         }
 
         return proofs;
