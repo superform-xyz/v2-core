@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+type Id is bytes32;
+
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -21,6 +23,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+/// @notice         Id id = Id(BytesLib.toBytes32(BytesLib.slice(data, 112, 32), 0));
 contract MorphoRepayHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -37,6 +40,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         address oracle;
         address irm;
         uint256 lltv;
+        Id id;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -111,13 +115,15 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-        vars = BuildHookLocalVars({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
-        });
+        //Id id = Id(BytesLib.toBytes32(BytesLib.slice(data, 112, 32), 0));
+        // vars = BuildHookLocalVars({
+        //     loanToken: loanToken,
+        //     collateralToken: collateralToken,
+        //     oracle: oracle,
+        //     irm: irm,
+        //     lltv: lltv
+        //     //id: id
+        // });
     }
 
     function _generateMarketParams(
