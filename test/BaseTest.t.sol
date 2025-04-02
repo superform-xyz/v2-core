@@ -2021,4 +2021,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit {
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
     }
+
+    function _createMorphoBorrowHookData(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 amount,
+        uint256 lltv,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount);
+    }
 }
