@@ -10,6 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { console2 } from "forge-std/console2.sol";
 
 /// @title SwapOdosHook
 /// @author Superform Labs
@@ -51,11 +52,15 @@ contract SwapOdosHook is BaseHook, ISuperHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
+        console2.log("1");
         uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+        console2.log("2");
         bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
+        console2.log("3");
         address executor = BytesLib.toAddress(BytesLib.slice(data, 189 + pathDefinition_paramLength, 20), 0);
+        console2.log("4");
         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20, 4), 0);
-
+        console2.log("5");
         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 
