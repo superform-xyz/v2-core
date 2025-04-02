@@ -32,7 +32,6 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     address public morpho;
     IMorphoBase public morphoInterface;
-    MarketParams public marketParams;
 
     uint256 private constant AMOUNT_POSITION = 80;
 
@@ -66,7 +65,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
         uint256 amount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-        bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1));
+        bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -75,13 +74,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (loanToken == address(0) || collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
-        marketParams = MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
-        });
+        MarketParams memory marketParams = _generateMarketParams(loanToken, collateralToken, oracle, irm, lltv);
 
         uint256 collateralAmount = _deriveCollateralAmount(amount);
 
@@ -91,14 +84,24 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         executions[1] =
             Execution({ target: collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, amount)) });
         executions[2] =
-            Execution({ target: morpho , value: 0, callData: abi.encodeCall(IMorphoBase.supplyCollateral, marketParams, collateralAmount, account, "") });
+            Execution({ target: morpho , value: 0, callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, collateralAmount, account, "")) });
         executions[3] =
-            Execution({ target: morpho, value: 0, callData: abi.encodeCall(IMorphoBase.borrow, (loanToken, collateralToken, oracle, irm, lltv), amount, 0, account, account) });    
+            Execution({ target: morpho, value: 0, callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, amount, 0, account, account)) });    
     }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperHook
+    function preExecute(address, address account, bytes memory data) external {
+
+    }
+
+    /// @inheritdoc ISuperHook
+    function postExecute(address, address account, bytes memory data) external {
+
+    }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
@@ -108,6 +111,17 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         // TODO: Implement this
         //return amount * marketParams.lltv / 10000;
     }
+
+    function _generateMarketParams(address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) internal pure returns (MarketParams memory) {
+        return MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: oracle,
+            irm: irm,
+            lltv: lltv
+        });
+    }
+    
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
