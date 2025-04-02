@@ -36,13 +36,13 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     uint256 private constant AMOUNT_POSITION = 80;
 
     struct BuildHookLocalVars {
-      address loanToken;
-      address collateralToken;
-      address oracle;
-      address irm;
-      uint256 amount;
-      uint256 lltv;
-      bool usePrevHookAmount;
+        address loanToken;
+        address collateralToken;
+        address oracle;
+        address irm;
+        uint256 amount;
+        uint256 lltv;
+        bool usePrevHookAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -78,19 +78,29 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
-        MarketParams memory marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         uint256 collateralAmount = _deriveCollateralAmount(vars.amount);
 
         executions = new Execution[](4);
         executions[0] =
             Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-        executions[1] =
-            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount)) });
-        executions[2] =
-            Execution({ target: morpho , value: 0, callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, collateralAmount, account, "")) });
-        executions[3] =
-            Execution({ target: morpho, value: 0, callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account)) });    
+        executions[1] = Execution({
+            target: vars.collateralToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+        });
+        executions[2] = Execution({
+            target: morpho,
+            value: 0,
+            callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, collateralAmount, account, ""))
+        });
+        executions[3] = Execution({
+            target: morpho,
+            value: 0,
+            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -120,14 +130,14 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         uint256 amount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
         bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
-        vars = BuildHookLocalVars({ 
-            loanToken: loanToken, 
-            collateralToken: collateralToken, 
-            oracle: oracle, 
-            irm: irm, 
-            amount: amount, 
-            lltv: lltv, 
-            usePrevHookAmount: usePrevHookAmount 
+        vars = BuildHookLocalVars({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: oracle,
+            irm: irm,
+            amount: amount,
+            lltv: lltv,
+            usePrevHookAmount: usePrevHookAmount
         });
     }
 
@@ -136,7 +146,17 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         //return amount * marketParams.lltv / 10000;
     }
 
-    function _generateMarketParams(address loanToken, address collateralToken, address oracle, address irm, uint256 lltv) internal pure returns (MarketParams memory) {
+    function _generateMarketParams(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 lltv
+    )
+        internal
+        pure
+        returns (MarketParams memory)
+    {
         return MarketParams({
             loanToken: loanToken,
             collateralToken: collateralToken,
@@ -145,7 +165,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
             lltv: lltv
         });
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
