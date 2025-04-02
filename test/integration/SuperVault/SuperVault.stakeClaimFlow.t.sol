@@ -119,7 +119,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         // Set up hook root (same one as bootstrap, just to test)
         vm.startPrank(SV_MANAGER);
-        strategyGearSuperVault.proposeOrExecuteHookRoot(_getMerkleRoot());
+        strategyGearSuperVault.proposeOrExecuteHookRoot(hookRootPerChain[ETH]);
         vm.warp(block.timestamp + 7 days);
         strategyGearSuperVault.proposeOrExecuteHookRoot(bytes32(0));
 

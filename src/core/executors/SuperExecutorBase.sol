@@ -69,6 +69,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
     function _execute(address account, ExecutorEntry memory entry) internal virtual {
         uint256 hooksLen = entry.hooksAddresses.length;
 
+        // nothing to execute
         if (hooksLen == 0) revert NO_HOOKS();
         if (hooksLen != entry.hooksData.length) revert LENGTH_MISMATCH();
 

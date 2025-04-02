@@ -98,7 +98,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             false, // addYieldSource
             true
         );
-        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
+        strategy.proposeOrExecuteHookRoot(hookRootPerChain[ETH]);
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();

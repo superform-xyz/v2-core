@@ -56,6 +56,7 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
 
     // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+    uint256 constant EMPTY_EXECUTION_LENGTH = 228; //saves decoding gas
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -116,6 +117,17 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
+        
+        uint256 _nonce = nonce;
+        nonce++;
+
+        // @dev validate execution
+        bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account);
+        bytes4 validationResult = IValidator(superDestinationValidator).isValidSignatureWithSender(account, bytes32(0), abi.encode(sigData, destinationData));
+        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
+
+
+
         // @dev send tokens to the smart account
         IERC20 token = IERC20(tokenSent);
         token.safeTransfer(account, amount);
@@ -126,14 +138,11 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             return;
         }
 
-
-        uint256 _nonce = nonce;
-        nonce++;
-
-        // @dev validate execution
-        bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account);
-        bytes4 validationResult = IValidator(superDestinationValidator).isValidSignatureWithSender(account, bytes32(0), abi.encode(sigData, destinationData));
-        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
+        // check if we have hooks
+        if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
+            emit AcrossTargetExecutorReceivedButNoHooks();
+            return;
+        }
 
         // @dev _execute -> executeFromExecutor -> SuperExecutorBase.execute
         Execution[] memory execs = new Execution[](1);
