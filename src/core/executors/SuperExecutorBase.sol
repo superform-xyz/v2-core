@@ -5,6 +5,7 @@ pragma solidity 0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
@@ -18,7 +19,7 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 /// @title SuperExecutorBase
 /// @author Superform Labs
 /// @notice Base contract for Superform executors
-abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor, ReentrancyGuard {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -154,7 +155,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
     }
 
-    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) internal {
+    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) internal nonReentrant {
         // run hook preExecute
         hook.preExecute(prevHook, account, hookData);
         Execution[] memory executions = hook.build(prevHook, account, hookData);
