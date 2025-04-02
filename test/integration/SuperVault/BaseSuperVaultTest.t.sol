@@ -1216,7 +1216,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        vm.warp(block.timestamp + 2 weeks);
+        bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
+        yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
         vm.stopPrank();
     }
 
@@ -1233,7 +1238,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        vm.warp(block.timestamp + 2 weeks);
+        bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
+        yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
         vm.stopPrank();
     }
 
