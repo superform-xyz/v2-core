@@ -56,7 +56,10 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
 
     // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
-    uint256 constant EMPTY_EXECUTION_LENGTH = 228; //saves decoding gas
+
+    // @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays + the 4 bytes of the `execute` function selector
+    // @dev saves decoding gas
+    uint256 constant EMPTY_EXECUTION_LENGTH = 228;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
