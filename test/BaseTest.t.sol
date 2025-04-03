@@ -1473,6 +1473,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address account;
     }
 
+    function _precomputeTargetExecutorAccount(address validator, address signer, address targetExecutor, address nexusFactory, address nexusBootstrap) internal returns (address) {
+        (, address account) = _createAccountCreationData_AcrossTargetExecutor(validator, signer, targetExecutor, nexusFactory, nexusBootstrap);
+        return account;
+    }
+
     function _createTargetExecutorMessage(TargetExecutorMessage memory messageData)
         internal
         returns (bytes memory, address)
