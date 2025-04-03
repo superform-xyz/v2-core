@@ -126,7 +126,7 @@ abstract contract Constants {
     address public constant CHAIN_1_USDE = 0x4c9EDD5852cd905f086C759E8383e09bff1E68B3;
     address public constant CHAIN_1_GEAR = 0xBa3335588D9403515223F109EdC4eB7269a9Ab5D;
     address public constant CHAIN_1_WST_ETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-
+    
     address public constant CHAIN_10_DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     address public constant CHAIN_10_USDC = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
     address public constant CHAIN_10_WETH = 0x4200000000000000000000000000000000000006;
@@ -145,6 +145,9 @@ abstract contract Constants {
     // morpho
     string public constant MORPHO_KEY = "Morpho";
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+    // wstETH-USDC Market Constants
+    address public constant MORPHO_IRM = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+    address public constant MORPHO_ORACLE = 0x48F7E36EB6B826B2dF4B2E630B62Cd25e89E40e2;
 
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";
