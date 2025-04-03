@@ -806,8 +806,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
-            ledger.previewFees(accountETH,
-                userExpectedAssets, userShares, 100);
+            ledger.previewFees(
+                accountETH,
+                yieldSource7540AddressETH_USDC, 
+                userExpectedAssets, 
+                userShares, 
+                100
+            );
 
         console2.log("Expected Fees = ", expectedFee);
 
@@ -863,8 +868,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee =
-            ledger.previewFees(accountETH,
-                userExpectedAssets, redeemAmount, 100);
+            ledger.previewFees(
+                accountETH,
+                yieldSource7540AddressETH_USDC, 
+                userExpectedAssets, 
+                redeemAmount, 
+                100
+            );
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerData.AccountingOutflow(
@@ -920,7 +930,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
             accountETH,
-            assetsOut, expectedSharesAvailableToConsume, 100
+            yieldSource7540AddressETH_USDC,
+            assetsOut,
+            expectedSharesAvailableToConsume,
+            100
         );
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
@@ -970,7 +983,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         ISuperLedger ledger = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
             accountOP,
-            expectedAssetOutAmount, userExpectedShareDelta, 100
+            yieldSource4626AddressOP_USDCe,
+            expectedAssetOutAmount,
+            userExpectedShareDelta,
+            100
         );
 
         vm.expectEmit(true, true, true, true);
