@@ -20,7 +20,6 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// TODO: Does user specify oracle or we always use the same one?
 /// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
