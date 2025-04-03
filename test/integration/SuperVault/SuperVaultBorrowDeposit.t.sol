@@ -29,17 +29,21 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
     address public morpho;
     address public oracle;
+    address public irm;
     address public loanToken;
     address public collateralToken;
 
+    uint256 public lltv;
     uint256 public amount;
     uint256 public constant PRECISION = 1e18;
+
+    ISuperExecutor public superExecutorOnETH;
 
     function setUp() public override {
         super.setUp();
 
         amount = 1000e6;
-
+  
         vm.selectFork(FORKS[ETH]);
         
         // Set up accounts
@@ -47,24 +51,31 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         instanceOnEth = accountInstances[ETH];
         vm.label(accountEth, "AccountETH");
 
-        collateralToken = existingUnderlyingTokens[ETH][USDC_KEY];
+        // Set up tokens
+        collateralToken = existingUnderlyingTokens[ETH][WST_ETH_KEY];
         vm.label(collateralToken, "CollateralToken");
-        
-        loanToken = existingUnderlyingTokens[ETH][WST_ETH_KEY];
+        _getTokens(CHAIN_1_WST_ETH, accountEth, 3e18);
+        loanToken = existingUnderlyingTokens[ETH][USDC_KEY];
         vm.label(loanToken, "LoanToken");
 
+        // Set up morpho
+        lltv = 86000;
         morpho = MORPHO;
         vm.label(morpho, "Morpho");
+        irm = MORPHO_IRM;
+        vm.label(irm, "MorphoIRM");
+        oracle = MORPHO_ORACLE;
+        vm.label(oracle, "MorphoOracle");
 
-
+        // Set up super vault
         vm.startPrank(SV_MANAGER);
 
         // Deploy vault trio
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
                 asset: address(asset),
-                name: "SuperVault Morpho",
-                symbol: "svMorpho",
+                name: "SuperVault Morpho-Fluid",
+                symbol: "svMorphoFluid",
                 manager: SV_MANAGER,
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
@@ -72,9 +83,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
                 superVaultCap: SUPER_VAULT_CAP
             })
         );
-        vm.label(vaultAddr, "MorphoSuperVault");
-        vm.label(strategyAddr, "MorphoSuperVaultStrategy");
-        vm.label(escrowAddr, "MorphoSuperVaultEscrow");
+        vm.label(vaultAddr, "MorphoFluidSuperVault");
+        vm.label(strategyAddr, "MorphoFluidSuperVaultStrategy");
+        vm.label(escrowAddr, "MorphoFluidSuperVaultEscrow");
 
         // Cast addresses to contract types
         vault = SuperVault(vaultAddr);
@@ -101,6 +112,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         strategy.executeVaultFeeConfigUpdate();
         vm.stopPrank();
         
+        // Set up yield source oracle
         vm.startPrank(MANAGER);
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -113,6 +125,34 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         });
         ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
         vm.stopPrank();
+
+        // Set up super executor
+        superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
+    }
+
+    function test_BorrowHook() public {
+        address hook = _getHookAddress(ETH, MORPHO_BORROW_HOOK_KEY);
+        address[] memory hooks = new address[](1);
+        hooks[0] = hook;
+
+        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
+        console2.log("loanBalanceBefore", loanBalanceBefore);
+        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
+        console2.log("collateralBalanceBefore", collateralBalanceBefore);
+
+        bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = hookData;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+        executeOp(userOpData);
+
+        uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountEth);
+        console2.log("loanBalanceAfter", loanBalanceAfter);
+        uint256 collateralBalanceAfter = IERC20(collateralToken).balanceOf(accountEth);
+        console2.log("collateralBalanceAfter", collateralBalanceAfter);
     }
     
 }
