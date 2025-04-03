@@ -59,7 +59,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.label(loanToken, "LoanToken");
 
         // Set up morpho
-        lltv = 86000;
+        lltv = 860000000000000000;
         morpho = MORPHO;
         vm.label(morpho, "Morpho");
         irm = MORPHO_IRM;
