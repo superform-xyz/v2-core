@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+// external
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+
+// Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
@@ -21,7 +25,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     mapping(bytes4 => address) private pendingManager;
 
     uint256 internal constant MAX_FEE_PERCENT = 5000;
-    uint256 internal constant MAX_FEE_PERCENT_CHANGE = 1000; //10%
+    uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000; //50% of current fee percent
     uint256 internal constant PROPOSAL_EXPIRATION_TIME = 1 weeks;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
@@ -64,14 +68,11 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
             if (existingConfig.feePercent > 0) {
                 // allow fee percent change without validation when the new fee percentage is 0
                 if (config.feePercent > 0) {
-                    if (
-                        config.feePercent < existingConfig.feePercent * (10_000 - MAX_FEE_PERCENT_CHANGE) / 10_000 || 
-                        config.feePercent > existingConfig.feePercent * (10_000 + MAX_FEE_PERCENT_CHANGE) / 10_000
-                    ) revert INVALID_FEE_PERCENT();
+                    uint256 minFee = Math.mulDiv(existingConfig.feePercent, (10_000 - MAX_FEE_PERCENT_CHANGE), 10_000);
+                    uint256 maxFee = Math.mulDiv(existingConfig.feePercent, (10_000 + MAX_FEE_PERCENT_CHANGE), 10_000);
+                    if (config.feePercent < minFee || config.feePercent > maxFee) revert INVALID_FEE_PERCENT();
                 }
-            } else {
-                if (config.feePercent > MAX_FEE_PERCENT_CHANGE) revert INVALID_FEE_PERCENT();
-            }
+            }  
 
             _validateYieldSourceOracleConfig(config.yieldSourceOracleId, config.yieldSourceOracle, config.feePercent, config.feeRecipient, config.ledger);
 
