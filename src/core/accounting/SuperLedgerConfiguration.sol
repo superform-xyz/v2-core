@@ -40,7 +40,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
 
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
-            _setYieldSourceOracleConfig(
+            _setInitialYieldSourceOracleConfig(
                 config.yieldSourceOracleId,
                 config.yieldSourceOracle,
                 config.feePercent,
@@ -160,7 +160,7 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _setYieldSourceOracleConfig(
+    function _setInitialYieldSourceOracleConfig(
         bytes4 yieldSourceOracleId,
         address yieldSourceOracle,
         uint256 feePercent,
