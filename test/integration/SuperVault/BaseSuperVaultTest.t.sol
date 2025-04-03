@@ -339,7 +339,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(depositAmount - halfAmount);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -423,7 +423,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(vars.underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: vars.requestingUsers,
                 hooks: vars.fulfillHooksAddresses,
@@ -464,7 +464,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -509,7 +509,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -551,7 +551,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -598,7 +598,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
         expectedAssetsOrSharesOut[2] = IERC4626(address(vault3)).convertToShares(allocationAmountVault3);
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -663,7 +663,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         console2.log("----requestingUsersLength", requestingUsers.length);
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -717,7 +717,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -931,6 +931,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 maxTransfers = vars.sourceCount * vars.destCount;
         address[] memory allHooksAddresses = new address[](maxTransfers * 2);
         bytes[] memory allHooksData = new bytes[](maxTransfers * 2);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](maxTransfers * 2);
         uint256 hookIndex = 0;
 
         // Create a matrix of transfers from sources to destinations
@@ -979,6 +980,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                             true,
                             false
                         );
+                        expectedAssetsOrSharesOut[hookIndex] =
+                            IERC4626(vars.sources[i]).previewRedeem(vars.sharesToRedeem);
+
                         hookIndex++;
 
                         // Update remaining amounts
@@ -998,23 +1002,24 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         if (hookIndex > 0) {
             address[] memory finalHooksAddresses = new address[](hookIndex);
             bytes[] memory finalHooksData = new bytes[](hookIndex);
-
+            uint256[] memory finalExpectedAssetsOrSharesOut = new uint256[](hookIndex);
             for (uint256 i = 0; i < hookIndex; i++) {
                 finalHooksAddresses[i] = allHooksAddresses[i];
                 finalHooksData[i] = allHooksData[i];
+                finalExpectedAssetsOrSharesOut[i] = expectedAssetsOrSharesOut[i];
             }
 
             address[] memory users = new address[](0);
 
             // Execute all hooks in a single transaction
             vm.startPrank(STRATEGIST);
-            strategy.execute(
+            strategy.executeHooks(
                 ISuperVaultStrategy.ExecuteArgs({
                     users: users,
                     hooks: finalHooksAddresses,
                     hookCalldata: finalHooksData,
                     hookProofs: _getMerkleProofsForAddresses(finalHooksAddresses),
-                    expectedAssetsOrSharesOut: new uint256[](0)
+                    expectedAssetsOrSharesOut: finalExpectedAssetsOrSharesOut
                 })
             );
             vm.stopPrank();
@@ -1216,7 +1221,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        vm.warp(block.timestamp + 2 weeks);
+        bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
+        yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
         vm.stopPrank();
     }
 
@@ -1233,7 +1243,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        vm.warp(block.timestamp + 2 weeks);
+        bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
+        yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
         vm.stopPrank();
     }
 
@@ -1270,8 +1285,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, address(asset), assetsToMove, true, false
         );
 
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
-        strategy.execute(
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = 0;
+        expectedAssetsOrSharesOut[1] = IERC4626(sourceVault).previewRedeem(sharesToRedeem);
+
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
@@ -1314,8 +1332,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             true,
             false
         );
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](0);
-        strategy.execute(
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = 0;
+        expectedAssetsOrSharesOut[1] = IERC4626(sourceVault).previewRedeem(sharesToRedeem);
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,

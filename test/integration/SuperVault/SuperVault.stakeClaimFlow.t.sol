@@ -138,7 +138,11 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        vm.warp(block.timestamp + 2 weeks);
+        bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
+        yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);   
         vm.stopPrank();
     }
 
@@ -291,7 +295,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = gearboxVault.convertToShares(depositAmount);
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.execute(
+        strategyGearSuperVault.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -338,13 +342,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.execute(
+        strategyGearSuperVault.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
                 hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
     }
@@ -374,13 +378,13 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategyGearSuperVault.execute(
+        strategyGearSuperVault.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
                 hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
     }
@@ -413,7 +417,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[0] = underlyingShares;
 
         vm.startPrank(STRATEGIST);
-        strategyGearSuperVault.execute(
+        strategyGearSuperVault.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,

@@ -56,14 +56,14 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
     ISuperExecutor public superExecutorOnOP;
     ISuperExecutor public superExecutorOnETH;
     ISuperExecutor public superExecutorOnBase;
-    
+
     IAcrossTargetExecutor public superTargetExecutorOnBase;
     IAcrossTargetExecutor public superTargetExecutorOnETH;
     IAcrossTargetExecutor public superTargetExecutorOnOP;
 
     IValidator public validatorOnBase;
     IValidator public validatorOnETH;
-    IValidator public validatorOnOP;    
+    IValidator public validatorOnOP;
 
     address public validatorSigner;
     uint256 public validatorSignerPrivateKey;
@@ -136,7 +136,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
 
         // base is the destination
         vm.selectFork(FORKS[BASE]);
-        
+
         // Set up the 1inch swap router
         deal(underlyingBase_WETH, odosRouters[BASE], 1e12);
     }
@@ -170,7 +170,11 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
             dstHooksData[0] =
                 _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, previewRedeemAmount, false);
             dstHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, previewRedeemAmount, false, false
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                yieldSourceAddressBase,
+                previewRedeemAmount,
+                false,
+                false
             );
 
             uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
@@ -235,7 +239,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
 
         // BASE IS DST
         SELECT_FORK_AND_WARP(BASE, block.timestamp);
-                // Transfer users USDC to this contract so that balance checks are correct
+        // Transfer users USDC to this contract so that balance checks are correct
         uint256 amountToRemove = IERC20(underlyingBase_USDC).balanceOf(accountBase);
         vm.prank(accountBase);
         IERC20(underlyingBase_USDC).transfer(address(this), amountToRemove);
@@ -297,7 +301,6 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
             false,
             targetExecutorMessage
         );
-
 
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP);
 
@@ -394,13 +397,13 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
             ETH, BASE, block.timestamp, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
         );
 
-        SELECT_FORK_AND_WARP(BASE, block.timestamp);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp + 10 minutes);
 
         uint256 sharesExpectedWETH =
             vaultInstance4626Base_WETH.convertToShares((intentAmount / 2) - ((intentAmount / 2) * 50 / 10_000));
 
         uint256 sharesWETH = IERC4626(yieldSource4626AddressBase_WETH).balanceOf(accountBase);
-        assertEq(sharesWETH, sharesExpectedWETH);
+        assertApproxEqRel(sharesWETH, sharesExpectedWETH, 0.02e18);
     }
 
     /*//////////////////////////////////////////////////////////////

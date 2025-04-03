@@ -177,7 +177,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             flags: 0
         });
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _create1InchGenericRouterSwapHookData(account, underlying, executor, desc, "", "");
+        hooksData[0] = _create1InchGenericRouterSwapHookData(account, underlying, executor, desc, "", "", false);
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
@@ -212,7 +212,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             Address.wrap(uint256(uint160(underlying))),
             amount,
             amount,
-            Address.wrap(uint256(uint160(address(mockDex))))
+            Address.wrap(uint256(uint160(address(mockDex)))),
+            false
         );
 
         // it should execute all hooks
@@ -239,7 +240,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _create1InchClipperSwapToHookData(
-            account, underlying, executor, Address.wrap(uint256(uint160(underlying))), amount
+            account, underlying, executor, Address.wrap(uint256(uint160(underlying))), amount, false
         );
 
         // it should execute all hooks
@@ -492,8 +493,9 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Question: is this just a getter method or does it have side effects?
-        // Since it is not defined as view I assume it has side effects so I did not remove it but the `get` in the name is misleading since it suggests it is just a getter, so better to check this
-                        _getExecOps(instance, superExecutor, abi.encode(entry));
+        // Since it is not defined as view I assume it has side effects so I did not remove it but the `get` in the name
+        // is misleading since it suggests it is just a getter, so better to check this
+        _getExecOps(instance, superExecutor, abi.encode(entry));
 
         //bytes memory initData = _get7702InitDataWithExecutor(address(_defaultValidator), "");
         bytes memory initData = _get7702InitData();

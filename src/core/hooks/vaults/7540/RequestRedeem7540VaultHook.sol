@@ -14,7 +14,8 @@ import {
     ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting
+    ISuperHookNonAccounting,
+    ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -25,10 +26,17 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookNonAccounting {
+contract RequestRedeem7540VaultHook is
+    BaseHook,
+    ISuperHook,
+    ISuperHookInflowOutflow,
+    ISuperHookNonAccounting,
+    ISuperHookContextAware
+{
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
@@ -48,7 +56,7 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
     {
         address yieldSource = data.extractYieldSource();
         uint256 shares = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 56);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
@@ -90,9 +98,14 @@ contract RequestRedeem7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOut
         return _decodeAmount(data);
     }
 
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
     }

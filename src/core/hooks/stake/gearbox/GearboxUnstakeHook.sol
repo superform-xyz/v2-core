@@ -11,7 +11,8 @@ import {
     ISuperHook,
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
-    ISuperHookOutflow
+    ISuperHookOutflow,
+    ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
@@ -25,10 +26,17 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         bool lockForSP = _decodeBool(data, 57);
-contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract GearboxUnstakeHook is
+    BaseHook,
+    ISuperHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
@@ -45,7 +53,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, IS
     {
         address yieldSource = data.extractYieldSource();
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 56);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
@@ -83,6 +91,11 @@ contract GearboxUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, IS
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookOutflow
