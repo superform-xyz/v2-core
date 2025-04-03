@@ -451,6 +451,72 @@ set_initial_balance() {
 }
 
 ###################################################################################
+# Save VNET Information
+###################################################################################
+
+save_vnet_info() {
+    local is_local=$1
+    log "INFO" "Saving VNET information..."
+    
+    # Initialize content
+    content="{\"networks\":{},\"updated_at\":null}"
+    local latest_file
+    
+    if [ "$is_local" = true ]; then
+        latest_file="$OUTPUT_BASE_DIR/latest.json"
+        if [ -f "$latest_file" ]; then
+            content=$(cat "$latest_file")
+            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+                content="{\"networks\":{},\"updated_at\":null}"
+            fi
+        fi
+    else
+        latest_file_path="/tmp/latest.json"
+        if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path" --quiet 2>/dev/null; then
+            content=$(cat "$latest_file_path")
+            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+                content="{\"networks\":{},\"updated_at\":null}"
+            fi
+        fi
+    fi
+    
+    # Update VNET information only
+    i=0
+    for network in 1 8453 10; do
+        network_slug=$(get_network_slug "$network")
+        vnet_id=$(echo "${VNET_RESPONSES[$i]}" | cut -d'|' -f2)
+        
+        if [ -n "$vnet_id" ]; then
+            # Update only VNET information
+            content=$(echo "$content" | jq \
+                --arg slug "$network_slug" \
+                --arg vnet "$vnet_id" \
+                '.networks[$slug] = {
+                    "vnet_id": $vnet,
+                    "contracts": {}
+                }')
+        fi
+        
+        i=$((i + 1))
+    done
+    
+    # Update timestamp
+    content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time')
+    
+    if [ "$is_local" = true ]; then
+        echo "$content" | jq '.' > "$latest_file"
+        log "INFO" "VNET information saved locally"
+    else
+        echo "$content" | jq '.' > "/tmp/latest.json"
+        if aws s3 cp "/tmp/latest.json" "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" --quiet; then
+            log "INFO" "VNET information successfully uploaded to S3"
+        else
+            log "WARN" "Failed to upload VNET information to S3"
+        fi
+    fi
+}
+
+###################################################################################
 # Initialize Output Directories and Files
 ###################################################################################
 
@@ -542,6 +608,12 @@ fi
 
 log "INFO" "Environment variables exported"
 
+# Save VNET information before deployment
+if is_local_run; then
+    save_vnet_info true
+else
+    save_vnet_info false
+fi
 
 ###################################################################################
 # Contract Deployment
