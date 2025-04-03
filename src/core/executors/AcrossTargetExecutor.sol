@@ -52,7 +52,7 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     address public immutable acrossSpokePool;
     address public immutable superDestinationValidator;
     INexusFactory public immutable nexusFactory;
-    uint256 public nonce;
+    mapping(address => uint256) public nonces;
 
     // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
@@ -64,6 +64,7 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     error INVALID_ACCOUNT();
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
+    error ACCOUNT_NOT_CREATED();
 
     constructor(address registry_, address acrossSpokePool_, address superDestinationValidator_, address nexusFactory_) SuperExecutorBase(registry_) {
         if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -117,9 +118,10 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
+        if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
         
-        uint256 _nonce = nonce;
-        nonce++;
+        uint256 _nonce = nonces[account];
+        nonces[account]++;
 
         // @dev validate execution
         bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account);

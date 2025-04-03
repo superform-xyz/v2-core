@@ -173,7 +173,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, previewRedeemAmount, false, false
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonce();
+            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
@@ -258,7 +258,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonce();
+            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
@@ -347,7 +347,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonce();
+            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,

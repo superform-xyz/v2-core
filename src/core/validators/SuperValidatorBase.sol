@@ -27,6 +27,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
     error INVALID_PROOF();
     error NOT_INITIALIZED();
     error ALREADY_INITIALIZED();
@@ -57,6 +58,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
         address owner = abi.decode(data, (address));
+        if (owner == address(0)) revert ZERO_ADDRESS();
         _accountOwners[msg.sender] = owner;
     }
 
