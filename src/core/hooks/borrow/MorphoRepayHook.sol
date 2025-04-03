@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-type Id is bytes32;
-
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IMorphoBase, IMorphoStaticTyping, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
+import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
@@ -22,9 +21,13 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-/// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
-/// @notice         Id id = Id(BytesLib.toBytes32(BytesLib.slice(data, 112, 32), 0));
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+/// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+/// @notice         Id id = Id(BytesLib.toBytes32(BytesLib.slice(data, 144, 32), 0));
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 176);
+/// @notice         bool isFullRepayment = _decodeBool(data, 177);
 contract MorphoRepayHook is BaseHook, ISuperHook {
+    using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -39,7 +42,10 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         address collateralToken;
         address oracle;
         address irm;
+        uint256 amount;
         uint256 lltv;
+        bool usePrevHookAmount;
+        bool isFullRepayment;
         Id id;
     }
 
@@ -114,16 +120,25 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-        //Id id = Id(BytesLib.toBytes32(BytesLib.slice(data, 112, 32), 0));
-        // vars = BuildHookLocalVars({
-        //     loanToken: loanToken,
-        //     collateralToken: collateralToken,
-        //     oracle: oracle,
-        //     irm: irm,
-        //     lltv: lltv
-        //     //id: id
-        // });
+        bool usePrevHookAmount = _decodeBool(data, 144);
+        bool isFullRepayment = _decodeBool(data, 145);
+
+        MarketParams memory marketParams = _generateMarketParams(loanToken, collateralToken, oracle, irm, lltv);
+        Id id = marketParams.id();
+
+        vars = BuildHookLocalVars({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: oracle,
+            irm: irm,
+            amount: amount,
+            lltv: lltv,
+            usePrevHookAmount: usePrevHookAmount,
+            isFullRepayment: isFullRepayment,
+            id: id
+        });
     }
 
     function _generateMarketParams(
