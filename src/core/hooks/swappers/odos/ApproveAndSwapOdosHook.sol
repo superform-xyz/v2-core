@@ -9,7 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOdosHook
 /// @author Superform Labs
@@ -20,15 +20,17 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 /// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 /// @notice         uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
 /// @notice         uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-/// @notice         bytes pathDefinition = BytesLib.slice(data, 188, pathDefinition_paramLength);
-/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20),
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+/// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
+/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 189 + pathDefinition_paramLength, 20),
 /// 0);
-/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20,
+/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20,
 /// 4), 0);
-/// @notice         bool usePreviousHookAmount = _decodeBool(data, 168 + pathDefinition_paramLength + 20 + 4);
-contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
+contract ApproveAndSwapOdosHook is BaseHook, ISuperHook, ISuperHookContextAware {
     IOdosRouterV2 public odosRouterV2;
+
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 
     constructor(address registry_, address _routerV2) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
@@ -49,10 +51,10 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-        bytes memory pathDefinition = BytesLib.slice(data, 188, pathDefinition_paramLength);
-        address executor = BytesLib.toAddress(BytesLib.slice(data, 188 + pathDefinition_paramLength, 20), 0);
-        uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 188 + pathDefinition_paramLength + 20, 4), 0);
+        uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+        bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
+        address executor = BytesLib.toAddress(BytesLib.slice(data, 189 + pathDefinition_paramLength, 20), 0);
+        uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20, 4), 0);
 
         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
@@ -95,6 +97,11 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
         outAmount = _getBalance(account, data) - outAmount;
     }
 
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
@@ -123,8 +130,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook {
         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
         uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
         uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-        uint256 pathDefinitionLength = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 188 + pathDefinitionLength + 20 + 4);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
             inputAmount = ISuperHookResult(prevHook).outAmount();

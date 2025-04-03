@@ -202,7 +202,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         minAssetsOrSharesOut[0] = expectedShares;
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: users,
                 hooks: hooks_,
@@ -253,13 +253,13 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
             abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: hooks_,
                 hookCalldata: hookCalldata,
                 hookProofs: _getMerkleProofsForAddresses(hooks_),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](2)
             })
         );
         vm.stopPrank();
@@ -290,7 +290,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[0] = underlyingAssetsOut;
 
         vm.startPrank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,

@@ -23,9 +23,14 @@ interface ISuperHookResult {
     function asset() external view returns (address);
 }
 
+/// @title ISuperHookContextAware
+/// @author Superform Labs
+interface ISuperHookContextAware {
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool);
+}
+
 /// @title ISuperHookInflowOutflow
 /// @author Superform Labs
-/// @notice Interface for the SuperHookInflowOutflow contract that manages inflow and outflow hooks
 interface ISuperHookInflowOutflow {
     function decodeAmount(bytes memory data) external pure returns (uint256);
 }

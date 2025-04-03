@@ -14,7 +14,8 @@ import {
     ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookOutflow
+    ISuperHookOutflow,
+    ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -30,10 +31,17 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 128);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 129);
 /// @notice         bool lockForSP = _decodeBool(data, 130);
-contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract ApproveAndRedeem5115VaultHook is
+    BaseHook,
+    ISuperHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 64;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 129;
 
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
@@ -57,7 +65,7 @@ contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflow
         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 64, 32), 0);
         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 96, 32), 0);
         bool burnFromInternalBalance = _decodeBool(data, 128);
-        bool usePrevHookAmount = _decodeBool(data, 129);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
             shares = ISuperHookResult(prevHook).outAmount();
@@ -105,6 +113,11 @@ contract ApproveAndRedeem5115VaultHook is BaseHook, ISuperHook, ISuperHookInflow
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /// @inheritdoc ISuperHookOutflow
