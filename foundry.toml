@@ -25,6 +25,7 @@ remappings = [
   "@account-abstraction/=lib/modulekit/node_modules/account-abstraction/contracts/",
   "@pigeon/=lib/pigeon/src/",
 ]
+dynamic_test_linking = true
 
 [profile.ci-sizes]
 script = "src"

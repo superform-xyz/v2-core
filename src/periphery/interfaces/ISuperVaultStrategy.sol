@@ -37,6 +37,7 @@ interface ISuperVaultStrategy {
     error INVALID_VAULT_CAP();
     error INVALID_HOOK_TYPE();
     error INSUFFICIENT_FUNDS();
+    error INVALID_DEPOSIT_FILL();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
     error ZERO_OUTPUT_AMOUNT();

@@ -197,8 +197,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         if (isFulfillment) {
             // Validate array lengths
             _validateFulfillHooksArrays(hooksLength, args.hookCalldata.length);
-            // Validate requests and determine total amount (assets for deposits)
-            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, fulfillmentType);
+
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
         } else {
@@ -322,11 +321,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             }
         }
 
-        // When fulfilling deposits, verify all true amounts of assets spent in the hook guarantee a full fulfillment
-        if (
-            isFulfillment && fulfillmentType == FulfillmentType.DEPOSIT
-                && vars.totalAssetsOut != vars.totalRequestedAmount
-        ) revert INVALID_AMOUNT();
+        if (isFulfillment) {
+            // Validate requests and determine total amount requested
+            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, fulfillmentType);
+            if (fulfillmentType == FulfillmentType.DEPOSIT && vars.totalAssetsOut != vars.totalRequestedAmount) {
+                revert INVALID_DEPOSIT_FILL();
+            }
+        }
 
         // For fulfill operations, process the user requests after all hooks are executed. Each user request is
         // processed individually
