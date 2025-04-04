@@ -5,6 +5,7 @@ pragma solidity 0.8.28;
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IOracle } from "../../../vendor/morpho/IOracle.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
@@ -82,7 +83,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 collateralAmount = _deriveCollateralAmount(vars.amount, vars.oracle);
+        uint256 collateralAmount = _deriveCollateralAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken);
 
         executions = new Execution[](4);
         executions[0] =
@@ -146,9 +147,23 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
     /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
     /// decimals of precision.
-    function _deriveCollateralAmount(uint256 loanAmount, address oracleAddress) internal view returns (uint256 collateralAmount) {
+    function _deriveCollateralAmount(
+        uint256 loanAmount,
+        address oracleAddress,
+        address loanToken,
+        address collateralToken
+    )
+        internal
+        view
+        returns (uint256 collateralAmount) {
         IOracle oracle = IOracle(oracleAddress);
-        collateralAmount = Math.mulDiv(loanAmount, oracle.price(), 1e36); // TODO: check if this is correct
+
+        uint256 price = oracle.price();
+        uint256 loanDecimals = ERC20(loanToken).decimals();
+        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+
+        uint256 scalingFactor = 10 ** (36 + collateralDecimals - loanDecimals);
+        collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
     }
 
     function _generateMarketParams(
