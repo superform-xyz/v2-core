@@ -212,9 +212,8 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
         (
             IAggregationExecutor executor,
             I1InchAggregationRouterV6.SwapDescription memory desc,
-            bytes memory permit,
             bytes memory data
-        ) = abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes, bytes));
+        ) = abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
 
         if (desc.flags & _PARTIAL_FILL != 0) {
             revert PARTIAL_FILL_NOT_ALLOWED();
@@ -245,7 +244,7 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
         }
 
         if (usePrevHookAmount) {
-            updatedTxData = abi.encode(executor, desc, permit, data);
+            updatedTxData = abi.encode(executor, desc, data);
         }
     }
 
