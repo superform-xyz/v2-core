@@ -24,7 +24,7 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    I1InchAggregationRouterV6 public aggregationRouter;
+    I1InchAggregationRouterV6 public immutable aggregationRouter;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     address constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;

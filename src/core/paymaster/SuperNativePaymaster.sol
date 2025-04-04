@@ -91,27 +91,11 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
             revert INSUFFICIENT_BALANCE();
         }
-        // 52
-        uint256 maxGasLimitOffsetStart = UserOperationLib.PAYMASTER_DATA_OFFSET;
-        // 52 + 16 = 68
-        uint256 maxGasLimitOffsetEnd = maxGasLimitOffsetStart + UINT128_BYTES;
 
-        // 68
-        uint256 nodeOperatorPremiumOffsetStart = maxGasLimitOffsetEnd;
-        // 68 + 16 = 84
-        uint256 nodeOperatorPremiumOffsetEnd = nodeOperatorPremiumOffsetStart + UINT128_BYTES;
+        (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
+            abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
 
-        uint128 maxGasLimit = uint128(bytes16(userOp.paymasterAndData[maxGasLimitOffsetStart:maxGasLimitOffsetEnd]));
-
-        // verification + call  gas limit <= maxGasLimit
-        uint256 totalGasLimit =
-            PaymasterGasCalculator.getVerificationGasLimit(userOp) + PaymasterGasCalculator.getCallGasLimit(userOp);
-        if (maxGasLimit > totalGasLimit || maxGasLimit == 0) revert INVALID_MAX_GAS_LIMIT();
-
-        uint128 nodeOperatorPremium =
-            uint128(bytes16(userOp.paymasterAndData[nodeOperatorPremiumOffsetStart:nodeOperatorPremiumOffsetEnd]));
-
-        if (nodeOperatorPremium < 0 || nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
+        if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
             revert INVALID_NODE_OPERATOR_PREMIUM();
         }
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
@@ -121,15 +105,11 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     ///         Executes userOp and gives back refund to the userOp.sender if userOp.sender has overpaid for execution.
     /// @dev Verified to be called only through the entryPoint.
     ///      If subclass returns a non-empty context from validatePaymasterUserOp, it must also implement this method.
-    /// @param mode The mode of the post-operation
-    ///                  opSucceeded - user operation succeeded.
-    ///                  opReverted  - user op reverted. still has to pay for gas.
-    ///                  postOpReverted - user op succeeded, but caused postOp (in mode=opSucceeded) to revert.
     ///                                    Now this is the 2nd call, after user's op was deliberately reverted.
     /// @param context The context value returned by validatePaymasterUserOp.
     /// @param actualGasCost The actual gas used so far (without this postOp call).
     function _postOp(
-        PostOpMode mode,
+        PostOpMode,
         bytes calldata context,
         uint256 actualGasCost,
         uint256
@@ -141,9 +121,6 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         virtual
         override
     {
-        if (mode == PostOpMode.postOpReverted) {
-            return;
-        }
         (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium) =
             abi.decode(context, (address, uint256, uint256, uint256));
 

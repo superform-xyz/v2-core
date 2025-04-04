@@ -15,6 +15,11 @@ import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 /// @notice A userOp validator contract
 contract SuperMerkleValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+
+    /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Validate a user operation
@@ -65,7 +70,7 @@ contract SuperMerkleValidator is SuperValidatorBase {
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
 
-        return isValid ? bytes4(0x1626ba7e) : bytes4("");
+        return isValid ? VALID_SIGNATURE : bytes4("");
     }
 
     /*//////////////////////////////////////////////////////////////
