@@ -26,8 +26,6 @@ contract MockOracle is IOracle {
     }
 }
 
-contract MockMorpho {}
-
 contract MorphoBorrowHookTest is BaseTest {
     MorphoBorrowHook public hook;
     MockERC20 public loanToken;
@@ -48,7 +46,7 @@ contract MorphoBorrowHookTest is BaseTest {
         collateralToken = new MockERC20("Collateral Token", "COLL", 18);
         oracle = new MockOracle();
         irm = address(0x123); // Mock IRM address
-        morpho = address(new MockMorpho());
+        morpho = MORPHO;
         morphoBase = IMorphoBase(morpho);
 
         // Initialize hook
