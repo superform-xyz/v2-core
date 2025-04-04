@@ -7,6 +7,8 @@ import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
+import { IOracle } from "../../../src/vendor/morpho/IOracle.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -54,7 +56,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         // Set up tokens
         collateralToken = existingUnderlyingTokens[ETH][WST_ETH_KEY];
         vm.label(collateralToken, "CollateralToken");
-        _getTokens(CHAIN_1_WST_ETH, accountEth, 3e18);
+    
         loanToken = existingUnderlyingTokens[ETH][USDC_KEY];
         vm.label(loanToken, "LoanToken");
 
@@ -135,6 +137,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
 
+        uint256 collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
+        _getTokens(CHAIN_1_WST_ETH, accountEth, collateralAmount);
+
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
         console2.log("loanBalanceBefore", loanBalanceBefore);
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
@@ -150,9 +155,29 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         executeOp(userOpData);
 
         uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountEth);
-        console2.log("loanBalanceAfter", loanBalanceAfter);
         uint256 collateralBalanceAfter = IERC20(collateralToken).balanceOf(accountEth);
-        console2.log("collateralBalanceAfter", collateralBalanceAfter);
+
+        assertEq(loanBalanceAfter, loanBalanceBefore + amount);
+        assertEq(collateralBalanceAfter, collateralBalanceBefore - collateralAmount);
+    }
+
+    function _deriveCollateralAmount(
+        uint256 loanAmount,
+        address oracleAddress,
+        address loan,
+        address collateral
+    )
+        internal
+        view
+        returns (uint256 collateralAmount) {
+        IOracle oracleInstance = IOracle(oracleAddress);
+
+        uint256 price = oracleInstance.price();
+        uint256 loanDecimals = ERC20(loan).decimals();
+        uint256 collateralDecimals = ERC20(collateral).decimals();
+
+        uint256 scalingFactor = 10 ** (36 + collateralDecimals - loanDecimals);
+        collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
     }
     
 }
