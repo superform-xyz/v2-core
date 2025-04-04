@@ -43,6 +43,7 @@ interface ISuperVaultStrategy {
     error ZERO_OUTPUT_AMOUNT();
     error INSUFFICIENT_SHARES();
     error ZERO_EXPECTED_VALUE();
+    error INVALID_ASSET_VALUE();
     error ZERO_SHARES_FULFILLED();
     error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
@@ -340,6 +341,27 @@ interface ISuperVaultStrategy {
     /// @return The state value
     function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
 
+    /// @notice Convert super vault shares to underlying shares
+    /// @param redeemShares The amount of super vault shares to convert
+    /// @return activeSources The list of active yield sources
+    /// @return underlyingShares The amount of underlying shares
+    function convertSuperVaultSharesToUnderlyingShares(uint256 redeemShares)
+        external
+        view
+        returns (address[] memory activeSources, uint256[] memory underlyingShares);
+
+    /// @notice Convert super vault shares to underlying shares filtered by sources
+    /// @param redeemShares The amount of super vault shares to convert
+    /// @param sources The list of sources to filter by
+    /// @return activeSources The list of active yield sources
+    /// @return underlyingShares The amount of underlying shares
+    function convertSuperVaultSharesToUnderlyingSharesFiltered(
+        uint256 redeemShares,
+        address[] calldata sources
+    )
+        external
+        view
+        returns (address[] memory activeSources, uint256[] memory underlyingShares);
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/

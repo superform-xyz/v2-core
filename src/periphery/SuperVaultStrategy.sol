@@ -32,6 +32,8 @@ import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -493,6 +495,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     /// @inheritdoc ISuperVaultStrategy
     function pendingRedeemRequest(address controller) external view returns (uint256 pendingShares) {
         pendingShares = superVaultState[controller].pendingRedeemRequest;
+    }
+
+    function convertSuperVaultSharesToUnderlyingShares(uint256 superVaultShares)
+        external
+        view
+        returns (address[] memory activeSources, uint256[] memory underlyingShares)
+    {
+        return _convertSuperVaultSharesToUnderlyingShares(superVaultShares, new address[](0));
+    }
+
+    function convertSuperVaultSharesToUnderlyingSharesFiltered(
+        uint256 superVaultShares,
+        address[] calldata sources
+    )
+        external
+        view
+        returns (address[] memory activeSources, uint256[] memory underlyingShares)
+    {
+        return _convertSuperVaultSharesToUnderlyingShares(superVaultShares, sources);
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -1326,5 +1347,129 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     function _getSlippageTolerance() private view returns (uint256) {
         return peripheryRegistry.svSlippageTolerance();
+    }
+
+    function _convertSuperVaultSharesToUnderlyingShares(
+        uint256 superVaultShares,
+        address[] memory targetSources
+    )
+        internal
+        view
+        returns (address[] memory activeSources, uint256[] memory underlyingShares)
+    {
+        bool useTargetFilter = targetSources.length > 0;
+
+        // 1. Count active yield sources (optionally filtered by targetSources)
+        uint256 maxActiveSourceCount = 0;
+        for (uint256 i; i < yieldSourcesList.length; i++) {
+            address source = yieldSourcesList[i];
+            bool isActive = yieldSources[source].isActive || asyncYieldSources[source].isActive;
+
+            // Skip if not active or not in targetSources (when filtering)
+            if (!isActive) continue;
+            if (useTargetFilter) {
+                bool isInTargetList = false;
+                for (uint256 j; j < targetSources.length; j++) {
+                    if (source == targetSources[j]) {
+                        isInTargetList = true;
+                        break;
+                    }
+                }
+                if (!isInTargetList) continue;
+            }
+
+            maxActiveSourceCount++;
+        }
+
+        // 2. Initialize arrays with max possible size
+        activeSources = new address[](maxActiveSourceCount);
+        uint256[] memory sourceTVLs = new uint256[](maxActiveSourceCount);
+        underlyingShares = new uint256[](maxActiveSourceCount);
+
+        // 3. Fill arrays with active sources and their TVL
+        uint256 totalAssetValue = 0;
+        uint256 filteredCount = 0;
+        for (uint256 i; i < yieldSourcesList.length; i++) {
+            address source = yieldSourcesList[i];
+            bool isAsync = asyncYieldSources[source].isActive;
+            bool isActive = yieldSources[source].isActive || isAsync;
+
+            // Skip if not active or not in targetSources (when filtering)
+            if (!isActive) continue;
+            if (useTargetFilter) {
+                bool isInTargetList = false;
+                for (uint256 j; j < targetSources.length; j++) {
+                    if (source == targetSources[j]) {
+                        isInTargetList = true;
+                        break;
+                    }
+                }
+                if (!isInTargetList) continue;
+            }
+
+            activeSources[filteredCount] = source;
+            if (isAsync) {
+                sourceTVLs[filteredCount] = _getTvlByOwnerOfShares(source) + yieldSourceAssetsInTransit[source];
+            } else {
+                sourceTVLs[filteredCount] = _getTvlByOwnerOfShares(source);
+            }
+            totalAssetValue += sourceTVLs[filteredCount];
+            filteredCount++;
+        }
+
+        // If no active sources or zero total value, return empty array
+        if (filteredCount == 0 || totalAssetValue == 0) revert INVALID_ASSET_VALUE();
+
+        // 4. Get current price per share
+        uint256 currentPricePerShare = _getSuperVaultPPS();
+
+        // 5. Calculate the assets represented by superVaultShares
+        uint256 totalAssetsFromShares = superVaultShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
+
+        // 6. For each active yield source, calculate its share
+        uint256 actualResultCount = 0;
+        for (uint256 i; i < filteredCount; i++) {
+            // Skip sources with zero TVL
+            if (sourceTVLs[i] == 0) {
+                continue;
+            }
+
+            // Calculate percentage of total TVL this source represents
+            uint256 percentage = sourceTVLs[i].mulDiv(PRECISION, totalAssetValue, Math.Rounding.Floor);
+
+            // Calculate assets allocated to this yield source
+            uint256 assetsForSource = totalAssetsFromShares.mulDiv(percentage, PRECISION, Math.Rounding.Floor);
+
+            // Convert assets to underlying shares using the yield source
+            address source = activeSources[i];
+            underlyingShares[actualResultCount] =
+                IYieldSourceOracle(yieldSources[source].oracle).getShareOutput(source, address(_asset), assetsForSource);
+
+            // Keep source and share aligned by copying source to the same index
+            if (i != actualResultCount) {
+                activeSources[actualResultCount] = source;
+            }
+
+            console2.log("assetsForSource", assetsForSource);
+            console2.log("underlyingshares", underlyingShares[actualResultCount]);
+            actualResultCount++;
+        }
+
+        // 7. Resize arrays to actual result count if needed
+        if (actualResultCount < filteredCount) {
+            // Resize arrays using existing helper or assembly
+            address[] memory resizedSources = new address[](actualResultCount);
+            uint256[] memory resizedShares = new uint256[](actualResultCount);
+
+            for (uint256 i; i < actualResultCount; i++) {
+                resizedSources[i] = activeSources[i];
+                resizedShares[i] = underlyingShares[i];
+            }
+
+            activeSources = resizedSources;
+            underlyingShares = resizedShares;
+        }
+
+        return (activeSources, underlyingShares);
     }
 }
