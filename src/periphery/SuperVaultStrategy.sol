@@ -197,7 +197,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         if (isFulfillment) {
             // Validate array lengths
             _validateFulfillHooksArrays(hooksLength, args.hookCalldata.length);
-
+            // Validate requests and determine total amount (assets for deposits)
+            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, fulfillmentType);
             // Get current PPS before processing hooks
             vars.pricePerShare = _getSuperVaultPPS();
         } else {
@@ -237,11 +238,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                         fulfillmentType = FulfillmentType.DEPOSIT;
                     }
 
-                    (uint256 amount, uint256 amountOut) =
+                    (uint256 amountAssetSpent, uint256 amountUnderlyingShareOut) =
                         _processInflowHookExecution(hook, vars.prevHook, args.hookCalldata[i]);
                     vars.prevHook = hook;
-                    vars.spentAmount += amount;
-                    vars.outAmount = amountOut;
+                    // accumulates amount of asset actually spent via the hook
+                    vars.totalAssetsOut += amountAssetSpent;
+                    // grabs the amount of underlying vault shares obtained after calling the hook
+                    vars.outAmount = amountUnderlyingShareOut;
                 } else {
                     if (fulfillmentType == FulfillmentType.DEPOSIT) {
                         revert INVALID_FULFILMENT_TYPE();
@@ -249,11 +252,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                         fulfillmentType = FulfillmentType.REDEEM;
                     }
 
-                    (uint256 amount, uint256 amountOut) =
-                        _processOutflowHookExecution(hook, vars.prevHook, args.hookCalldata[i], vars.pricePerShare);
+                    uint256 amountAssetOut = _processOutflowHookExecution(hook, vars.prevHook, args.hookCalldata[i]);
                     vars.prevHook = hook;
-                    vars.spentAmount += amount;
-                    vars.outAmount = amountOut;
+                    // accumulated the total amount of assets obtained from the redeem
+                    vars.totalAssetsOut += amountAssetOut;
+                    // grabs the amount of asset obtained in the redeem
+                    vars.outAmount = amountAssetOut;
                 }
 
                 if (args.expectedAssetsOrSharesOut[i] == 0) revert ZERO_EXPECTED_VALUE();
@@ -318,28 +322,65 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             }
         }
 
-        // For fulfill operations, process the user requests after all hooks are executed
-        if (isFulfillment) {
-            // Validate requests and determine total amount (assets for deposits, shares for redeems)
-            vars.totalRequestedAmount = _validateRequests(usersLength, args.users, fulfillmentType);
+        // When fulfilling deposits, verify all true amounts of assets spent in the hook guarantee a full fulfillment
+        if (
+            isFulfillment && fulfillmentType == FulfillmentType.DEPOSIT
+                && vars.totalAssetsOut != vars.totalRequestedAmount
+        ) revert INVALID_AMOUNT();
 
-            // Process user requests
+        // For fulfill operations, process the user requests after all hooks are executed. Each user request is
+        // processed individually
+        if (isFulfillment) {
             for (uint256 i; i < usersLength; ++i) {
                 address user = args.users[i];
                 SuperVaultState storage state = superVaultState[user];
-
                 if (fulfillmentType == FulfillmentType.DEPOSIT) {
-                    _processDeposit(user, state, vars);
+                    // Gras the amount of assets in request for deposit
+                    uint256 requestedAmount = state.pendingDepositRequest;
+                    // Calculates the amount of shares that will be minted for the user
+                    uint256 sharesFulfilled = requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
+
+                    vars.processedShares += sharesFulfilled;
+
+                    _processDeposit(user, state, sharesFulfilled, requestedAmount);
                 } else {
-                    _processRedeem(user, state, vars);
+                    // Grabs the amount of shares in request for redeem
+                    vars.requestedAmount = state.pendingRedeemRequest;
+                    // calculates the proportion of the total requested amount that the user is redeeming
+                    uint256 userProportion =
+                        vars.requestedAmount.mulDiv(PRECISION, vars.totalRequestedAmount, Math.Rounding.Floor);
+                    // calculates the share of asset the user is entitled to
+                    uint256 userAssets = userProportion.mulDiv(vars.totalAssetsOut, PRECISION, Math.Rounding.Floor);
+
+                    // Calculate SuperVault shares fulfilled this way
+                    uint256 userSuperVaultShares = userAssets.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
+
+                    // Do not allow the strategist to redeem more than requested when fulfilling users
+                    if (userSuperVaultShares > vars.requestedAmount) revert REDEEMED_MORE_THAN_REQUESTED();
+
+                    // Do not allow 0 shares fills
+                    if (userSuperVaultShares == 0) revert ZERO_SHARES_FULFILLED();
+
+                    // Update total processed shares
+                    vars.processedShares += userSuperVaultShares;
+
+                    _processRedeem(user, state, userSuperVaultShares, vars.pricePerShare);
                 }
             }
+            if (fulfillmentType == FulfillmentType.DEPOSIT) {
+                // Mint the total processed shares
+                ISuperVault(_vault).mintShares(vars.processedShares);
+            } else {
+                // Burn the total processed shares
+                ISuperVault(_vault).burnShares(vars.processedShares);
+            }
         }
+
         // Check super vault cap
         _checkSuperVaultCap();
 
         // Emit appropriate event
-        emit ExecutionCompleted(args.hooks, isFulfillment, args.users.length, vars.spentAmount);
+        emit ExecutionCompleted(args.hooks, isFulfillment, args.users.length, vars.processedShares);
     }
 
     /// @param redeemUsers Array of users with pending redeem requests
@@ -380,6 +421,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 vars.sharesToUse = vars.redeemShares > vars.remainingShares ? vars.remainingShares : vars.redeemShares;
 
                 // Update redeemer's state and accumulate shares used
+                // notice: partial redeems are allowed
                 redeemState.pendingRedeemRequest -= vars.sharesToUse;
                 sharesUsedByRedeemer[j] += vars.sharesToUse;
 
@@ -419,7 +461,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 SuperVaultState storage redeemState = superVaultState[redeemer];
 
                 // Calculate historical assets and process fees for total shares used
-                (vars.finalAssets,) =
+                vars.finalAssets =
                     _calculateHistoricalAssetsAndProcessFees(redeemState, sharesUsed, vars.currentPricePerShare);
 
                 // Update maxWithdraw and emit event
@@ -743,8 +785,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     function _onRedeemClaimable(
         address redeemer,
-        uint256 assets,
-        uint256 shares,
+        uint256 assetsFulfilled,
+        uint256 sharesFulfilled,
         uint256 averageWithdrawPrice,
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
@@ -752,14 +794,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         private
     {
         ISuperVault(_vault).onRedeemClaimable(
-            redeemer, assets, shares, averageWithdrawPrice, accumulatorShares, accumulatorCostBasis
+            redeemer, assetsFulfilled, sharesFulfilled, averageWithdrawPrice, accumulatorShares, accumulatorCostBasis
         );
     }
 
     function _onDepositClaimable(
         address depositor,
-        uint256 assets,
-        uint256 shares,
+        uint256 assetsRequested,
+        uint256 sharesFulfilled,
         uint256 averageDepositPrice,
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
@@ -767,7 +809,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         private
     {
         ISuperVault(_vault).onDepositClaimable(
-            depositor, assets, shares, averageDepositPrice, accumulatorShares, accumulatorCostBasis
+            depositor, assetsRequested, sharesFulfilled, averageDepositPrice, accumulatorShares, accumulatorCostBasis
         );
     }
 
@@ -787,49 +829,57 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         }
     }
 
-    function _processDeposit(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
-        vars.requestedAmount = state.pendingDepositRequest;
-        vars.shares = vars.requestedAmount.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
-
-        _updateAverageDepositPrice(state, vars.shares, vars.requestedAmount);
+    function _processDeposit(
+        address user,
+        SuperVaultState storage state,
+        uint256 sharesFulfilled,
+        uint256 requestedAmount
+    )
+        private
+    {
+        _updateAverageDepositPrice(state, sharesFulfilled, requestedAmount);
 
         // Add share amount and cost basis to accumulators
-        state.accumulatorShares += vars.shares;
-        state.accumulatorCostBasis += vars.requestedAmount;
+        state.accumulatorShares += sharesFulfilled;
+        state.accumulatorCostBasis += requestedAmount;
 
-        state.pendingDepositRequest =
-            vars.requestedAmount >= vars.spentAmount ? vars.requestedAmount - vars.spentAmount : 0;
-        state.maxMint += vars.shares;
+        // full fulfilments are guaranteed for deposit requests
+        // note: if the true amount obtained via the hooks can in some way vary (because the yield source doesn't fully
+        // spend it) we shouldn't allow those cases
+        state.pendingDepositRequest = 0;
+        state.maxMint += sharesFulfilled;
 
-        ISuperVault(_vault).mintShares(vars.shares);
-
+        // Call vault callback
         _onDepositClaimable(
             user,
-            state.pendingDepositRequest,
-            vars.shares,
+            requestedAmount,
+            sharesFulfilled,
             state.averageDepositPrice,
             state.accumulatorShares,
             state.accumulatorCostBasis
         );
     }
 
-    function _processRedeem(address user, SuperVaultState storage state, ExecutionVars memory vars) private {
-        vars.requestedAmount = state.pendingRedeemRequest;
+    function _processRedeem(
+        address user,
+        SuperVaultState storage state,
+        uint256 sharesFulfilled,
+        uint256 pricePerShare
+    )
+        private
+    {
+        uint256 finalAssets = _calculateHistoricalAssetsAndProcessFees(state, sharesFulfilled, pricePerShare);
 
-        uint256 finalAssets;
-        (finalAssets,) = _calculateHistoricalAssetsAndProcessFees(state, vars.requestedAmount, vars.pricePerShare);
-
-        state.pendingRedeemRequest =
-            state.pendingRedeemRequest >= vars.spentAmount ? state.pendingRedeemRequest - vars.spentAmount : 0;
-
+        // Update user state
+        // notice: we allow partial redeems to happen
+        state.pendingRedeemRequest -= sharesFulfilled;
         state.maxWithdraw += finalAssets;
 
-        ISuperVault(_vault).burnShares(vars.requestedAmount);
-
+        // Call vault callback
         _onRedeemClaimable(
             user,
             finalAssets,
-            state.pendingRedeemRequest,
+            sharesFulfilled,
             state.averageWithdrawPrice,
             state.accumulatorShares,
             state.accumulatorCostBasis
@@ -1025,28 +1075,24 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @return amount The amount from the hook
     function _processInflowHookExecution(
         address hook,
         address prevHook,
         bytes memory hookCalldata
     )
         private
-        returns (uint256 amount, uint256 outAmount)
+        returns (uint256 amountAssetSpent, uint256 outAmount)
     {
-        // Get amount before execution
-        amount = _decodeHookAmount(hook, hookCalldata);
-
         address target = HookDataDecoder.extractYieldSource(hookCalldata);
         YieldSource storage yieldSource = yieldSources[target];
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this));
-
+        uint256 amountAssetBefore = _getTokenBalance(address(_asset), address(this));
         // Execute hook with asset approval
         _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.INFLOW, target);
 
         outAmount = IYieldSourceOracle(yieldSource.oracle).getBalanceOfOwner(target, address(this)) - outAmount;
-
+        amountAssetSpent = amountAssetBefore - _getTokenBalance(address(_asset), address(this));
         if (outAmount == 0) revert ZERO_OUTPUT_AMOUNT();
 
         if (asyncYieldSources[target].isActive) {
@@ -1062,50 +1108,32 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence
     /// @param hookCalldata The calldata for the hook
-    /// @return amount The amount from the hook
     function _processOutflowHookExecution(
         address hook,
         address prevHook,
-        bytes memory hookCalldata,
-        uint256 pricePerShare
+        bytes memory hookCalldata
     )
         private
-        returns (uint256 amount, uint256 outAmount)
+        returns (uint256 outAmount)
     {
-        OutflowExecutionVars memory execVars;
+        address target = HookDataDecoder.extractYieldSource(hookCalldata);
 
-        // Get amount and convert to underlying shares
-        (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
+        uint256 balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
 
-        // Calculate underlying shares and update hook calldata
-        execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
+        // Execute hook with unchanged calldata (strategist directly encodes the correct yield source shares)
+        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, target);
 
-        execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
-            .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
-
-        hookCalldata =
-            ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
-
-        execVars.target = HookDataDecoder.extractYieldSource(hookCalldata);
-
-        execVars.balanceAssetBefore = _getTokenBalance(address(_asset), address(this));
-
-        // Execute hook and track balances
-        _executeHook(hook, prevHook, hookCalldata, ISuperHook.HookType.OUTFLOW, execVars.target);
-
-        execVars.balanceAssetAfter = _getTokenBalance(address(_asset), address(this));
-
-        outAmount = execVars.balanceAssetAfter - execVars.balanceAssetBefore;
+        outAmount = _getTokenBalance(address(_asset), address(this)) - balanceAssetBefore;
 
         if (outAmount > 0) {
-            if (asyncYieldSources[execVars.target].isActive) {
-                if (yieldSourceAssetsInTransit[execVars.target] >= outAmount) {
-                    yieldSourceAssetsInTransit[execVars.target] -= outAmount;
+            if (asyncYieldSources[target].isActive) {
+                if (yieldSourceAssetsInTransit[target] >= outAmount) {
+                    yieldSourceAssetsInTransit[target] -= outAmount;
                 }
             }
         }
 
-        return (execVars.amount, outAmount);
+        return outAmount;
     }
 
     /// @notice Prepare variables for outflow execution
@@ -1164,7 +1192,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         uint256 currentPricePerShare
     )
         private
-        returns (uint256 finalAssets, uint256)
+        returns (uint256 finalAssets)
     {
         // Calculate cost basis based on requested shares
         uint256 historicalAssets = _calculateCostBasis(state, requestedShares);
@@ -1177,7 +1205,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             _updateAverageWithdrawPrice(state, requestedShares, finalAssets);
         }
 
-        return (finalAssets, 0); // Return 0 for the second parameter since we no longer use lastConsumedIndex
+        return finalAssets;
     }
 
     /// @notice Calculate cost basis for requested shares using weighted average approach

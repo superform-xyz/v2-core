@@ -40,6 +40,9 @@ interface ISuperVaultStrategy {
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
     error ZERO_OUTPUT_AMOUNT();
+    error INSUFFICIENT_SHARES();
+    error ZERO_EXPECTED_VALUE();
+    error ZERO_SHARES_FULFILLED();
     error INVALID_ARRAY_LENGTH();
     error INVALID_ASSET_BALANCE();
     error FULFILMENT_TYPE_UNSET();
@@ -62,10 +65,9 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ALREADY_ACTIVE();
     error INVALID_PERFORMANCE_FEE_BPS();
     error INVALID_EMERGENCY_WITHDRAWAL();
+    error REDEEMED_MORE_THAN_REQUESTED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error DEPOSIT_FAILURE_INVALID_TARGET();
-    error INSUFFICIENT_SHARES();
-    error ZERO_EXPECTED_VALUE();
     error MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET();
     error MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET();
 
@@ -95,7 +97,7 @@ interface ISuperVaultStrategy {
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
     event HooksExecuted(address[] hooks);
-    event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 spentAmount);
+    event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 processedShares);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
@@ -116,7 +118,6 @@ interface ISuperVaultStrategy {
         uint256 averageWithdrawPrice;
     }
 
-    /// @notice Combined execution variables for all hook types
     struct ExecutionVars {
         // Common variables
         address prevHook;
@@ -128,10 +129,12 @@ interface ISuperVaultStrategy {
         Execution[] executions;
         // Fulfill hooks specific
         uint256 totalRequestedAmount;
-        uint256 spentAmount;
+        uint256 processedShares;
         uint256 pricePerShare;
         uint256 requestedAmount;
         uint256 shares;
+        uint256 totalSuperVaultSharesRedeeming;
+        uint256 totalAssetsOut;
     }
 
     /// @notice Arguments for the execute function
@@ -185,17 +188,6 @@ interface ISuperVaultStrategy {
     struct YieldSourceTVL {
         address source;
         uint256 tvl;
-    }
-
-    /// @notice Struct for outflow execution variables
-    struct OutflowExecutionVars {
-        uint256 amount;
-        uint256 amountOfAssets;
-        uint256 amountConvertedToUnderlyingShares;
-        uint256 balanceAssetBefore;
-        uint256 balanceAssetAfter;
-        address target;
-        address yieldSource;
     }
 
     /*//////////////////////////////////////////////////////////////
