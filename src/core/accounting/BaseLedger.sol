@@ -22,8 +22,8 @@ abstract contract BaseLedger is ISuperLedger {
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
     ISuperRegistry public immutable superRegistry;
 
-    mapping(address user => mapping(address yieldSource => uint256)) public usersAccumulatorShares;
-    mapping(address user => mapping(address yieldSource => uint256)) public usersAccumulatorCostBasis;
+    mapping(address user => mapping(address yieldSource => uint256 shares)) public usersAccumulatorShares;
+    mapping(address user => mapping(address yieldSource => uint256 costBasis)) public usersAccumulatorCostBasis;
 
     bytes32 internal constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID");
 
