@@ -29,11 +29,27 @@ interface ISuperVault {
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
-    
-    event DepositClaimable(address indexed user, uint256 requestId, uint256 assets, uint256 shares, uint256 indexed averageDepositPrice);
-    event RedeemClaimable(address indexed user, uint256 requestId, uint256 assets, uint256 shares, uint256 indexed averageWithdrawPrice);
-    event DepositRequestCancelled(address indexed controller, address sender);
-    event RedeemRequestCancelled(address indexed controller, address sender);
+
+    event DepositClaimable(
+        address indexed user,
+        uint256 indexed requestId,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageDepositPrice,
+        uint256 accumulatorShares,
+        uint256 accumulatorCostBasis
+    );
+    event RedeemClaimable(
+        address indexed user,
+        uint256 indexed requestId,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageWithdrawPrice,
+        uint256 accumulatorShares,
+        uint256 accumulatorCostBasis
+    );
+    event DepositRequestCancelled(address indexed controller, address indexed sender);
+    event RedeemRequestCancelled(address indexed controller, address indexed sender);
 
     /*//////////////////////////////////////////////////////////////
                             SHARE MANAGEMENT
@@ -52,12 +68,32 @@ interface ISuperVault {
     /// @param assets The amount of assets deposited
     /// @param shares The amount of shares to be received
     /// @param averageDepositPrice The average price of the deposit
-    function onDepositClaimable(address user, uint256 assets, uint256 shares, uint256 averageDepositPrice) external;
+    /// @param accumulatorShares The amount of shares in the accumulator
+    /// @param accumulatorCostBasis The cost basis of the accumulator
+    function onDepositClaimable(
+        address user,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageDepositPrice,
+        uint256 accumulatorShares,
+        uint256 accumulatorCostBasis
+    )
+        external;
 
     /// @notice Callback function for when a redeem becomes claimable
     /// @param user The user whose redeem is claimable
     /// @param assets The amount of assets to be received
     /// @param shares The amount of shares redeemed
     /// @param averageWithdrawPrice The average price of the redeem
-    function onRedeemClaimable(address user, uint256 assets, uint256 shares, uint256 averageWithdrawPrice) external;
+    /// @param accumulatorShares The amount of shares in the accumulator
+    /// @param accumulatorCostBasis The cost basis of the accumulator
+    function onRedeemClaimable(
+        address user,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageWithdrawPrice,
+        uint256 accumulatorShares,
+        uint256 accumulatorCostBasis
+    )
+        external;
 }
