@@ -639,7 +639,8 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $ETH_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    $(is_local_run || echo "--silent") \
+    -vvv \
+    #$(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Ethereum"
     exit 1
@@ -656,7 +657,8 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $BASE_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    $(is_local_run || echo "--silent") \
+    -vvv \
+    #$(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Base"
     exit 1
@@ -673,7 +675,8 @@ if ! forge script script/DeployV2.s.sol:DeployV2 \
     --rpc-url $OPTIMISM_MAINNET \
     --etherscan-api-key $TENDERLY_ACCESS_KEY \
     --broadcast \
-    $(is_local_run || echo "--silent") \
+    -vvv \
+    #$(is_local_run || echo "--silent") \
     --slow; then
     log "ERROR" "Failed to deploy V2 on Optimism"
     exit 1
