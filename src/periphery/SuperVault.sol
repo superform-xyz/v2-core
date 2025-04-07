@@ -487,7 +487,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
-
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price

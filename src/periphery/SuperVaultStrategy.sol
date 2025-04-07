@@ -32,7 +32,6 @@ import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 
-import "forge-std/console2.sol";
 
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
@@ -278,6 +277,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 if (usePrevHookAmount && vars.prevHook != address(0)) {
                     vars.outAmount = _getPreviousHookOutAmount(vars.prevHook);
                     if (args.expectedAssetsOrSharesOut[i] == 0) revert ZERO_EXPECTED_VALUE();
+
                     if (
                         vars.outAmount * ONE_HUNDRED_PERCENT
                             < args.expectedAssetsOrSharesOut[i] * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
@@ -326,7 +326,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         if (isFulfillment) {
             // Validate requests and determine total amount requested
             vars.totalRequestedAmount = _validateRequests(usersLength, args.users, fulfillmentType);
-            if (fulfillmentType == FulfillmentType.DEPOSIT && vars.totalAssetsOut != vars.totalRequestedAmount) {
+            // @dev For most cases, totalAssetsOut should be equal to totalRequestedAmount
+            // @dev For two step vaults, there can be some small discrepancy due to getAssetOutput calculation to get an
+            // approximation of assets spent
+            if (
+                fulfillmentType == FulfillmentType.DEPOSIT
+                    && (
+                        vars.totalAssetsOut * ONE_HUNDRED_PERCENT
+                            < vars.totalRequestedAmount * (ONE_HUNDRED_PERCENT - _getSlippageTolerance())
+                    )
+            ) {
                 revert INVALID_DEPOSIT_FILL();
             }
         }
@@ -352,8 +361,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                     // calculates the proportion of the total requested amount that the user is redeeming
                     uint256 userProportion =
                         vars.requestedAmount.mulDiv(PRECISION, vars.totalRequestedAmount, Math.Rounding.Floor);
+
                     // calculates the share of asset the user is entitled to
-                    uint256 userAssets = userProportion.mulDiv(vars.totalAssetsOut, PRECISION, Math.Rounding.Floor);
+                    // note: making this Ceil to attenuate the effect of floor percentage math
+                    uint256 userAssets = userProportion.mulDiv(vars.totalAssetsOut, PRECISION, Math.Rounding.Ceil);
 
                     // Calculate SuperVault shares fulfilled this way
                     uint256 userSuperVaultShares = userAssets.mulDiv(PRECISION, vars.pricePerShare, Math.Rounding.Floor);
@@ -507,13 +518,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     function convertSuperVaultSharesToUnderlyingSharesFiltered(
         uint256 superVaultShares,
-        address[] calldata sources
+        address[] calldata targetSources
     )
         external
         view
         returns (address[] memory activeSources, uint256[] memory underlyingShares)
     {
-        return _convertSuperVaultSharesToUnderlyingShares(superVaultShares, sources);
+        return _convertSuperVaultSharesToUnderlyingShares(superVaultShares, targetSources);
     }
 
     /// @inheritdoc ISuperVaultStrategy
@@ -1122,6 +1133,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 IYieldSourceOracle(asyncYieldSources[target].oracle).getAssetOutput(target, address(_asset), outAmount);
             if (yieldSourceAssetsInTransit[target] >= assetsOut) {
                 yieldSourceAssetsInTransit[target] -= assetsOut;
+                // so that we can accurately track totalAssetsSpent
+                amountAssetSpent += assetsOut;
             }
         }
     }

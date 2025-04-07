@@ -138,11 +138,14 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
+            configs
+        );
         vm.warp(block.timestamp + 2 weeks);
         bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
         yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);   
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
+            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
         vm.stopPrank();
     }
 
@@ -400,21 +403,29 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
 
+        address[] memory sources = new address[](1);
+        sources[0] = address(gearboxVault);
+
+        assertEq(sources[0], address(gearboxVault));
+        (address[] memory activeSources, uint256[] memory underlyingShares) =
+            strategyGearSuperVault.convertSuperVaultSharesToUnderlyingSharesFiltered(shares, sources);
+
+        assertEq(activeSources[0], address(gearboxVault));
+
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(gearboxVault),
-            address(gearboxVault),
+            activeSources[0],
+            activeSources[0],
             address(strategyGearSuperVault),
-            shares,
+            underlyingShares[0],
             false,
             false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        uint256 assets = gearSuperVault.convertToAssets(shares);
-        uint256 underlyingShares = gearboxVault.previewDeposit(assets);
-        expectedAssetsOrSharesOut[0] = underlyingShares;
+
+        expectedAssetsOrSharesOut[0] = gearSuperVault.convertToAssets(underlyingShares[0]);
 
         vm.startPrank(STRATEGIST);
         strategyGearSuperVault.executeHooks(

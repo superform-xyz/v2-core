@@ -605,8 +605,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function _fulfillRedeemForUsers(
         address[] memory requestingUsers,
-        uint256 redeemSharesVault1,
-        uint256 redeemSharesVault2,
+        uint256 totalSvShares,
         address vault1,
         address vault2
     )
@@ -621,7 +620,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         sources[0] = address(vault1);
         sources[1] = address(vault2);
         (address[] memory activeSources, uint256[] memory underlyingShares) =
-            strategy.convertSuperVaultSharesToUnderlyingSharesFiltered(redeemSharesVault1, sources);
+            strategy.convertSuperVaultSharesToUnderlyingSharesFiltered(totalSvShares, sources);
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         assertEq(activeSources[0], vault1);
@@ -665,14 +664,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
-    function _fulfillRedeemForUsers(
+    function _fulfillRedeemForUsersWithUnderlyingShares(
         address[] memory requestingUsers,
         uint256 redeemSharesVault1,
         uint256 redeemSharesVault2,
-        address vault1,
-        address vault2,
         uint256[] memory expectedAssetsOrSharesOut,
-        bytes4 revertSelector
+        address vault1,
+        address vault2
     )
         internal
     {
@@ -703,10 +701,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             false
         );
 
+        console2.log("----requestingUsersLength", requestingUsers.length);
         vm.startPrank(STRATEGIST);
-        if (revertSelector != bytes4(0)) {
-            vm.expectRevert(revertSelector);
-        }
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
@@ -714,6 +710,89 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 hookCalldata: fulfillHooksData,
                 hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+            })
+        );
+        vm.stopPrank();
+    }
+
+    struct FulfillRedeemWithErrorVars {
+        address withdrawHookAddress;
+        address[] fulfillHooksAddresses;
+        address[] sources;
+        address[] activeSources;
+        uint256[] underlyingShares;
+        bytes[] fulfillHooksData;
+        uint256[] expectedAssetsOrSharesOut;
+    }
+
+    function _fulfillRedeemForUsersWithError(
+        address[] memory requestingUsers,
+        uint256 totalSvShares,
+        address vault1,
+        address vault2,
+        bytes4 revertSelector,
+        uint256[] memory expectedAssetsOrSharesOut_
+    )
+        internal
+    {
+        FulfillRedeemWithErrorVars memory vars;
+
+        vars.withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+
+        vars.fulfillHooksAddresses = new address[](2);
+        vars.fulfillHooksAddresses[0] = vars.withdrawHookAddress;
+        vars.fulfillHooksAddresses[1] = vars.withdrawHookAddress;
+
+        vars.sources = new address[](2);
+        vars.sources[0] = address(vault1);
+        vars.sources[1] = address(vault2);
+
+        (vars.activeSources, vars.underlyingShares) =
+            strategy.convertSuperVaultSharesToUnderlyingSharesFiltered(totalSvShares, vars.sources);
+
+        assertEq(vars.activeSources[0], vault1);
+        assertEq(vars.activeSources[1], vault2);
+
+        vars.fulfillHooksData = new bytes[](2);
+        // Withdraw proportionally from both vaults
+        vars.fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vars.activeSources[0],
+            vars.activeSources[0],
+            address(strategy),
+            vars.underlyingShares[0],
+            false,
+            false
+        );
+        vars.fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vars.activeSources[1],
+            vars.activeSources[1],
+            address(strategy),
+            vars.underlyingShares[1],
+            false,
+            false
+        );
+
+        vars.expectedAssetsOrSharesOut = new uint256[](2);
+        vars.expectedAssetsOrSharesOut[0] =
+            IERC4626(address(vars.activeSources[0])).convertToAssets(vars.underlyingShares[0]);
+        vars.expectedAssetsOrSharesOut[1] =
+            IERC4626(address(vars.activeSources[1])).convertToAssets(vars.underlyingShares[1]);
+
+        vm.startPrank(STRATEGIST);
+        if (revertSelector != bytes4(0)) {
+            vm.expectRevert(revertSelector);
+        } else {
+            vars.expectedAssetsOrSharesOut = expectedAssetsOrSharesOut_;
+        }
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: vars.fulfillHooksAddresses,
+                hookCalldata: vars.fulfillHooksData,
+                hookProofs: _getMerkleProofsForAddresses(vars.fulfillHooksAddresses),
+                expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
