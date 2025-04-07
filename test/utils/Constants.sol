@@ -83,6 +83,7 @@ abstract contract Constants {
     string public constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
     string public constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
+    string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
