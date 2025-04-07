@@ -88,9 +88,6 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         override
         returns (bytes memory context, uint256 validationData)
     {
-        if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
-            revert INSUFFICIENT_BALANCE();
-        }
         // 52
         uint256 maxGasLimitOffsetStart = UserOperationLib.PAYMASTER_DATA_OFFSET;
         // 52 + 16 = 68
