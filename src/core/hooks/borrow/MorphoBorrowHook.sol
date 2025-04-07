@@ -26,6 +26,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
+/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
 contract MorphoBorrowHook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -45,6 +46,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         uint256 amount;
         uint256 lltv;
         bool usePrevHookAmount;
+        bool isPositiveFeed;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -83,7 +85,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 collateralAmount = _deriveCollateralAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken);
+        uint256 collateralAmount = _deriveCollateralAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
 
         executions = new Execution[](4);
         executions[0] =
@@ -132,6 +134,8 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         uint256 amount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
         bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
+        bool isPositiveFeed = _decodeBool(BytesLib.slice(data, 145, 1), 0);
+        
         vars = BuildHookLocalVars({
             loanToken: loanToken,
             collateralToken: collateralToken,
@@ -139,7 +143,8 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
             irm: irm,
             amount: amount,
             lltv: lltv,
-            usePrevHookAmount: usePrevHookAmount
+            usePrevHookAmount: usePrevHookAmount,
+            isPositiveFeed: isPositiveFeed
         });
     }
 
@@ -150,20 +155,34 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
     function _deriveCollateralAmount(
         uint256 loanAmount,
         address oracleAddress,
-        address loanToken,
-        address collateralToken
+        address loan,
+        address collateral,
+        bool isPositiveFeed
     )
         internal
         view
-        returns (uint256 collateralAmount) {
-        IOracle oracle = IOracle(oracleAddress);
+        returns (uint256 collateralAmount)
+    {
+        IOracle oracleInstance = IOracle(oracleAddress);
+        uint256 price = oracleInstance.price();
+        uint256 loanDecimals = ERC20(loan).decimals();
+        uint256 collateralDecimals = ERC20(collateral).decimals();
 
-        uint256 price = oracle.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+        // Correct scaling factor as per the oracle's specification:
+        // 10^(36 + loanDecimals - collateralDecimals)
+        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-        uint256 scalingFactor = 10 ** (36 + collateralDecimals - loanDecimals);
-        collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+        if (isPositiveFeed) {
+            // For a positive feed, price is given as the amount of loan tokens per collateral token,
+            // so we invert the price to calculate collateral:
+            // collateralAmount = loanAmount * scalingFactor / price
+            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+        } else {
+            // For a negative feed, price is given as the amount of collateral tokens per loan token,
+            // so no inversion is necessary:
+            // collateralAmount = loanAmount * price / scalingFactor
+            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
+        }
     }
 
     function _generateMarketParams(
