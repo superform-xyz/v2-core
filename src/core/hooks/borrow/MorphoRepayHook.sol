@@ -91,7 +91,8 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         uint256 tokenBalance = _getBalance(account, data);
         uint128 borrowBalance = _deriveShareBalance(marketParams.id(), account);
         uint256 shareBalance = uint256(borrowBalance);
-        
+
+        uint256 fee = _deriveFeeAmount(marketParams);
 
         executions = new Execution[](4);
         if (vars.isFullRepayment) {
@@ -100,7 +101,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, tokenBalance))
+                callData: abi.encodeCall(IERC20.approve, (morpho, tokenBalance + fee))
             });
             executions[2] = Execution({
                 target: morpho,
@@ -121,7 +122,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee))
             });
             executions[2] = Execution({
                 target: morpho,
@@ -202,7 +203,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
 
-    function _deriveFeeAmount(MarketParams memory marketParams) internal returns (uint256 feeAmount) {
+    function _deriveFeeAmount(MarketParams memory marketParams) internal view returns (uint256 feeAmount) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         uint256 borrowRate = IIrm(marketParams.irm).borrowRate(marketParams, market);
