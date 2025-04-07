@@ -18,6 +18,7 @@ import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modu
 
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
+import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
@@ -40,6 +41,10 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     uint256 public constant PRECISION = 1e18;
 
     ISuperExecutor public superExecutorOnETH;
+
+    /*//////////////////////////////////////////////////////////////
+                                SETUP
+    //////////////////////////////////////////////////////////////*/
 
     function setUp() public override {
         super.setUp();
@@ -132,6 +137,32 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_BorrowHook_E2E() public {
+        console2.log("Original pps", _getSuperVaultPricePerShare());
+
+        // Request deposit into superVault as user1
+        _requestDeposit(amount);
+
+        console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountEth));
+        console2.log("\n pps After Request Deposit1", _getSuperVaultPricePerShare());
+
+        // Deposit into underlying vaults as strategy
+        _fulfillDepositRequestsWithBorrow();
+        console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
+
+        // Claim deposit into superVault as user1
+        _claimDeposit(amount);
+        console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountEth));
+        
+        
+
+        
+    }
+
     function test_BorrowHook() public {
         address hook = _getHookAddress(ETH, MORPHO_BORROW_HOOK_KEY);
         address[] memory hooks = new address[](1);
@@ -141,9 +172,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         _getTokens(CHAIN_1_WST_ETH, accountEth, collateralAmount);
 
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
-        console2.log("loanBalanceBefore", loanBalanceBefore);
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
-        console2.log("collateralBalanceBefore", collateralBalanceBefore);
 
         bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
         bytes[] memory hookDataArray = new bytes[](1);
@@ -160,6 +189,10 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         assertEq(loanBalanceAfter, loanBalanceBefore + amount);
         assertEq(collateralBalanceAfter, collateralBalanceBefore - collateralAmount);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                HELPERS
+    //////////////////////////////////////////////////////////////*/
 
     function _deriveCollateralAmount(
         uint256 loanAmount,
@@ -178,6 +211,43 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         uint256 scalingFactor = 10 ** (36 + collateralDecimals - loanDecimals);
         collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+    }
+
+    function _fulfillDepositRequestsWithBorrow() public {
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountEth;
+
+        address hook = _getHookAddress(ETH, MORPHO_BORROW_HOOK_KEY);
+        address depositHook = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        address[] memory hooks = new address[](2);
+        hooks[0] = hook;
+        hooks[1] = depositHook;
+
+        uint256 collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
+        _getTokens(CHAIN_1_WST_ETH, address(strategy), collateralAmount);
+
+        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
+        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
+
+        bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
+        bytes memory depositHookData = _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(asset), amount, false, false);
+        bytes[] memory hookDataArray = new bytes[](2);
+        hookDataArray[0] = hookData;
+        hookDataArray[1] = depositHookData;
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(amount);
+
+        ISuperVaultStrategy.ExecuteArgs memory executeArgs = ISuperVaultStrategy.ExecuteArgs({
+            users: requestingUsers,
+            hooks: hooks,
+            hookCalldata: hookDataArray,
+            hookProofs: _getMerkleProofsForAddresses(hooks),
+            expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+        });
+
+        vm.prank(SV_MANAGER);
+        strategy.execute(executeArgs);
     }
     
 }
