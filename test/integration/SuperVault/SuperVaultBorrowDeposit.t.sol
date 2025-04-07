@@ -42,6 +42,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
     uint256 public lltv;
     uint256 public amount;
+    uint256 public collateralAmount;
     uint256 public constant PRECISION = 1e18;
 
     address public accountBase;
@@ -57,7 +58,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         super.setUp();
 
         amount = 1000e6;
-
+        collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
         vm.selectFork(FORKS[BASE]);
 
         // Set up accounts
@@ -152,7 +153,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("Original pps", _getSuperVaultPricePerShare());
 
         // Request deposit into superVault as user1
-        _requestDepositOnBase(instanceOnBase, amount);
+        _requestDepositOnBase(instanceOnBase, collateralAmount);
 
         console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountBase));
         console2.log("\n pps After Request Deposit1", _getSuperVaultPricePerShare());
@@ -162,7 +163,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
 
         // Claim deposit into superVault as user1
-        _claimDepositOnBase(instanceOnBase, amount);
+        _claimDepositOnBase(instanceOnBase, collateralAmount);
         console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
     }
 
@@ -170,8 +171,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
-
-        uint256 collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
 
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
