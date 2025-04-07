@@ -1491,7 +1491,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _getMerkleProofsForAddresses(
-        ETH,
         uint64 chainId,
         address[] memory hookAddresses_
     )
