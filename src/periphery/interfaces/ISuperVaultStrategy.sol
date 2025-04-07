@@ -72,6 +72,9 @@ interface ISuperVaultStrategy {
     error REDEEMED_MORE_THAN_REQUESTED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error DEPOSIT_FAILURE_INVALID_TARGET();
+    error NOT_VALID_OUTFLOW_REQUEST();
+    error ASYNC_REQUEST_BLOCKING();
+    error INVALID_CANCELATION_TYPE();
     error MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET();
     error MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET();
 
@@ -350,6 +353,20 @@ interface ISuperVaultStrategy {
     ///        4 - averageWithdrawPrice
     /// @return The state value
     function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
+
+    /// @notice Get the yield source assets in transit inflows
+    /// @param source The yield source address
+    /// @return The amount of assets in transit inflows
+    function getYieldSourceAssetsInTransitInflows(address source) external view returns (uint256);
+
+    /// @notice Get the yield source assets in transit outflows
+    /// @param source The yield source address
+    function getYieldSourceAssetsInTransitOutflows(address source) external view returns (uint256);
+
+    /// @notice Get the yield source price per share
+    /// @param source The yield source address
+    /// @return The price per share
+    function getYieldSourcePPS(address source) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS

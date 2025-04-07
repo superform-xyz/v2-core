@@ -20,9 +20,10 @@ import {
     ISuperHookResult,
     ISuperHookOutflow,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
     ISuperHookResultOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookAsyncCancelations
 } from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -319,18 +320,45 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                     vars.hookType == ISuperHook.HookType.NONACCOUNTING
                         && asyncYieldSources[vars.targetedYieldSource].isActive
                 ) {
-                    (uint256 outAmount, bool isShares) = ISuperHookNonAccounting(hook).getUsedAssetsOrShares();
-                    console2.log("outAmount shares", outAmount);
-                    console2.log("REQUEST PPS", vars.pricePerShare);
-                    if (isShares) {
-                        outAmount = IYieldSourceOracle(asyncYieldSources[vars.targetedYieldSource].oracle)
-                            .getAssetOutput(vars.targetedYieldSource, address(_asset), outAmount);
-                        asyncYieldSourceAssetsInTransitOutflows[vars.targetedYieldSource] += outAmount;
-                    } else {
-                        // track weighted average PPS here?
-                        asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] += outAmount;
+                    try ISuperHookAsync(hook).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares) {
+                        console2.log("outAmount shares", outAmount);
+                        console2.log("REQUEST PPS", vars.pricePerShare);
+                        if (isShares) {
+                            if (asyncYieldSourceAssetsInTransitOutflows[vars.targetedYieldSource] > 0) {
+                                revert ASYNC_REQUEST_BLOCKING();
+                            }
+                            outAmount = IYieldSourceOracle(asyncYieldSources[vars.targetedYieldSource].oracle)
+                                .getAssetOutput(vars.targetedYieldSource, address(_asset), outAmount);
+                            asyncYieldSourcePPSAtOutflowRequest[vars.targetedYieldSource] = vars.pricePerShare;
+                            asyncYieldSourceAssetsInTransitOutflows[vars.targetedYieldSource] = outAmount;
+                        } else {
+                            if (asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] > 0) {
+                                revert ASYNC_REQUEST_BLOCKING();
+                            }
+                            asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] = outAmount;
+                        }
+                        console2.log("outAmount asset", outAmount);
+                    } catch {
+                        // warning: only the final step of the cancelation claim can actually reset the mappings.
+                        // Requests may not result in this
+                        try ISuperHookAsyncCancelations(hook).isAsyncCancelHook() returns (
+                            ISuperHookAsyncCancelations.CancelationType cancelationType
+                        ) {
+                            if (cancelationType == ISuperHookAsyncCancelations.CancelationType.INFLOW) {
+                                asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] = 0;
+                            } else if (cancelationType == ISuperHookAsyncCancelations.CancelationType.OUTFLOW) {
+                                asyncYieldSourceAssetsInTransitOutflows[vars.targetedYieldSource] = 0;
+                                // no need to reset pps here because it will already be reset when the request is
+                                // processed
+                            } else {
+                                revert INVALID_CANCELATION_TYPE();
+                            }
+                        } catch {
+                            // none of the functions are implemented, this could be just a request of a cancelation
+                            // without any effect yet, other than blocking
+                            // further requests
+                        }
                     }
-                    console2.log("outAmount asset", outAmount);
                 }
 
                 // Update prevHook for next iteration
@@ -341,20 +369,19 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         if (isFulfillment) {
             // Validate requests and determine total amount requested
             vars.totalRequestedAmount = _validateRequests(usersLength, args.users, fulfillmentType);
-            // @dev For most cases, totalAssetsOut should be equal to totalRequestedAmount
-            // @dev For two step vaults, there can be some small discrepancy (see
-            // test_SuperVault_7540_Underlying_E2E_Flow when performing fulfill deposit . The vault tolerates a maximum
-            // of 10 wei difference in asset deposited. users are assumed to be fulfilled in full (in the
-            // _processDeposit step)
+            // For most cases, processedAssets should be equal to totalRequestedAmount
+            // For two step vaults, there can be some small discrepancy
+            // See test_SuperVault_7540_Underlying_E2E_Flow
+            // The vault tolerates a maximumof 10 wei difference
             if (
                 fulfillmentType == FulfillmentType.DEPOSIT
                     && vars.processedAssets + TOLERANCE_CONSTANT < vars.totalRequestedAmount
             ) {
                 revert INVALID_DEPOSIT_FILL();
-            }
-            console2.log("processedShares", vars.processedShares);
-            console2.log("totalRequestedAmount", vars.totalRequestedAmount);
-            if (fulfillmentType == FulfillmentType.REDEEM && vars.processedShares != vars.totalRequestedAmount) {
+            } else if (
+                fulfillmentType == FulfillmentType.REDEEM
+                    && vars.processedShares + TOLERANCE_CONSTANT < vars.totalRequestedAmount
+            ) {
                 revert INVALID_REDEEM_FILL();
             }
         }
@@ -546,6 +573,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         if (stateType == 4) return state.averageWithdrawPrice;
 
         revert ACTION_TYPE_DISALLOWED();
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function getYieldSourceAssetsInTransitInflows(address source) external view returns (uint256) {
+        return asyncYieldSourceAssetsInTransitInflows[source];
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function getYieldSourceAssetsInTransitOutflows(address source) external view returns (uint256) {
+        return asyncYieldSourceAssetsInTransitOutflows[source];
+    }
+
+    /// @inheritdoc ISuperVaultStrategy
+    function getYieldSourcePPS(address source) external view returns (uint256) {
+        return asyncYieldSourcePPSAtOutflowRequest[source];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1114,15 +1156,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         if (outAmount == 0) revert ZERO_OUTPUT_AMOUNT();
 
         if (asyncYieldSources[target].isActive) {
-            uint256 assetAmountClaimed = _decodeHookAmount(hook, hookCalldata);
-
-            if (asyncYieldSourceAssetsInTransitInflows[target] >= assetAmountClaimed) {
-                asyncYieldSourceAssetsInTransitInflows[target] -= assetAmountClaimed;
-                // so that we can accurately track totalAssetsSpent
-                amountAssetSpent += assetAmountClaimed;
-            } else {
-                revert CLAIMING_MORE_THAN_IN_TRANSIT();
-            }
+            uint256 assetsInTransit = asyncYieldSourceAssetsInTransitInflows[target];
+            asyncYieldSourceAssetsInTransitInflows[target] = 0;
+            amountAssetSpent += assetsInTransit;
         }
     }
 
@@ -1139,16 +1175,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         returns (uint256 amount, uint256 outAmount)
     {
         OutflowExecutionVars memory execVars;
-
+        console2.log("\n ----");
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.yieldSource) = _prepareOutflowExecution(hook, hookCalldata);
-        console2.log("PPS AT REDDEEM", pricePerShare);
+        console2.log("PPS AT REDEEM", pricePerShare);
+        console2.log("SHARES INSCRIBED", execVars.amount);
+        /*
+        if (asyncYieldSources[execVars.yieldSource].isActive) {
+            console2.log("PPS AT OUTFLOW REQUEST", asyncYieldSourcePPSAtOutflowRequest[execVars.yieldSource]);
+            pricePerShare = asyncYieldSourcePPSAtOutflowRequest[execVars.yieldSource];
+            if (pricePerShare == 0) revert NOT_VALID_OUTFLOW_REQUEST();
+        }
+        */
+
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
-
+        console2.log("AMOUNT OF ASSETS TO REDEEM", execVars.amountOfAssets);
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.yieldSource].oracle)
             .getShareOutput(execVars.yieldSource, address(_asset), execVars.amountOfAssets);
-
+        console2.log("AMOUNT OF SHARES TO REDEEM", execVars.amountConvertedToUnderlyingShares);
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 
@@ -1159,12 +1204,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
         outAmount = _getTokenBalance(address(_asset), address(this)) - execVars.balanceAssetBefore;
 
-        if (outAmount > 0) {
-            if (asyncYieldSources[execVars.yieldSource].isActive) {
-                if (asyncYieldSourceAssetsInTransitOutflows[execVars.yieldSource] >= outAmount) {
-                    asyncYieldSourceAssetsInTransitOutflows[execVars.yieldSource] -= outAmount;
-                }
-            }
+        if (outAmount == 0) revert ZERO_OUTPUT_AMOUNT();
+
+        if (asyncYieldSources[execVars.yieldSource].isActive) {
+            asyncYieldSourceAssetsInTransitOutflows[execVars.yieldSource] = 0;
+            asyncYieldSourcePPSAtOutflowRequest[execVars.yieldSource] = 0;
         }
 
         return (execVars.amount, outAmount);

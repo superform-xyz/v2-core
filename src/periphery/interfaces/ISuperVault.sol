@@ -52,8 +52,16 @@ interface ISuperVault {
     event RedeemRequestCancelled(address indexed controller, address indexed sender);
 
     /*//////////////////////////////////////////////////////////////
-                            SHARE MANAGEMENT
+                            EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Cancel a pending deposit request and return assets to the user in one step
+    /// @param controller The controller address
+    function cancelDeposit(address controller) external;
+
+    /// @notice Cancel a pending redeem request and return shares to the user in one step
+    /// @param controller The controller address
+    function cancelRedeem(address controller) external;
 
     /// @notice Mint new shares, only callable by strategy
     /// @param amount The amount of shares to mint

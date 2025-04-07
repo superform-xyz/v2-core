@@ -24,7 +24,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 test-vvv :; forge test --match-test test_SuperVault_7540_Underlying_E2E_Flow -vv
 
-test-integration :; forge test --match-test test_SuperVault_7540_Underlying_E2E_Flow -vv
+test-integration :; forge test --match-test test_SuperVault_7540_Underlying_E2E_Flow_WarpingCentrifuge_Cancelation -vv
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report

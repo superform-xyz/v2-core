@@ -13,7 +13,8 @@ import {
     ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
+    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -29,7 +30,8 @@ contract RequestDeposit7540VaultHook is
     BaseHook,
     ISuperHook,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
+    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -72,11 +74,14 @@ contract RequestDeposit7540VaultHook is
         });
     }
 
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @return outAmount The amount of assets or shares processed by the hook
-    /// @return isShares Whether the amount is in shares
+    /// @inheritdoc ISuperHookAsync
     function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
         return (outAmount, false);
+    }
+
+    /// @inheritdoc ISuperHookAsyncCancelations
+    function isAsyncCancelHook() external pure returns (CancelationType) {
+        return CancelationType.NONE;
     }
 
     /*//////////////////////////////////////////////////////////////
