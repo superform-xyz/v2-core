@@ -2,11 +2,13 @@
 pragma solidity 0.8.28;
 
 // external
+import { IIrm } from "../../../vendor/morpho/Iirm.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { MathLib } from "../../../vendor/morpho/MathLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
-import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id } from "../../../vendor/morpho/IMorpho.sol";
+import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
@@ -24,9 +26,8 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-/// @notice         Id id = Id(BytesLib.toBytes32(BytesLib.slice(data, 144, 32), 0));
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 176);
-/// @notice         bool isFullRepayment = _decodeBool(data, 177);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
+/// @notice         bool isFullRepayment = _decodeBool(data, 145);
 contract MorphoRepayHook is BaseHook, ISuperHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -35,7 +36,8 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
     address public morpho;
-    IMorphoBase public morphoInterface;
+    IMorphoBase public morphoBase;
+    IMorpho public morphoInterface;
     IMorphoStaticTyping public morphoStaticTyping;
 
     struct BuildHookLocalVars {
@@ -56,7 +58,8 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
     constructor(address registry_, address morpho_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
-        morphoInterface = IMorphoBase(morpho_);
+        morphoBase = IMorphoBase(morpho_);
+        morphoInterface = IMorpho(morpho_);
         morphoStaticTyping = IMorphoStaticTyping(morpho_);
     }
 
@@ -88,8 +91,9 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         uint256 tokenBalance = _getBalance(account, data);
         uint128 borrowBalance = _deriveShareBalance(marketParams.id(), account);
         uint256 shareBalance = uint256(borrowBalance);
+        
 
-        executions = new Execution[](3);
+        executions = new Execution[](4);
         if (vars.isFullRepayment) {
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -102,6 +106,11 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
                 target: morpho,
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, ""))
+            });
+            executions[3] = Execution({
+                target: vars.loanToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (morpho, 0))
             });
         } else {
             executions[0] = Execution({
@@ -118,6 +127,11 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
                 target: morpho,
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, ""))
+            });
+            executions[3] = Execution({
+                target: vars.loanToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (morpho, 0))
             });
         }
     }
@@ -186,6 +200,16 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
 
     function _deriveShareBalance(Id id, address account) internal view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
+    }
+
+    function _deriveFeeAmount(MarketParams memory marketParams) internal returns (uint256 feeAmount) {
+        Id id = marketParams.id();
+        Market memory market = morphoInterface.market(id);
+        uint256 borrowRate = IIrm(marketParams.irm).borrowRate(marketParams, market);
+        uint256 elapsed = block.timestamp - market.lastUpdate;
+        uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
+
+        feeAmount = MathLib.wMulDown(interest, market.fee);
     }
 
     /*//////////////////////////////////////////////////////////////
