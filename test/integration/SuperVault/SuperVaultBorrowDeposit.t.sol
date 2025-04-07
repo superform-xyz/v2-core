@@ -402,7 +402,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         executeOp(redeemUserOpData);
     }
 
-    function _deriveFeeAmount(MarketParams memory marketParams) internal returns (uint256 feeAmount) {
+    function _deriveFeeAmount(MarketParams memory marketParams) internal view returns (uint256 feeAmount) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         uint256 borrowRate = IIrm(marketParams.irm).borrowRate(marketParams, market);
