@@ -9,11 +9,15 @@ interface IAcrossTargetExecutor {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+    event AcrossTargetExecutorReceivedButNoHooks();
     event AcrossTargetExecutorExecuted(address indexed account);
     event AcrossTargetExecutorReceivedButNotEnoughBalance(address indexed account);
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function nonce() external view returns (uint256);
+    /// @notice Returns the nonce for an account
+    /// @param account The account to get the nonce for
+    /// @return The nonce for the account
+    function nonces(address account) external view returns (uint256);
 }

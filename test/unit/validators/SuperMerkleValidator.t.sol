@@ -17,6 +17,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 // Superform
 import { BaseTest } from "../../BaseTest.t.sol";
 import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
+import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
 
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
@@ -86,16 +87,15 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
 
-        bytes32 root = leaves[0];
-        bytes32[] memory proof = new bytes32[](0);
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
 
         bytes memory signature = _getSignature(root);
 
         // validate first user op
-        _testUserOpValidation(validUntil, root, proof, signature, approveUserOp);
+        _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
     }
 
     function test_Dummy_OnChainMerkleTree() public pure {
@@ -105,7 +105,37 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         leaves[2] = keccak256(bytes.concat(keccak256(abi.encode("leaf 2"))));
         leaves[3] = keccak256(bytes.concat(keccak256(abi.encode("leaf 3"))));
 
-        (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
+        bytes32[][] memory proof;
+        bytes32 root;
+        {
+            bytes32[] memory level1 = new bytes32[](2);
+            level1[0] = _hashPair(leaves[0], leaves[1]);
+            level1[1] = _hashPair(leaves[2], leaves[3]);
+
+            root = _hashPair(level1[0], level1[1]);
+
+            proof = new bytes32[][](4);
+
+            // Proof for leaves[0] - Sibling is leaves[1], Parent is level1[1]
+            proof[0] = new bytes32[](2);
+            proof[0][0] = leaves[1]; // Sibling of leaves[0]
+            proof[0][1] = level1[1]; // Parent of leaves[0] and leaves[1]
+
+            // Proof for leaves[1] - Sibling is leaves[0], Parent is level1[1]
+            proof[1] = new bytes32[](2);
+            proof[1][0] = leaves[0]; // Sibling of leaves[1]
+            proof[1][1] = level1[1]; // Parent of leaves[0] and leaves[1]
+
+            // Proof for leaves[2] - Sibling is leaves[3], Parent is level1[0]
+            proof[2] = new bytes32[](2);
+            proof[2][0] = leaves[3]; // Sibling of leaves[2]
+            proof[2][1] = level1[0]; // Parent of leaves[2] and leaves[3]
+
+            // Proof for leaves[3] - Sibling is leaves[2], Parent is level1[0]
+            proof[3] = new bytes32[](2);
+            proof[3][0] = leaves[2]; // Sibling of leaves[3]
+            proof[3][1] = level1[0]; // Parent of leaves[2] and leaves[3]
+        }
 
         bool isValid = MerkleProof.verify(proof[0], root, leaves[0]);
         assertTrue(isValid, "Merkle proof for leaf 0 should be valid");
@@ -126,12 +156,12 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     function test_Dummy_OnChainMerkleTree_WithActualUserOps() public view {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[3] = _createValidatorLeaf(transferUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
 
-        (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
         bool isValid = MerkleProof.verify(proof[0], root, leaves[0]);
         assertTrue(isValid, "Merkle proof should be valid");
@@ -142,12 +172,12 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createValidatorLeaf(depositUserOp, validUntil);
-        leaves[3] = _createValidatorLeaf(withdrawUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
 
-        (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
         bytes memory signature = _getSignature(root);
 
@@ -169,25 +199,64 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createValidatorLeaf(depositUserOp, validUntil);
-        leaves[3] = _createValidatorLeaf(withdrawUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
 
-        (bytes32[][] memory proof, bytes32 root) = _createTree(leaves);
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
         bytes memory signature = _getSignature(root);
 
         validSigData = abi.encode(validUntil, root, proof[0], signature);
 
         approveUserOp.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(approveUserOp.userOp, bytes32(0));
+        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
         uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
         bool _sigFailed = rawResult & 1 == 1;
         uint48 _validUntil = uint48(rawResult >> 160);
 
         assertTrue(_sigFailed, "Sig should fail");
         assertLt(_validUntil, block.timestamp, "Should not be valid");
+    }
+
+    function test_tamperingSignature_And_Proof_For_1LeafMerkleTree() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 1 leaves
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        assertEq(proof[0].length, 0, "Proof should be empty");
+        assertEq(root, leaves[0], "Root should be the same as the leaf");
+
+        bytes memory signature = _getSignature(root);
+
+
+
+        // tamper the merkle root
+        bytes32 _prevRoot = root;
+        root = keccak256(abi.encode("tampered root"));  
+        validSigData = abi.encode(validUntil, root, proof, signature);
+
+        approveUserOp.userOp.signature = validSigData;
+
+        vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
+        validator.validateUserOp(approveUserOp.userOp, bytes32(0));
+
+        // tamper the proof
+        root = _prevRoot;
+        bytes32[] memory _proof = new bytes32[](1);
+        _proof[0] = keccak256(abi.encode("tampered proof"));
+        validSigData = abi.encode(validUntil, root, _proof, signature);
+
+        approveUserOp.userOp.signature = validSigData;
+
+        vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
+        validator.validateUserOp(approveUserOp.userOp, bytes32(0));
+        
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -217,63 +286,13 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         validSigData = abi.encode(validUntil, root, proof, signature);
 
         userOpData.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, bytes32(0));
+        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);
         uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
         bool _sigFailed = rawResult & 1 == 1;
         uint48 _validUntil = uint48(rawResult >> 160);
 
         assertFalse(_sigFailed, "Sig should be valid");
         assertGt(_validUntil, block.timestamp, "validUntil should be valid");
-    }
-
-    function _createValidatorLeaf(UserOpData memory userOpData, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(
-            bytes.concat(
-                keccak256(
-                    abi.encode(
-                        userOpData.userOp.callData,
-                        userOpData.userOp.gasFees,
-                        userOpData.userOp.sender,
-                        userOpData.userOp.nonce,
-                        validUntil,
-                        block.chainid,
-                        userOpData.userOp.initCode
-                    )
-                )
-            )
-        );
-    }
-
-    function _createTree(bytes32[] memory leaves) private pure returns (bytes32[][] memory proof, bytes32 root) {
-        bytes32[] memory level1 = new bytes32[](2);
-        level1[0] = _hashPair(leaves[0], leaves[1]);
-        level1[1] = _hashPair(leaves[2], leaves[3]);
-
-        root = _hashPair(level1[0], level1[1]);
-
-        proof = new bytes32[][](4);
-
-        // Proof for leaves[0] - Sibling is leaves[1], Parent is level1[1]
-        proof[0] = new bytes32[](2);
-        proof[0][0] = leaves[1]; // Sibling of leaves[0]
-        proof[0][1] = level1[1]; // Parent of leaves[0] and leaves[1]
-
-        // Proof for leaves[1] - Sibling is leaves[0], Parent is level1[1]
-        proof[1] = new bytes32[](2);
-        proof[1][0] = leaves[0]; // Sibling of leaves[1]
-        proof[1][1] = level1[1]; // Parent of leaves[0] and leaves[1]
-
-        // Proof for leaves[2] - Sibling is leaves[3], Parent is level1[0]
-        proof[2] = new bytes32[](2);
-        proof[2][0] = leaves[3]; // Sibling of leaves[2]
-        proof[2][1] = level1[0]; // Parent of leaves[2] and leaves[3]
-
-        // Proof for leaves[3] - Sibling is leaves[2], Parent is level1[0]
-        proof[3] = new bytes32[](2);
-        proof[3][0] = leaves[2]; // Sibling of leaves[3]
-        proof[3][1] = level1[0]; // Parent of leaves[2] and leaves[3]
-
-        return (proof, root);
     }
 
     function _createDummyApproveUserOp() private returns (UserOpData memory) {

@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-import "forge-std/console2.sol";
 /// @title SuperValidatorBase
 /// @author Superform Labs
 /// @notice A base contract for all Superform validators
@@ -27,6 +25,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
     error INVALID_PROOF();
     error NOT_INITIALIZED();
     error ALREADY_INITIALIZED();
@@ -57,6 +56,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
         address owner = abi.decode(data, (address));
+        if (owner == address(0)) revert ZERO_ADDRESS();
         _accountOwners[msg.sender] = owner;
     }
 
@@ -65,7 +65,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         _initialized[msg.sender] = false;
         delete _accountOwners[msg.sender];
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS

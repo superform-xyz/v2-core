@@ -118,13 +118,14 @@ contract BaseE2ETest is BaseTest {
         bytes memory callData = _prepareExecutionCalldata(executions);
         uint256 nonce = _prepareNonce(account);
         PackedUserOperation memory userOp = _createPackedUserOperation(account, nonce, callData);
-
+        
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
-        bytes32[] memory leaves = _createLeaves(userOp, validUntil);
-        (bytes32[] memory proof, bytes32 root) = _createTree(leaves);
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil);
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);   
-        bytes memory sigData = abi.encode(validUntil, root, proof, signature);
+        bytes memory sigData = abi.encode(validUntil, root, proof[0], signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 
@@ -193,35 +194,6 @@ contract BaseE2ETest is BaseTest {
     /*//////////////////////////////////////////////////////////////
                                 VALIDATOR HELPER METHODS
     //////////////////////////////////////////////////////////////*/
-    function _createLeaves(PackedUserOperation memory userOp, uint48 validUntil) private view returns (bytes32[] memory leaves) {
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](4);
-        for (uint256 i; i < 4; ++i) {
-            userOps[i] = userOp;
-        }
-
-        leaves = new bytes32[](4);
-        for (uint256 i = 0; i < 4; i++) {
-            leaves[i] = _hashUserOp(userOps[i], validUntil);
-        }
-    }
-    function _hashUserOp(PackedUserOperation memory userOp, uint48 validUntil) private view returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(userOp.callData, userOp.gasFees, userOp.sender, userOp.nonce, validUntil, block.chainid, userOp.initCode))));
-    }
-    // @dev needs 4 leaves to create the merkle tree
-    function _createTree(bytes32[] memory leaves) private pure returns (bytes32[] memory proof, bytes32 root) {
-        bytes32[] memory level1 = new bytes32[](2);
-        level1[0] = _hashPair(leaves[0], leaves[1]); 
-        level1[1] = _hashPair(leaves[2], leaves[3]); 
-
-        root = _hashPair(level1[0], level1[1]);
-
-        proof = new bytes32[](2);
-        proof[0] = leaves[1];      
-        proof[1] = level1[1];      
-      
-        return (proof, root);
-    }
-
     function _getSignature(bytes32 root) private view returns (bytes memory) {
         bytes32 messageHash = keccak256(abi.encode(superMerkleValidator.namespace(), root));
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);

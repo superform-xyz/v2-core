@@ -9,7 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveERC20Hook
 /// @author Superform Labs
@@ -18,7 +18,9 @@ import { ISuperHook, ISuperHookResult } from "../../../interfaces/ISuperHook.sol
 /// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract ApproveERC20Hook is BaseHook, ISuperHook {
+contract ApproveERC20Hook is BaseHook, ISuperHook, ISuperHookContextAware {
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
+
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -38,7 +40,7 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        bool usePrevHookAmount = _decodeBool(data, 72);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
@@ -63,10 +65,15 @@ contract ApproveERC20Hook is BaseHook, ISuperHook {
 
     /// @inheritdoc ISuperHook
     function postExecute(address prevHook, address, bytes memory data) external {
-        if (_decodeBool(data, 72)) {
+        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
             outAmount = ISuperHookResult(prevHook).outAmount();
         } else {
             outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
         }
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 }

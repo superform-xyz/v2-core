@@ -29,6 +29,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     //////////////////////////////////////////////////////////////*/
     error INVALID_SENDER();
     error NOT_IMPLEMENTED();
+    error INVALID_CHAIN_ID();
 
 
     /*//////////////////////////////////////////////////////////////
@@ -152,10 +153,11 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
  
-    function _decodeDestinationData(bytes memory destinationDataRaw, address sender_) private pure returns (DestinationData memory) {
+    function _decodeDestinationData(bytes memory destinationDataRaw, address sender_) private view returns (DestinationData memory) {
         (uint256 nonce, bytes memory callData, uint64 chainId, address decodedSender) =
             abi.decode(destinationDataRaw, (uint256, bytes, uint64, address));
         if (sender_ != decodedSender) revert INVALID_SENDER();
+        if (chainId != block.chainid) revert INVALID_CHAIN_ID();
         return DestinationData(nonce, callData, chainId, decodedSender);
     }
 
@@ -164,7 +166,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         address sender
     )
         private
-        pure
+        view
         returns (SignatureData memory, DestinationData memory)
     {
         (bytes memory sigDataRaw, bytes memory destinationDataRaw) = abi.decode(data, (bytes, bytes));

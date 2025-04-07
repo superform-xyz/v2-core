@@ -98,7 +98,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
             false, // addYieldSource
             true
         );
-        strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
+        strategy.proposeOrExecuteHookRoot(hookRootPerChain[ETH]);
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
@@ -201,13 +201,13 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
                 hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
         console2.log("---- Pending deposit request", centrifugeVault.pendingDepositRequest(0, address(strategy)));
@@ -260,7 +260,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
@@ -291,13 +291,13 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
                 hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
-                expectedAssetsOrSharesOut: new uint256[](0)
+                expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
         console2.log("---- PPS After Centrifuge Request Redeem", _getSuperVaultPricePerShare());
@@ -358,7 +358,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
 
         vm.prank(STRATEGIST);
-        strategy.execute(
+        strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,

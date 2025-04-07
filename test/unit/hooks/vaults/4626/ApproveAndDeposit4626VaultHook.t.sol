@@ -88,8 +88,9 @@ contract ApproveAndDeposit4626VaultHookTest is BaseTest {
         hook.build(address(0), address(this), _encodeData(false, false));
 
         yieldSource = _yieldSource;
+        token = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(0), _encodeData(false, false));
+        hook.build(address(0), address(this), _encodeData(false, false));
     }
 
     function test_Build_RevertIf_AmountZero() public {

@@ -8,7 +8,12 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookContextAware
+} from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -21,10 +26,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
 
     constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
 
@@ -46,7 +52,7 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOut
         // yieldSource is spender for approval
         address token = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, 76);
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (yieldSource == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -87,6 +93,11 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOut
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

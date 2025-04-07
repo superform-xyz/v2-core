@@ -247,7 +247,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         });
 
         vm.prank(SV_MANAGER);
-        strategy.execute(executeArgs);
+        strategy.executeHooks(executeArgs);
     }
     
 }

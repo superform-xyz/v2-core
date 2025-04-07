@@ -52,10 +52,14 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     address public immutable acrossSpokePool;
     address public immutable superDestinationValidator;
     INexusFactory public immutable nexusFactory;
-    uint256 public nonce;
+    mapping(address => uint256) public nonces;
 
     // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+
+    // @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays + the 4 bytes of the `execute` function selector
+    // @dev saves decoding gas
+    uint256 constant EMPTY_EXECUTION_LENGTH = 228;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -63,6 +67,7 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     error INVALID_ACCOUNT();
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
+    error ACCOUNT_NOT_CREATED();
 
     constructor(address registry_, address acrossSpokePool_, address superDestinationValidator_, address nexusFactory_) SuperExecutorBase(registry_) {
         if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) revert ADDRESS_NOT_VALID();
@@ -116,6 +121,18 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
+        if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
+        
+        uint256 _nonce = nonces[account];
+        nonces[account]++;
+
+        // @dev validate execution
+        bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account);
+        bytes4 validationResult = IValidator(superDestinationValidator).isValidSignatureWithSender(account, bytes32(0), abi.encode(sigData, destinationData));
+        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
+
+
+
         // @dev send tokens to the smart account
         IERC20 token = IERC20(tokenSent);
         token.safeTransfer(account, amount);
@@ -126,14 +143,11 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             return;
         }
 
-
-        uint256 _nonce = nonce;
-        nonce++;
-
-        // @dev validate execution
-        bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account);
-        bytes4 validationResult = IValidator(superDestinationValidator).isValidSignatureWithSender(account, bytes32(0), abi.encode(sigData, destinationData));
-        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
+        // check if we have hooks
+        if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
+            emit AcrossTargetExecutorReceivedButNoHooks();
+            return;
+        }
 
         // @dev _execute -> executeFromExecutor -> SuperExecutorBase.execute
         Execution[] memory execs = new Execution[](1);
