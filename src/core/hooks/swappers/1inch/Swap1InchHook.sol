@@ -29,11 +29,6 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
 
     address constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-    uint256 private constant _CURVE_TO_COINS_SELECTOR_OFFSET = 208;
-    uint256 private constant _CURVE_TO_COINS_SELECTOR_MASK = 0xff;
-    uint256 private constant _CURVE_TO_COINS_ARG_OFFSET = 216;
-    uint256 private constant _CURVE_TO_COINS_ARG_MASK = 0xff;
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
