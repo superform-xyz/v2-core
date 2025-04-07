@@ -309,7 +309,24 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vault.requestRedeem(vars.redeemAmounts[0], vars.redeemUsers[0], vars.redeemUsers[0]);
         vm.stopPrank();
 
-        _fulfillRedeemForUsers(vars.redeemUsers, vars.totalRedeemShares, address(fluidVault), vars.ruggableVault);
+        vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
+        vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
+
+        vars.assetsVault1 = vault.convertToAssets(vars.redeemSharesVault1);
+        vars.assetsVault2 = vault.convertToAssets(vars.redeemSharesVault2);
+
+        vars.expectedAssetsOrSharesOut = new uint256[](2);
+        vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1;
+        vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2;
+        _fulfillRedeemForUsers(
+            vars.redeemUsers,
+            vars.redeemSharesVault1,
+            vars.redeemSharesVault2,
+            address(fluidVault),
+            vars.ruggableVault,
+            vars.expectedAssetsOrSharesOut,
+            bytes4(0)
+        );
 
         vm.warp(block.timestamp + 12 weeks);
         prevPps = vars.initialPricePerShare;
@@ -340,14 +357,17 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _requestRedeemForAllUsers(0);
 
         // create fullfillment data
-
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
         }
 
         // fulfill redeem
-        _fulfillRedeemForUsers(requestingUsers, totalRedeemShares, address(fluidVault), address(aaveVault));
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // check that all pending requests are cleared
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
@@ -429,25 +449,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
         }
-
-        (uint256 totalSvAssets,) = strategy.totalAssets();
-        uint256 pricePerShare = totalSvAssets.mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor);
-
-        uint256 amountForVault1 = allocationAmountVault1 * 1e18 / pricePerShare;
-        uint256 amountForVault2 = allocationAmountVault2 * 1e18 / pricePerShare;
-
-        uint256 underlyingSharesForVault1 = IERC4626(address(fluidVault)).convertToShares(amountForVault1);
-        uint256 underlyingSharesForVault2 = IERC4626(address(aaveVault)).convertToShares(amountForVault2);
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = IERC4626(address(fluidVault)).convertToAssets(underlyingSharesForVault1);
-        expectedAssetsOrSharesOut[1] = IERC4626(address(aaveVault)).convertToAssets(underlyingSharesForVault2);
-        _fulfillRedeemForUsersWithUnderlyingShares(
-            requestingUsers,
-            underlyingSharesForVault1,
-            underlyingSharesForVault2,
-            expectedAssetsOrSharesOut,
-            address(fluidVault),
-            address(aaveVault)
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
 
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
@@ -456,7 +459,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         }
     }
 
-    /*
     function test_5_EdgeCases_Large_Amounts() public {
         // update vault cap
         vm.startPrank(MANAGER);
@@ -478,6 +480,8 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         _requestRedeemForAllUsers(0);
 
         // create fullfillment data
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
@@ -485,7 +489,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
 
         // fulfill redeem
         _fulfillRedeemForUsers(
-            requestingUsers, totalRedeemShares, address(fluidVault), address(aaveVault)
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
 
         // check that all pending requests are cleared
@@ -494,7 +498,6 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             assertGt(strategy.getSuperVaultState(accInstances[i].account, 2), 0);
         }
     }
-    */
 
     function test_6_yieldAccumulation() public {
         YieldTestVars memory vars;
@@ -936,8 +939,11 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
 
         // Fulfill redemptions
-
-        _fulfillRedeemForUsers(vars.redeemUsers, vars.totalRedeemShares, address(fluidVault), address(aaveVault));
+        vars.redeemSharesVault1 = vars.totalRedeemShares / 2;
+        vars.redeemSharesVault2 = vars.totalRedeemShares - vars.redeemSharesVault1;
+        _fulfillRedeemForUsers(
+            vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), address(aaveVault)
+        );
 
         // Process claims for redeemed users
         _claimRedeemForUsers(vars.redeemUsers);
@@ -2271,7 +2277,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         console2.log("Escrow Balance:", v.escrowBalance);
 
         // Verify escrow state
-        assertLt(v.escrowBalance, 3, "Escrow should almost no shares after all claims are processed");
+        assertEq(v.escrowBalance, 0, "Escrow should have no shares after all claims are processed");
 
         // Calculate yield metrics
         v.totalYieldAccrued =
@@ -2350,8 +2356,7 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
             v.totalPendingDeposits += strategy.pendingDepositRequest(accInstances[i].account);
             v.totalPendingRedeems += strategy.pendingRedeemRequest(accInstances[i].account);
             assertEq(strategy.pendingDepositRequest(accInstances[i].account), 0, "Should have no pending deposits");
-            console2.log("pendingRedeemRequest", strategy.pendingRedeemRequest(accInstances[i].account));
-            //assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0, "Should have no pending redemptions");
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0, "Should have no pending redemptions");
         }
 
         // Final global state verification
@@ -2474,26 +2479,29 @@ contract SuperVaultScenariosTest is BaseSuperVaultTest {
         vars.expectedAssetsOrSharesOut = new uint256[](2);
         vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1;
         vars.expectedAssetsOrSharesOut[1] = !vars.convertVault ? 1 : vars.assetsVault2; // this should make the call
+            // revert
 
         // this should revert
-        _fulfillRedeemForUsersWithError(
+        _fulfillRedeemForUsers(
             vars.redeemUsers,
-            vars.totalRedeemShares,
+            vars.redeemSharesVault1,
+            vars.redeemSharesVault2,
             address(fluidVault),
             vars.ruggableVault,
-            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET.selector,
-            vars.expectedAssetsOrSharesOut
+            vars.expectedAssetsOrSharesOut,
+            ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET.selector
         );
+
         vars.expectedAssetsOrSharesOut[0] = vars.assetsVault1 / 2;
         vars.expectedAssetsOrSharesOut[1] = vars.assetsVault2 / 2;
-
-        _fulfillRedeemForUsersWithError(
+        _fulfillRedeemForUsers(
             vars.redeemUsers,
-            vars.totalRedeemShares,
+            vars.redeemSharesVault1,
+            vars.redeemSharesVault2,
             address(fluidVault),
             vars.ruggableVault,
-            bytes4(0),
-            vars.expectedAssetsOrSharesOut
+            vars.expectedAssetsOrSharesOut,
+            bytes4(0)
         );
 
         // Log post-fulfillment state

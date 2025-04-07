@@ -38,6 +38,7 @@ interface ISuperVaultStrategy {
     error INVALID_HOOK_TYPE();
     error INSUFFICIENT_FUNDS();
     error INVALID_DEPOSIT_FILL();
+    error INVALID_REDEEM_FILL();
     error INVALID_STRATEGIST();
     error INVALID_CONTROLLER();
     error ZERO_OUTPUT_AMOUNT();
@@ -67,6 +68,7 @@ interface ISuperVaultStrategy {
     error YIELD_SOURCE_ALREADY_ACTIVE();
     error INVALID_PERFORMANCE_FEE_BPS();
     error INVALID_EMERGENCY_WITHDRAWAL();
+    error CLAIMING_MORE_THAN_IN_TRANSIT();
     error REDEEMED_MORE_THAN_REQUESTED();
     error YIELD_SOURCE_ORACLE_NOT_FOUND();
     error DEPOSIT_FAILURE_INVALID_TARGET();
@@ -132,11 +134,11 @@ interface ISuperVaultStrategy {
         // Fulfill hooks specific
         uint256 totalRequestedAmount;
         uint256 processedShares;
+        uint256 processedAssets;
         uint256 pricePerShare;
         uint256 requestedAmount;
         uint256 shares;
         uint256 totalSuperVaultSharesRedeeming;
-        uint256 totalAssetsOut;
     }
 
     /// @notice Arguments for the execute function
@@ -164,6 +166,14 @@ interface ISuperVaultStrategy {
         ISuperHook.HookType hookType;
         Execution[] executions;
         bool success;
+    }
+
+    struct OutflowExecutionVars {
+        uint256 amount;
+        uint256 amountOfAssets;
+        uint256 amountConvertedToUnderlyingShares;
+        uint256 balanceAssetBefore;
+        address yieldSource;
     }
 
     struct MatchVars {
@@ -341,27 +351,6 @@ interface ISuperVaultStrategy {
     /// @return The state value
     function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
 
-    /// @notice Convert super vault shares to underlying shares
-    /// @param redeemShares The amount of super vault shares to convert
-    /// @return activeSources The list of active yield sources
-    /// @return underlyingShares The amount of underlying shares
-    function convertSuperVaultSharesToUnderlyingShares(uint256 redeemShares)
-        external
-        view
-        returns (address[] memory activeSources, uint256[] memory underlyingShares);
-
-    /// @notice Convert super vault shares to underlying shares filtered by sources
-    /// @param redeemShares The amount of super vault shares to convert
-    /// @param sources The list of sources to filter by
-    /// @return activeSources The list of active yield sources
-    /// @return underlyingShares The amount of underlying shares
-    function convertSuperVaultSharesToUnderlyingSharesFiltered(
-        uint256 redeemShares,
-        address[] calldata sources
-    )
-        external
-        view
-        returns (address[] memory activeSources, uint256[] memory underlyingShares);
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/

@@ -53,13 +53,17 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         _requestRedeemForAllUsers(0);
 
         // create fullfillment data
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
         }
 
         // fulfill redeem
-        _fulfillRedeemForUsers(requestingUsers, totalRedeemShares, address(fluidVault), address(aaveVault));
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // check that all pending requests are cleared
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
@@ -96,7 +100,12 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
             requestingUsers[i] = accInstances[i].account;
         }
 
-        _fulfillRedeemForUsers(requestingUsers, totalRedeemShares, address(fluidVault), address(aaveVault));
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // verify all redeems were fulfilled
         for (uint256 i; i < ACCOUNT_COUNT; i++) {
@@ -134,8 +143,12 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
             requestingUsers[i] = accInstances[i].account;
         }
 
+        (uint256 allocationAmountVault1, uint256 allocationAmountVault2) = _calculateVaultShares(totalRedeemShares);
+
         // fulfill redeem for half the users
-        _fulfillRedeemForUsers(requestingUsers, totalRedeemShares, address(fluidVault), address(aaveVault));
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         // check that fulfilled requests are cleared
         for (uint256 i; i < partialUsersCount; ++i) {
@@ -162,8 +175,13 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
             }
         }
 
+        allocationAmountVault1 = totalRedeemShares / 2;
+        allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+
         // fulfill remaining users
-        _fulfillRedeemForUsers(requestingUsers, totalRedeemShares, address(fluidVault), address(aaveVault));
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
     }
 
     function test_RequestRedeem_RevertOnExceedingBalance(uint256 depositAmount) public {
@@ -206,9 +224,14 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accInstances[0].account;
 
-        _fulfillRedeemForUsers(requestingUsers, redeemAmount, address(fluidVault), address(aaveVault));
+        uint256 allocationAmountVault1 = redeemAmount / 2;
+        uint256 allocationAmountVault2 = redeemAmount - allocationAmountVault1;
 
-        assertLt(strategy.pendingRedeemRequest(accInstances[0].account), 5);
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        assertEq(strategy.pendingRedeemRequest(accInstances[0].account), 0);
         assertGt(strategy.getSuperVaultState(accInstances[0].account, 2), 0);
 
         _claimWithdrawForAccount(accInstances[0], vault.maxWithdraw(accInstances[0].account));
@@ -227,7 +250,11 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accInstances[0].account;
 
-        _fulfillRedeemForUsers(requestingUsers, redeemAmount, address(fluidVault), address(aaveVault));
+        uint256 allocationAmountVault1 = redeemAmount / 2;
+        uint256 allocationAmountVault2 = redeemAmount - allocationAmountVault1;
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
         console2.log("------fulfilled redeem");
         uint256 initialAssetBalance = asset.balanceOf(accInstances[0].account);
 
@@ -362,9 +389,18 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
 
         _requestRedeemForAccount(accInstances[0], vars.redeemAmount);
 
+        // Split redeem amount directly (don't convert to assets first)
+        vars.firstHalf = vars.redeemAmount / 2;
+        vars.secondHalf = vars.redeemAmount - vars.firstHalf;
+
+        console2.log("First vault amount:", vars.firstHalf);
+        console2.log("Second vault amount:", vars.secondHalf);
+
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accInstances[0].account;
-        _fulfillRedeemForUsers(requestingUsers, vars.redeemAmount, address(fluidVault), address(aaveVault));
+        _fulfillRedeemForUsers(
+            requestingUsers, vars.firstHalf, vars.secondHalf, address(fluidVault), address(aaveVault)
+        );
 
         vars.maxWithdraw = vault.maxWithdraw(accInstances[0].account);
         console2.log("maxWithdraw after fulfill:", vars.maxWithdraw);
@@ -427,7 +463,16 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
             requestingUsers[i] = accInstances[i].account;
         }
 
-        _fulfillRedeemForUsers(requestingUsers, vars.totalRedeemAmount, address(fluidVault), address(aaveVault));
+        vars.allocationAmountVault1 = vars.totalRedeemAmount / 2;
+        vars.allocationAmountVault2 = vars.totalRedeemAmount - vars.allocationAmountVault1;
+
+        _fulfillRedeemForUsers(
+            requestingUsers,
+            vars.allocationAmountVault1,
+            vars.allocationAmountVault2,
+            address(fluidVault),
+            address(aaveVault)
+        );
 
         vars.fluidVaultSharesDecrease = vars.initialFluidVaultBalance - fluidVault.balanceOf(address(strategy));
         vars.aaveVaultSharesDecrease = vars.initialAaveVaultBalance - aaveVault.balanceOf(address(strategy));
@@ -469,8 +514,12 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         }
 
         uint256 totalRedeemAmount = redeemAmount * ACCOUNT_COUNT;
+        uint256 allocationAmountVault1 = totalRedeemAmount / 2;
+        uint256 allocationAmountVault2 = totalRedeemAmount - allocationAmountVault1;
 
-        _fulfillRedeemForUsers(requestingUsers, totalRedeemAmount, address(fluidVault), address(aaveVault));
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
 
         uint256[] memory initialAssetBalances = new uint256[](ACCOUNT_COUNT);
         for (uint256 i; i < ACCOUNT_COUNT; i++) {
@@ -519,7 +568,7 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
             assertApproxEqRel(sharesBurned[i], sharesBurned[0], 0.001e18, "Shares burned should be equal");
         }
     }
-    /*
+
     function test_MultipleUsers_ChangingAllocation_RedeemValue() public {
         uint256 depositAmount = 1000e6;
 
@@ -582,7 +631,7 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         }
 
         for (uint256 i = 1; i < ACCOUNT_COUNT; i++) {
-    assertApproxEqRel(assetPerShare[i], assetPerShare[0], 0.001e18, "Asset per share ratio should be equal");
+            assertApproxEqRel(assetPerShare[i], assetPerShare[0], 0.001e18, "Asset per share ratio should be equal");
             assertApproxEqRel(assetsReceived[i], assetsReceived[0], 0.001e18, "Assets received should be equal");
             assertApproxEqRel(sharesBurned[i], sharesBurned[0], 0.001e18, "Shares burned should be equal");
         }
@@ -593,8 +642,7 @@ contract SuperVaultFulfillRedeemRequestsTest is BaseSuperVaultTest {
         }
 
         assertApproxEqRel(
-    totalAssetsReceived, totalRedeemAmount, 0.01e18, "Total assets received should match total redeem amount"
+            totalAssetsReceived, totalRedeemAmount, 0.01e18, "Total assets received should match total redeem amount"
         );
     }
-    */
 }

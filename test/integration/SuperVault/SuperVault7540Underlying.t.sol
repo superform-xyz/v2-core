@@ -17,7 +17,6 @@ import { IInvestmentManager } from "../../mocks/centrifuge/IInvestmentManager.so
 import { IPoolManager } from "../../mocks/centrifuge/IPoolManager.sol";
 import { ITranche } from "../../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../../mocks/centrifuge/IRoot.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
@@ -316,9 +315,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
     function _fulfillRedemptions() internal {
         uint256 shares1 = strategy.pendingRedeemRequest(accountEth);
         uint256 shares2 = strategy.pendingRedeemRequest(accInstances[2].account);
-
-        uint256 fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
-        uint256 fluidRedeemAmount = fluidVault.convertToAssets(fluidRedeemShares);
+        uint256 shares = (shares1 + shares2) / 2;
 
         address[] memory requestingUsers = new address[](2);
         requestingUsers[0] = accountEth;
@@ -331,38 +328,37 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         fulfillHooksAddresses[0] = redeemHookAddress;
         fulfillHooksAddresses[1] = redeem7540HookAddress;
 
-        address[] memory sources = new address[](2);
-        sources[0] = address(fluidVault);
-        sources[1] = address(centrifugeVault);
-        (address[] memory activeSources, uint256[] memory underlyingShares) =
-            strategy.convertSuperVaultSharesToUnderlyingSharesFiltered(shares1 + shares2, sources);
-
-        assertEq(activeSources[0], address(fluidVault));
-        assertEq(activeSources[1], address(centrifugeVault));
-
         bytes[] memory fulfillHooksData = new bytes[](2);
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            activeSources[0],
-            activeSources[0],
+            address(fluidVault),
+            address(fluidVault),
             address(strategy),
-            underlyingShares[0],
+            shares,
             false,
             false
         );
 
         fulfillHooksData[1] = _createApproveAndRedeem7540VaultHookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            activeSources[1],
+            address(centrifugeVault),
             address(centrifugeVault.share()),
-            underlyingShares[1],
+            shares,
             false,
             false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = IERC4626(address(activeSources[0])).convertToAssets(underlyingShares[0]);
-        expectedAssetsOrSharesOut[1] = IERC4626(address(activeSources[1])).convertToAssets(underlyingShares[1]);
+        uint256 fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
+        uint256 fluidRedeemAmount = fluidVault.convertToAssets(fluidRedeemShares);
+
+        expectedAssetsOrSharesOut[0] = fluidRedeemAmount;
+        // 953494057 \\\ 948558831
+        uint256 centrifugeShares = centrifugeVault.maxRedeem(address(strategy));
+        console2.log("centrifugeShares", centrifugeShares);
+        uint256 centrifugeExpectedAssets = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY))
+            .getAssetOutput(address(centrifugeVault), address(asset), centrifugeShares);
+        expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(

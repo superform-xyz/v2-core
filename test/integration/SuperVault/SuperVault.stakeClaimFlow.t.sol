@@ -403,29 +403,21 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
 
-        address[] memory sources = new address[](1);
-        sources[0] = address(gearboxVault);
-
-        assertEq(sources[0], address(gearboxVault));
-        (address[] memory activeSources, uint256[] memory underlyingShares) =
-            strategyGearSuperVault.convertSuperVaultSharesToUnderlyingSharesFiltered(shares, sources);
-
-        assertEq(activeSources[0], address(gearboxVault));
-
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            activeSources[0],
-            activeSources[0],
+            address(gearboxVault),
+            address(gearboxVault),
             address(strategyGearSuperVault),
-            underlyingShares[0],
+            shares,
             false,
             false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-
-        expectedAssetsOrSharesOut[0] = gearSuperVault.convertToAssets(underlyingShares[0]);
+        uint256 assets = gearSuperVault.convertToAssets(shares);
+        uint256 underlyingShares = gearboxVault.previewDeposit(assets);
+        expectedAssetsOrSharesOut[0] = underlyingShares;
 
         vm.startPrank(STRATEGIST);
         strategyGearSuperVault.executeHooks(
