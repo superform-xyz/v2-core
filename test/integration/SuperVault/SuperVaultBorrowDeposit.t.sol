@@ -58,7 +58,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         super.setUp();
 
         amount = 1000e6;
-        collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
         vm.selectFork(FORKS[BASE]);
 
         // Set up accounts
@@ -143,6 +142,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.warp(block.timestamp + 7 days);
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
+
+        collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
     }
 
     /*//////////////////////////////////////////////////////////////
