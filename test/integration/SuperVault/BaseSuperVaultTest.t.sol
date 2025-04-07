@@ -344,7 +344,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -428,7 +428,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: vars.requestingUsers,
                 hooks: vars.fulfillHooksAddresses,
                 hookCalldata: vars.fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(vars.fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, vars.fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
             })
         );
@@ -469,7 +469,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -514,7 +514,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -556,7 +556,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -603,7 +603,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -668,7 +668,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -722,7 +722,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1018,7 +1018,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                     users: users,
                     hooks: finalHooksAddresses,
                     hookCalldata: finalHooksData,
-                    hookProofs: _getMerkleProofsForAddresses(finalHooksAddresses),
+                    hookProofs: _getMerkleProofsForAddresses(ETH, finalHooksAddresses),
                     expectedAssetsOrSharesOut: finalExpectedAssetsOrSharesOut
                 })
             );
@@ -1222,11 +1222,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
 
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
+            configs
+        );
         vm.warp(block.timestamp + 2 weeks);
         bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
         yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
+            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
         vm.stopPrank();
     }
 
@@ -1244,11 +1247,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
 
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
+            configs
+        );
         vm.warp(block.timestamp + 2 weeks);
         bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
         yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
+            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
         vm.stopPrank();
     }
 
@@ -1294,7 +1300,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1341,7 +1347,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1484,9 +1490,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         return newArray;
     }
 
-    function _getMerkleProofsForAddresses(address[] memory hookAddresses_) internal view returns (bytes32[][] memory) {
-        uint64 chainId = ETH; //used for SuperVault tests
-
+    function _getMerkleProofsForAddresses(
+        ETH,
+        uint64 chainId,
+        address[] memory hookAddresses_
+    )
+        internal
+        view
+        returns (bytes32[][] memory)
+    {
         uint256[] memory indexes = new uint256[](hookAddresses_.length);
         for (uint256 i = 0; i < hookAddresses_.length; i++) {
             for (uint256 j = 0; j < hookListPerChain[chainId].length; j++) {

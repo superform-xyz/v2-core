@@ -1056,11 +1056,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             peripheryRegistry.registerHook(address(A[i].approveAndGearboxStakeHook), false);
             peripheryRegistry.registerHook(address(A[i].gearboxUnstakeHook), false);
             peripheryRegistry.registerHook(address(A[i].yearnClaimOneRewardHook), false);
-            peripheryRegistry.registerHook(address(A[i].morphoBorrowHook), false);
 
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             peripheryRegistry.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             peripheryRegistry.registerHook(address(A[i].ethenaUnstakeHook), true);
+            peripheryRegistry.registerHook(address(A[i].morphoBorrowHook), false);
         }
 
         return A;

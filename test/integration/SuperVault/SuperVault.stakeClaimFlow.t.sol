@@ -138,11 +138,14 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
             feeRecipient: TREASURY,
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
+            configs
+        );
         vm.warp(block.timestamp + 2 weeks);
         bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
         yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);   
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
+            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
         vm.stopPrank();
     }
 
@@ -300,7 +303,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: minAssetsOrSharesOut
             })
         );
@@ -347,7 +350,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
@@ -383,7 +386,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
@@ -422,7 +425,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );

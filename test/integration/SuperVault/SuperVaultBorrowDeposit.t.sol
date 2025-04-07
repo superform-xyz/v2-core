@@ -57,9 +57,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         super.setUp();
 
         amount = 1000e6;
-  
+
         vm.selectFork(FORKS[BASE]);
-        
+
         // Set up accounts
         accountBase = accountInstances[BASE].account;
         instanceOnBase = accountInstances[BASE];
@@ -68,7 +68,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         // Set up tokens
         collateralToken = existingUnderlyingTokens[BASE][USDC_KEY];
         vm.label(collateralToken, "CollateralToken");
-    
+
         loanToken = existingUnderlyingTokens[BASE][WETH_KEY];
         vm.label(loanToken, "LoanToken");
 
@@ -80,7 +80,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.label(morphoVault, "MorphoVault");
 
         // Set up morpho
-        lltv = 860000000000000000;
+        lltv = 860_000_000_000_000_000;
         morpho = MORPHO;
         vm.label(morpho, "Morpho");
         irm = MORPHO_IRM;
@@ -126,6 +126,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         );
         vm.stopPrank();
 
+        // Set up super executor
+        superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
+
         vm.startPrank(SV_MANAGER);
         strategy.proposeOrExecuteHookRoot(_getMerkleRoot());
         vm.warp(block.timestamp + 7 days);
@@ -134,10 +137,11 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         strategy.proposeVaultFeeConfigUpdate(100, TREASURY);
         vm.warp(block.timestamp + 1 weeks);
         strategy.executeVaultFeeConfigUpdate();
-        vm.stopPrank();
 
-        // Set up super executor
-        superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
+        strategy.proposeOrExecuteHookRoot(hookRootPerChain[BASE]);
+        vm.warp(block.timestamp + 7 days);
+        strategy.proposeOrExecuteHookRoot(bytes32(0));
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -160,7 +164,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         // Claim deposit into superVault as user1
         _claimDepositOnBase(instanceOnBase, amount);
         console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
-        
     }
 
     function test_BorrowHook() public {
@@ -173,7 +176,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
 
-        bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
+        bytes memory hookData =
+            _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
@@ -201,7 +205,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     )
         internal
         view
-        returns (uint256 collateralAmount) {
+        returns (uint256 collateralAmount)
+    {
         IOracle oracleInstance = IOracle(oracleAddress);
 
         uint256 price = oracleInstance.price();
@@ -242,8 +247,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
 
-        bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
-        
+        bytes memory hookData =
+            _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
+
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
@@ -254,8 +260,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             users: new address[](0),
             hooks: hooks,
             hookCalldata: hookDataArray,
-            hookProofs: _getMerkleProofsForAddresses(hooks),
-            expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+            hookProofs: _getMerkleProofsForAddresses(BASE, hooks),
+            //expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+            expectedAssetsOrSharesOut: new uint256[](1)
         });
 
         vm.prank(STRATEGIST);
@@ -268,7 +275,14 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         depositHooks[0] = depositHook;
 
         bytes[] memory depositHookDataArray = new bytes[](1);
-        depositHookDataArray[0] = _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(morphoVaultInstance), address(asset), amount, false, false);
+        depositHookDataArray[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(morphoVaultInstance),
+            address(asset),
+            amount,
+            false,
+            false
+        );
 
         expectedAssetsOrSharesOut[0] = morphoVaultInstance.previewDeposit(amount);
 
@@ -276,7 +290,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             users: requestingUsers,
             hooks: depositHooks,
             hookCalldata: depositHookDataArray,
-            hookProofs: _getMerkleProofsForAddresses(depositHooks),
+            hookProofs: _getMerkleProofsForAddresses(ETH, depositHooks),
             expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
         });
 
@@ -298,5 +312,4 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnBase, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
-    
 }

@@ -206,7 +206,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
-                hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, requestHooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
@@ -265,7 +265,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -296,7 +296,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
-                hookProofs: _getMerkleProofsForAddresses(requestHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, requestHooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
@@ -363,7 +363,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
