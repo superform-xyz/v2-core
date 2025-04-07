@@ -231,12 +231,11 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountBase;
 
+        // Execute borrow hook
         address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
-        address depositHook = _getHookAddress(BASE, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
-        address[] memory hooks = new address[](2);
+        address[] memory hooks = new address[](1);
         hooks[0] = hook;
-        hooks[1] = depositHook;
 
         uint256 collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
 
@@ -244,18 +243,15 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
 
         bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
-        bytes memory depositHookData = _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(morphoVaultInstance), address(asset), amount, false, false);
         
-        bytes[] memory hookDataArray = new bytes[](2);
+        bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
-        hookDataArray[1] = depositHookData;
 
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
         expectedAssetsOrSharesOut[0] = amount;
-        expectedAssetsOrSharesOut[1] = morphoVaultInstance.previewDeposit(amount);
 
         ISuperVaultStrategy.ExecuteArgs memory executeArgs = ISuperVaultStrategy.ExecuteArgs({
-            users: requestingUsers,
+            users: new address[](0),
             hooks: hooks,
             hookCalldata: hookDataArray,
             hookProofs: _getMerkleProofsForAddresses(hooks),
@@ -264,6 +260,28 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(executeArgs);
+
+        // Fulfill deposit into morpho vault
+        address depositHook = _getHookAddress(BASE, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory depositHooks = new address[](1);
+        depositHooks[0] = depositHook;
+
+        bytes[] memory depositHookDataArray = new bytes[](1);
+        depositHookDataArray[0] = _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(morphoVaultInstance), address(asset), amount, false, false);
+
+        expectedAssetsOrSharesOut[0] = morphoVaultInstance.previewDeposit(amount);
+
+        ISuperVaultStrategy.ExecuteArgs memory depositArgs = ISuperVaultStrategy.ExecuteArgs({
+            users: requestingUsers,
+            hooks: depositHooks,
+            hookCalldata: depositHookDataArray,
+            hookProofs: _getMerkleProofsForAddresses(depositHooks),
+            expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+        });
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(depositArgs);
     }
 
     function _claimDepositOnBase(AccountInstance memory accInst, uint256 depositAmount) internal {
