@@ -507,7 +507,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](32);
+            address[] memory hooksAddresses = new address[](33);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
