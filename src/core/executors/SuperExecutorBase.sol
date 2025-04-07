@@ -134,7 +134,6 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
     )
         internal virtual 
     {
-        uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
         Execution[] memory feeExecution = new Execution[](1);
         feeExecution[0] = Execution({
             target: assetToken,
@@ -142,8 +141,6 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
             callData: abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount))
         });
         _execute(account, feeExecution);
-        uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
-        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
     }
 
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) internal virtual {
