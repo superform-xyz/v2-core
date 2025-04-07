@@ -241,13 +241,13 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
 
         bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
-        bytes memory depositHookData = _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(fluidVault), address(asset), amount, false, false);
+        bytes memory depositHookData = _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(morphoVaultInstance), address(asset), amount, false, false);
         bytes[] memory hookDataArray = new bytes[](2);
         hookDataArray[0] = hookData;
         hookDataArray[1] = depositHookData;
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = fluidVault.previewDeposit(amount);
+        expectedAssetsOrSharesOut[0] = morphoVaultInstance.previewDeposit(amount);
 
         ISuperVaultStrategy.ExecuteArgs memory executeArgs = ISuperVaultStrategy.ExecuteArgs({
             users: requestingUsers,
