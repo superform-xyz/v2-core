@@ -6,9 +6,17 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { INexusFactory } from "../../vendor/nexus/INexusFactory.sol";
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Execution, ExecutionLib as ERC7579ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import {
+    ModeCode,
+    ModeLib as ERC7579ModeLib,
+    EXECTYPE_DEFAULT,
+    CALLTYPE_BATCH,
+    MODE_DEFAULT,
+    ModePayload
+} from "modulekit/accounts/common/lib/ModeLib.sol";
 
 // Superform
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
@@ -156,8 +164,23 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             value: 0,
             callData: executorCalldata
         });
-        _execute(account, execs);
 
-        emit AcrossTargetExecutorExecuted(account);
+        ModeCode modeCode = ERC7579ModeLib.encode({
+            callType: CALLTYPE_BATCH,
+            execType: EXECTYPE_DEFAULT,
+            mode: MODE_DEFAULT,
+            payload: ModePayload.wrap(bytes22(0))
+        });
+      
+        try IERC7579Account(account).executeFromExecutor(
+            modeCode,
+            ERC7579ExecutionLib.encodeBatch(execs)
+        ) {
+            emit AcrossTargetExecutorExecuted(account);
+        } catch Error(string memory reason) {
+            emit AcrossTargetExecutorFailed(reason);
+        } catch (bytes memory lowLevelData) {
+            emit AcrossTargetExecutorFailedLowLevel(lowLevelData);
+        }
     }
 }
