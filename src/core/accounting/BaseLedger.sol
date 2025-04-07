@@ -160,6 +160,7 @@ abstract contract BaseLedger is ISuperLedger {
             superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
+        if (config.ledger != address(this)) revert INVALID_LEDGER();
 
         // Get price from oracle
         uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
