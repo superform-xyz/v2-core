@@ -23,6 +23,7 @@ import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
+import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
@@ -47,7 +48,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     AccountInstance public instanceOnBase;
 
     ISuperExecutor public superExecutorOnBase;
-    
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -66,14 +66,16 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.label(accountBase, "AccountBase");
 
         // Set up tokens
-        collateralToken = existingUnderlyingTokens[BASE][WETH_KEY];
+        collateralToken = existingUnderlyingTokens[BASE][USDC_KEY];
         vm.label(collateralToken, "CollateralToken");
     
-        loanToken = existingUnderlyingTokens[BASE][USDC_KEY];
+        loanToken = existingUnderlyingTokens[BASE][WETH_KEY];
         vm.label(loanToken, "LoanToken");
 
+        asset = IERC20Metadata(existingUnderlyingTokens[BASE][WETH_KEY]);
+
         // Set up underlying vault
-        morphoVault = _getContract(BASE, MORPHO_VAULT_KEY);
+        morphoVault = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY];
         morphoVaultInstance = IERC4626(morphoVault);
         vm.label(morphoVault, "MorphoVault");
 
@@ -86,6 +88,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         oracle = MORPHO_ORACLE;
         vm.label(oracle, "MorphoOracle");
 
+        // Set up factory
+        factory = new SuperVaultFactory(_getContract(BASE, PERIPHERY_REGISTRY_KEY));
+
         // Set up super vault
         vm.startPrank(SV_MANAGER);
 
@@ -93,8 +98,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         (address vaultAddr, address strategyAddr, address escrowAddr) = factory.createVault(
             ISuperVaultFactory.VaultCreationParams({
                 asset: address(asset),
-                name: "SuperVault Morpho-Fluid",
-                symbol: "svMorphoFluid",
+                name: "SuperVault Morpho",
+                symbol: "svMorpho",
                 manager: SV_MANAGER,
                 strategist: STRATEGIST,
                 emergencyAdmin: EMERGENCY_ADMIN,
@@ -102,9 +107,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
                 superVaultCap: SUPER_VAULT_CAP
             })
         );
-        vm.label(vaultAddr, "MorphoFluidSuperVault");
-        vm.label(strategyAddr, "MorphoFluidSuperVaultStrategy");
-        vm.label(escrowAddr, "MorphoFluidSuperVaultEscrow");
+        vm.label(vaultAddr, "MorphoSuperVault");
+        vm.label(strategyAddr, "MorphoSuperVaultStrategy");
+        vm.label(escrowAddr, "MorphoSuperVaultEscrow");
 
         // Cast addresses to contract types
         vault = SuperVault(vaultAddr);
@@ -113,7 +118,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         // Add a new yield source as manager
         strategy.manageYieldSource(
-            address(fluidVault),
+            morphoVault,
             _getContract(BASE, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
             false, // addYieldSource
@@ -130,20 +135,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.warp(block.timestamp + 1 weeks);
         strategy.executeVaultFeeConfigUpdate();
         vm.stopPrank();
-        
-        // Set up yield source oracle
-        vm.startPrank(MANAGER);
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(BASE, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 0,
-            feeRecipient: TREASURY,
-            ledger: _getContract(BASE, SUPER_LEDGER_KEY)
-        });
-        ISuperLedgerConfiguration(_getContract(BASE, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
-        vm.stopPrank();
 
         // Set up super executor
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
@@ -157,7 +148,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("Original pps", _getSuperVaultPricePerShare());
 
         // Request deposit into superVault as user1
-        _requestDeposit(amount);
+        _requestDepositOnBase(instanceOnBase, amount);
 
         console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountBase));
         console2.log("\n pps After Request Deposit1", _getSuperVaultPricePerShare());
@@ -167,16 +158,13 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
 
         // Claim deposit into superVault as user1
-        _claimDeposit(amount);
+        _claimDepositOnBase(instanceOnBase, amount);
         console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
-        
-        
-
         
     }
 
     function test_BorrowHook() public {
-        address hook = _getHookAddress(ETH, MORPHO_BORROW_HOOK_KEY);
+        address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
 
@@ -224,30 +212,47 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
     }
 
+    function _requestDepositOnBase(AccountInstance memory accInst, uint256 depositAmount) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(BASE, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndRequestDeposit7540HookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), address(asset), depositAmount, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnBase, abi.encode(entry));
+        executeOp(userOpData);
+    }
+
     function _fulfillDepositRequestsWithBorrow() public {
         address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accountEth;
+        requestingUsers[0] = accountBase;
 
-        address hook = _getHookAddress(ETH, MORPHO_BORROW_HOOK_KEY);
-        address depositHook = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
+        address depositHook = _getHookAddress(BASE, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
         address[] memory hooks = new address[](2);
         hooks[0] = hook;
         hooks[1] = depositHook;
 
         uint256 collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
-        _getTokens(CHAIN_1_WST_ETH, address(strategy), collateralAmount);
 
-        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
-        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
+        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
+        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
 
         bytes memory hookData = _createMorphoBorrowHookData(loanToken, collateralToken, oracle, irm, amount, lltv, false);
         bytes memory depositHookData = _createApproveAndDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(morphoVaultInstance), address(asset), amount, false, false);
+        
         bytes[] memory hookDataArray = new bytes[](2);
         hookDataArray[0] = hookData;
         hookDataArray[1] = depositHookData;
 
-        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = morphoVaultInstance.previewDeposit(amount);
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
+        expectedAssetsOrSharesOut[0] = amount;
+        expectedAssetsOrSharesOut[1] = morphoVaultInstance.previewDeposit(amount);
 
         ISuperVaultStrategy.ExecuteArgs memory executeArgs = ISuperVaultStrategy.ExecuteArgs({
             users: requestingUsers,
@@ -257,8 +262,23 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
         });
 
-        vm.prank(SV_MANAGER);
+        vm.prank(STRATEGIST);
         strategy.executeHooks(executeArgs);
+    }
+
+    function _claimDepositOnBase(AccountInstance memory accInst, uint256 depositAmount) internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(BASE, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createDeposit7540VaultHookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnBase, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
     }
     
 }
