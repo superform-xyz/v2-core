@@ -32,7 +32,7 @@ import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20H
 
 // borrow hooks
 import { MorphoBorrowHook } from "../src/core/hooks/borrow/MorphoBorrowHook.sol";
-
+import { MorphoRepayHook } from "../src/core/hooks/borrow/MorphoRepayHook.sol";
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
@@ -140,6 +140,7 @@ struct Addresses {
     ISuperExecutor acrossTargetExecutor;
     ApproveERC20Hook approveErc20Hook;
     MorphoBorrowHook morphoBorrowHook;
+    MorphoRepayHook morphoRepayHook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
     ApproveAndSwapOdosHook approveAndSwapOdosHook;
@@ -507,7 +508,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](33);
+            address[] memory hooksAddresses = new address[](35);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -970,6 +971,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
             hooksAddresses[32] = address(A[i].morphoBorrowHook);
 
+            A[i].morphoRepayHook = new MorphoRepayHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
+            vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
+            hookAddresses[chainIds[i]][MORPHO_REPAY_HOOK_KEY] = address(A[i].morphoRepayHook);
+            hooksAddresses[33] = address(A[i].morphoRepayHook);
+            hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY] = Hook(
+                MORPHO_REPAY_HOOK_KEY,
+                HookCategory.Loans,
+                HookCategory.None,
+                address(A[i].morphoRepayHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY]);
+            hooksAddresses[34] = address(A[i].morphoRepayHook);
+
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
         }
@@ -1061,6 +1076,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             peripheryRegistry.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             peripheryRegistry.registerHook(address(A[i].ethenaUnstakeHook), true);
             peripheryRegistry.registerHook(address(A[i].morphoBorrowHook), false);
+            peripheryRegistry.registerHook(address(A[i].morphoRepayHook), false);
         }
 
         return A;
@@ -2168,12 +2184,30 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address irm,
         uint256 amount,
         uint256 lltv,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        bool isPositiveFeed
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount);
+        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed);
+    }
+
+    function _createMorphoRepayHookData(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 amount,
+        uint256 lltv,
+        bool usePrevHookAmount,
+        bool isFullRepayment
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
     }
 }
