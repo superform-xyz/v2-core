@@ -13,6 +13,7 @@ script = "script"
 solc = "0.8.28"
 src = "src"
 test = "test"
+dynamic_test_linking = true
 cbor_metadata = true
 libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./" }]
