@@ -144,9 +144,9 @@ abstract contract Constants {
     // morpho
     string public constant MORPHO_KEY = "Morpho";
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
-    // wstETH-USDC Market Constants
-    address public constant MORPHO_IRM = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
-    address public constant MORPHO_ORACLE = 0x48F7E36EB6B826B2dF4B2E630B62Cd25e89E40e2;
+    // Base USDC-WETH Market Constants
+    address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;
+    address public constant MORPHO_ORACLE = 0xD09048c8B568Dbf5f189302beA26c9edABFC4858;
 
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";

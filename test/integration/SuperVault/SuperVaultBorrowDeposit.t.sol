@@ -36,11 +36,18 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     address public loanToken;
     address public collateralToken;
 
+    address public morphoVault;
+    IERC4626 public morphoVaultInstance;
+
     uint256 public lltv;
     uint256 public amount;
     uint256 public constant PRECISION = 1e18;
 
-    ISuperExecutor public superExecutorOnETH;
+    address public accountBase;
+    AccountInstance public instanceOnBase;
+
+    ISuperExecutor public superExecutorOnBase;
+    
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -51,19 +58,24 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         amount = 1000e6;
   
-        vm.selectFork(FORKS[ETH]);
+        vm.selectFork(FORKS[BASE]);
         
         // Set up accounts
-        accountEth = accountInstances[ETH].account;
-        instanceOnEth = accountInstances[ETH];
-        vm.label(accountEth, "AccountETH");
+        accountBase = accountInstances[BASE].account;
+        instanceOnBase = accountInstances[BASE];
+        vm.label(accountBase, "AccountBase");
 
         // Set up tokens
-        collateralToken = existingUnderlyingTokens[ETH][WST_ETH_KEY];
+        collateralToken = existingUnderlyingTokens[BASE][WETH_KEY];
         vm.label(collateralToken, "CollateralToken");
     
-        loanToken = existingUnderlyingTokens[ETH][USDC_KEY];
+        loanToken = existingUnderlyingTokens[BASE][USDC_KEY];
         vm.label(loanToken, "LoanToken");
+
+        // Set up underlying vault
+        morphoVault = _getContract(BASE, MORPHO_VAULT_KEY);
+        morphoVaultInstance = IERC4626(morphoVault);
+        vm.label(morphoVault, "MorphoVault");
 
         // Set up morpho
         lltv = 860000000000000000;
@@ -102,7 +114,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         // Add a new yield source as manager
         strategy.manageYieldSource(
             address(fluidVault),
-            _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            _getContract(BASE, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
             false, // addYieldSource
             false
@@ -125,16 +137,16 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
+            yieldSourceOracle: _getContract(BASE, ERC7540_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 0,
             feeRecipient: TREASURY,
-            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
+            ledger: _getContract(BASE, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+        ISuperLedgerConfiguration(_getContract(BASE, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
         vm.stopPrank();
 
         // Set up super executor
-        superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
+        superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,7 +159,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
-        console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountEth));
+        console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountBase));
         console2.log("\n pps After Request Deposit1", _getSuperVaultPricePerShare());
 
         // Deposit into underlying vaults as strategy
@@ -156,7 +168,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         // Claim deposit into superVault as user1
         _claimDeposit(amount);
-        console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountEth));
+        console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
         
         
 
@@ -169,7 +181,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         uint256 collateralAmount = _deriveCollateralAmount(amount, oracle, loanToken, collateralToken);
-        _getTokens(CHAIN_1_WST_ETH, accountEth, collateralAmount);
 
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountEth);
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountEth);
