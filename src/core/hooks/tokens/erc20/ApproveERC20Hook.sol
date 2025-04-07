@@ -64,10 +64,10 @@ contract ApproveERC20Hook is BaseHook, ISuperHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address prevHook, address, bytes memory data) external {
+    function postExecute(address prevHook, address account, bytes memory data) external {
         address token = BytesLib.toAddress(data, 0);
         address spender = BytesLib.toAddress(data, 20);
-        outAmount = IERC20(token).allowance(prevHook, spender);
+        outAmount = IERC20(token).allowance(account, spender);
     }
 
     /// @inheritdoc ISuperHookContextAware
