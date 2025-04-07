@@ -75,7 +75,7 @@ contract SuperNativePaymasterTest is BaseTest {
         assertEq(mockEntryPoint.depositAmount(), 1 ether);
     }
 
-    function test_ValidatePaymasterUserOp_RevertIf_InsufficientBalance() public {
+    function test_ValidatePaymasterUserOp_RevertIf_InvalidMaxGasLimit() public {
         bytes memory paymasterAndData =
             abi.encodePacked(address(paymaster), abi.encode(maxGasLimit, nodeOperatorPremium));
 
@@ -86,7 +86,7 @@ contract SuperNativePaymasterTest is BaseTest {
         uint256 maxCost = 1 ether;
 
         vm.prank(address(mockEntryPoint));
-        vm.expectRevert(ISuperNativePaymaster.INSUFFICIENT_BALANCE.selector);
+        vm.expectRevert(ISuperNativePaymaster.INVALID_MAX_GAS_LIMIT.selector);
         paymaster.validatePaymasterUserOp(userOp, userOpHash, maxCost);
     }
 
