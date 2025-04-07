@@ -7,14 +7,17 @@ import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
+import { IIrm } from "../../../src/vendor/morpho/IIrm.sol";
+import { MathLib } from "../../../src/vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../src/vendor/morpho/IOracle.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { IMorphoBase } from "../../../src/vendor/morpho/IMorpho.sol";
 import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modulekit/ModuleKit.sol";
+import { IMorpho, MarketParams, Market, Id} from "../../../src/vendor/morpho/IMorpho.sol";
+import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // superform
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
@@ -28,6 +31,7 @@ import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.so
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
 contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
+    using MarketParamsLib for MarketParams;
     using ModuleKitHelpers for *;
     using Math for uint256;
 
@@ -38,6 +42,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     address public collateralToken;
 
     address public morphoVault;
+    IMorpho public morphoInterface;
     IERC4626 public morphoVaultInstance;
 
     uint256 public lltv;
@@ -87,6 +92,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.label(irm, "MorphoIRM");
         oracle = MORPHO_ORACLE;
         vm.label(oracle, "MorphoOracle");
+        morphoInterface = IMorpho(morpho);
 
         // Set up factory
         factory = new SuperVaultFactory(_getContract(BASE, PERIPHERY_REGISTRY_KEY));
@@ -394,5 +400,15 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         UserOpData memory redeemUserOpData = _getExecOps(accInst, superExecutorOnBase, abi.encode(redeemEntry));
 
         executeOp(redeemUserOpData);
+    }
+
+    function _deriveFeeAmount(MarketParams memory marketParams) internal returns (uint256 feeAmount) {
+        Id id = marketParams.id();
+        Market memory market = morphoInterface.market(id);
+        uint256 borrowRate = IIrm(marketParams.irm).borrowRate(marketParams, market);
+        uint256 elapsed = block.timestamp - market.lastUpdate;
+        uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
+
+        feeAmount = MathLib.wMulDown(interest, market.fee);
     }
 }
