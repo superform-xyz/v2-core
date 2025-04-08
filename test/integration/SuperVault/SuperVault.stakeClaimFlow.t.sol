@@ -258,7 +258,6 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndRequestDeposit7540HookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             address(gearSuperVault),
             address(asset),
             depositAmount,

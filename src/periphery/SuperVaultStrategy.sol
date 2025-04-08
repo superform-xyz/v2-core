@@ -33,8 +33,6 @@ import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources and executes strategies
@@ -319,14 +317,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                         && asyncYieldSources[vars.targetedYieldSource].isActive
                 ) {
                     try ISuperHookAsync(hook).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares) {
-                        console2.log("outAmount shares", outAmount);
-                        console2.log("REQUEST PPS", vars.pricePerShare);
                         if (isShares) {
                             asyncYieldSourceSharesInTransitOutflows[vars.targetedYieldSource] = outAmount;
                         } else {
                             asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] = outAmount;
                         }
-                        console2.log("outAmount asset", outAmount);
                     } catch {
                         // warning: only the final step of the cancelation claim can actually reset the mappings.
                         // Requests may not result in this
@@ -1167,18 +1162,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         returns (uint256 amount, uint256 outAmount)
     {
         OutflowExecutionVars memory execVars;
-        console2.log("\n ----");
         // Get amount and convert to underlying shares
         (execVars.amount, execVars.target) = _prepareOutflowExecution(hook, hookCalldata);
-        console2.log("PPS AT REDEEM", pricePerShare);
-        console2.log("SHARES INSCRIBED", execVars.amount);
 
         // Calculate underlying shares and update hook calldata
         execVars.amountOfAssets = execVars.amount.mulDiv(pricePerShare, PRECISION, Math.Rounding.Floor);
-        console2.log("AMOUNT OF ASSETS TO REDEEM", execVars.amountOfAssets);
         execVars.amountConvertedToUnderlyingShares = IYieldSourceOracle(yieldSources[execVars.target].oracle)
             .getShareOutput(execVars.target, address(_asset), execVars.amountOfAssets);
-        console2.log("AMOUNT OF SHARES TO REDEEM", execVars.amountConvertedToUnderlyingShares);
         hookCalldata =
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, execVars.amountConvertedToUnderlyingShares);
 

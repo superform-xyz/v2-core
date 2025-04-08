@@ -2258,7 +2258,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     function _createApproveAndRequestDeposit7540HookData(
-        bytes4 yieldSourceOracleId,
         address yieldSource,
         address token,
         uint256 amount,
@@ -2268,29 +2267,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
+        return abi.encodePacked(bytes4(bytes("")), yieldSource, token, amount, usePrevHookAmount);
     }
 
-    function _createCancelHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource);
+    function _createCancelHookData(address yieldSource) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes4(bytes("")), yieldSource);
     }
 
-    function _createClaimCancelHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address receiver
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, receiver);
+    function _createClaimCancelHookData(address yieldSource, address receiver) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
     }
 }

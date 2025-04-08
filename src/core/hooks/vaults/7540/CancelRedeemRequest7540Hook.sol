@@ -14,7 +14,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title CancelRedeemRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         bytes4 empty = BytesLib.toAddress(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 contract CancelRedeemRequest7540Hook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
