@@ -12,7 +12,6 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // superform
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
-import { PaymasterGasCalculator } from "../libraries/PaymasterGasCalculator.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
