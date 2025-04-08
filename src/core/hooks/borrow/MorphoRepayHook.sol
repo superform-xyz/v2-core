@@ -6,6 +6,7 @@ import { IIrm } from "../../../vendor/morpho/Iirm.sol";
 import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { MathLib } from "../../../vendor/morpho/MathLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SharesMathLib } from "../../../vendor/morpho/SharesMathLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
 import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
@@ -31,6 +32,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 contract MorphoRepayHook is BaseHook, ISuperHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
+    using SharesMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
                                STORAGE
@@ -96,12 +98,13 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
 
         executions = new Execution[](4);
         if (vars.isFullRepayment) {
+            uint256 assetsToPay = fee +_sharesToAssets(marketParams, account);
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, tokenBalance + fee))
+                callData: abi.encodeCall(IERC20.approve, (morpho, assetsToPay))
             });
             executions[2] = Execution({
                 target: morpho,
@@ -114,6 +117,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
                 callData: abi.encodeCall(IERC20.approve, (morpho, 0))
             });
         } else {
+            uint256 assetsToPay = fee +_assetsToShares(marketParams, vars.amount);
             executions[0] = Execution({
                 target: vars.loanToken,
                 value: 0,
@@ -211,6 +215,19 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
 
         feeAmount = MathLib.wMulDown(interest, market.fee);
+    }
+
+    function _sharesToAssets(MarketParams memory marketParams, address account) internal view returns (uint256 assets) {
+        Id id = marketParams.id();
+        uint256 shareBalance = _deriveShareBalance(id, account);
+        Market memory market = morphoInterface.market(id);
+        assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
+    }
+
+    function _assetsToShares(MarketParams memory marketParams, uint256 assets) internal view returns (uint256 shares) {
+        Id id = marketParams.id();
+        Market memory market = morphoInterface.market(id);
+        shares = assets.toSharesUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
     /*//////////////////////////////////////////////////////////////
