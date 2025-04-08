@@ -87,6 +87,10 @@ import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClai
 // --- Ethena
 import { EthenaCooldownSharesHook } from "./mocks/unused-hooks/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "./mocks/unused-hooks/EthenaUnstakeHook.sol";
+import { SpectraExchangeHook } from "../src/core/hooks/spectra/SpectraExchangeHook.sol";
+import { PendleRouterSwapHook } from "../src/core/hooks/pendle/PendleRouterSwapHook.sol";
+import { MockSpectraRouter } from "./mocks/MockSpectraRouter.sol";
+import { MockPendleRouter } from "./mocks/MockPendleRouter.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -162,6 +166,8 @@ struct Addresses {
     ApproveAndGearboxStakeHook approveAndGearboxStakeHook;
     FluidStakeHook fluidStakeHook;
     FluidUnstakeHook fluidUnstakeHook;
+    SpectraExchangeHook spectraExchangeHook;
+    PendleRouterSwapHook pendleRouterSwapHook;
     FluidClaimRewardHook fluidClaimRewardHook;
     GearboxClaimRewardHook gearboxClaimRewardHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
@@ -502,7 +508,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](32);
+            address[] memory hooksAddresses = new address[](34);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -951,6 +957,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].ethenaUnstakeHook), ETHENA_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
             hooksAddresses[31] = address(A[i].ethenaUnstakeHook);
+
+            MockSpectraRouter spectraRouter = new MockSpectraRouter();
+            A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(spectraRouter));
+            vm.label(address(A[i].spectraExchangeHook), SPECTRA_EXCHANGE_HOOK_KEY);
+            hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_HOOK_KEY] = address(A[i].spectraExchangeHook);
+            hooksAddresses[32] = address(A[i].spectraExchangeHook);
+            
+            MockPendleRouter pendleRouter = new MockPendleRouter();
+            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(pendleRouter));
+            vm.label(address(A[i].pendleRouterSwapHook), PENDLE_ROUTER_SWAP_HOOK_KEY);
+            hookAddresses[chainIds[i]][PENDLE_ROUTER_SWAP_HOOK_KEY] = address(A[i].pendleRouterSwapHook);
+            hooksAddresses[33] = address(A[i].pendleRouterSwapHook);
+
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);

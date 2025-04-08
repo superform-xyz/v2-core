@@ -82,6 +82,9 @@ abstract contract Constants {
     string public constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string public constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
+    string public constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
+    string public constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+    
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";

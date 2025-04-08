@@ -58,8 +58,6 @@ contract Deposit4626VaultHookTest is BaseTest {
     }
 
     function test_Build_RevertIf_AddressZero() public {
-        address _yieldSource = yieldSource;
-
         // yieldSource is address(0)
         yieldSource = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
