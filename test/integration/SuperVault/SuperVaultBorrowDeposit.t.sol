@@ -268,7 +268,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
 
         bytes memory hookData =
             _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false);
@@ -281,7 +280,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         executeOp(userOpData);
 
         uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceAfter = IERC20(collateralToken).balanceOf(accountBase);
 
         assertEq(loanBalanceAfter, loanBalanceBefore + amount);
 
@@ -432,7 +430,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     )
         internal
         view
-        returns (uint256 collateralAmount)
+        returns (uint256 collateral)
     {
         uint256 price = oracle.price();
         uint256 loanDecimals = ERC20(loan).decimals();
@@ -451,13 +449,14 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             // For a negative feed, price is given as the amount of collateral tokens per loan token,
             // so no inversion is necessary:
             // collateralAmount = loanAmount * price / scalingFactor
-            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
+            collateral = Math.mulDiv(loanAmount, price, scalingFactor);
         }
     }
 
     function _deriveCollateralForPartialRepayment() internal view returns (uint256 withdrawableCollateral) {
         uint256 remainingLoan = amount;
-        uint256 fullCollateral = _deriveCollateralAmount(amount, oracleAddress, loanToken, collateralToken, false);
+        (,, uint128 collateral) = morphoStaticTyping.position(id, account);
+        uint256 fullCollateral = uint256(collateral);
 
         uint256 loanDecimals = ERC20(loanToken).decimals();
         uint256 collateralDecimals = ERC20(collateralToken).decimals();
