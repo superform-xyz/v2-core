@@ -155,7 +155,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
 
-        collateralAmount = _deriveCollateralAmount(amount, oracleAddress, loanToken, collateralToken, false);
+        collateralAmount = _deriveCollateralAmount(amount, loanToken, collateralToken, false);
         console2.log("----collateralAmount", collateralAmount);
         _getTokens(address(asset), accountBase, collateralAmount);
     }
@@ -291,7 +291,15 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false, false);
         hookDataArray[0] = repayHookData;
 
-        uint256 collateralForWithdraw = _deriveCollateralForWithdraw(accountBase);
+        Id id = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: oracleAddress,
+            irm: irm,
+            lltv: lltv
+        }).id();
+        (,, uint128 collateral) = morphoStaticTyping.position(id, accountBase);
+        uint256 expectedCollateralBalanceAfterRepay = Math.ceilDiv(uint256(collateral), 2);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
@@ -300,14 +308,10 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
         uint256 collateralBalanceAfterRepay = IERC20(collateralToken).balanceOf(accountBase);
-        console2.log("collateralBalanceAfterRepay", collateralBalanceAfterRepay);
-
-        uint256 expectedCollateralBalanceAfterRepay = _deriveCollateralForPartialRepayment();
 
         assertEq(loanBalanceAfterRepay, loanBalanceAfter - amount / 2);
-        console2.log("expectedCollateralBalanceAfterRepay", expectedCollateralBalanceAfterRepay);
-        console2.log("collateralBalanceAfterRepay", collateralBalanceAfterRepay);
-        // assertEq(collateralBalanceAfterRepay, expectedCollateralBalanceAfterRepay);
+
+        assertEq(collateralBalanceAfterRepay, expectedCollateralBalanceAfterRepay);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -423,9 +427,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
     function _deriveCollateralAmount(
         uint256 loanAmount,
-        address oracleAddress,
-        address loan,
-        address collateral,
+        address loanToken,
+        address collateralToken,
         bool isPositiveFeed
     )
         internal
@@ -433,8 +436,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         returns (uint256 collateral)
     {
         uint256 price = oracle.price();
-        uint256 loanDecimals = ERC20(loan).decimals();
-        uint256 collateralDecimals = ERC20(collateral).decimals();
+        uint256 loanDecimals = ERC20(loanToken).decimals();
+        uint256 collateralDecimals = ERC20(collateralToken).decimals();
 
         // Correct scaling factor as per the oracle's specification:
         // 10^(36 + loanDecimals - collateralDecimals)
@@ -444,34 +447,13 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             // For a positive feed, price is given as the amount of loan tokens per collateral token,
             // so we invert the price to calculate collateral:
             // collateralAmount = loanAmount * scalingFactor / price
-            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+            collateral = Math.mulDiv(loanAmount, scalingFactor, price);
         } else {
             // For a negative feed, price is given as the amount of collateral tokens per loan token,
             // so no inversion is necessary:
             // collateralAmount = loanAmount * price / scalingFactor
             collateral = Math.mulDiv(loanAmount, price, scalingFactor);
         }
-    }
-
-    function _deriveCollateralForPartialRepayment() internal view returns (uint256 withdrawableCollateral) {
-        uint256 remainingLoan = amount;
-        (,, uint128 collateral) = morphoStaticTyping.position(id, account);
-        uint256 fullCollateral = uint256(collateral);
-
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
-        uint256 price = oracle.price();
-
-        // Compute the collateral still required to back the remaining debt.
-        uint256 requiredCollateralForRemaining;
-        // For a negative feed, the oracle returns the price in units of collateral token per loan token.
-        // The collateral required is:
-        //   requiredCollateral = remainingLoan * price / scalingFactor
-        requiredCollateralForRemaining = Math.mulDiv(remainingLoan, price, scalingFactor);
-
-        withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
     }
 
     function _deriveFeeAmount() internal view returns (uint256 feeAmount) {
