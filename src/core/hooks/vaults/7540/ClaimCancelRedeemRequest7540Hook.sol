@@ -68,6 +68,10 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHook, ISuperHookAsy
         return CancelationType.OUTFLOW;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         return IERC20(IERC7540(data.extractYieldSource()).share()).balanceOf(account);
     }
