@@ -226,4 +226,46 @@ contract SuperExecutorTest is BaseTest {
         superExecutor.execute(abi.encode(entry));
         vm.stopPrank();
     }
+
+    function test_UpdateAccounting_Outflow_RevertIf_FeeNotTransferred() public {
+        account = accountInstances[ETH].account;
+        MaliciousToken maliciousToken = new MaliciousToken();
+
+        maliciousToken.blacklist(feeRecipient);
+
+        MockHook maliciousHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(maliciousToken));
+        maliciousHook.setOutAmount(910);
+        maliciousHook.setUsedShares(500);
+
+        ledger.setFeeAmount(100);
+
+        MockLedgerConfiguration maliciousConfig =
+            new MockLedgerConfiguration(address(ledger), feeRecipient, address(maliciousToken), 100, account);
+
+        vm.startPrank(superRegistry.owner());
+        superRegistry.setAddress(LEDGER_CONFIG_ID, address(maliciousConfig));
+        vm.stopPrank();
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(maliciousHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+        );
+
+        vm.startPrank(address(this));
+        maliciousToken.transfer(account, 1000);
+        vm.stopPrank();
+
+        assertGt(maliciousToken.balanceOf(account), 0, "Account should have tokens");
+
+        vm.startPrank(account);
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
+        vm.expectRevert(ISuperExecutor.FEE_NOT_TRANSFERRED.selector);
+        superExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+    }
 }

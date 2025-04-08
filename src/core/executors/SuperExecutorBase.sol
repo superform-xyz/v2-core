@@ -27,6 +27,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) internal _initialized;
     bytes32 internal constant SUPER_LEDGER_CONFIGURATION_ID = keccak256("SUPER_LEDGER_CONFIGURATION_ID");
+    uint256 internal constant FEE_TOLERANCE = 1e4;
+    uint256 internal constant FEE_TOLERANCE_DENOMINATOR = 1e5;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
@@ -134,6 +136,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
     )
         internal virtual 
     {
+        uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
         Execution[] memory feeExecution = new Execution[](1);
         feeExecution[0] = Execution({
             target: assetToken,
@@ -141,6 +144,11 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
             callData: abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount))
         });
         _execute(account, feeExecution);
+        uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
+
+        uint256 actualFee = balanceAfter - balanceBefore;
+        uint256 maxAllowedDeviation = (feeAmount * FEE_TOLERANCE) / FEE_TOLERANCE_DENOMINATOR;
+        if (actualFee < feeAmount - maxAllowedDeviation || actualFee > feeAmount + maxAllowedDeviation) revert FEE_NOT_TRANSFERRED();
     }
 
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) internal virtual {
