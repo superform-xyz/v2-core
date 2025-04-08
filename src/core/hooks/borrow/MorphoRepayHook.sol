@@ -95,8 +95,9 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         uint256 shareBalance = uint256(borrowBalance);
 
         uint256 fee = _deriveFeeAmount(marketParams);
+        uint256 collateral = _deriveCollateralAmount(marketParams.id(), account);
 
-        executions = new Execution[](4);
+        executions = new Execution[](5);
         if (vars.isFullRepayment) {
             uint256 assetsToPay = fee + _sharesToAssets(marketParams, account);
             executions[0] =
@@ -113,8 +114,12 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            executions[4] = Execution({
+                target: morpho,
+                value: 0,
+                callData: abi.encodeCall(IMorphoBase.withdrawCollateral, (marketParams, collateral, account, account))
+            });
         } else {
-            uint256 assetsToPay = fee + _assetsToShares(marketParams, vars.amount);
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
@@ -129,6 +134,11 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            executions[4] = Execution({
+                target: morpho,
+                value: 0,
+                callData: abi.encodeCall(IMorphoBase.withdrawCollateral, (marketParams, vars.amount / collateral, account, account))
+            });
         }
     }
     /*//////////////////////////////////////////////////////////////
@@ -197,6 +207,11 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
 
     function _deriveShareBalance(Id id, address account) internal view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
+    }
+
+    function _deriveCollateralAmount(Id id, address account) internal view returns (uint256 collateralAmount) {
+        (,, uint128 collateral) = morphoStaticTyping.position(id, account);
+        collateralAmount = uint256(collateral);
     }
 
     function _deriveFeeAmount(MarketParams memory marketParams) internal view returns (uint256 feeAmount) {
