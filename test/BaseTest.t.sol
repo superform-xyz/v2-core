@@ -2202,12 +2202,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256 amount,
         uint256 lltv,
         bool usePrevHookAmount,
-        bool isFullRepayment
+        bool isFullRepayment,
+        bool isPositiveFeed
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
+        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed);
     }
 }
