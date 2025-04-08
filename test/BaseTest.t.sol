@@ -2271,7 +2271,26 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
     }
 
-    function _createCancelHookData(address yieldSource) internal pure returns (bytes memory) {
-        return abi.encodePacked(yieldSource);
+    function _createCancelHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource);
+    }
+
+    function _createClaimCancelHookData(
+        bytes4 yieldSourceOracleId,
+        address yieldSource,
+        address receiver
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, receiver);
     }
 }

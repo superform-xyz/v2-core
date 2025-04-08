@@ -53,6 +53,28 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
     string public constant YIELD_SOURCE_7540_ETH_USDC_KEY = "Centrifuge_7540_ETH_USDC";
     string public constant YIELD_SOURCE_ORACLE_7540_KEY = "YieldSourceOracle_7540";
 
+    struct FulfillRedemptionsLocalVars {
+        uint256 shares1;
+        uint256 shares2;
+        uint256 totalShares;
+        uint256 sharesFluid;
+        uint256 assetsFluid;
+        uint256 assetsCentrifuge;
+        uint256 totalAssets;
+        uint256 vault1Proportion;
+        uint256 vault2Proportion;
+        uint256 vault1Shares;
+        uint256 vault2Shares;
+        uint256 fluidRedeemShares;
+        uint256 fluidRedeemAmount;
+        address[] requestingUsers;
+        address redeemHookAddress;
+        address redeem7540HookAddress;
+        address[] fulfillHooksAddresses;
+        bytes[] fulfillHooksData;
+        uint256[] expectedAssetsOrSharesOut;
+    }
+
     function setUp() public override {
         super.setUp();
         console2.log("--- SET UP 7540 UNDERLYING SV ---");
@@ -240,6 +262,150 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
+    function test_SuperVault_7540_Underlying_Cancel_Deposit_Flow() public {
+        // Request deposit into superVault as user1
+        _requestDeposit(amount);
+
+        // Request deposit into superVault as user2
+        deal(address(asset), accInstances[2].account, amount);
+        _requestDepositForAccount(accInstances[2], amount);
+
+        // Request deposit into 7540 vault
+        _requestCentrifugeDeposit(amount);
+
+        // Instead of fulfilling the deposit, cancel it
+        console2.log("\n --- CANCELLING CENTRIFUGE DEPOSIT REQUEST ---");
+        _cancelCentrifugeDepositRequest();
+
+        // Fulfill the cancellation
+        _fulfillCancelDepositRequest(amount);
+
+        // Claim the cancelled deposit
+        uint256 claimedAssets = _claimCancelDepositRequest();
+        console2.log("Claimed assets from cancelled deposit:", claimedAssets);
+
+        // Request a new deposit with the claimed assets
+        console2.log("\n --- REQUESTING NEW CENTRIFUGE DEPOSIT ---");
+        _requestCentrifugeDeposit(claimedAssets);
+
+        // Now fulfill the deposit requests as normally would
+        _fulfillDepositRequests(amount * 2);
+        console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
+        (uint256 totalAssets_,) = strategy.totalAssets();
+        console2.log("\n Total Assets", totalAssets_);
+
+        assertEq(strategy.pendingDepositRequest(accountEth), 0);
+        assertEq(strategy.pendingDepositRequest(accInstances[2].account), 0);
+
+        // Claim deposit into superVault as user1
+        _claimDeposit(amount);
+        // Claim deposit into superVault as user2
+        _claimDepositForAccount(accInstances[2], amount);
+
+        assertEq(vault.maxDeposit(accountEth), 0);
+        assertEq(vault.maxDeposit(accInstances[2].account), 0);
+
+        // --- REDEMPTIONS ---
+        vm.warp(block.timestamp + 10 weeks);
+        console2.log("\n --- 10 WEEKS HAVE PASSED ---");
+        console2.log("pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
+        (totalAssets_,) = strategy.totalAssets();
+        console2.log("Total Assets", totalAssets_);
+
+        uint256 amountToRedeemAccEth = IERC20(vault.share()).balanceOf(accountEth);
+        __requestRedeem(instanceOnEth, amountToRedeemAccEth, false);
+        uint256 amountToRedeemAcc2 = IERC20(vault.share()).balanceOf(accInstances[2].account);
+        __requestRedeem(accInstances[2], amountToRedeemAcc2, false);
+
+        console2.log("user1 pending redeem", strategy.pendingRedeemRequest(accountEth));
+        console2.log("user2 pending redeem", strategy.pendingRedeemRequest(accInstances[2].account));
+
+        console2.log("\n REQUEST CENTRIFUGE REDEEM");
+
+        uint256 centrifugeExpectedAssets = _requestCentrifugeRedeem(true);
+
+        console2.log("---- PPS AFTER REDEEM REQUEST CENTRIFUGE SIDE", _getSuperVaultPricePerShare());
+
+        _fulfillRedemptions(centrifugeExpectedAssets);
+
+        console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
+    }
+
+    function test_SuperVault_7540_Underlying_Cancel_Redeem_Flow() public {
+        // Request deposit into superVault as user1
+        _requestDeposit(amount);
+
+        // Request deposit into superVault as user2
+        deal(address(asset), accInstances[2].account, amount);
+        _requestDepositForAccount(accInstances[2], amount);
+
+        // Request deposit into 7540 vault
+        _requestCentrifugeDeposit(amount);
+
+        // Deposit into underlying vaults as strategy
+        _fulfillDepositRequests(amount * 2);
+        console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
+        (uint256 totalAssets_,) = strategy.totalAssets();
+        console2.log("\n Total Assets", totalAssets_);
+
+        assertEq(strategy.pendingDepositRequest(accountEth), 0);
+        assertEq(strategy.pendingDepositRequest(accInstances[2].account), 0);
+
+        // Claim deposit into superVault as user1
+        _claimDeposit(amount);
+        // Claim deposit into superVault as user2
+        _claimDepositForAccount(accInstances[2], amount);
+
+        assertEq(vault.maxDeposit(accountEth), 0);
+        assertEq(vault.maxDeposit(accInstances[2].account), 0);
+
+        // --- REDEMPTIONS ---
+        vm.warp(block.timestamp + 10 weeks);
+        console2.log("\n --- 10 WEEKS HAVE PASSED ---");
+        console2.log("pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
+        (totalAssets_,) = strategy.totalAssets();
+        console2.log("Total Assets", totalAssets_);
+
+        uint256 amountToRedeemAccEth = IERC20(vault.share()).balanceOf(accountEth);
+        __requestRedeem(instanceOnEth, amountToRedeemAccEth, false);
+        uint256 amountToRedeemAcc2 = IERC20(vault.share()).balanceOf(accInstances[2].account);
+        __requestRedeem(accInstances[2], amountToRedeemAcc2, false);
+
+        console2.log("user1 pending redeem", strategy.pendingRedeemRequest(accountEth));
+        console2.log("user2 pending redeem", strategy.pendingRedeemRequest(accInstances[2].account));
+
+        console2.log("\n REQUEST CENTRIFUGE REDEEM");
+
+        // First request the redeem normally
+        _requestCentrifugeRedeem(false);
+
+        // Instead of fulfilling the redemption, cancel it
+        console2.log("\n --- CANCELLING CENTRIFUGE REDEEM REQUEST ---");
+        _cancelCentrifugeRedeemRequest();
+
+        // Get share balance before cancel
+        uint256 sharesBefore = IERC20(centrifugeVault.share()).balanceOf(address(strategy));
+
+        // Fulfill the cancellation
+        _fulfillCancelRedeemRequest(sharesBefore);
+
+        // Claim the cancelled redeem
+        uint256 claimedShares = _claimCancelRedeemRequest();
+        console2.log("Claimed shares from cancelled redeem:", claimedShares);
+
+        // Request a new redeem with the claimed shares
+        console2.log("\n --- REQUESTING NEW CENTRIFUGE REDEEM ---");
+
+        // Request a new redeem with warping to simulate yield
+        uint256 centrifugeExpectedAssets = _requestCentrifugeRedeem(true);
+
+        console2.log("---- PPS AFTER REDEEM REQUEST CENTRIFUGE SIDE", _getSuperVaultPricePerShare());
+
+        _fulfillRedemptions(centrifugeExpectedAssets);
+
+        console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
+    }
+
     function _requestCentrifugeDeposit(uint256 amountToDeposit) internal {
         // Request deposit into 7540 vault
         address approveAndRequestDepositHookAddress =
@@ -384,28 +550,6 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         centrifugeAssets = centrifugeVault.maxWithdraw(address(strategy));
     }
 
-    struct FulfillRedemptionsLocalVars {
-        uint256 shares1;
-        uint256 shares2;
-        uint256 totalShares;
-        uint256 sharesFluid;
-        uint256 assetsFluid;
-        uint256 assetsCentrifuge;
-        uint256 totalAssets;
-        uint256 vault1Proportion;
-        uint256 vault2Proportion;
-        uint256 vault1Shares;
-        uint256 vault2Shares;
-        uint256 fluidRedeemShares;
-        uint256 fluidRedeemAmount;
-        address[] requestingUsers;
-        address redeemHookAddress;
-        address redeem7540HookAddress;
-        address[] fulfillHooksAddresses;
-        bytes[] fulfillHooksData;
-        uint256[] expectedAssetsOrSharesOut;
-    }
-
     function _fulfillRedemptions(uint256 centrifugeExpectedAssets) internal {
         FulfillRedemptionsLocalVars memory vars;
 
@@ -497,5 +641,125 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         assertLt(strategy.getYieldSourceAssetsInTransitInflows(address(centrifugeVault)), 5);
         assertLt(strategy.getYieldSourceSharesInTransitOutflows(address(centrifugeVault)), 5);
+    }
+
+    function _cancelCentrifugeDepositRequest() internal {
+        address cancelDepositRequestHookAddress = _getHookAddress(ETH, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
+
+        address[] memory cancelHooksAddresses = new address[](1);
+        cancelHooksAddresses[0] = cancelDepositRequestHookAddress;
+
+        bytes[] memory cancelHooksData = new bytes[](1);
+        cancelHooksData[0] =
+            _createCancelHookData(bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault));
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: cancelHooksAddresses,
+                hookCalldata: cancelHooksData,
+                hookProofs: _getMerkleProofsForAddresses(cancelHooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](1)
+            })
+        );
+
+        console2.log("Centrifuge deposit request cancelled");
+    }
+
+    function _fulfillCancelDepositRequest(uint256 amountToCancel) internal {
+        // Fulfill Centrifuge Cancel Deposit Request as rootManager
+        vm.prank(rootManager);
+        investmentManager.fulfillCancelDepositRequest(
+            poolId, trancheId, address(strategy), assetId, uint128(amountToCancel), uint128(amountToCancel)
+        );
+
+        console2.log("Centrifuge cancel deposit request fulfilled");
+    }
+
+    function _claimCancelDepositRequest() internal returns (uint256 claimedAssets) {
+        address claimCancelDepositRequestHookAddress = _getHookAddress(ETH, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
+
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = claimCancelDepositRequestHookAddress;
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createClaimCancelHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), address(strategy)
+        );
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: claimHooksAddresses,
+                hookCalldata: claimHooksData,
+                hookProofs: _getMerkleProofsForAddresses(claimHooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](1)
+            })
+        );
+
+        console2.log("Centrifuge cancel deposit request claimed");
+        return IERC20(centrifugeVault.asset()).balanceOf(address(strategy));
+    }
+
+    function _cancelCentrifugeRedeemRequest() internal {
+        address cancelRedeemRequestHookAddress = _getHookAddress(ETH, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
+
+        address[] memory cancelHooksAddresses = new address[](1);
+        cancelHooksAddresses[0] = cancelRedeemRequestHookAddress;
+
+        bytes[] memory cancelHooksData = new bytes[](1);
+        cancelHooksData[0] =
+            _createCancelHookData(bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault));
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: cancelHooksAddresses,
+                hookCalldata: cancelHooksData,
+                hookProofs: _getMerkleProofsForAddresses(cancelHooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](1)
+            })
+        );
+
+        console2.log("Centrifuge redeem request cancelled");
+    }
+
+    function _fulfillCancelRedeemRequest(uint256 sharesToCancel) internal {
+        // Fulfill Centrifuge Cancel Redeem Request as rootManager
+        vm.prank(rootManager);
+        investmentManager.fulfillCancelRedeemRequest(
+            poolId, trancheId, address(strategy), assetId, uint128(sharesToCancel)
+        );
+
+        console2.log("Centrifuge cancel redeem request fulfilled");
+    }
+
+    function _claimCancelRedeemRequest() internal returns (uint256 claimedShares) {
+        address claimCancelRedeemRequestHookAddress = _getHookAddress(ETH, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
+
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = claimCancelRedeemRequestHookAddress;
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createClaimCancelHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), address(strategy)
+        );
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: claimHooksAddresses,
+                hookCalldata: claimHooksData,
+                hookProofs: _getMerkleProofsForAddresses(claimHooksAddresses),
+                expectedAssetsOrSharesOut: new uint256[](1)
+            })
+        );
+
+        console2.log("Centrifuge cancel redeem request claimed");
+        return IERC20(centrifugeVault.share()).balanceOf(address(strategy));
     }
 }

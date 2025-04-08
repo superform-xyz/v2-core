@@ -14,7 +14,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title CancelDepositRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 contract CancelDepositRequest7540Hook is BaseHook, ISuperHook {
     using HookDataDecoder for bytes;
 
@@ -34,9 +35,9 @@ contract CancelDepositRequest7540Hook is BaseHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address yieldSource = data.extractYieldSource();
 
-        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
