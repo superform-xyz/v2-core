@@ -44,6 +44,13 @@ import { ApproveAndRedeem4626VaultHook } from "../src/core/hooks/vaults/4626/App
 // -- erc7540
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+
+import { CancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
+import { CancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import { CancelDepositHook } from "../src/core/hooks/vaults/super-vault/CancelDepositHook.sol";
+import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
@@ -154,6 +161,12 @@ struct Addresses {
     Withdraw7540VaultHook withdraw7540VaultHook;
     ApproveAndWithdraw7540VaultHook approveAndWithdraw7540VaultHook;
     ApproveAndRedeem7540VaultHook approveAndRedeem7540VaultHook;
+    CancelDepositRequest7540Hook cancelDepositRequest7540Hook;
+    CancelRedeemRequest7540Hook cancelRedeemRequest7540Hook;
+    ClaimCancelDepositRequest7540Hook claimCancelDepositRequest7540Hook;
+    ClaimCancelRedeemRequest7540Hook claimCancelRedeemRequest7540Hook;
+    CancelDepositHook cancelDepositHook;
+    CancelRedeemHook cancelRedeemHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     Swap1InchHook swap1InchHook;
     SwapOdosHook swapOdosHook;
@@ -502,7 +515,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](32);
+            address[] memory hooksAddresses = new address[](38);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -952,6 +965,101 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
             hooksAddresses[31] = address(A[i].ethenaUnstakeHook);
 
+            A[i].cancelDepositRequest7540Hook =
+                new CancelDepositRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].cancelDepositRequest7540Hook), CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
+            hookAddresses[chainIds[i]][CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY] =
+                address(A[i].cancelDepositRequest7540Hook);
+            hooks[chainIds[i]][CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY] = Hook(
+                CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A[i].cancelDepositRequest7540Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY]
+            );
+            hooksAddresses[32] = address(A[i].cancelDepositRequest7540Hook);
+
+            A[i].cancelRedeemRequest7540Hook =
+                new CancelRedeemRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].cancelRedeemRequest7540Hook), CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
+            hookAddresses[chainIds[i]][CANCEL_REDEEM_REQUEST_7540_HOOK_KEY] = address(A[i].cancelRedeemRequest7540Hook);
+            hooks[chainIds[i]][CANCEL_REDEEM_REQUEST_7540_HOOK_KEY] = Hook(
+                CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A[i].cancelRedeemRequest7540Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][CANCEL_REDEEM_REQUEST_7540_HOOK_KEY]
+            );
+            hooksAddresses[33] = address(A[i].cancelRedeemRequest7540Hook);
+
+            A[i].claimCancelDepositRequest7540Hook =
+                new ClaimCancelDepositRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].claimCancelDepositRequest7540Hook), CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
+            hookAddresses[chainIds[i]][CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY] =
+                address(A[i].claimCancelDepositRequest7540Hook);
+            hooks[chainIds[i]][CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY] = Hook(
+                CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A[i].claimCancelDepositRequest7540Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY]
+            );
+            hooksAddresses[34] = address(A[i].claimCancelDepositRequest7540Hook);
+
+            A[i].claimCancelRedeemRequest7540Hook =
+                new ClaimCancelRedeemRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].claimCancelRedeemRequest7540Hook), CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
+            hookAddresses[chainIds[i]][CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY] =
+                address(A[i].claimCancelRedeemRequest7540Hook);
+            hooks[chainIds[i]][CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY] = Hook(
+                CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A[i].claimCancelRedeemRequest7540Hook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY]
+            );
+            hooksAddresses[35] = address(A[i].claimCancelRedeemRequest7540Hook);
+
+            A[i].cancelDepositHook = new CancelDepositHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].cancelDepositHook), CANCEL_DEPOSIT_HOOK_KEY);
+            hookAddresses[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY] = address(A[i].cancelDepositHook);
+            hooks[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY] = Hook(
+                CANCEL_DEPOSIT_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A[i].cancelDepositHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
+                hooks[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY]
+            );
+            hooksAddresses[36] = address(A[i].cancelDepositHook);
+
+            A[i].cancelRedeemHook = new CancelRedeemHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
+            vm.label(address(A[i].cancelRedeemHook), CANCEL_REDEEM_HOOK_KEY);
+            hookAddresses[chainIds[i]][CANCEL_REDEEM_HOOK_KEY] = address(A[i].cancelRedeemHook);
+            hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY] = Hook(
+                CANCEL_REDEEM_HOOK_KEY,
+                HookCategory.VaultWithdrawals,
+                HookCategory.VaultDeposits,
+                address(A[i].cancelRedeemHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
+            hooksAddresses[37] = address(A[i].cancelRedeemHook);
+
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
         }
@@ -1004,6 +1112,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 console2.log(address(A[i].yearnClaimOneRewardHook));
                 console2.log(address(A[i].ethenaCooldownSharesHook));
                 console2.log(address(A[i].ethenaUnstakeHook));
+                console2.log(address(A[i].cancelDepositRequest7540Hook));
+                console2.log(address(A[i].cancelRedeemRequest7540Hook));
+                console2.log(address(A[i].claimCancelDepositRequest7540Hook));
+                console2.log(address(A[i].claimCancelRedeemRequest7540Hook));
+                console2.log(address(A[i].cancelDepositHook));
+                console2.log(address(A[i].cancelRedeemHook));
             }
 
             // Register fulfillRequests hooks
@@ -1038,7 +1152,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             peripheryRegistry.registerHook(address(A[i].approveAndGearboxStakeHook), false);
             peripheryRegistry.registerHook(address(A[i].gearboxUnstakeHook), false);
             peripheryRegistry.registerHook(address(A[i].yearnClaimOneRewardHook), false);
-
+            peripheryRegistry.registerHook(address(A[i].cancelDepositRequest7540Hook), false);
+            peripheryRegistry.registerHook(address(A[i].cancelRedeemRequest7540Hook), false);
+            peripheryRegistry.registerHook(address(A[i].claimCancelDepositRequest7540Hook), false);
+            peripheryRegistry.registerHook(address(A[i].claimCancelRedeemRequest7540Hook), false);
+            peripheryRegistry.registerHook(address(A[i].cancelDepositHook), false);
+            peripheryRegistry.registerHook(address(A[i].cancelRedeemHook), false);
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             peripheryRegistry.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             peripheryRegistry.registerHook(address(A[i].ethenaUnstakeHook), true);
@@ -1473,8 +1592,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address account;
     }
 
-    function _precomputeTargetExecutorAccount(address validator, address signer, address targetExecutor, address nexusFactory, address nexusBootstrap) internal returns (address) {
-        (, address account) = _createAccountCreationData_AcrossTargetExecutor(validator, signer, targetExecutor, nexusFactory, nexusBootstrap);
+    function _precomputeTargetExecutorAccount(
+        address validator,
+        address signer,
+        address targetExecutor,
+        address nexusFactory,
+        address nexusBootstrap
+    )
+        internal
+        returns (address)
+    {
+        (, address account) = _createAccountCreationData_AcrossTargetExecutor(
+            validator, signer, targetExecutor, nexusFactory, nexusBootstrap
+        );
         return account;
     }
 
@@ -2128,7 +2258,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     function _createApproveAndRequestDeposit7540HookData(
-        bytes4 yieldSourceOracleId,
         address yieldSource,
         address token,
         uint256 amount,
@@ -2138,6 +2267,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
+        return abi.encodePacked(bytes4(bytes("")), yieldSource, token, amount, usePrevHookAmount);
+    }
+
+    function _createCancelHookData(address yieldSource) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes4(bytes("")), yieldSource);
+    }
+
+    function _createClaimCancelHookData(address yieldSource, address receiver) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
     }
 }

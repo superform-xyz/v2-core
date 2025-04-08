@@ -54,12 +54,24 @@ interface ISuperHookResultOutflow is ISuperHookResult {
     function usedShares() external view returns (uint256);
 }
 
-/// @title ISuperHookNonAccounting
+/// @title ISuperHookAsync
 /// @author Superform Labs
-/// @notice Interface for the SuperHookResultNonAccounting contract that manages non-accounting hook results
-interface ISuperHookNonAccounting {
+interface ISuperHookAsync {
     /// @notice The amount of assets or shares processed by the hook
     function getUsedAssetsOrShares() external view returns (uint256, bool);
+}
+
+/// @title ISuperHookAsyncCancelations
+/// @author Superform Labs
+interface ISuperHookAsyncCancelations {
+    enum CancelationType {
+        NONE,
+        INFLOW,
+        OUTFLOW
+    }
+
+    /// @notice Whether the hook is a cancelation hook
+    function isAsyncCancelHook() external pure returns (CancelationType asyncType);
 }
 
 /// @title ISuperHook
