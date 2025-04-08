@@ -92,7 +92,7 @@ contract ApproveAndRedeem7540VaultHook is
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         lockForSP = _decodeBool(data, 77);
-        spToken = yieldSource;
+        spToken = IERC7540(yieldSource).share();
     }
 
     /// @inheritdoc ISuperHook
