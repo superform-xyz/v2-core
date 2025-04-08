@@ -304,7 +304,7 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
         address dstToken = address(bytes20(data[:20]));
         address dstReceiver = address(bytes20(data[20:40]));
 
-        if (dstToken == NATIVE) {
+        if (dstToken == NATIVE || dstToken == address(0)) {
             return dstReceiver.balance;
         }
         return IERC20(dstToken).balanceOf(dstReceiver);
