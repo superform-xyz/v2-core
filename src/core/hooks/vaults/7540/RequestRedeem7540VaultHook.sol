@@ -14,7 +14,8 @@ import {
     ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
+    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -22,7 +23,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title RequestRedeem7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         bytes4 empty = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
@@ -30,7 +31,8 @@ contract RequestRedeem7540VaultHook is
     BaseHook,
     ISuperHook,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
+    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -73,11 +75,14 @@ contract RequestRedeem7540VaultHook is
         });
     }
 
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @return outAmount The amount of assets or shares processed by the hook
-    /// @return isShares Whether the amount is in shares
+    /// @inheritdoc ISuperHookAsync
     function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
         return (outAmount, true);
+    }
+
+    /// @inheritdoc ISuperHookAsyncCancelations
+    function isAsyncCancelHook() external pure returns (CancelationType) {
+        return CancelationType.NONE;
     }
 
     /*//////////////////////////////////////////////////////////////

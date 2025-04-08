@@ -164,8 +164,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         return REQUEST_ID;
     }
 
-    /// @notice Cancel a pending deposit request and return assets to the user
-    /// @param controller The controller address
+    /// @inheritdoc ISuperVault
     function cancelDeposit(address controller) external {
         _validateController(controller);
 
@@ -204,8 +203,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         return REQUEST_ID;
     }
 
-    /// @notice Cancel a pending redeem request and return shares to the user
-    /// @param controller The controller address
+    /// @inheritdoc ISuperVault
     function cancelRedeem(address controller) external {
         _validateController(controller);
 
