@@ -164,7 +164,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
                                 TESTS
     //////////////////////////////////////////////////////////////*/
 
-    function test_BorrowHook_E2E() public {
+    function test_Borrow_Repay_Hooks_E2E() public {
         console2.log("Original pps", _getSuperVaultPricePerShare());
 
         // Request deposit into superVault as user1
