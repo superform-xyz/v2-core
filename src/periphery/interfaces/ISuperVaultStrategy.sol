@@ -176,7 +176,7 @@ interface ISuperVaultStrategy {
         uint256 amountOfAssets;
         uint256 amountConvertedToUnderlyingShares;
         uint256 balanceAssetBefore;
-        address yieldSource;
+        address target;
     }
 
     struct MatchVars {
@@ -359,14 +359,9 @@ interface ISuperVaultStrategy {
     /// @return The amount of assets in transit inflows
     function getYieldSourceAssetsInTransitInflows(address source) external view returns (uint256);
 
-    /// @notice Get the yield source assets in transit outflows
+    /// @notice Get the yield source shares in transit outflows
     /// @param source The yield source address
-    function getYieldSourceAssetsInTransitOutflows(address source) external view returns (uint256);
-
-    /// @notice Get the yield source price per share
-    /// @param source The yield source address
-    /// @return The price per share
-    function getYieldSourcePPS(address source) external view returns (uint256);
+    function getYieldSourceSharesInTransitOutflows(address source) external view returns (uint256);
 
     /*//////////////////////////////////////////////////////////////
                         ERC7540 VIEW FUNCTIONS

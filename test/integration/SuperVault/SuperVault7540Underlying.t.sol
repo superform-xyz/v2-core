@@ -147,10 +147,16 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         (uint256 totalAssets_,) = strategy.totalAssets();
         console2.log("\n Total Assets", totalAssets_);
 
+        assertEq(strategy.pendingDepositRequest(accountEth), 0);
+        assertEq(strategy.pendingDepositRequest(accInstances[2].account), 0);
+
         // Claim deposit into superVault as user1
         _claimDeposit(amount);
         // Claim deposit into superVault as user2
         _claimDepositForAccount(accInstances[2], amount);
+
+        assertEq(vault.maxDeposit(accountEth), 0);
+        assertEq(vault.maxDeposit(accInstances[2].account), 0);
 
         // --- REDEMPTIONS ---
         vm.warp(block.timestamp + 10 weeks);
@@ -179,7 +185,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
-    function test_SuperVault_7540_Underlying_E2E_Flow_WarpingCentrifuge_Cancelation() public {
+    function test_SuperVault_7540_Underlying_E2E_Flow_Warping() public {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
@@ -196,10 +202,16 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         (uint256 totalAssets_,) = strategy.totalAssets();
         console2.log("\n Total Assets", totalAssets_);
 
+        assertEq(strategy.pendingDepositRequest(accountEth), 0);
+        assertEq(strategy.pendingDepositRequest(accInstances[2].account), 0);
+
         // Claim deposit into superVault as user1
         _claimDeposit(amount);
         // Claim deposit into superVault as user2
         _claimDepositForAccount(accInstances[2], amount);
+
+        assertEq(vault.maxDeposit(accountEth), 0);
+        assertEq(vault.maxDeposit(accInstances[2].account), 0);
 
         // --- REDEMPTIONS ---
         vm.warp(block.timestamp + 10 weeks);
@@ -316,9 +328,13 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         uint256 shares = amount.mulDiv(1e18, pps);
         _trackDeposit(accountEth, shares, amount);
         _trackDeposit(accInstances[2].account, shares, amount);
+
+        uint256 centrifugeShares = IERC20(centrifugeVault.share()).balanceOf(address(strategy));
+
+        console2.log(" BALANCE OF CENTRIFUGE SHARES IN SUPER VAULT", centrifugeShares);
     }
 
-    function _requestCentrifugeRedeem(bool warp) internal returns (uint256 centrifugeExpectedAssets) {
+    function _requestCentrifugeRedeem(bool warp) internal returns (uint256 centrifugeAssets) {
         address requestRedeemHookAddress = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
 
         address[] memory requestHooksAddresses = new address[](1);
@@ -345,7 +361,8 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
         if (warp) vm.warp(block.timestamp + 10 weeks);
 
-        uint256 expectedAssetsOut = centrifugeVault.convertToAssets(centrifugeRedeem) + (warp ? 100e6 : 0);
+        uint256 expectedAssetsOut = centrifugeVault.convertToAssets(centrifugeRedeem) + (warp ? 1e6 : 0);
+        console2.log("expected assets out", expectedAssetsOut);
 
         uint256 expectedPps = expectedAssetsOut.mulDiv(1e18, centrifugeRedeem, Math.Rounding.Floor);
 
@@ -364,11 +381,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         }
 
         // saving expected assets in advance
-        uint256 centrifugeShares = centrifugeVault.maxRedeem(address(strategy));
-        console2.log("centrifugeShares", centrifugeShares);
-        centrifugeExpectedAssets = IYieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY)).getAssetOutput(
-            address(centrifugeVault), address(asset), centrifugeShares
-        );
+        centrifugeAssets = centrifugeVault.maxWithdraw(address(strategy));
     }
 
     struct FulfillRedemptionsLocalVars {
@@ -401,16 +414,16 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         vars.totalShares = vars.shares1 + vars.shares2;
 
         vars.sharesFluid = IERC4626(address(fluidVault)).balanceOf(address(strategy));
+        console2.log("vars.sharesFluid", vars.sharesFluid);
         vars.assetsFluid = fluidVault.convertToAssets(vars.sharesFluid);
 
         uint256 superVaultPPS = _getSuperVaultPricePerShare();
 
         uint256 superVaultShares = centrifugeExpectedAssets.mulDiv(1e18, superVaultPPS, Math.Rounding.Floor);
-        console2.log("ADSDASSD", superVaultShares);
-        //vars.assetsCentrifuge = strategy.getYieldSourceAssetsInTransitOutflows(address(centrifugeVault));
+        console2.log("SuperVault shares from centrifuge assets @ current PPS", superVaultShares);
 
         console2.log("assetsFluid", vars.assetsFluid);
-        console2.log("assetsCentrifuge", vars.assetsCentrifuge);
+        console2.log("assetsCentrifuge", centrifugeExpectedAssets);
 
         vars.totalAssets = vars.assetsFluid + centrifugeExpectedAssets;
 
@@ -420,7 +433,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         vars.vault2Proportion = centrifugeExpectedAssets.mulDiv(1e18, vars.totalAssets, Math.Rounding.Ceil);
 
         vars.vault1Shares = vars.totalShares.mulDiv(vars.vault1Proportion, 1e18, Math.Rounding.Floor);
-        vars.vault2Shares = vars.totalShares.mulDiv(vars.vault2Proportion, 1e18, Math.Rounding.Floor);
+        vars.vault2Shares = vars.totalShares - vars.vault1Shares;
 
         console2.log("vault1Shares", vars.vault1Shares);
         console2.log("vault2Shares", vars.vault2Shares);
@@ -457,12 +470,11 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vars.expectedAssetsOrSharesOut = new uint256[](2);
-        vars.fluidRedeemShares = fluidVault.maxRedeem(address(strategy));
-        vars.fluidRedeemAmount = fluidVault.convertToAssets(vars.fluidRedeemShares);
 
-        vars.expectedAssetsOrSharesOut[0] = vars.fluidRedeemAmount;
-        console2.log("centrifugeExpectedAssets", centrifugeExpectedAssets);
-        vars.expectedAssetsOrSharesOut[1] = centrifugeExpectedAssets;
+        vars.expectedAssetsOrSharesOut[0] = vars.vault1Shares.mulDiv(superVaultPPS, 1e18, Math.Rounding.Floor);
+        console2.log("vars.expectedAssetsOrSharesOut[0]", vars.expectedAssetsOrSharesOut[0]);
+        vars.expectedAssetsOrSharesOut[1] = vars.vault2Shares.mulDiv(superVaultPPS, 1e18, Math.Rounding.Floor);
+        console2.log("vars.expectedAssetsOrSharesOut[1]", vars.expectedAssetsOrSharesOut[1]);
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(
@@ -474,6 +486,16 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
             })
         );
+
+        vars.sharesFluid = IERC4626(address(fluidVault)).balanceOf(address(strategy));
+        console2.log("Shares fluid after", vars.sharesFluid);
+        console2.log("Shares (claimable) centrifuge after", centrifugeVault.maxRedeem(address(strategy)));
         console2.log("---- PPS After Fulfill Redemptions", _getSuperVaultPricePerShare());
+
+        assertEq(strategy.pendingRedeemRequest(accountEth), 0);
+        assertEq(strategy.pendingRedeemRequest(accInstances[2].account), 0);
+
+        assertLt(strategy.getYieldSourceAssetsInTransitInflows(address(centrifugeVault)), 5);
+        assertLt(strategy.getYieldSourceSharesInTransitOutflows(address(centrifugeVault)), 5);
     }
 }
