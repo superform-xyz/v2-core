@@ -22,7 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title ApproveAndRequestDeposit7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 empty = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);

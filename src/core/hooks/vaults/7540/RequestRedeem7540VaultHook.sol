@@ -23,7 +23,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title RequestRedeem7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 empty = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
