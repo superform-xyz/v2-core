@@ -182,11 +182,15 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
 
         // Warp forward to simulate yield
-        vm.warp(block.timestamp + 15 weeks);
+        //vm.warp(block.timestamp + 15 weeks);
 
         // Request redeem on superVault as user1
         _requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
         console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountBase));
+
+        // Fulfill redeem request
+        _fulfillRedeemRequests();
+        console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
     }
 
     function test_BorrowHook() public {
@@ -422,14 +426,80 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         executeOp(redeemUserOpData);
     }
 
+    function _fulfillRedeemRequests() internal {
+        // redeem
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountBase;
+
+        address redeemHook = _getHookAddress(BASE, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+
+        address[] memory redeemHooks = new address[](1);
+        redeemHooks[0] = redeemHook;
+
+        uint256 redeemShares = strategy.pendingRedeemRequest(accountBase);
+
+        bytes[] memory redeemHookData = new bytes[](1);
+        redeemHookData[0] = _createApproveAndRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(morphoVaultInstance),
+            address(morphoVaultInstance),
+            address(strategy),
+            redeemShares,
+            false,
+            false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        uint256 strategyShares = morphoVaultInstance.maxRedeem(address(strategy));
+        expectedAssetsOrSharesOut[0] = morphoVaultInstance.convertToAssets(strategyShares);
+        console2.log("----expectedAssetsOrSharesOut", expectedAssetsOrSharesOut[0]);
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: requestingUsers,
+                hooks: redeemHooks,
+                hookCalldata: redeemHookData,
+                hookProofs: _getMerkleProofsForAddresses(BASE, redeemHooks),
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
+            })
+        );
+
+        console2.log("----loanToken balance after redeem", IERC20(loanToken).balanceOf(address(strategy)));
+
+        // repay and claim collateral
+        address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
+        
+        address[] memory repayHooks = new address[](1);
+        repayHooks[0] = repayHook;
+
+        bytes[] memory repayHookData = new bytes[](1);
+        repayHookData[0] = _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true, false);
+        
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: repayHooks,
+                hookCalldata: repayHookData,
+                hookProofs: _getMerkleProofsForAddresses(BASE, repayHooks),
+                expectedAssetsOrSharesOut: new uint256[](1)
+            })
+        );
+
+        console2.log("----collateral balance after repay", IERC20(collateralToken).balanceOf(address(strategy)));
+        
+        
+    }
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
     function _deriveCollateralAmount(
         uint256 loanAmount,
-        address loanToken,
-        address collateralToken,
+        address loanTokenAddress,
+        address collateralTokenAddress,
         bool isPositiveFeed
     )
         internal
@@ -437,8 +507,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         returns (uint256 collateral)
     {
         uint256 price = oracle.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+        uint256 loanDecimals = ERC20(loanTokenAddress).decimals();
+        uint256 collateralDecimals = ERC20(collateralTokenAddress).decimals();
 
         // Correct scaling factor as per the oracle's specification:
         // 10^(36 + loanDecimals - collateralDecimals)
