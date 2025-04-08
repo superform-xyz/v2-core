@@ -13,6 +13,7 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 
 /// @title ApproveERC20Hook
 /// @author Superform Labs
+/// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
 /// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
