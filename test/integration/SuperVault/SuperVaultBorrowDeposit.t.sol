@@ -15,7 +15,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { SharesMathLib } from "../../../src/vendor/morpho/SharesMathLib.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IMorpho, MarketParams, Market, IMorphoStaticTyping, Id} from "../../../src/vendor/morpho/IMorpho.sol";
+import { IMorpho, MarketParams, Market, IMorphoStaticTyping, Id } from "../../../src/vendor/morpho/IMorpho.sol";
 import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modulekit/ModuleKit.sol";
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
@@ -263,7 +263,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
-        
     }
 
     /*//////////////////////////////////////////////////////////////
