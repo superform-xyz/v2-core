@@ -15,11 +15,11 @@ contract MockEntryPoint {
     uint256 public withdrawAmount;
     
     struct DepositInfo {
-        uint256 deposit;
+        uint112 deposit;
         bool staked;
-        uint256 stake;
-        uint256 unstakeDelaySec;
-        uint256 withdrawTime;
+        uint112 stake;
+        uint32 unstakeDelaySec;
+        uint48 withdrawTime;
     }
     
     // Define the missing structs
@@ -68,20 +68,18 @@ contract MockEntryPoint {
 
     fallback() external payable {
         depositAmount += msg.value;
-        deposits[msg.sender].deposit += msg.value;
+        deposits[msg.sender].deposit += uint112(msg.value);
     }
     receive() external payable {
         depositAmount += msg.value;
-        deposits[msg.sender].deposit += msg.value;
+        deposits[msg.sender].deposit += uint112(msg.value);
     }
     function supportsInterface(bytes4) public pure returns (bool) {
         return true;
     }
     
-    function depositTo(address account) public payable {
-        depositAmount += msg.value;
-        deposits[account].deposit += msg.value;
-        emit Deposited(account, deposits[account].deposit);
+    function depositTo(address account) external payable {
+        deposits[account].deposit += uint112(msg.value);
     }
     
     function withdrawTo(address payable withdrawAddress_, uint256 amount) external {
@@ -90,7 +88,7 @@ contract MockEntryPoint {
         
         withdrawAddress = withdrawAddress_;
         withdrawAmount = amount;
-        info.deposit -= amount;
+        info.deposit -= uint112(amount);
         
         (bool success,) = withdrawAddress_.call{value: amount}("");
         require(success, "Failed to withdraw");
@@ -102,15 +100,34 @@ contract MockEntryPoint {
     
     function handleOps(PackedUserOperation[] calldata ops, address payable beneficiary) external {
         uint256 opsLen = ops.length;
+        console2.log("---------------C", opsLen);
         for (uint256 i = 0; i < opsLen; i++) {
-            bytes32 userOpHash = getUserOpHash(ops[i]);
+            PackedUserOperation calldata op = ops[i];
+            bytes32 userOpHash = getUserOpHash(op);
             userOpHashes[userOpHash] = true;
+
+            // Get the paymaster address from the first 20 bytes of paymasterAndData
+            address paymaster = address(bytes20(op.paymasterAndData));
             
-            // Simulate successful execution
+            // Calculate requiredPreFund similar to EntryPoint
+            uint256 requiredPreFund = _getRequiredPrefund(op);
+            console2.log("---------------A", requiredPreFund);
+            
+            // Try to decrement deposit and revert if insufficient
+            DepositInfo storage paymasterInfo = deposits[paymaster];
+            console2.log("---------------B", paymasterInfo.deposit);
+            if (paymasterInfo.deposit < requiredPreFund) {
+                revert(string(abi.encodePacked("AA31 paymaster deposit too low")));
+            }
+            
+            // Decrement the deposit
+            paymasterInfo.deposit -= uint112(requiredPreFund);
+
+            // Emit event
             emit UserOperationEvent(
                 userOpHash,
-                ops[i].sender,
-                uint256(ops[i].nonce),
+                op.sender,
+                uint256(op.nonce),
                 true,
                 0,
                 0
@@ -119,7 +136,6 @@ contract MockEntryPoint {
         
         // Pay the beneficiary
         if (beneficiary != address(0)) {
-            console2.log("---------------A", beneficiary);
             (bool success,) = beneficiary.call{value: 0.01 ether}("");
             require(success, "Failed to pay beneficiary");
         }
@@ -191,7 +207,7 @@ contract MockEntryPoint {
     
     function addStake(uint32 unstakeDelaySec) external payable {
         require(unstakeDelaySec > 0, "Must specify unstake delay");
-        deposits[msg.sender].stake += msg.value;
+        deposits[msg.sender].stake += uint112(msg.value);
         deposits[msg.sender].unstakeDelaySec = unstakeDelaySec;
         deposits[msg.sender].staked = true;
         emit StakeLocked(msg.sender, deposits[msg.sender].stake, unstakeDelaySec);
@@ -200,7 +216,7 @@ contract MockEntryPoint {
     function unlockStake() external {
         DepositInfo storage info = deposits[msg.sender];
         require(info.staked, "Not staked");
-        info.withdrawTime = block.timestamp + info.unstakeDelaySec;
+        info.withdrawTime = uint48(block.timestamp) + uint48(info.unstakeDelaySec);
         info.staked = false;
         emit StakeUnlocked(msg.sender, info.withdrawTime);
     }
@@ -233,5 +249,9 @@ contract MockEntryPoint {
         bytes calldata
     ) external pure returns (uint256) {
         return 0;
+    }
+
+    function setDeposit(address account, uint256 amount) external {
+        deposits[account].deposit = uint112(amount);
     }
 }
