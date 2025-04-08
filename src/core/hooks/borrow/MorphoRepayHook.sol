@@ -11,7 +11,8 @@ import { SharesMathLib } from "../../../vendor/morpho/SharesMathLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { MarketParamsLib } from "../../../vendor/morpho/MarketParamsLib.sol";
-import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
+import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
@@ -119,11 +120,22 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account))
+                callData: abi.encodeCall(
+                    IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account)
+                )
             });
         } else {
             uint256 fullCollateral = _deriveCollateralForFullRepayment(vars.id, account);
-            collateralForWithdraw = _deriveCollateralForPartialRepayment(vars.id, vars.oracle, vars.loanToken, vars.collateralToken, account, vars.amount, fullCollateral, vars.isPositiveFeed);
+            collateralForWithdraw = _deriveCollateralForPartialRepayment(
+                vars.id,
+                vars.oracle,
+                vars.loanToken,
+                vars.collateralToken,
+                account,
+                vars.amount,
+                fullCollateral,
+                vars.isPositiveFeed
+            );
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
@@ -141,7 +153,9 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account))
+                callData: abi.encodeCall(
+                    IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account)
+                )
             });
         }
     }
@@ -149,6 +163,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
+
     function preExecute(address, address account, bytes memory data) external {
         // store current balance
         outAmount = _getBalance(account, data);
@@ -214,12 +229,32 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
 
-    function _deriveCollateralForFullRepayment(Id id, address account) internal view returns (uint256 collateralAmount) {
+    function _deriveCollateralForFullRepayment(
+        Id id,
+        address account
+    )
+        internal
+        view
+        returns (uint256 collateralAmount)
+    {
         (,, uint128 collateral) = morphoStaticTyping.position(id, account);
         collateralAmount = uint256(collateral);
     }
 
-    function _deriveCollateralForPartialRepayment(Id id, address oracle, address loanToken, address collateralToken, address account, uint256 amount, uint256 fullCollateral, bool isPositiveFeed) internal view returns (uint256 withdrawableCollateral) {
+    function _deriveCollateralForPartialRepayment(
+        Id id,
+        address oracle,
+        address loanToken,
+        address collateralToken,
+        address account,
+        uint256 amount,
+        uint256 fullCollateral,
+        bool isPositiveFeed
+    )
+        internal
+        view
+        returns (uint256 withdrawableCollateral)
+    {
         uint256 fullLoanAmount = _deriveLoanAmount(id, account);
         uint256 remainingLoan = fullLoanAmount - amount;
 
@@ -248,7 +283,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
     }
 
     function _deriveLoanAmount(Id id, address account) internal view returns (uint256 loanAmount) {
-        (,uint128 fullShares,) = morphoStaticTyping.position(id, account);
+        (, uint128 fullShares,) = morphoStaticTyping.position(id, account);
         uint256 castShares = uint256(fullShares);
 
         Market memory market = morphoInterface.market(id);

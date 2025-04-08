@@ -287,8 +287,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
         hooks[0] = repayHook;
 
-        bytes memory repayHookData =
-            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false, false);
+        bytes memory repayHookData = _createMorphoRepayHookData(
+            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false, false
+        );
         hookDataArray[0] = repayHookData;
 
         Id id = MarketParams({

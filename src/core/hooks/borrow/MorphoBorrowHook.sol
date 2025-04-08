@@ -85,7 +85,8 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 collateralAmount = _deriveCollateralAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
+        uint256 collateralAmount =
+            _deriveCollateralAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
 
         executions = new Execution[](4);
         executions[0] =
@@ -135,7 +136,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
         bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
         bool isPositiveFeed = _decodeBool(BytesLib.slice(data, 145, 1), 0);
-        
+
         vars = BuildHookLocalVars({
             loanToken: loanToken,
             collateralToken: collateralToken,

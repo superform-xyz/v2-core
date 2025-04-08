@@ -958,30 +958,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
             hooksAddresses[31] = address(A[i].ethenaUnstakeHook);
 
-            A[i].morphoBorrowHook = new MorphoBorrowHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
+            A[i].morphoBorrowHook =
+                new MorphoBorrowHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
             vm.label(address(A[i].morphoBorrowHook), MORPHO_BORROW_HOOK_KEY);
             hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].morphoBorrowHook);
-            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = Hook(
-                MORPHO_BORROW_HOOK_KEY,
-                HookCategory.Loans,
-                HookCategory.None,
-                address(A[i].morphoBorrowHook),
-                ""
-            );
+            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] =
+                Hook(MORPHO_BORROW_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoBorrowHook), "");
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
             hooksAddresses[32] = address(A[i].morphoBorrowHook);
 
-            A[i].morphoRepayHook = new MorphoRepayHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
+            A[i].morphoRepayHook =
+                new MorphoRepayHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
             vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
             hookAddresses[chainIds[i]][MORPHO_REPAY_HOOK_KEY] = address(A[i].morphoRepayHook);
             hooksAddresses[33] = address(A[i].morphoRepayHook);
-            hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY] = Hook(
-                MORPHO_REPAY_HOOK_KEY,
-                HookCategory.Loans,
-                HookCategory.None,
-                address(A[i].morphoRepayHook),
-                ""
-            );
+            hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY] =
+                Hook(MORPHO_REPAY_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoRepayHook), "");
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY]);
             hooksAddresses[34] = address(A[i].morphoRepayHook);
 
@@ -1509,8 +1501,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address account;
     }
 
-    function _precomputeTargetExecutorAccount(address validator, address signer, address targetExecutor, address nexusFactory, address nexusBootstrap) internal returns (address) {
-        (, address account) = _createAccountCreationData_AcrossTargetExecutor(validator, signer, targetExecutor, nexusFactory, nexusBootstrap);
+    function _precomputeTargetExecutorAccount(
+        address validator,
+        address signer,
+        address targetExecutor,
+        address nexusFactory,
+        address nexusBootstrap
+    )
+        internal
+        returns (address)
+    {
+        (, address account) = _createAccountCreationData_AcrossTargetExecutor(
+            validator, signer, targetExecutor, nexusFactory, nexusBootstrap
+        );
         return account;
     }
 
@@ -2191,7 +2194,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed);
+        return
+            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed);
     }
 
     function _createMorphoRepayHookData(
@@ -2209,6 +2213,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed);
+        return abi.encodePacked(
+            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
+        );
     }
 }
