@@ -206,7 +206,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
     function _deriveFeeAmount(MarketParams memory marketParams) internal view returns (uint256 feeAmount) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
-        uint256 borrowRate = IIrm(marketParams.irm).borrowRate(marketParams, market);
+        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
         uint256 elapsed = block.timestamp - market.lastUpdate;
         uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
 
