@@ -164,8 +164,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         return REQUEST_ID;
     }
 
-    /// @notice Cancel a pending deposit request and return assets to the user
-    /// @param controller The controller address
+    /// @inheritdoc ISuperVault
     function cancelDeposit(address controller) external {
         _validateController(controller);
 
@@ -204,8 +203,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         return REQUEST_ID;
     }
 
-    /// @notice Cancel a pending redeem request and return shares to the user
-    /// @param controller The controller address
+    /// @inheritdoc ISuperVault
     function cancelRedeem(address controller) external {
         _validateController(controller);
 
@@ -487,7 +485,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
-
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price
@@ -549,9 +546,22 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     /// @param assets The amount of assets deposited
     /// @param shares The amount of shares to be received
     /// @param averageDepositPrice The average price of the deposit
-    function onDepositClaimable(address user, uint256 assets, uint256 shares, uint256 averageDepositPrice) external {
+    /// @param accumulatorShares The amount of shares in the accumulator
+    /// @param accumulatorCostBasis The cost basis of the accumulator
+    function onDepositClaimable(
+        address user,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageDepositPrice,
+        uint256 accumulatorShares,
+        uint256 accumulatorCostBasis
+    )
+        external
+    {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
-        emit DepositClaimable(user, REQUEST_ID, assets, shares, averageDepositPrice);
+        emit DepositClaimable(
+            user, REQUEST_ID, assets, shares, averageDepositPrice, accumulatorShares, accumulatorCostBasis
+        );
     }
 
     /// @notice Callback function for when a redeem becomes claimable
@@ -559,9 +569,22 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     /// @param assets The amount of assets to be received
     /// @param shares The amount of shares redeemed
     /// @param averageWithdrawPrice The average price of the redeem
-    function onRedeemClaimable(address user, uint256 assets, uint256 shares, uint256 averageWithdrawPrice) external {
+    /// @param accumulatorShares The amount of shares in the accumulator
+    /// @param accumulatorCostBasis The cost basis of the accumulator
+    function onRedeemClaimable(
+        address user,
+        uint256 assets,
+        uint256 shares,
+        uint256 averageWithdrawPrice,
+        uint256 accumulatorShares,
+        uint256 accumulatorCostBasis
+    )
+        external
+    {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
-        emit RedeemClaimable(user, REQUEST_ID, assets, shares, averageWithdrawPrice);
+        emit RedeemClaimable(
+            user, REQUEST_ID, assets, shares, averageWithdrawPrice, accumulatorShares, accumulatorCostBasis
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 /// @title Common interface for price oracles.
-/// @dev Implements the spec at https://github.com/alcueca/oracles/blob/main/spec/spec.md.
+/// @dev Implements the spec at https://eips.ethereum.org/EIPS/eip-7726
 interface IOracle {
     /// @notice The oracle does not support the given base/quote pair.
     /// @param base The asset that the user needs to know the value or price for.

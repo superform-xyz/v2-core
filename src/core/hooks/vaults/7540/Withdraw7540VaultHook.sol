@@ -20,6 +20,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Withdraw7540VaultHook
 /// @author Superform Labs
+/// @notice Compatible only with ERC-7540 vaults where `requestId` is non-fungible
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);

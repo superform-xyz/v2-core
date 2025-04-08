@@ -199,7 +199,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndRequestDeposit7540HookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), address(asset), depositAmount, false
+           address(vault), address(asset), depositAmount, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -1222,11 +1222,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
 
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
+            configs
+        );
         vm.warp(block.timestamp + 2 weeks);
         bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
         yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
+            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
         vm.stopPrank();
     }
 
@@ -1244,11 +1247,14 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             ledger: _getContract(ETH, SUPER_LEDGER_KEY)
         });
 
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(configs);
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
+            configs
+        );
         vm.warp(block.timestamp + 2 weeks);
         bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
         yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);    
+        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
+            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
         vm.stopPrank();
     }
 
