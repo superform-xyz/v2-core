@@ -105,9 +105,13 @@ contract MorphoBorrowHookTest is BaseTest {
     function test_Build_RevertIf_ZeroAmount() public {
         amount = 0;
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        hook.build(address(0), address(this), abi.encodePacked(
-            address(loanToken), address(collateralToken), address(oracle), irm, uint256(0), lltv, false, true
-        ));
+        hook.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken), address(collateralToken), address(oracle), irm, uint256(0), lltv, false, true
+            )
+        );
     }
 
     function test_Build_RevertIf_InvalidAddresses() public {
