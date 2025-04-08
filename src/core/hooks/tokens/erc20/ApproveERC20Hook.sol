@@ -50,6 +50,7 @@ contract ApproveERC20Hook is BaseHook, ISuperHook, ISuperHookContextAware {
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();
 
+        // @dev no-revert-on-failure tokens are not supported
         executions = new Execution[](2);
         executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, 0)) });
         executions[1] =
