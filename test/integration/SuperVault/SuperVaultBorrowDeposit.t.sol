@@ -284,20 +284,21 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
         hooks[0] = repayHook;
 
+        bytes[] memory repayHookDataArray = new bytes[](1);
         bytes memory repayHookData =
             _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true, false);
-        hookDataArray[0] = repayHookData;
+        repayHookDataArray[0] = repayHookData;
 
         uint256 assetsPaid = _deriveAssetsPaid();
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
         UserOpData memory repayUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(repayEntry));
         executeOp(repayUserOpData);
 
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfterRepay, loanBalanceAfter - assetsPaid);
+        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - assetsPaid);
     }
 
     function test_RepayHook_PartialRepayment() public {
