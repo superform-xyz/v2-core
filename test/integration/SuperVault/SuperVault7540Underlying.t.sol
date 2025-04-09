@@ -20,6 +20,7 @@ import { IRoot } from "../../mocks/centrifuge/IRoot.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // superform
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault.sol";
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
 import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
@@ -77,6 +78,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
     function setUp() public override {
         super.setUp();
+
         console2.log("--- SET UP 7540 UNDERLYING SV ---");
 
         vm.selectFork(FORKS[ETH]);
@@ -152,14 +154,13 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
     }
 
-    function test_SuperVault_7540_Underlying_E2E_Flow() public {
+    function test_SuperVault_7540_Underlying_E2E_Flow() public executeWithoutHookRestrictions {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
         // Request deposit into superVault as user2
         deal(address(asset), accInstances[2].account, amount);
         _requestDepositForAccount(accInstances[2], amount);
-
         // Request deposit into 7540 vault using split functions
         _requestCentrifugeDepositStep1(amount);
         _requestCentrifugeDepositStep2(amount);
@@ -201,6 +202,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         // Request redeem using split functions
         uint256 centrifugeRedeem = _requestCentrifugeRedeemStep1();
+
         uint256 centrifugeExpectedAssets = _requestCentrifugeRedeemStep2(centrifugeRedeem, false);
 
         console2.log("---- PPS AFTER REDEEM REQUEST CENTRIFUGE SIDE", _getSuperVaultPricePerShare());
@@ -210,7 +212,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
-    function test_SuperVault_7540_Underlying_E2E_Flow_Warping() public {
+    function test_SuperVault_7540_Underlying_E2E_Flow_Warping() public executeWithoutHookRestrictions {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
@@ -268,7 +270,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
-    function test_SuperVault_7540_Underlying_Cancel_Deposit_Flow() public {
+    function test_SuperVault_7540_Underlying_Cancel_Deposit_Flow() public executeWithoutHookRestrictions {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
@@ -342,7 +344,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
-    function test_SuperVault_7540_Underlying_Cancel_Redeem_Flow() public {
+    function test_SuperVault_7540_Underlying_Cancel_Redeem_Flow() public executeWithoutHookRestrictions {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 

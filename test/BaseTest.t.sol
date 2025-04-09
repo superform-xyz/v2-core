@@ -133,6 +133,9 @@ import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
+import { BaseHook } from "../src/core/hooks/BaseHook.sol";
+import { MockBaseHook } from "./mocks/MockBaseHook.sol";
+
 import "forge-std/console2.sol";
 
 struct Addresses {
@@ -282,6 +285,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     bytes32 constant SALT = keccak256("TEST");
 
+    address public mockBaseHook;
+
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
@@ -407,6 +412,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _deployContracts(Addresses[] memory A) internal returns (Addresses[] memory) {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
+            mockBaseHook = address(new MockBaseHook());
+            vm.makePersistent(mockBaseHook);
 
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
@@ -1164,6 +1171,69 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         }
 
         return A;
+    }
+
+    // Hook mocking helpers
+
+    /**
+     * @notice Setup hook mocks to clear execution context
+     * @param hooks_ Array of hook addresses to mock
+     */
+    function _setupHookMocks(address[] memory hooks_) internal {
+        for (uint256 i = 0; i < hooks_.length; i++) {
+            vm.mockCall(hooks_[i], abi.encodeWithSignature("getExecutionCaller()"), abi.encode(address(0)));
+        }
+    }
+
+    /**
+     * @notice Helper to get all hooks for all chains
+     * @return hooks Array of all hooks across all chains
+     */
+    function _getAllHooksForTest() internal view returns (address[] memory) {
+        uint256 totalHooks = 0;
+
+        // Count total hooks across all chains
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            totalHooks += hookListPerChain[chainIds[i]].length;
+        }
+
+        // Create array to hold all hooks
+        address[] memory allHooks = new address[](totalHooks);
+        uint256 currentIndex = 0;
+
+        // Populate array with hooks from all chains
+        for (uint256 i = 0; i < chainIds.length; i++) {
+            address[] memory chainHooks = hookListPerChain[chainIds[i]];
+            for (uint256 j = 0; j < chainHooks.length; j++) {
+                allHooks[currentIndex] = chainHooks[j];
+                currentIndex++;
+            }
+        }
+
+        return allHooks;
+    }
+
+    /**
+     * @notice Modifier to mock hook execution context, allowing the same hook to be used multiple times in a test
+     */
+    modifier executeWithoutHookRestrictions() {
+        // Get all hooks for current chain
+        address[] memory hooks_ = _getAllHooksForTest();
+
+        // Setup mocks for all hooks
+        for (uint256 i = 0; i < hooks_.length; i++) {
+            if (hooks_[i] != address(0)) {
+                vm.mockFunction(
+                    hooks_[i], address(mockBaseHook), abi.encodeWithSelector(BaseHook.getExecutionCaller.selector)
+                );
+            }
+        }
+
+        // Run the test
+        _;
+
+        // Clear all mocks
+        vm.clearMockedCalls();
     }
 
     function _initializeAccounts(uint256 count) internal {
@@ -2104,9 +2174,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data
-        );
+        bytes memory _calldata =
+            abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
 
         return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }

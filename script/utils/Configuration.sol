@@ -106,7 +106,6 @@ abstract contract Configuration is Constants {
         configuration.okxRouters[BASE_SEPOLIA_CHAIN_ID] = OKX_ROUTER_BASE_SEPOLIA;
         configuration.okxRouters[OP_SEPOLIA_CHAIN_ID] = OKX_ROUTER_OP_SEPOLIA;
 
-
         configuration.nexusFactories[MAINNET_CHAIN_ID] = NEXUS_FACTORY_MAINNET;
         configuration.nexusFactories[BASE_CHAIN_ID] = NEXUS_FACTORY_BASE;
         configuration.nexusFactories[OPTIMISM_CHAIN_ID] = NEXUS_FACTORY_OPTIMISM;

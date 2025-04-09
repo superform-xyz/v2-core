@@ -8,7 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
@@ -25,7 +25,7 @@ import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol
 /// @notice         bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 121, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 153);
 /// @notice         bool lockForSP = _decodeBool(data, 154);
-contract FluidStakeWithPermitHook is BaseHook, ISuperHook, ISuperHookInflowOutflow {
+contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -35,7 +35,6 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address,
@@ -71,21 +70,23 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory data) external pure returns (uint256) {
+        return _decodeAmount(data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 154);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data) - outAmount;
-    }
-
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
     }
 
     /*//////////////////////////////////////////////////////////////

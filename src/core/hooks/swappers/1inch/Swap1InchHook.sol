@@ -7,7 +7,7 @@ import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Swap1InchHook
 /// @author Superform Labs
@@ -17,7 +17,7 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 /// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 /// @notice         bytes txData_ = BytesLib.slice(data, 73, data.length - 73);
-contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     using AddressLib for Address;
     using ProtocolLib for Address;
 
@@ -53,8 +53,6 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    /// @dev doesn't use prevHook!
     function build(
         address prevHook,
         address account,
@@ -85,19 +83,21 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes calldata data) external {
-        outAmount = _getBalance(data);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes calldata data) external {
-        outAmount = _getBalance(data) - outAmount;
-    }
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address, bytes calldata data) internal override {
+        outAmount = _getBalance(data);
+    }
+
+    function _postExecute(address, address, bytes calldata data) internal override {
+        outAmount = _getBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -150,7 +150,8 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
         ProtocolLib.Protocol protocol = dex.protocol();
         if (protocol == ProtocolLib.Protocol.Curve) {
             // CURVE
-            uint256 selectorOffset = (Address.unwrap(dex) >> _CURVE_TO_COINS_SELECTOR_OFFSET) & _CURVE_TO_COINS_SELECTOR_MASK;
+            uint256 selectorOffset =
+                (Address.unwrap(dex) >> _CURVE_TO_COINS_SELECTOR_OFFSET) & _CURVE_TO_COINS_SELECTOR_MASK;
             uint256 dstTokenIndex = (Address.unwrap(dex) >> _CURVE_TO_COINS_ARG_OFFSET) & _CURVE_TO_COINS_ARG_MASK;
 
             if (selectorOffset == 0) {
@@ -159,7 +160,7 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
                 dstToken = ICurvePool(dex.get()).coins(int128(uint128(dstTokenIndex)));
             } else if (selectorOffset == 8) {
                 dstToken = ICurvePool(dex.get()).coins(dstTokenIndex);
-            }  else if (selectorOffset == 12) {
+            } else if (selectorOffset == 12) {
                 dstToken = ICurvePool(dex.get()).underlying_coins(int128(uint128(dstTokenIndex)));
             } else if (selectorOffset == 16) {
                 dstToken = ICurvePool(dex.get()).underlying_coins(dstTokenIndex);
@@ -224,11 +225,8 @@ contract Swap1InchHook is BaseHook, ISuperHook, ISuperHookContextAware {
         view
         returns (bytes memory updatedTxData)
     {
-        (
-            IAggregationExecutor executor,
-            I1InchAggregationRouterV6.SwapDescription memory desc,
-            bytes memory data
-        ) = abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
+        (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc, bytes memory data) =
+            abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
 
         if (desc.flags & _PARTIAL_FILL != 0) {
             revert PARTIAL_FILL_NOT_ALLOWED();

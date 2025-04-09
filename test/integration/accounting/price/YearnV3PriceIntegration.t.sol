@@ -40,7 +40,6 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         attesters[0] = address(MANAGER);
         threshold = 1;
 
-
         oracle = new ERC4626YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
 
         superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
@@ -252,7 +251,6 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
-
 
     function _mockPricePerShareDouble() private {
         uint256 pricePerShareTwo = oracle.getPricePerShare(address(yearnVault));

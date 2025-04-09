@@ -9,7 +9,6 @@ import "../../../src/vendor/okx/PMMLib.sol";
 
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 
 /// @title SwapperOkxHook
 /// @author Superform Labs
@@ -18,7 +17,7 @@ import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 /// @notice         address dstReceiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
 /// @notice         bytes calldata txData_ = BytesLib.slice(data, 72, txData_.length - 72);
-contract SwapOkxHook is BaseHook, ISuperHook {
+contract SwapOkxHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -35,12 +34,7 @@ contract SwapOkxHook is BaseHook, ISuperHook {
     error INVALID_ORDER_ID();
     error INVALID_BATCH_LENGTH();
 
-    constructor(
-        address registry_,
-        address router_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address router_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (router_ == address(0)) {
             revert ZERO_ADDRESS();
         }
@@ -51,8 +45,7 @@ contract SwapOkxHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    /// @dev doesn't use prevHook!
+
     function build(
         address,
         address,
@@ -75,15 +68,13 @@ contract SwapOkxHook is BaseHook, ISuperHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes calldata data) external {
+    function _preExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data);
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes calldata data) external {
+    function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
 

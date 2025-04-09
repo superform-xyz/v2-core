@@ -9,20 +9,18 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 import { BaseClaimRewardHook } from "../../../src/core/hooks/claim/BaseClaimRewardHook.sol";
 
-import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 import { IYearnStakingRewardsMulti } from "../../../src/vendor/yearn/IYearnStakingRewardsMulti.sol";
 
 //TODO: We might need to add a non-transient option
 //      The following hook claims an array of rewards tokens
 //      How we store those to be used in the `postExecute` is the question?
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
+contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address,
         address,
@@ -40,11 +38,9 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view { }
+    function _preExecute(address, address, bytes calldata) internal override { }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view { }
+    function _postExecute(address, address, bytes calldata) internal override { }
 }

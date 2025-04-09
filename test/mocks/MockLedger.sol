@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-
 contract MockLedger {
     uint256 public feeAmount;
 
-    function updateAccounting(
-        address,
-        address,
-        bytes4,
-        bool,
-        uint256,
-        uint256
-    ) external view returns (uint256) {
+    function updateAccounting(address, address, bytes4, bool, uint256, uint256) external view returns (uint256) {
         return feeAmount;
     }
 
@@ -28,7 +20,13 @@ contract MockLedgerConfiguration {
     uint256 public feePercent;
     address public manager;
 
-    constructor(address _ledger, address _feeRecipient, address _yieldSourceOracle, uint256 _feePercent, address _manager) {
+    constructor(
+        address _ledger,
+        address _feeRecipient,
+        address _yieldSourceOracle,
+        uint256 _feePercent,
+        address _manager
+    ) {
         ledger = _ledger;
         feeRecipient = _feeRecipient;
         yieldSourceOracle = _yieldSourceOracle;
@@ -45,7 +43,6 @@ contract MockLedgerConfiguration {
             ledger: ledger
         });
     }
-
 
     struct YieldSourceOracleConfig {
         address yieldSourceOracle;
