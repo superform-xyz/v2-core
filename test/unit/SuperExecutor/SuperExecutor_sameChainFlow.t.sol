@@ -367,7 +367,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             "",
             address(this),
             uint32(0),
-            true
+            false
         );
         hooksData[3] = _createApproveHookData(underlying, yieldSourceAddress, amount, true);
         hooksData[4] = _createDeposit4626HookData(

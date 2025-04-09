@@ -59,6 +59,11 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHook, ISuperHookContextAware 
         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        if (usePrevHookAmount) {
+            inputAmount = ISuperHookResult(prevHook).outAmount();
+        }
+        
         executions = new Execution[](4);
         executions[0] = Execution({
             target: inputToken,
