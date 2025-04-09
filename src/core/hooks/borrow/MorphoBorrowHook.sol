@@ -23,7 +23,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+/// @notice         uint256 collateralAmount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 145);
@@ -43,7 +43,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         address collateralToken;
         address oracle;
         address irm;
-        uint256 amount;
+        uint256 collateralAmount;
         uint256 lltv;
         bool usePrevHookAmount;
         bool isPositiveFeed;
@@ -76,17 +76,17 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         BuildHookLocalVars memory vars = _decodeHookData(data);
 
         if (vars.usePrevHookAmount) {
-            vars.amount = ISuperHookResult(prevHook).outAmount();
+            vars.collateralAmount = ISuperHookResult(prevHook).outAmount();
         }
 
-        if (vars.amount == 0) revert AMOUNT_NOT_VALID();
+        if (vars.collateralAmount == 0) revert AMOUNT_NOT_VALID();
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         uint256 collateralAmount =
-            _deriveCollateralAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
+            _deriveCollateralAmount(vars.collateralAmount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
 
         executions = new Execution[](4);
         executions[0] =
@@ -104,7 +104,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         executions[3] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account))
+            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account)) // derive loan amount from collateral amount
         });
     }
 
@@ -132,7 +132,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-        uint256 amount = _decodeAmount(data);
+        uint256 collateralAmount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
         bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
         bool isPositiveFeed = _decodeBool(BytesLib.slice(data, 145, 1), 0);
@@ -142,7 +142,7 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
             collateralToken: collateralToken,
             oracle: oracle,
             irm: irm,
-            amount: amount,
+            collateralAmount: collateralAmount,
             lltv: lltv,
             usePrevHookAmount: usePrevHookAmount,
             isPositiveFeed: isPositiveFeed
