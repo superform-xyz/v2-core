@@ -4,6 +4,8 @@ pragma solidity 0.8.28;
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { ISuperVault } from "../../../../periphery/interfaces/ISuperVault.sol";
@@ -48,13 +50,28 @@ contract CancelDepositHook is BaseHook, ISuperHook, ISuperHookAsyncCancelations 
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external { }
+    function preExecute(address, address account, bytes memory data) external {
+        address yieldSource = data.extractYieldSource();
+        asset = IERC7540(yieldSource).asset();
+        // store current balance
+        outAmount = _getBalance(account, data);
+    }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory) external { }
+    function postExecute(address, address account, bytes memory data) external {
+        outAmount = _getBalance(account, data) - outAmount;
+    }
 
     /// @inheritdoc ISuperHookAsyncCancelations
     function isAsyncCancelHook() external pure returns (CancelationType) {
         return CancelationType.INFLOW;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+
+    function _getBalance(address account, bytes memory) private view returns (uint256) {
+        return IERC20(asset).balanceOf(account);
     }
 }
