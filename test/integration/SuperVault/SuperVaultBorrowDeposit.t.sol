@@ -405,11 +405,19 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         strategy.executeHooks(executeArgs);
 
         // swap
-        address[] memory swapHooks = new address[](1);
-        swapHooks[0] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
+        address[] memory swapHooks = new address[](2);
+        swapHooks[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        swapHooks[1] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
 
-        bytes[] memory swapHookDataArray = new bytes[](1);
-        swapHookDataArray[0] = _createOdosSwapHookData(
+        bytes[] memory swapHookDataArray = new bytes[](2);
+        swapHookDataArray[0] = _createApproveERC20HookData(
+            address(loanToken),
+            swapRouter,
+            _deriveLoanAmount(amount),
+            false,
+            false
+        );
+        swapHookDataArray[1] = _createOdosSwapHookData(
             address(loanToken),
             _deriveLoanAmount(amount),
             address(strategy),
