@@ -87,15 +87,10 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
 
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
-        // Only for partial repayments & vars.amount != 0 
-        if (vars.usePrevHookAmount) {
-            vars.amount = ISuperHookResult(prevHook).outAmount();
-        }
-
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 fee = _deriveFeeAmount(marketParams);
+        uint256 fee = 0; // Temporarily set fee to 0
         executions = new Execution[](4);
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(vars.id, account);
@@ -112,23 +107,30 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets as we are repaying in full
-            });
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets as
+                    // we are repaying in full
+             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         } else {
+            if (vars.usePrevHookAmount) {
+                vars.amount = ISuperHookResult(prevHook).outAmount();
+            }
+            if (vars.amount == 0) revert AMOUNT_NOT_VALID();
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee)) // TODO: add interest or check amount includes fee & interest
-            });
+                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee)) // TODO: add interest or check
+                    // amount includes fee & interest
+             });
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares as partial repayment
-            });
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares as
+                    // partial repayment
+             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         }
@@ -137,6 +139,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
+
     function preExecute(address, address account, bytes memory data) external {
         // store current balance
         outAmount = _getBalance(account, data);
