@@ -321,7 +321,6 @@ interface I1InchAggregationRouterV6 {
     function swap(
         IAggregationExecutor executor,
         SwapDescription calldata desc,
-        bytes calldata permit,
         bytes calldata data
     )
         external

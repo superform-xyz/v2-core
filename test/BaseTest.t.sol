@@ -2096,7 +2096,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address dstToken,
         address executor,
         I1InchAggregationRouterV6.SwapDescription memory desc,
-        bytes memory permit,
         bytes memory data,
         bool usePrevHookAmount
     )
@@ -2105,7 +2104,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory)
     {
         bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, permit, data
+            I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data
         );
 
         return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
