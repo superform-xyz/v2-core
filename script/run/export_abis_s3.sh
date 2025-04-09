@@ -18,7 +18,7 @@
 #   - jq: For JSON processing
 #
 # Environment Variables:
-#   - S3_BUCKET_NAME: S3 bucket name for storing ABIs (required)
+#   - S3_BUCKET_NAME_ABIS: S3 bucket name for storing ABIs (required)
 #   - GITHUB_REF_NAME: Branch name (used in CI)
 #
 # Author: Superform Team
@@ -43,8 +43,8 @@ if [ -z "$BRANCH_NAME" ]; then
 fi
 
 # Validate S3 bucket name
-if [ -z "${S3_BUCKET_NAME:-}" ]; then
-    log "ERROR" "S3_BUCKET_NAME environment variable is required"
+if [ -z "${S3_BUCKET_NAME_ABIS:-}" ]; then
+    log "ERROR" "S3_BUCKET_NAME_ABIS environment variable is required"
     exit 1
 fi
 
@@ -88,7 +88,7 @@ find out -name "*.json" | while read -r file; do
 done
 
 # Upload to S3
-if aws s3 sync "$TEMP_DIR" "s3://$S3_BUCKET_NAME/$S3_PREFIX" --quiet; then
+if aws s3 sync "$TEMP_DIR" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX" --quiet; then
     log "SUCCESS" "Successfully uploaded contract JSON files to S3"
 else
     log "ERROR" "Failed to upload contract JSON files to S3"
@@ -129,12 +129,12 @@ echo "  }" >> "$SUMMARY_FILE"
 echo "}" >> "$SUMMARY_FILE"
 
 # Upload summary file
-if aws s3 cp "$SUMMARY_FILE" "s3://$S3_BUCKET_NAME/$S3_PREFIX/summary.json" --quiet; then
+if aws s3 cp "$SUMMARY_FILE" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json" --quiet; then
     log "SUCCESS" "Successfully uploaded summary file to S3"
 else
     log "ERROR" "Failed to upload summary file to S3"
     exit 1
 fi
 
-log "INFO" "All files uploaded to s3://$S3_BUCKET_NAME/$S3_PREFIX/"
-log "INFO" "Summary file available at s3://$S3_BUCKET_NAME/$S3_PREFIX/summary.json"
+log "INFO" "All files uploaded to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/"
+log "INFO" "Summary file available at s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json"
