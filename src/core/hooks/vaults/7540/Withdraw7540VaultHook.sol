@@ -84,7 +84,7 @@ contract Withdraw7540VaultHook is
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         lockForSP = _decodeBool(data, 57);
-        spToken = yieldSource;
+        spToken = IERC7540(yieldSource).share();
     }
 
     /// @inheritdoc ISuperHook

@@ -73,7 +73,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
         // store current balance
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 57);
-        spToken = data.extractYieldSource();
+        spToken = IERC7540(data.extractYieldSource()).share();
     }
 
     /// @inheritdoc ISuperHook
