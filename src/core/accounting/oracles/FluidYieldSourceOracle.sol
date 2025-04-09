@@ -15,14 +15,13 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function decimals(address yieldSourceAddress) external view override returns (uint8) {
-        address rewardsToken = IFluidLendingStakingRewards(yieldSourceAddress).rewardsToken();
-        return IERC20Metadata(rewardsToken).decimals();
+    function decimals(address) external pure override returns (uint8) {
+        return 18;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
-        return IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
+    function getPricePerShare(address) public pure override returns (uint256) {
+        return 1e18;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -58,12 +57,12 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {   
-        return IFluidLendingStakingRewards(yieldSourceAddress).earned(ownerOfShares);
+        return IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        return IFluidLendingStakingRewards(yieldSourceAddress).getRewardForDuration();
+        return IERC20Metadata(yieldSourceAddress).totalSupply();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

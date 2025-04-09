@@ -15,14 +15,13 @@ contract GearboxYieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function decimals(address yieldSourceAddress) external view override returns (uint8) {
-        address rewardsToken = IGearboxFarmingPool(yieldSourceAddress).rewardsToken();
-        return IERC20Metadata(rewardsToken).decimals();
+    function decimals(address) external pure override returns (uint8) {
+        return 18;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
-        return _getRewardPerToken(yieldSourceAddress);
+    function getPricePerShare(address) public pure override returns (uint256) {
+        return 1e18;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -58,20 +57,16 @@ contract GearboxYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IGearboxFarmingPool(yieldSourceAddress).farmed(ownerOfShares);
+        return IGearboxFarmingPool(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        return _getRewardPerToken(yieldSourceAddress);
+        return IERC20Metadata(yieldSourceAddress).totalSupply();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function _validateBaseAsset(address yieldSourceAddress, address base) internal view override {
         if (base != IGearboxFarmingPool(yieldSourceAddress).stakingToken()) revert INVALID_BASE_ASSET();
-    }
-
-    function _getRewardPerToken(address yieldSourceAddress) internal view returns (uint256) {
-        return uint256(IGearboxFarmingPool(yieldSourceAddress).farmInfo().reward);
     }
 }
