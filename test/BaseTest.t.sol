@@ -1633,7 +1633,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData, messageData.chainId, accountToUse, messageData.nonce, validUntil
+            executionData, messageData.chainId, accountToUse, messageData.nonce, messageData.targetExecutor, validUntil
         );
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
@@ -1652,9 +1652,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 accountCreationData,
                 executionData,
                 signatureData,
-                /**
-                 * address(0) to create account
-                 */
                 messageData.account,
                 messageData.amount
             ),

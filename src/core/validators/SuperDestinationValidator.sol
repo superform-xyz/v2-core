@@ -22,6 +22,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         bytes callData;
         uint64 chainId;
         address sender;
+        address executor;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -72,27 +73,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
         return isValid ? bytes4(0x1626ba7e) : bytes4("");
     }
 
-    /// @notice Validate a signature with data
-    function validateSignatureWithData(
-        bytes32,
-        bytes calldata sigDataRaw,
-        bytes calldata destinationDataRaw
-    )
-        external
-        view
-        virtual
-        returns (bool validSig)
-    {
-        // Decode signature and user operation data
-        SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
-        DestinationData memory destinationData = _decodeDestinationData(destinationDataRaw, msg.sender);
-
-        // Process signature
-        (address signer, ) = _processSignatureAndVerifyLeaf(sigData, destinationData);
-
-        return _isSignatureValid(signer, msg.sender, sigData.validUntil);
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -111,6 +91,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
                         destinationData.chainId,
                         destinationData.sender,
                         destinationData.nonce,
+                        destinationData.executor,
                         validUntil
                     )
                 )
@@ -154,11 +135,11 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
  
     function _decodeDestinationData(bytes memory destinationDataRaw, address sender_) private view returns (DestinationData memory) {
-        (uint256 nonce, bytes memory callData, uint64 chainId, address decodedSender) =
-            abi.decode(destinationDataRaw, (uint256, bytes, uint64, address));
+        (uint256 nonce, bytes memory callData, uint64 chainId, address decodedSender, address executor) =
+            abi.decode(destinationDataRaw, (uint256, bytes, uint64, address, address));
         if (sender_ != decodedSender) revert INVALID_SENDER();
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();
-        return DestinationData(nonce, callData, chainId, decodedSender);
+        return DestinationData(nonce, callData, chainId, decodedSender, executor);
     }
 
     function _decodeSignatureAndDestinationData(
