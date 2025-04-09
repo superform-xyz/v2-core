@@ -301,6 +301,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     }
 
     function test_RepayHook_PartialRepayment() public {
+        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
+
         // borrow
         _implementBorrowFlow();
 
@@ -324,14 +326,14 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         uint256 expectedCollateralBalanceAfterRepay = Math.ceilDiv(uint256(collateral), 2);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookData });
         UserOpData memory repayUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(repayEntry));
         executeOp(repayUserOpData);
 
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
         uint256 collateralBalanceAfterRepay = IERC20(collateralToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfterRepay, loanBalanceAfter - amount / 2);
+        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - amount / 2);
     }
 
     /*//////////////////////////////////////////////////////////////
