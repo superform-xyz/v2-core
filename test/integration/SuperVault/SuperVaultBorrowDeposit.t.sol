@@ -306,6 +306,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         // borrow
         _implementBorrowFlow();
 
+        bytes[] memory repayHookDataArray = new bytes[](1);
+
         // repay
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
         hooks[0] = repayHook;
@@ -313,7 +315,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         bytes memory repayHookData = _createMorphoRepayHookData(
             loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false, false
         );
-        hookDataArray[0] = repayHookData;
+        repayHookDataArray[0] = repayHookData;
 
         Id id = MarketParams({
             loanToken: loanToken,
@@ -326,7 +328,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         uint256 expectedCollateralBalanceAfterRepay = Math.ceilDiv(uint256(collateral), 2);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookData });
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
         UserOpData memory repayUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(repayEntry));
         executeOp(repayUserOpData);
 
