@@ -84,6 +84,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         asset = IERC20Metadata(collateralToken);
 
+        // TODO: Swap this for Fluid vault and try find market where loan token is one that can be staked 
+
         // Set up underlying vault
         morphoVault = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY];
         morphoVaultInstance = IERC4626(morphoVault);
