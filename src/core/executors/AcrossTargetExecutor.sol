@@ -13,6 +13,7 @@ import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Ac
 // Superform
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
 import { IAcrossTargetExecutor } from "../interfaces/IAcrossTargetExecutor.sol";
+import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValidator.sol";
 
 /// @title AcrossTargetExecutor
 /// @author Superform Labs
@@ -128,9 +129,8 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
 
         // @dev validate execution
         bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this));
-        bytes4 validationResult = IValidator(superDestinationValidator).isValidSignatureWithSender(account, bytes32(0), abi.encode(sigData, destinationData));
+        bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(account, abi.encode(sigData, destinationData));
         if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
-
 
 
         // @dev send tokens to the smart account

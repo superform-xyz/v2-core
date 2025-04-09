@@ -11,6 +11,7 @@ import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 
 /// @title SuperDestinationValidator
+/// @dev Can't be used for ERC-1271 validation
 /// @author Superform Labs
 /// @notice A destination validator contract
 contract SuperDestinationValidator is SuperValidatorBase {
@@ -54,15 +55,14 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @notice Validate a signature with sender
     /// @dev EIP1271 compatible
     function isValidSignatureWithSender(
-        address sender,
+        address,
         bytes32,
-        bytes calldata data
-    )
-        external
-        view
-        override
-        returns (bytes4)
-    {
+        bytes calldata
+    ) external pure virtual override returns (bytes4) {
+        revert NOT_IMPLEMENTED();
+    }
+
+    function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) = _decodeSignatureAndDestinationData(data, sender);
         // Process signature

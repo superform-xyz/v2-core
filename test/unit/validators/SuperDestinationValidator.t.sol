@@ -125,7 +125,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         assertTrue(isValid, "Merkle proof should be valid");
     }
 
-    function test_IsValidSignatureWithSender() public {
+    function test_IsValidDestinationSignature() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
@@ -173,7 +173,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], signature);
         bytes memory destinationDataRaw = abi.encode(approveDestinationData.nonce, approveDestinationData.callData, approveDestinationData.chainId, approveDestinationData.sender, approveDestinationData.executor);
 
-        bytes4 validationResult = validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
+        bytes4 validationResult = validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
 
         assertEq(validationResult, bytes4(""), "Sig should be invalid");
     }
@@ -206,7 +206,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof, signature);
         bytes memory destinationDataRaw = abi.encode(destinationData.nonce, destinationData.callData, destinationData.chainId, destinationData.sender, destinationData.executor);
 
-        bytes4 validationResult = validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
+        bytes4 validationResult = validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
         assertEq(validationResult, VALID_SIGNATURE, "Sig should be valid");
     }
 
