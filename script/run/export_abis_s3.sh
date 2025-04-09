@@ -5,10 +5,10 @@
 ###################################################################################
 # Description:
 #   This script uploads compiled contract JSON files from the 'out' directory
-#   to an S3 bucket, preserving the directory structure.
+#   to an S3 bucket, using a flattened structure.
 #
 # Usage:
-#   ./upload_abis_to_s3.sh <branch_name>
+#   ./export_abis_s3.sh <branch_name>
 #   
 #   Parameters:
 #     branch_name: Name of the branch (required)
@@ -52,10 +52,10 @@ fi
 if [[ "$BRANCH_NAME" == feat/* ]]; then
     # Extract feature name without feat/ prefix
     FEATURE_NAME=${BRANCH_NAME#feat/}
-    S3_PREFIX="feat/$FEATURE_NAME/abis"
+    S3_PREFIX="feat/$FEATURE_NAME"
 else
     # For dev, main branches
-    S3_PREFIX="$BRANCH_NAME/abis"
+    S3_PREFIX="$BRANCH_NAME"
 fi
 
 log "INFO" "Using S3 prefix: $S3_PREFIX"
@@ -77,14 +77,12 @@ log "INFO" "Uploading contract JSON files to S3..."
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Copy files to temp directory with proper structure
+# Copy files to temp directory with flattened structure
 find out -name "*.json" | while read -r file; do
-    # Get relative path from out directory
-    rel_path=${file#out/}
-    # Create directory structure in temp dir
-    mkdir -p "$TEMP_DIR/$(dirname "$rel_path")"
-    # Copy file
-    cp "$file" "$TEMP_DIR/$rel_path"
+    # Extract contract name (last part of the path)
+    contract_name=$(basename "$file")
+    # Copy file with just the contract name
+    cp "$file" "$TEMP_DIR/$contract_name"
 done
 
 # Upload to S3
@@ -95,7 +93,7 @@ else
     exit 1
 fi
 
-# Create a summary file with contract names and paths
+# Create a summary file with contract names
 log "INFO" "Creating summary file..."
 
 SUMMARY_FILE="$TEMP_DIR/summary.json"
@@ -105,12 +103,10 @@ echo "  \"contracts\": {" >> "$SUMMARY_FILE"
 # Find all JSON files and extract contract names
 first=true
 find "$TEMP_DIR" -name "*.json" | sort | while read -r file; do
-    # Get relative path from temp directory
-    rel_path=${file#$TEMP_DIR/}
     # Extract contract name (filename without extension)
-    contract_name=$(basename "$rel_path" .json)
-    # Skip if not a contract file
-    if ! jq -e '.abi' "$file" > /dev/null 2>&1; then
+    contract_name=$(basename "$file" .json)
+    # Skip if not a contract file or if it's the summary file
+    if [[ "$file" == "$SUMMARY_FILE" ]] || ! jq -e '.abi' "$file" > /dev/null 2>&1; then
         continue
     fi
     
@@ -120,8 +116,8 @@ find "$TEMP_DIR" -name "*.json" | sort | while read -r file; do
         echo "," >> "$SUMMARY_FILE"
     fi
     
-    # Add to summary
-    echo -n "    \"$contract_name\": \"$rel_path\"" >> "$SUMMARY_FILE"
+    # Add to summary with just the filename
+    echo -n "    \"$contract_name\": \"$contract_name.json\"" >> "$SUMMARY_FILE"
 done
 
 echo "" >> "$SUMMARY_FILE"
