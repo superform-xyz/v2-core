@@ -96,13 +96,11 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         uint256 fee = _deriveFeeAmount(marketParams);
-        uint256 collateralForWithdraw;
         executions = new Execution[](4);
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(vars.id, account);
             uint256 shareBalance = uint256(borrowBalance);
             uint256 assetsToPay = fee + _sharesToAssets(marketParams, account);
-            collateralForWithdraw = _deriveCollateralForFullRepayment(vars.id, account);
 
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
