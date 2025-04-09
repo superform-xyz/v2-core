@@ -1626,6 +1626,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 messageData.nexusFactory,
                 messageData.nexusBootstrap
             );
+            messageData.account = accountToUse; // prefill the account to use
         } else {
             accountToUse = messageData.account;
             accountCreationData = bytes("");

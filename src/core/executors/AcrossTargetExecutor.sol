@@ -116,8 +116,7 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
         // @dev we need to create the account   
         if (initData.length > 0 && account.code.length == 0) {
             (bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32));
-            address computedAddress = nexusFactory.computeAccountAddress(factoryInitData, salt);
-            account = nexusFactory.createAccount(factoryInitData, salt);
+            address computedAddress = nexusFactory.createAccount(factoryInitData, salt);
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
