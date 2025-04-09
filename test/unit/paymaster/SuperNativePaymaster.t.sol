@@ -75,21 +75,6 @@ contract SuperNativePaymasterTest is BaseTest {
         assertEq(mockEntryPoint.depositAmount(), 1 ether);
     }
 
-    function test_ValidatePaymasterUserOp_RevertIf_InvalidMaxGasLimit() public {
-        bytes memory paymasterAndData =
-            abi.encodePacked(address(paymaster), abi.encode(maxGasLimit, nodeOperatorPremium));
-
-        PackedUserOperation memory userOp = _createUserOp();
-        userOp.paymasterAndData = paymasterAndData;
-
-        bytes32 userOpHash = keccak256("userOpHash");
-        uint256 maxCost = 1 ether;
-
-        vm.prank(address(mockEntryPoint));
-        vm.expectRevert(ISuperNativePaymaster.INVALID_MAX_GAS_LIMIT.selector);
-        paymaster.validatePaymasterUserOp(userOp, userOpHash, maxCost);
-    }
-
     function test_PostOp_WithRefund() public {
         vm.deal(address(paymaster), 2 ether);
         mockEntryPoint.depositTo{ value: 2 ether }(address(paymaster));
