@@ -11,13 +11,13 @@ import { IIrm } from "../../../src/vendor/morpho/IIrm.sol";
 import { MathLib } from "../../../src/vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../src/vendor/morpho/IOracle.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { MockOdosRouterWETH } from "../../mocks/MockOdosRouterWETH.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { SharesMathLib } from "../../../src/vendor/morpho/SharesMathLib.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IMorpho, MarketParams, Market, IMorphoStaticTyping, Id } from "../../../src/vendor/morpho/IMorpho.sol";
 import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modulekit/ModuleKit.sol";
-// import { MockOdosRouterV2 } from "../../../src/vendor/morpho/MockOdosRouterV2.sol";
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
@@ -163,7 +163,10 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         collateralAmount = _deriveCollateralAmount(amount, loanToken, collateralToken, false);
 
         _getTokens(address(asset), accountBase, 1e18);
-        deal(address(asset), odosRouters[BASE], 1e12);
+
+        // Set up odos router
+        swapRouter = address(new MockOdosRouterWETH());
+        deal(address(asset), swapRouter, 1e12);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -414,12 +417,12 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             amount,
             0,
             bytes(""),
-            odosRouters[BASE],
+            swapRouter,
             0,
             false
         );
 
-        ISuperVaultStrategy.ExecuteArgs memory executeArgs = ISuperVaultStrategy.ExecuteArgs({
+        ISuperVaultStrategy.ExecuteArgs memory executeSwapArgs = ISuperVaultStrategy.ExecuteArgs({
             users: new address[](0),
             hooks: swapHooks,
             hookCalldata: swapHookDataArray,
@@ -428,7 +431,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         });
 
         vm.prank(STRATEGIST);
-        strategy.executeHooks(executeArgs);
+        strategy.executeHooks(executeSwapArgs);
     }
 
     function _fulfillDepositRequestsWithBorrow() public {
