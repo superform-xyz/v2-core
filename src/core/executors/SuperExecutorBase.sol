@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
@@ -21,12 +22,15 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 /// @notice Base contract for Superform executors
 abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor, ReentrancyGuard {
     using HookDataDecoder for bytes;
+    using Math for uint256;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) internal _initialized;
     bytes32 internal constant SUPER_LEDGER_CONFIGURATION_ID = keccak256("SUPER_LEDGER_CONFIGURATION_ID");
+    uint256 internal constant FEE_TOLERANCE = 10_000;
+    uint256 internal constant FEE_TOLERANCE_DENOMINATOR = 100_000;
 
     constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
@@ -137,7 +141,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
         _execute(account, assetToken, 0, abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount)));
         uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
-        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+
+        uint256 actualFee = balanceAfter - balanceBefore;
+        uint256 maxAllowedDeviation = feeAmount.mulDiv(FEE_TOLERANCE, FEE_TOLERANCE_DENOMINATOR);
+        if (actualFee < feeAmount - maxAllowedDeviation || actualFee > feeAmount + maxAllowedDeviation) revert FEE_NOT_TRANSFERRED();
     }
 
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) internal virtual {

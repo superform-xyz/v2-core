@@ -102,8 +102,11 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
         hook.build(address(0), mockAccount, data);
     }
     
-    function test_Build_WithPrevHookAmount() public {
+    function test_Build_WithPrevHookAmountXQ() public {
         uint256 prevHookAmount = 2000;
+
+        vm.mockCall(mockSpokePool, abi.encodeWithSelector(IAcrossSpokePoolV3.wrappedNativeToken.selector), abi.encode(mockInputToken));
+
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
         

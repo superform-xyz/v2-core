@@ -6,63 +6,44 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 // Superform
+import { ISuperVault } from "../../../../periphery/interfaces/ISuperVault.sol";
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title Deposit7540VaultHook
+/// @title CancelRedeemHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         bytes4 placeholder = BytesLib.toAddress(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-/// @notice         bool lockForSP = _decodeBool(data, 57);
-contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract CancelRedeemHook is BaseHook, ISuperHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 24;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
-
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function build(
-        address prevHook,
+        address,
         address account,
         bytes memory data
     )
         external
-        view
+        pure
         override
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        uint256 amount = _decodeAmount(data);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
-        }
-
-        if (amount == 0) revert AMOUNT_NOT_VALID();
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[0] = Execution({
-            target: yieldSource,
-            value: 0,
-            callData: abi.encodeCall(IERC7540.deposit, (amount, account, account))
-        });
+        executions[0] =
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(ISuperVault.cancelRedeem, (account)) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -70,10 +51,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external {
-        // store current balance
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
-        spToken = IERC7540(data.extractYieldSource()).share();
     }
 
     /// @inheritdoc ISuperHook
@@ -81,22 +59,14 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
         outAmount = _getBalance(account, data) - outAmount;
     }
 
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
-    }
-
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    /// @inheritdoc ISuperHookAsyncCancelations
+    function isAsyncCancelHook() external pure returns (CancelationType) {
+        return CancelationType.OUTFLOW;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
-    }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         return IERC20(IERC7540(data.extractYieldSource()).share()).balanceOf(account);

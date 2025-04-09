@@ -228,6 +228,8 @@ interface IAcrossSpokePoolV3 {
     )
         external;
 
+    function wrappedNativeToken() external view returns (address);
+
     /**
      *
      *              ERRORS                *

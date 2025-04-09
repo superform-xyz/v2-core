@@ -20,8 +20,8 @@ abstract contract BaseLedger is ISuperLedger {
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
     ISuperRegistry public immutable superRegistry;
 
-    mapping(address user => uint256) public usersAccumulatorShares;
-    mapping(address user => uint256) public usersAccumulatorCostBasis;
+    mapping(address user => mapping(address yieldSource => uint256 shares)) public usersAccumulatorShares;
+    mapping(address user => mapping(address yieldSource => uint256 costBasis)) public usersAccumulatorCostBasis;
 
     bytes32 internal constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID");
 
@@ -55,9 +55,9 @@ abstract contract BaseLedger is ISuperLedger {
     }
 
     /// @inheritdoc ISuperLedger
-    function calculateCostBasisView(address user, uint256 usedShares) public view returns (uint256 costBasis) {
-        uint256 accumulatorShares = usersAccumulatorShares[user];
-        uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user];
+    function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) public view returns (uint256 costBasis) {
+        uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
+        uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
         if (usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
 
@@ -67,6 +67,7 @@ abstract contract BaseLedger is ISuperLedger {
     /// @inheritdoc ISuperLedger
     function previewFees(
         address user,
+        address yieldSourceAddress,
         uint256 amountAssets,
         uint256 usedShares,
         uint256 feePercent
@@ -75,7 +76,7 @@ abstract contract BaseLedger is ISuperLedger {
         view
         returns (uint256 feeAmount)
     {
-        uint256 costBasis = calculateCostBasisView(user, usedShares);
+        uint256 costBasis = calculateCostBasisView(user, yieldSourceAddress, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
 
@@ -83,9 +84,9 @@ abstract contract BaseLedger is ISuperLedger {
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _takeSnapshot(address user, uint256 amountShares, uint256 pps, uint256 decimals) internal virtual {
-        usersAccumulatorShares[user] += amountShares;
-        usersAccumulatorCostBasis[user] += Math.mulDiv(amountShares, pps, 10 ** decimals);
+    function _takeSnapshot(address user, uint256 amountShares, address yieldSource, uint256 pps, uint256 decimals) internal virtual {
+        usersAccumulatorShares[user][yieldSource] += amountShares;
+        usersAccumulatorCostBasis[user][yieldSource] += Math.mulDiv(amountShares, pps, 10 ** decimals);
     }
 
     function _getOutflowProcessVolume(
@@ -102,15 +103,16 @@ abstract contract BaseLedger is ISuperLedger {
         return amountSharesOrAssets;
     }
 
-    function _calculateCostBasis(address user, uint256 usedShares) internal returns (uint256 costBasis) {
-        costBasis = calculateCostBasisView(user, usedShares);
+    function _calculateCostBasis(address user, address yieldSource, uint256 usedShares) internal returns (uint256 costBasis) {
+        costBasis = calculateCostBasisView(user, yieldSource, usedShares);
 
-        usersAccumulatorShares[user] -= usedShares;
-        usersAccumulatorCostBasis[user] -= costBasis;
+        usersAccumulatorShares[user][yieldSource] -= usedShares;
+        usersAccumulatorCostBasis[user][yieldSource] -= costBasis;
     }
 
     function _processOutflow(
         address user,
+        address yieldSource,
         uint256 amountAssets,
         uint256 usedShares,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
@@ -119,7 +121,7 @@ abstract contract BaseLedger is ISuperLedger {
         virtual
         returns (uint256 feeAmount)
     {
-        uint256 costBasis = _calculateCostBasis(user, usedShares);
+        uint256 costBasis = _calculateCostBasis(user, yieldSource, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
     }
 
@@ -156,6 +158,7 @@ abstract contract BaseLedger is ISuperLedger {
             superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
 
         if (config.manager == address(0)) revert MANAGER_NOT_SET();
+        if (config.ledger != address(this)) revert INVALID_LEDGER();
 
         // Get price from oracle
         uint256 pps = IYieldSourceOracle(config.yieldSourceOracle).getPricePerShare(yieldSource);
@@ -163,7 +166,7 @@ abstract contract BaseLedger is ISuperLedger {
 
         if (isInflow) {
             _takeSnapshot(
-                user, amountSharesOrAssets, pps, IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
+                user, amountSharesOrAssets, yieldSource, pps, IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
             );
 
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
@@ -178,7 +181,7 @@ abstract contract BaseLedger is ISuperLedger {
                     IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
                 );
 
-                feeAmount = _processOutflow(user, amountAssets, usedShares, config);
+                feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config);
 
                 emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
                 return feeAmount;
