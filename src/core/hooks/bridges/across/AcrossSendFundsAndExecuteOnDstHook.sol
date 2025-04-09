@@ -82,7 +82,14 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookC
         acrossV3DepositAndExecuteData.message = BytesLib.slice(data, 217, data.length - 217);
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
-            acrossV3DepositAndExecuteData.inputAmount = ISuperHookResult(prevHook).outAmount();
+            uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+            acrossV3DepositAndExecuteData.inputAmount = outAmount;
+            if (
+                 acrossV3DepositAndExecuteData.inputToken == address(IAcrossSpokePoolV3(spokePoolV3).wrappedNativeToken()) 
+                    && acrossV3DepositAndExecuteData.value != 0
+             ) {
+                 acrossV3DepositAndExecuteData.value = outAmount;
+             }
         }
 
         if (acrossV3DepositAndExecuteData.inputAmount == 0) revert AMOUNT_NOT_VALID();
