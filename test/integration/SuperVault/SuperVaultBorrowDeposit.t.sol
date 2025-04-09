@@ -17,6 +17,7 @@ import { SharesMathLib } from "../../../src/vendor/morpho/SharesMathLib.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IMorpho, MarketParams, Market, IMorphoStaticTyping, Id } from "../../../src/vendor/morpho/IMorpho.sol";
 import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modulekit/ModuleKit.sol";
+// import { MockOdosRouterV2 } from "../../../src/vendor/morpho/MockOdosRouterV2.sol";
 import { MarketParamsLib } from "../../../src/vendor/morpho/MarketParamsLib.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
@@ -159,7 +160,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         collateralAmount = _deriveCollateralAmount(amount, loanToken, collateralToken, false);
         console2.log("----collateralAmount", collateralAmount);
-        _getTokens(address(asset), accountBase, collateralAmount);
+        _getTokens(address(asset), accountBase, 1e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -196,57 +197,15 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     }
 
     function test_BorrowHook() public {
-        address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
-        address[] memory hooks = new address[](1);
-        hooks[0] = hook;
-
-        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
-
-        bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false);
-        bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = hookData;
-
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
-        UserOpData memory userOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
-        executeOp(userOpData);
-
-        uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceAfter = IERC20(collateralToken).balanceOf(accountBase);
-
-        assertEq(loanBalanceAfter, loanBalanceBefore + amount);
-        assertEq(collateralBalanceAfter, collateralBalanceBefore - collateralAmount);
+        _implementBorrowFlow();
     }
 
-    function test_RepayHook_FullRepayment() public {
+    function test_RepayAndWithdrawHook_FullRepayment() public {
         // borrow
-        address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
-        address[] memory hooks = new address[](1);
-        hooks[0] = hook;
-
-        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
-
-        bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false);
-        bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = hookData;
-
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
-        UserOpData memory userOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
-        executeOp(userOpData);
-
-        uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceAfter = IERC20(collateralToken).balanceOf(accountBase);
-
-        assertEq(loanBalanceAfter, loanBalanceBefore + amount);
-        assertEq(collateralBalanceAfter, collateralBalanceBefore - collateralAmount);
+        _implementBorrowFlow();
 
         // repay
-        address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
+        address repayHook = _getHookAddress(BASE, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
         hooks[0] = repayHook;
 
         bytes memory repayHookData =
@@ -267,13 +226,14 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         assertEq(collateralBalanceAfterRepay, collateralBalanceBefore);
     }
 
-    function test_RepayHook_PartialRepayment() public {
+    function test_RepayAndWithdrawHook_PartialRepayment() public {
         // borrow
         address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
 
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
+        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
 
         bytes memory hookData =
             _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false);
@@ -285,9 +245,64 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         UserOpData memory userOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
         executeOp(userOpData);
 
-        uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountBase);
+        // repay
+        address repayHook = _getHookAddress(BASE, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
+        hooks[0] = repayHook;
 
-        assertEq(loanBalanceAfter, loanBalanceBefore + amount);
+        bytes memory repayHookData = _createMorphoRepayHookData(
+            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false, false
+        );
+        hookDataArray[0] = repayHookData;
+
+        Id id = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: oracleAddress,
+            irm: irm,
+            lltv: lltv
+        }).id();
+        uint256 expectedCollateralBalanceAfterRepay = _deriveCollateralForPartialWithdraw(id, oracleAddress, loanToken, collateralToken, accountBase, amount / 2, amount, false);
+
+        ISuperExecutor.ExecutorEntry memory repayEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+        UserOpData memory repayUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(repayEntry));
+        executeOp(repayUserOpData);
+
+        uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
+        uint256 collateralBalanceAfterRepay = IERC20(collateralToken).balanceOf(accountBase);
+
+        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - amount / 2);
+
+        assertEq(collateralBalanceAfterRepay, collateralBalanceBefore - expectedCollateralBalanceAfterRepay);
+    }
+
+    function test_RepayHook_FullRepayment() public {
+        // borrow
+        _implementBorrowFlow();
+
+        // repay
+        address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
+        hooks[0] = repayHook;
+
+        bytes memory repayHookData =
+            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true, false);
+        hookDataArray[0] = repayHookData;
+
+        uint256 assetsPaid = _deriveAssetsPaid();
+
+        ISuperExecutor.ExecutorEntry memory repayEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+        UserOpData memory repayUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(repayEntry));
+        executeOp(repayUserOpData);
+
+        uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
+
+        assertEq(loanBalanceAfterRepay, loanBalanceAfter - assetsPaid);
+    }
+
+    function test_RepayHook_PartialRepayment() public {
+        // borrow
+        _implementBorrowFlow();
 
         // repay
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
@@ -317,13 +332,37 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         uint256 collateralBalanceAfterRepay = IERC20(collateralToken).balanceOf(accountBase);
 
         assertEq(loanBalanceAfterRepay, loanBalanceAfter - amount / 2);
-
-        assertEq(collateralBalanceAfterRepay, expectedCollateralBalanceAfterRepay);
     }
 
     /*//////////////////////////////////////////////////////////////
                           INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    function _implementBorrowFlow() internal {
+        // borrow
+        address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
+        address[] memory hooks = new address[](1);
+        hooks[0] = hook;
+
+        uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
+        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
+
+        bytes memory hookData =
+            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false);
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = hookData;
+
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+        UserOpData memory userOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
+        executeOp(userOpData);
+
+        uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountBase);
+        uint256 collateralBalanceAfter = IERC20(collateralToken).balanceOf(accountBase);
+
+        assertEq(loanBalanceAfter, loanBalanceBefore + _deriveLoanAmount(amount));
+        assertEq(collateralBalanceAfter, collateralBalanceBefore - amount);
+    }
+
     function _requestDepositOnBase(AccountInstance memory accInst, uint256 depositAmount) internal {
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHookAddress(BASE, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -578,6 +617,27 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         assetsPaid = shareBalance.toAssetsUp(totalBorrowAssets, totalBorrowShares);
     }
 
+    function _deriveLoanAmount(
+        uint256 collateralAmount
+    )
+        internal
+        view
+        returns (uint256 loanAmount)
+    {
+        uint256 price = oracle.price();
+        uint256 loanDecimals = ERC20(loanToken).decimals();
+        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+
+        // Correct scaling factor as per the oracle's specification:
+        // 10^(36 + loanDecimals - collateralDecimals)
+        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
+
+
+        // Inverting the original calculation when isPositiveFeed is false:
+        // loanAmount = collateralAmount * scalingFactor / price
+        loanAmount = Math.mulDiv(collateralAmount, scalingFactor, price);
+    }
+
     function _deriveCollateralForWithdraw(address account) internal view returns (uint256 collateral) {
         MarketParams memory marketParams = MarketParams({
             loanToken: loanToken,
@@ -589,5 +649,46 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         Id id = marketParams.id();
         (,, uint128 collateralForPosition) = morphoStaticTyping.position(id, account);
         collateral = uint256(collateralForPosition);
+    }
+
+    function _deriveCollateralForPartialWithdraw(
+        Id id,
+        address oracle,
+        address loanToken,
+        address collateralToken,
+        address account,
+        uint256 amount,
+        uint256 fullCollateral,
+        bool isPositiveFeed
+    )
+        internal
+        view
+        returns (uint256 withdrawableCollateral)
+    {
+        uint256 fullLoanAmount = _deriveLoanAmount(amount);
+        uint256 remainingLoan = fullLoanAmount - amount;
+
+        uint256 loanDecimals = ERC20(loanToken).decimals();
+        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
+
+        IOracle oracleInstance = IOracle(oracle);
+        uint256 price = oracleInstance.price();
+
+        // Compute the collateral still required to back the remaining debt.
+        uint256 requiredCollateralForRemaining;
+        if (isPositiveFeed) {
+            // For a positive feed, the oracle returns the price in units of loan token per collateral token.
+            // The collateral required is:
+            //   requiredCollateral = remainingLoan * scalingFactor / price
+            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, scalingFactor, price);
+        } else {
+            // For a negative feed, the oracle returns the price in units of collateral token per loan token.
+            // The collateral required is:
+            //   requiredCollateral = remainingLoan * price / scalingFactor
+            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, price, scalingFactor);
+        }
+
+        withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
     }
 }
