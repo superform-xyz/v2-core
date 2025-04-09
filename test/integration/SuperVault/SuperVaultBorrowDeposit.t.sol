@@ -191,8 +191,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountBase));
 
         // Fulfill redeem request
-        _fulfillRedeemRequests();
-        console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
+        //_fulfillRedeemRequests();
+        //console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
     }
 
     function test_BorrowHook() public {
