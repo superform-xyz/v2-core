@@ -56,10 +56,19 @@ if ! aws sts get-caller-identity > /dev/null 2>&1; then
     exit 1
 fi
 
-# Check if bucket exists
-log "INFO" "Checking if bucket exists: $S3_BUCKET_NAME_ABIS"
+# Check if bucket exists and we have permissions
+log "INFO" "Checking if bucket exists and we have permissions..."
 if ! aws s3api head-bucket --bucket "$S3_BUCKET_NAME_ABIS" 2>/dev/null; then
-    log "ERROR" "Bucket does not exist or you don't have access: $S3_BUCKET_NAME_ABIS"
+    # Try to list the bucket to get more specific error
+    ERROR_OUTPUT=$(aws s3 ls "s3://$S3_BUCKET_NAME_ABIS" 2>&1 || true)
+    
+    if [[ "$ERROR_OUTPUT" == *"AccessDenied"* ]]; then
+        log "ERROR" "Access denied to the bucket. Check your AWS permissions."
+    elif [[ "$ERROR_OUTPUT" == *"NoSuchBucket"* ]]; then
+        log "ERROR" "The bucket does not exist."
+    else
+        log "ERROR" "Could not access the bucket. Error: $(echo "$ERROR_OUTPUT" | tr -d '\n' | sed 's/^.*Error: //')"
+    fi
     exit 1
 fi
 
