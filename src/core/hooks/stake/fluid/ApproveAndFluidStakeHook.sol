@@ -12,7 +12,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHook,
     ISuperHookResult,
-    ISuperHookInflowOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -26,13 +25,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
 
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -87,11 +86,6 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /// @inheritdoc ISuperHook
     function postExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data) - outAmount;
-    }
-
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
     }
 
     /// @inheritdoc ISuperHookContextAware

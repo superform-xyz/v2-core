@@ -57,16 +57,13 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
         view
         override
         returns (uint256)
-    {
-        return IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares)
-            * IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
+    {   
+        return IFluidLendingStakingRewards(yieldSourceAddress).earned(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        uint256 totalShares = IERC20Metadata(yieldSourceAddress).totalSupply();
-        if (totalShares == 0) return 0;
-        return totalShares * IFluidLendingStakingRewards(yieldSourceAddress).rewardPerToken();
+        return IFluidLendingStakingRewards(yieldSourceAddress).getRewardForDuration();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

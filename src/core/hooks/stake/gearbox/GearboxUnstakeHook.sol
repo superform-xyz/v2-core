@@ -10,8 +10,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHook,
     ISuperHookResultOutflow,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
@@ -29,8 +27,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract GearboxUnstakeHook is
     BaseHook,
     ISuperHook,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -38,7 +34,7 @@ contract GearboxUnstakeHook is
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /// @inheritdoc ISuperHook
     function build(
@@ -88,19 +84,9 @@ contract GearboxUnstakeHook is
         outAmount = _getBalance(account, data) - outAmount;
     }
 
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
-    }
-
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-    }
-
-    /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
-        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

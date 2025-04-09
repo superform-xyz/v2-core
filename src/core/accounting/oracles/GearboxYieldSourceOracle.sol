@@ -58,14 +58,12 @@ contract GearboxYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IGearboxFarmingPool(yieldSourceAddress).balanceOf(ownerOfShares) * _getRewardPerToken(yieldSourceAddress);
+        return IGearboxFarmingPool(yieldSourceAddress).farmed(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        uint256 totalShares = IERC20Metadata(yieldSourceAddress).totalSupply();
-        if (totalShares == 0) return 0;
-        return totalShares * _getRewardPerToken(yieldSourceAddress);
+        return _getRewardPerToken(yieldSourceAddress);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
