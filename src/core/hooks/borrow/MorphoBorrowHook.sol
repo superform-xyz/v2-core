@@ -85,8 +85,8 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 collateralAmount =
-            _deriveCollateralAmount(vars.collateralAmount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
+        uint256 loanAmount =
+            _deriveLoanAmount(vars.collateralAmount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
 
         executions = new Execution[](4);
         executions[0] =
@@ -94,17 +94,17 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         executions[1] = Execution({
             target: vars.collateralToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, collateralAmount))
+            callData: abi.encodeCall(IERC20.approve, (morpho, vars.collateralAmount))
         });
         executions[2] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, collateralAmount, account, ""))
+            callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.collateralAmount, account, ""))
         });
         executions[3] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account)) // derive loan amount from collateral amount
+            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account)) // derive loan amount from collateral amount
         });
     }
 
@@ -149,40 +149,38 @@ contract MorphoBorrowHook is BaseHook, ISuperHook {
         });
     }
 
-    /// @dev `price()` Returns the price of 1 asset of collateral token quoted in 1 asset of loan token, scaled by 1e36.
+    /// @dev This function returns the loan amount required for a given collateral amount.
     /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
     /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
     /// decimals of precision.
-    function _deriveCollateralAmount(
-        uint256 loanAmount,
+    function _deriveLoanAmount(
+        uint256 collateralAmount,
         address oracleAddress,
-        address loan,
-        address collateral,
+        address loanToken,
+        address collateralToken,
         bool isPositiveFeed
     )
         internal
         view
-        returns (uint256 collateralAmount)
+        returns (uint256 loanAmount)
     {
         IOracle oracleInstance = IOracle(oracleAddress);
         uint256 price = oracleInstance.price();
-        uint256 loanDecimals = ERC20(loan).decimals();
-        uint256 collateralDecimals = ERC20(collateral).decimals();
+        uint256 loanDecimals = ERC20(loanToken).decimals();
+        uint256 collateralDecimals = ERC20(collateralToken).decimals();
 
         // Correct scaling factor as per the oracle's specification:
         // 10^(36 + loanDecimals - collateralDecimals)
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
         if (isPositiveFeed) {
-            // For a positive feed, price is given as the amount of loan tokens per collateral token,
-            // so we invert the price to calculate collateral:
-            // collateralAmount = loanAmount * scalingFactor / price
-            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+            // Inverting the original calculation when isPositiveFeed is true:
+            // loanAmount = collateralAmount * price / scalingFactor
+            loanAmount = Math.mulDiv(collateralAmount, price, scalingFactor);
         } else {
-            // For a negative feed, price is given as the amount of collateral tokens per loan token,
-            // so no inversion is necessary:
-            // collateralAmount = loanAmount * price / scalingFactor
-            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
+            // Inverting the original calculation when isPositiveFeed is false:
+            // loanAmount = collateralAmount * scalingFactor / price
+            loanAmount = Math.mulDiv(collateralAmount, scalingFactor, price);
         }
     }
 
