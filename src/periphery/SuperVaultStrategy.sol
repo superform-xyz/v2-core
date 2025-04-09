@@ -318,9 +318,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 ) {
                     try ISuperHookAsync(hook).getUsedAssetsOrShares() returns (uint256 outAmount, bool isShares) {
                         if (isShares) {
-                            asyncYieldSourceSharesInTransitOutflows[vars.targetedYieldSource] = outAmount;
+                            asyncYieldSourceSharesInTransitOutflows[vars.targetedYieldSource] += outAmount;
                         } else {
-                            asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] = outAmount;
+                            asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] += outAmount;
                         }
                     } catch {
                         // warning: only the final step of the cancelation claim can actually reset the mappings.
