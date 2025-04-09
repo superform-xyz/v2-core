@@ -125,7 +125,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHook {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            if (vars.amount == 0) revert AMOUNT_NOT_VALID();
+            _verifyAmount(vars.amount, marketParams);
             uint256 fullCollateral = _deriveCollateralForFullRepayment(vars.id, account);
             collateralForWithdraw = _deriveCollateralForPartialRepayment(
                 vars.id,
@@ -226,6 +226,22 @@ contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHook {
             irm: irm,
             lltv: lltv
         });
+    }
+
+    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        uint256 fee = _deriveFeeAmount(marketParams);
+        uint256 interest = _deriveInterest(marketParams);
+        uint256 totalAmount = amount + fee + interest;
+        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
+    }
+
+    function _deriveInterest(MarketParams memory marketParams) internal view returns (uint256 interest) {
+        Id id = marketParams.id();
+        Market memory market = morphoInterface.market(id);
+        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
+        uint256 elapsed = block.timestamp - market.lastUpdate;
+        interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
     }
 
     function _deriveShareBalance(Id id, address account) internal view returns (uint128 borrowShares) {

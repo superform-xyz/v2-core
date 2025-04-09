@@ -107,8 +107,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets as
-                    // we are repaying in full
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets shareBalance indicates full repayment
              });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -116,7 +115,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            if (vars.amount == 0) revert AMOUNT_NOT_VALID();
+            _verifyAmount(vars.amount, marketParams);
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
@@ -128,8 +127,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares as
-                    // partial repayment
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares and amount > 0 indicates partial repayment to Morpho
              });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -199,6 +197,22 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             irm: irm,
             lltv: lltv
         });
+    }
+
+    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        uint256 fee = _deriveFeeAmount(marketParams);
+        uint256 interest = _deriveInterest(marketParams);
+        uint256 totalAmount = amount + fee + interest;
+        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
+    }
+
+    function _deriveInterest(MarketParams memory marketParams) internal view returns (uint256 interest) {
+        Id id = marketParams.id();
+        Market memory market = morphoInterface.market(id);
+        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
+        uint256 elapsed = block.timestamp - market.lastUpdate;
+        interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
     }
 
     function _deriveShareBalance(Id id, address account) internal view returns (uint128 borrowShares) {
