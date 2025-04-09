@@ -5,7 +5,7 @@
 ###################################################################################
 # Description:
 #   This script uploads compiled contract JSON files from the 'out' directory
-#   to an S3 bucket, using a flattened structure.
+#   to an S3 bucket, only for contracts that are deployed.
 #
 # Usage:
 #   ./export_abis_s3.sh <branch_name>
@@ -34,7 +34,7 @@ log() {
 }
 
 # Script Arguments
-BRANCH_NAME=${1:-$GITHUB_REF_NAME}
+BRANCH_NAME=${1:-${GITHUB_REF_NAME:-}}
 
 if [ -z "$BRANCH_NAME" ]; then
     log "ERROR" "Branch name is required"
@@ -81,29 +81,70 @@ if [ ! -d "out" ]; then
     exit 1
 fi
 
-# Count JSON files
-JSON_COUNT=$(find out -name "*.json" | wc -l)
-log "INFO" "Found $JSON_COUNT JSON files to upload"
+# Read deployed contracts from Ethereum-latest.json
+ETHEREUM_LATEST="script/output/local/1/Ethereum-latest.json"
+if [ ! -f "$ETHEREUM_LATEST" ]; then
+    log "ERROR" "Ethereum-latest.json not found at $ETHEREUM_LATEST"
+    exit 1
+fi
 
-# Upload JSON files to S3
-log "INFO" "Uploading contract JSON files to S3..."
+# Extract contract names from Ethereum-latest.json
+log "INFO" "Reading deployed contracts from $ETHEREUM_LATEST"
+DEPLOYED_CONTRACTS=$(jq -r 'keys[]' "$ETHEREUM_LATEST")
+if [ -z "$DEPLOYED_CONTRACTS" ]; then
+    log "ERROR" "No deployed contracts found in $ETHEREUM_LATEST"
+    exit 1
+fi
+
+log "INFO" "Found $(echo "$DEPLOYED_CONTRACTS" | wc -l) deployed contracts"
 
 # Create a temporary directory for organizing files
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Copy files to temp directory with flattened structure
-find out -name "*.json" | while read -r file; do
-    # Extract contract name (last part of the path)
-    contract_name=$(basename "$file")
-    # Copy file with just the contract name
-    cp "$file" "$TEMP_DIR/$contract_name"
+log "INFO" "Created temporary directory: $TEMP_DIR"
+
+# Copy only deployed contract files to temp directory
+log "INFO" "Copying deployed contract files to temporary directory"
+for contract in $DEPLOYED_CONTRACTS; do
+    log "DEBUG" "Processing contract: $contract"
+    
+    # First try to find the contract in its own directory (implementation)
+    contract_file=""
+    if find out -path "out/${contract}.sol/${contract}.json" -type f 2>/dev/null | grep -q .; then
+        contract_file=$(find out -path "out/${contract}.sol/${contract}.json" -type f | head -n 1)
+        log "DEBUG" "Found in primary location: $contract_file"
+    fi
+    
+    # If not found, try a more general search but exclude test files
+    if [ -z "$contract_file" ]; then
+        log "DEBUG" "Contract not found in primary location, trying secondary search"
+        if find out -name "${contract}.json" -type f 2>/dev/null | grep -v "\.t\.sol" | grep -q .; then
+            contract_file=$(find out -name "${contract}.json" -type f | grep -v "\.t\.sol" | head -n 1)
+            log "DEBUG" "Found in secondary location: $contract_file"
+        fi
+    fi
+    
+    # If still not found, log a warning
+    if [ -z "$contract_file" ]; then
+        log "WARN" "Could not find JSON file for $contract"
+        continue
+    fi
+    
+    # Copy to temp directory with flattened structure
+    log "DEBUG" "Copying from $contract_file to $TEMP_DIR/${contract}.json"
+    cp "$contract_file" "$TEMP_DIR/${contract}.json"
+    log "INFO" "Copied $contract from $contract_file"
 done
 
-# Upload to S3 with detailed error output
+# Count filtered JSON files
+FILTERED_COUNT=$(find "$TEMP_DIR" -name "*.json" | wc -l)
+log "INFO" "Filtered to $FILTERED_COUNT deployed contract JSON files"
+
+# Upload to S3
 log "INFO" "Starting S3 sync to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX"
-if ! aws s3 sync "$TEMP_DIR" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX" --debug; then
-    log "ERROR" "Failed to upload contract JSON files to S3. See error above."
+if ! aws s3 sync "$TEMP_DIR" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX"; then
+    log "ERROR" "Failed to upload contract JSON files to S3"
     exit 1
 fi
 
@@ -111,7 +152,10 @@ fi
 log "INFO" "Creating summary file..."
 
 SUMMARY_FILE="$TEMP_DIR/summary.json"
+TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
 echo "{" > "$SUMMARY_FILE"
+echo "  \"generated_at\": \"$TIMESTAMP\"," >> "$SUMMARY_FILE"
 echo "  \"contracts\": {" >> "$SUMMARY_FILE"
 
 # Find all JSON files and extract contract names
@@ -138,12 +182,12 @@ echo "" >> "$SUMMARY_FILE"
 echo "  }" >> "$SUMMARY_FILE"
 echo "}" >> "$SUMMARY_FILE"
 
-# Upload summary file with detailed error output
+# Upload summary file
 log "INFO" "Uploading summary file to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json"
-if ! aws s3 cp "$SUMMARY_FILE" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json" --debug; then
-    log "ERROR" "Failed to upload summary file to S3. See error above."
+if ! aws s3 cp "$SUMMARY_FILE" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json"; then
+    log "ERROR" "Failed to upload summary file to S3"
     exit 1
 fi
 
-log "SUCCESS" "All files uploaded to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/"
+log "SUCCESS" "All deployed contract ABIs uploaded to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/"
 log "SUCCESS" "Summary file available at s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json"
