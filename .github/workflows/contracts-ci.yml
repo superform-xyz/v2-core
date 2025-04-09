@@ -75,10 +75,9 @@ jobs:
         run: chmod +x ./script/run/export_abis_s3.sh
 
       - name: "Export ABIs to S3"
-        run: ./script/run/export_abis_s3.sh "dev"
+        run: ./script/run/export_abis_s3.sh "dev" # TODO apply only dev ${{ github.ref_name }}"
         env:
           S3_BUCKET_NAME_ABIS: ${{ secrets.S3_BUCKET_NAME_ABIS }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
 
       - name: "Add build summary"
         run: |
