@@ -97,7 +97,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
 
         uint256 fee = _deriveFeeAmount(marketParams);
         uint256 collateralForWithdraw;
-        executions = new Execution[](5);
+        executions = new Execution[](4);
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(vars.id, account);
             uint256 shareBalance = uint256(borrowBalance);
@@ -118,25 +118,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-            executions[4] = Execution({
-                target: morpho,
-                value: 0,
-                callData: abi.encodeCall(
-                    IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account)
-                )
-            });
         } else {
-            uint256 fullCollateral = _deriveCollateralForFullRepayment(vars.id, account);
-            collateralForWithdraw = _deriveCollateralForPartialRepayment(
-                vars.id,
-                vars.oracle,
-                vars.loanToken,
-                vars.collateralToken,
-                account,
-                vars.amount,
-                fullCollateral,
-                vars.isPositiveFeed
-            );
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
@@ -151,13 +133,6 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-            executions[4] = Execution({
-                target: morpho,
-                value: 0,
-                callData: abi.encodeCall(
-                    IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account)
-                )
-            });
         }
     }
     /*//////////////////////////////////////////////////////////////
