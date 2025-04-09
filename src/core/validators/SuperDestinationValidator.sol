@@ -82,7 +82,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
-
+        /// @dev `executor` is included in the leaf to ensure that the leaf is unique for each executor
+        ///      otherwise it allows the owner's signature to be replayed if the account mistakenly installs two of the same executors
         return keccak256(
             bytes.concat(
                 keccak256(
