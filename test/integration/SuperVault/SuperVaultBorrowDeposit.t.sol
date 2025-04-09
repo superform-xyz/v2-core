@@ -177,7 +177,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("Original pps", _getSuperVaultPricePerShare());
 
         // Request deposit into superVault as user1
-        _requestDepositOnBase(instanceOnBase, collateralAmount);
+        _requestDepositOnBase(instanceOnBase, amount);
 
         console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountBase));
         console2.log("\n pps After Request Deposit1", _getSuperVaultPricePerShare());
