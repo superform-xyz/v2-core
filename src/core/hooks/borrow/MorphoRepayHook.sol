@@ -87,6 +87,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
 
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
+        // Only for partial repayments & vars.amount != 0 
         if (vars.usePrevHookAmount) {
             vars.amount = ISuperHookResult(prevHook).outAmount();
         }
@@ -113,7 +114,7 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, ""))
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets as we are repaying in full
             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -141,12 +142,12 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee))
+                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee)) // TODO: add interest or check amount includes fee & interest
             });
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, ""))
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares as partial repayment
             });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -163,7 +164,6 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-
     function preExecute(address, address account, bytes memory data) external {
         // store current balance
         outAmount = _getBalance(account, data);
@@ -227,67 +227,6 @@ contract MorphoRepayHook is BaseHook, ISuperHook {
 
     function _deriveShareBalance(Id id, address account) internal view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
-    }
-
-    function _deriveCollateralForFullRepayment(
-        Id id,
-        address account
-    )
-        internal
-        view
-        returns (uint256 collateralAmount)
-    {
-        (,, uint128 collateral) = morphoStaticTyping.position(id, account);
-        collateralAmount = uint256(collateral);
-    }
-
-    function _deriveCollateralForPartialRepayment(
-        Id id,
-        address oracle,
-        address loanToken,
-        address collateralToken,
-        address account,
-        uint256 amount,
-        uint256 fullCollateral,
-        bool isPositiveFeed
-    )
-        internal
-        view
-        returns (uint256 withdrawableCollateral)
-    {
-        uint256 fullLoanAmount = _deriveLoanAmount(id, account);
-        uint256 remainingLoan = fullLoanAmount - amount;
-
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        // Compute the collateral still required to back the remaining debt.
-        uint256 requiredCollateralForRemaining;
-        if (isPositiveFeed) {
-            // For a positive feed, the oracle returns the price in units of loan token per collateral token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * scalingFactor / price
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, scalingFactor, price);
-        } else {
-            // For a negative feed, the oracle returns the price in units of collateral token per loan token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * price / scalingFactor
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, price, scalingFactor);
-        }
-
-        withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
-    }
-
-    function _deriveLoanAmount(Id id, address account) internal view returns (uint256 loanAmount) {
-        (, uint128 fullShares,) = morphoStaticTyping.position(id, account);
-        uint256 castShares = uint256(fullShares);
-
-        Market memory market = morphoInterface.market(id);
-        loanAmount = castShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
     function _deriveFeeAmount(MarketParams memory marketParams) internal view returns (uint256 feeAmount) {
