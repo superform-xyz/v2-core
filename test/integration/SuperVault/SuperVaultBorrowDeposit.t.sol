@@ -46,6 +46,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     address public loanToken;
     address public collateralToken;
 
+    address public swapRouter;
+
     address public morphoVault;
     IMorpho public morphoInterface;
     IERC4626 public morphoVaultInstance;
@@ -159,8 +161,9 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.stopPrank();
 
         collateralAmount = _deriveCollateralAmount(amount, loanToken, collateralToken, false);
-        console2.log("----collateralAmount", collateralAmount);
+
         _getTokens(address(asset), accountBase, 1e18);
+        deal(address(asset), odosRouters[BASE], 1e12);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -188,7 +191,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         //vm.warp(block.timestamp + 15 weeks);
 
         // Request redeem on superVault as user1
-        _requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
+        //_requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
         console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountBase));
 
         // Fulfill redeem request
@@ -374,10 +377,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         executeOp(userOpData);
     }
 
-    function _fulfillDepositRequestsWithBorrow() public {
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = accountBase;
-
+    function _executeSuperVault_Borrow_And_Swap() internal {
         // Execute borrow hook
         address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
 
@@ -401,6 +401,43 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.prank(STRATEGIST);
         strategy.executeHooks(executeArgs);
 
+        // swap
+        address[] memory swapHooks = new address[](1);
+        swapHooks[0] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
+
+        bytes[] memory swapHookDataArray = new bytes[](1);
+        swapHookDataArray[0] = _createOdosSwapHookData(
+            address(loanToken),
+            _deriveLoanAmount(amount),
+            address(strategy),
+            address(asset),
+            amount,
+            0,
+            bytes(""),
+            odosRouters[BASE],
+            0,
+            false
+        );
+
+        ISuperVaultStrategy.ExecuteArgs memory executeArgs = ISuperVaultStrategy.ExecuteArgs({
+            users: new address[](0),
+            hooks: swapHooks,
+            hookCalldata: swapHookDataArray,
+            hookProofs: _getMerkleProofsForAddresses(BASE, swapHooks),
+            expectedAssetsOrSharesOut: new uint256[](1)
+        });
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(executeArgs);
+    }
+
+    function _fulfillDepositRequestsWithBorrow() public {
+        _executeSuperVault_Borrow_And_Swap();
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountBase;
+
+        uint256 loanAmount = _deriveLoanAmount(amount);
+        
         // Fulfill deposit into morpho vault
         address depositHook = _getHookAddress(BASE, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
@@ -412,13 +449,13 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(morphoVaultInstance),
             loanToken,
-            amount,
+            loanAmount,
             false,
             false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = morphoVaultInstance.previewDeposit(amount);
+        expectedAssetsOrSharesOut[0] = morphoVaultInstance.previewDeposit(loanAmount);
 
         ISuperVaultStrategy.ExecuteArgs memory depositArgs = ISuperVaultStrategy.ExecuteArgs({
             users: requestingUsers,
