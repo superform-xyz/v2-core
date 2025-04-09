@@ -48,6 +48,21 @@ if [ -z "${S3_BUCKET_NAME_ABIS:-}" ]; then
     exit 1
 fi
 
+# Print AWS version and check connectivity
+log "INFO" "AWS CLI version: $(aws --version)"
+log "INFO" "Testing AWS connectivity..."
+if ! aws sts get-caller-identity > /dev/null 2>&1; then
+    log "ERROR" "Failed to connect to AWS. Check your credentials."
+    exit 1
+fi
+
+# Check if bucket exists
+log "INFO" "Checking if bucket exists: $S3_BUCKET_NAME_ABIS"
+if ! aws s3api head-bucket --bucket "$S3_BUCKET_NAME_ABIS" 2>/dev/null; then
+    log "ERROR" "Bucket does not exist or you don't have access: $S3_BUCKET_NAME_ABIS"
+    exit 1
+fi
+
 # Determine S3 path prefix based on branch
 if [[ "$BRANCH_NAME" == feat/* ]]; then
     # Extract feature name without feat/ prefix
@@ -85,11 +100,10 @@ find out -name "*.json" | while read -r file; do
     cp "$file" "$TEMP_DIR/$contract_name"
 done
 
-# Upload to S3
-if aws s3 sync "$TEMP_DIR" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX" --quiet; then
-    log "SUCCESS" "Successfully uploaded contract JSON files to S3"
-else
-    log "ERROR" "Failed to upload contract JSON files to S3"
+# Upload to S3 with detailed error output
+log "INFO" "Starting S3 sync to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX"
+if ! aws s3 sync "$TEMP_DIR" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX" --debug; then
+    log "ERROR" "Failed to upload contract JSON files to S3. See error above."
     exit 1
 fi
 
@@ -124,13 +138,12 @@ echo "" >> "$SUMMARY_FILE"
 echo "  }" >> "$SUMMARY_FILE"
 echo "}" >> "$SUMMARY_FILE"
 
-# Upload summary file
-if aws s3 cp "$SUMMARY_FILE" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json" --quiet; then
-    log "SUCCESS" "Successfully uploaded summary file to S3"
-else
-    log "ERROR" "Failed to upload summary file to S3"
+# Upload summary file with detailed error output
+log "INFO" "Uploading summary file to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json"
+if ! aws s3 cp "$SUMMARY_FILE" "s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json" --debug; then
+    log "ERROR" "Failed to upload summary file to S3. See error above."
     exit 1
 fi
 
-log "INFO" "All files uploaded to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/"
-log "INFO" "Summary file available at s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json"
+log "SUCCESS" "All files uploaded to s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/"
+log "SUCCESS" "Summary file available at s3://$S3_BUCKET_NAME_ABIS/$S3_PREFIX/summary.json"
