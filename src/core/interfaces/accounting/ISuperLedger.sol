@@ -54,6 +54,7 @@ interface ISuperLedgerData {
     error MANAGER_NOT_SET();
     error ZERO_LENGTH();
     error ZERO_ID_NOT_ALLOWED();
+    error INVALID_LEDGER();
 }
 
 /// @title ISuperHookRegistry

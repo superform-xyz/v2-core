@@ -88,7 +88,7 @@ contract ApproveERC20HookTest is BaseTest {
         assertEq(hook.outAmount(), amount);
 
         hook.postExecute(address(0), address(this), _encodeData(false));
-        assertEq(hook.outAmount(), amount);
+        assertEq(hook.outAmount(), 0);
     }
 
     function test_PreAndPostExecute_WithPrevHook() public {
@@ -97,7 +97,7 @@ contract ApproveERC20HookTest is BaseTest {
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
         
         hook.postExecute(mockPrevHook, address(this), _encodeData(true));
-        assertEq(hook.outAmount(), prevHookAmount);
+        assertEq(hook.outAmount(), 0);
     }
     
 

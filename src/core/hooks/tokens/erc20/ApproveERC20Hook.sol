@@ -13,6 +13,7 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 
 /// @title ApproveERC20Hook
 /// @author Superform Labs
+/// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
 /// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
@@ -49,6 +50,7 @@ contract ApproveERC20Hook is BaseHook, ISuperHook, ISuperHookContextAware {
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();
 
+        // @dev no-revert-on-failure tokens are not supported
         executions = new Execution[](2);
         executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, 0)) });
         executions[1] =
@@ -64,12 +66,10 @@ contract ApproveERC20Hook is BaseHook, ISuperHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHook
-    function postExecute(address prevHook, address, bytes memory data) external {
-        if (_decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION)) {
-            outAmount = ISuperHookResult(prevHook).outAmount();
-        } else {
-            outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
-        }
+    function postExecute(address prevHook, address account, bytes memory data) external {
+        address token = BytesLib.toAddress(data, 0);
+        address spender = BytesLib.toAddress(data, 20);
+        outAmount = IERC20(token).allowance(account, spender);
     }
 
     /// @inheritdoc ISuperHookContextAware
