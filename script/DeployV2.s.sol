@@ -72,8 +72,7 @@ import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { GearboxYieldSourceOracle } from "../src/core/accounting/oracles/GearboxYieldSourceOracle.sol";
-import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
+import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
 // SuperVault
 
@@ -322,7 +321,7 @@ contract DeployV2 is Script, Configuration {
         _registerHooks(hookAddresses, PeripheryRegistry(deployedContracts.peripheryRegistry));
 
         // Deploy Oracles
-        _deployOracles(deployer, deployedContracts.superRegistry, chainId);
+        _deployOracles(deployer, deployedContracts.oracleRegistry, chainId);
     }
 
     function _configure(uint64 chainId) internal {
@@ -679,7 +678,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory oracleAddresses)
     {
-        uint256 len = 5;
+        uint256 len = 4;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -696,12 +695,8 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(registry))
         );
         oracles[3] = OracleDeployment(
-            FLUID_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(FluidYieldSourceOracle).creationCode, abi.encode(registry))
-        );
-        oracles[4] = OracleDeployment(
-            GEARBOX_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(GearboxYieldSourceOracle).creationCode, abi.encode(registry))
+            STAKING_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(registry))
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -719,7 +714,7 @@ contract DeployV2 is Script, Configuration {
     function _setupSuperLedgerConfiguration(uint64 chainId) private {
         PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainId, PERIPHERY_REGISTRY_KEY));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](5);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -742,15 +737,8 @@ contract DeployV2 is Script, Configuration {
             ledger: _getContract(chainId, ERC1155_LEDGER_KEY)
         });
         configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(FLUID_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(chainId, FLUID_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
-            feeRecipient: peripheryRegistry.getTreasury(),
-            ledger: _getContract(chainId, SUPER_LEDGER_KEY)
-        });
-        configs[4] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(chainId, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
+            yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
             feeRecipient: peripheryRegistry.getTreasury(),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)

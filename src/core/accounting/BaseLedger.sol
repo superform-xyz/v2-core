@@ -158,6 +158,7 @@ abstract contract BaseLedger is ISuperLedger {
     )
         internal
         pure
+        virtual
         returns (uint256 feeAmount)
     {
         uint256 profit = amountAssets > costBasis ? amountAssets - costBasis : 0;
