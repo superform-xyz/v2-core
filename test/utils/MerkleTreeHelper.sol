@@ -43,13 +43,14 @@ abstract contract MerkleTreeHelper {
         uint64 dstChainId,
         address account,
         uint256 nonce,
+        address executor,
         uint48 validUntil
     )
         internal
         pure
         returns (bytes32)
     {
-        return keccak256(bytes.concat(keccak256(abi.encode(executionData, dstChainId, account, nonce, validUntil))));
+        return keccak256(bytes.concat(keccak256(abi.encode(executionData, dstChainId, account, nonce, executor, validUntil))));
     }
 
     /*//////////////////////////////////////////////////////////////
