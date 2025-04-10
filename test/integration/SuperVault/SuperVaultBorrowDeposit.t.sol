@@ -261,13 +261,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         );
         repayHookDataArray[0] = repayHookData;
 
-        Id id = MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracleAddress,
-            irm: irm,
-            lltv: lltv
-        }).id();
         uint256 expectedCollateralBalanceAfterRepay = _deriveCollateralForPartialWithdraw(loanToken, collateralToken, amount / 2, amount, false);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
