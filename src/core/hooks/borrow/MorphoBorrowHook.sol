@@ -15,6 +15,7 @@ import { BaseHook } from "../BaseHook.sol";
 import { ISuperHook } from "../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
+import { ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
 
 /// @title MorphoBorrowHook
 /// @author Superform Labs
@@ -27,7 +28,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-contract MorphoBorrowHook is BaseHook {
+contract MorphoBorrowHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -37,6 +38,7 @@ contract MorphoBorrowHook is BaseHook {
     IMorphoBase public morphoInterface;
 
     uint256 private constant AMOUNT_POSITION = 80;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     struct BuildHookLocalVars {
         address loanToken;
@@ -111,16 +113,9 @@ contract MorphoBorrowHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        // store current balance
-        outAmount = _getLoanBalance(account, data);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getLoanBalance(account, data) - outAmount;
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,6 +142,15 @@ contract MorphoBorrowHook is BaseHook {
             usePrevHookAmount: usePrevHookAmount,
             isPositiveFeed: isPositiveFeed
         });
+    }
+
+    function _preExecute(address prevHook, address account, bytes calldata data) external {
+        // store current balance
+        outAmount = _getLoanBalance(account, data);
+    }
+
+    function _postExecute(address prevHook, address account, bytes calldata data) external {
+        outAmount = _getLoanBalance(account, data) - outAmount;
     }
 
     /// @dev This function returns the loan amount required for a given collateral amount.

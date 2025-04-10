@@ -19,6 +19,7 @@ import { BaseHook } from "../BaseHook.sol";
 import { ISuperHook } from "../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
+import { ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
 
 /// @title MorphoRepayAndWithdrawHook
 /// @author Superform Labs
@@ -32,7 +33,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 146);
-contract MorphoRepayAndWithdrawHook is BaseHook {
+contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHookContextAware {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
@@ -44,6 +45,8 @@ contract MorphoRepayAndWithdrawHook is BaseHook {
     IMorphoBase public morphoBase;
     IMorpho public morphoInterface;
     IMorphoStaticTyping public morphoStaticTyping;
+
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     struct BuildHookLocalVars {
         address loanToken;
@@ -165,17 +168,12 @@ contract MorphoRepayAndWithdrawHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
 
-    function preExecute(address, address account, bytes memory data) external {
-        // store current balance
-        outAmount = _getBalance(account, data);
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = outAmount - _getBalance(account, data);
-    }
+    
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
@@ -206,6 +204,15 @@ contract MorphoRepayAndWithdrawHook is BaseHook {
             isPositiveFeed: isPositiveFeed,
             id: id
         });
+    }
+
+    function _preExecute(address prevHook, address account, bytes calldata data) external {
+        // store current balance
+        outAmount = _getBalance(account, data);
+    }
+
+    function _postExecute(address prevHook, address account, bytes calldata data) external {
+        outAmount = outAmount - _getBalance(account, data);
     }
 
     function _generateMarketParams(
