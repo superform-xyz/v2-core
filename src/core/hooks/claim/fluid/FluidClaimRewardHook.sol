@@ -30,7 +30,7 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook {
         override
         returns (Execution[] memory executions)
     {
-        address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address stakingRewards = BytesLib.toAddress(data, 0);
         if (stakingRewards == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(stakingRewards, abi.encodeCall(IFluidLendingStakingRewards.getReward, ()));

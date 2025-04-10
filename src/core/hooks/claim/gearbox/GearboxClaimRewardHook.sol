@@ -30,7 +30,7 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook {
         override
         returns (Execution[] memory executions)
     {
-        address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address farmingPool = BytesLib.toAddress(data, 0);
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));

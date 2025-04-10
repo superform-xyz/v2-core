@@ -37,7 +37,7 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+        address receiver = BytesLib.toAddress(data, 24);
 
         if (yieldSource == address(0) || receiver == address(0)) revert ADDRESS_NOT_VALID();
 

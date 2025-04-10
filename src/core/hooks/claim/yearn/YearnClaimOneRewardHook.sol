@@ -31,8 +31,8 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook {
         override
         returns (Execution[] memory executions)
     {
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address yieldSource = BytesLib.toAddress(data, 0);
+        address rewardToken = BytesLib.toAddress(data, 20);
         if (yieldSource == address(0) || rewardToken == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getOneReward, (rewardToken)));

@@ -50,12 +50,12 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
         bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
-        address executor = BytesLib.toAddress(BytesLib.slice(data, 189 + pathDefinition_paramLength, 20), 0);
+        address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20, 4), 0);
-        address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
+        address inputToken = BytesLib.toAddress(data, 0);
+        uint256 inputAmount = BytesLib.toUint256(data, 20);
 
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
@@ -115,12 +115,12 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware {
         view
         returns (IOdosRouterV2.swapTokenInfo memory)
     {
-        address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
-        address inputReceiver = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+        address inputToken = BytesLib.toAddress(data, 0);
+        uint256 inputAmount = BytesLib.toUint256(data, 20);
+        address inputReceiver = BytesLib.toAddress(data, 52);
+        address outputToken = BytesLib.toAddress(data, 72);
+        uint256 outputQuote = BytesLib.toUint256(data, 92);
+        uint256 outputMin = BytesLib.toUint256(data, 124);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {

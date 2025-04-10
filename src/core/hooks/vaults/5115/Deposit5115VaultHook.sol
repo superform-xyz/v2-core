@@ -44,9 +44,9 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address tokenIn = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
-        uint256 minSharesOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);
+        address tokenIn = BytesLib.toAddress(data, 24);
+        uint256 amount = BytesLib.toUint256(data, 44);
+        uint256 minSharesOut = BytesLib.toUint256(data, 76);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -85,7 +85,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 109);
         spToken = data.extractYieldSource();
-        asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+        asset = BytesLib.toAddress(data, 24);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
@@ -96,7 +96,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {

@@ -55,8 +55,8 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         address executor = BytesLib.toAddress(BytesLib.slice(data, 189 + pathDefinition_paramLength, 20), 0);
         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20, 4), 0);
 
-        address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
+        address inputToken = BytesLib.toAddress(data, 0);
+        uint256 inputAmount = BytesLib.toUint256(data, 20);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
@@ -112,7 +112,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+        address outputToken = BytesLib.toAddress(data, 72);
 
         if (outputToken == address(0)) {
             return account.balance;
@@ -130,12 +130,12 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         view
         returns (IOdosRouterV2.swapTokenInfo memory)
     {
-        address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
-        address inputReceiver = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+        address inputToken = BytesLib.toAddress(data, 0);
+        uint256 inputAmount = BytesLib.toUint256(data, 20);
+        address inputReceiver = BytesLib.toAddress(data, 52);
+        address outputToken = BytesLib.toAddress(data, 72);
+        uint256 outputQuote = BytesLib.toUint256(data, 92);
+        uint256 outputMin = BytesLib.toUint256(data, 124);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {

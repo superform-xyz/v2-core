@@ -67,16 +67,16 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         returns (Execution[] memory executions)
     {
         AcrossV3DepositAndExecuteData memory acrossV3DepositAndExecuteData;
-        acrossV3DepositAndExecuteData.value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
-        acrossV3DepositAndExecuteData.recipient = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-        acrossV3DepositAndExecuteData.inputToken = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        acrossV3DepositAndExecuteData.outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        acrossV3DepositAndExecuteData.inputAmount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        acrossV3DepositAndExecuteData.outputAmount = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-        acrossV3DepositAndExecuteData.destinationChainId = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-        acrossV3DepositAndExecuteData.exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 188, 20), 0);
-        acrossV3DepositAndExecuteData.fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 208, 4), 0);
-        acrossV3DepositAndExecuteData.exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 212, 4), 0);
+        acrossV3DepositAndExecuteData.value = BytesLib.toUint256(data, 0);
+        acrossV3DepositAndExecuteData.recipient = BytesLib.toAddress(data, 32);
+        acrossV3DepositAndExecuteData.inputToken = BytesLib.toAddress(data, 52);
+        acrossV3DepositAndExecuteData.outputToken = BytesLib.toAddress(data, 72);
+        acrossV3DepositAndExecuteData.inputAmount = BytesLib.toUint256(data, 92);
+        acrossV3DepositAndExecuteData.outputAmount = BytesLib.toUint256(data, 124);
+        acrossV3DepositAndExecuteData.destinationChainId = BytesLib.toUint256(data, 156);
+        acrossV3DepositAndExecuteData.exclusiveRelayer = BytesLib.toAddress(data, 188);
+        acrossV3DepositAndExecuteData.fillDeadlineOffset = BytesLib.toUint32(data, 208);
+        acrossV3DepositAndExecuteData.exclusivityPeriod = BytesLib.toUint32(data, 212);
         acrossV3DepositAndExecuteData.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         acrossV3DepositAndExecuteData.message = BytesLib.slice(data, 217, data.length - 217);
 

@@ -35,9 +35,9 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        address token = BytesLib.toAddress(data, 0);
+        address to = BytesLib.toAddress(data, 20);
+        uint256 amount = BytesLib.toUint256(data, 40);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -76,8 +76,8 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(bytes memory data) private view returns (uint256) {
-        address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+        address token = BytesLib.toAddress(data, 0);
+        address to = BytesLib.toAddress(data, 20);
         return IERC20(token).balanceOf(to);
     }
 }
