@@ -37,20 +37,22 @@ abstract contract MerkleTreeHelper {
 
     /*//////////////////////////////////////////////////////////////
                                  DESTINATION CHAIN HELPERS
-    //////////////////////////////////////////////////////////////*/
+    //////////////////////////////////////////////////////////////*/    
     function _createDestinationValidatorLeaf(
         bytes memory executionData,
         uint64 dstChainId,
         address account,
         uint256 nonce,
         address executor,
+        address tokenSent,
+        uint256 intentAmount,
         uint48 validUntil
     )
         internal
         pure
         returns (bytes32)
     {
-        return keccak256(bytes.concat(keccak256(abi.encode(executionData, dstChainId, account, nonce, executor, validUntil))));
+        return keccak256(bytes.concat(keccak256(abi.encode(executionData, dstChainId, account, nonce, executor, tokenSent, intentAmount, validUntil))));
     }
 
     /*//////////////////////////////////////////////////////////////
