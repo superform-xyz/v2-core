@@ -266,7 +266,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault / 2,
-                account: address(0)
+                account: address(0),
+                tokenSent: underlyingETH_USDC
             });
 
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
@@ -349,7 +350,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault / 2,
-                account: address(0)
+                account: address(0),
+                tokenSent: underlyingETH_USDC
             });
 
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
@@ -437,7 +439,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault,
-                account: accountETH
+                account: accountETH,
+                tokenSent: underlyingETH_USDC
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
@@ -498,7 +501,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             nonce: nonce,
             chainId: uint64(BASE),
             amount: 0,
-            account: accountBase
+            account: accountBase,
+            tokenSent: underlyingBase_USDC
         });
         (bytes memory targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
 
@@ -608,7 +612,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(OP),
                 amount: amountPerVault,
-                account: accountOP
+                account: accountOP,
+                tokenSent: underlyingOP_USDCe
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
@@ -711,7 +716,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(BASE),
                 amount: assetOutAmount,
-                account: accountBase
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);

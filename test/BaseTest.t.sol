@@ -1658,6 +1658,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint64 chainId;
         uint256 amount;
         address account;
+        address tokenSent;
     }
 
     function _precomputeTargetExecutorAccount(
@@ -1702,8 +1703,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData, messageData.chainId, accountToUse, messageData.nonce, messageData.targetExecutor, validUntil
+            executionData,
+            messageData.chainId,
+            accountToUse,
+            messageData.nonce,
+            messageData.targetExecutor,
+            messageData.tokenSent,
+            messageData.amount,
+            validUntil
         );
+
+        console2.log("---------- messageData.tokenSent", messageData.tokenSent);
+        console2.log("---------- messageData.amount", messageData.amount);
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 
