@@ -80,7 +80,7 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /// @inheritdoc ISuperHook
     function preExecute(address, address account, bytes memory data) external {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
+        lockForSP = _decodeBool(data, 77);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
