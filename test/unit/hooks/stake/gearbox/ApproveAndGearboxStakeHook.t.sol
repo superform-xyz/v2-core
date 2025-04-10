@@ -32,7 +32,7 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
     }
 
     function test_Constructor() public view {
-        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_Build() public view {
@@ -65,11 +65,6 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
         _assertExecutions(executions);
-    }
-
-    function test_DecodeAmount() public view {
-        bytes memory data = _encodeData(false, false);
-        assertEq(hook.decodeAmount(data), amount);
     }
 
     function test_PreAndPostExecute() public {

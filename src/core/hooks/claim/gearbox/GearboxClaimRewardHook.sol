@@ -8,15 +8,22 @@ import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingP
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResultOutflow,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+} from "../../../interfaces/ISuperHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address farmingPool = BytesLib.toAddress(data, 0);
-contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook {
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
-
+contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
+>>>>>>> e860ed9ce1f705295c6be
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -34,6 +41,21 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook {
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
+    }
+
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory) external pure returns (uint256) {
+        return 0;
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory) external pure returns (bool) {
+        return false;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
+        return data;
     }
 
     /*//////////////////////////////////////////////////////////////

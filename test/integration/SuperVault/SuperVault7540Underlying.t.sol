@@ -398,14 +398,14 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         _cancelCentrifugeRedeemRequest();
 
         // Get share balance before cancel
-        uint256 sharesBefore = IERC20(centrifugeVault.share()).balanceOf(address(strategy));
-        console2.log("Shares before cancel fulfillment:", sharesBefore);
+        console2.log("Shares before cancel fulfillment:", IERC20(centrifugeVault.share()).balanceOf(address(strategy)));
 
         // Fulfill the cancellation
         _fulfillCancelRedeemRequest(initialCentrifugeRedeem);
 
         // Claim the cancelled redeem
         _claimCancelRedeemRequest();
+        console2.log("Shares after cancel claim:", IERC20(centrifugeVault.share()).balanceOf(address(strategy)));
 
         // Request a new redeem with the claimed shares
         console2.log("\n --- REQUESTING NEW CENTRIFUGE REDEEM ---");
