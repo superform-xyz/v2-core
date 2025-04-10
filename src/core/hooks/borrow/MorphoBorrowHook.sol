@@ -87,8 +87,9 @@ contract MorphoBorrowHook is BaseHook, ISuperHookContextAware {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount =
-            _deriveLoanAmount(vars.collateralAmount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
+        uint256 loanAmount = _deriveLoanAmount(
+            vars.collateralAmount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed
+        );
 
         executions = new Execution[](4);
         executions[0] =
@@ -106,8 +107,9 @@ contract MorphoBorrowHook is BaseHook, ISuperHookContextAware {
         executions[3] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account)) // derive loan amount from collateral amount
-        });
+            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account)) // derive loan
+                // amount from collateral amount
+         });
     }
 
     /*//////////////////////////////////////////////////////////////

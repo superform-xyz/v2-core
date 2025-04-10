@@ -110,7 +110,8 @@ contract MorphoRepayHook is BaseHook, ISuperHookContextAware {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets shareBalance indicates full repayment
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets
+                    // shareBalance indicates full repayment
              });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -130,7 +131,8 @@ contract MorphoRepayHook is BaseHook, ISuperHookContextAware {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares and amount > 0 indicates partial repayment to Morpho
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares and
+                    // amount > 0 indicates partial repayment to Morpho
              });
             executions[3] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -140,11 +142,10 @@ contract MorphoRepayHook is BaseHook, ISuperHookContextAware {
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookContextAware
+
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
-
-    
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
