@@ -58,7 +58,7 @@ contract SuperMerkleValidator is SuperValidatorBase {
         override
         returns (bytes4)
     {
-        if (!_initialized[sender]) revert NOT_INITIALIZED();
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
 
         // Decode data
         bytes memory sigDataRaw = abi.decode(data, (bytes));

@@ -16,11 +16,15 @@ import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedger
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 
-
 /// @title SuperExecutorBase
 /// @author Superform Labs
 /// @notice Base contract for Superform executors
-abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor, ReentrancyGuard {
+abstract contract SuperExecutorBase is
+    ERC7579ExecutorBase,
+    SuperRegistryImplementer,
+    ISuperExecutor,
+    ReentrancyGuard
+{
     using HookDataDecoder for bytes;
     using Math for uint256;
 
@@ -62,11 +66,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         _initialized[msg.sender] = false;
     }
 
-     function execute(bytes calldata data) external virtual {
+    function execute(bytes calldata data) external virtual {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
@@ -89,7 +92,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
             prevHook = currentHook;
         }
     }
-   
+
     function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
@@ -136,7 +139,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         address feeRecipient,
         uint256 feeAmount
     )
-        internal virtual 
+        internal
+        virtual
     {
         uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
         _execute(account, assetToken, 0, abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount)));
@@ -144,7 +148,9 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
 
         uint256 actualFee = balanceAfter - balanceBefore;
         uint256 maxAllowedDeviation = feeAmount.mulDiv(FEE_TOLERANCE, FEE_TOLERANCE_DENOMINATOR);
-        if (actualFee < feeAmount - maxAllowedDeviation || actualFee > feeAmount + maxAllowedDeviation) revert FEE_NOT_TRANSFERRED();
+        if (actualFee < feeAmount - maxAllowedDeviation || actualFee > feeAmount + maxAllowedDeviation) {
+            revert FEE_NOT_TRANSFERRED();
+        }
     }
 
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) internal virtual {
@@ -154,7 +160,15 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
     }
 
-    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData) internal nonReentrant {
+    function _processHook(
+        address account,
+        ISuperHook hook,
+        address prevHook,
+        bytes memory hookData
+    )
+        internal
+        nonReentrant
+    {
         // run hook preExecute
         hook.preExecute(prevHook, account, hookData);
         Execution[] memory executions = hook.build(prevHook, account, hookData);
@@ -167,6 +181,4 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, SuperRegistryImpleme
         // update accounting
         _updateAccounting(account, address(hook), hookData);
     }
-
-
 }

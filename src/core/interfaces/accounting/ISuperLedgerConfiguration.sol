@@ -66,7 +66,9 @@ interface ISuperLedgerConfiguration {
         address feeRecipient,
         address ledger
     );
-    event ManagerRoleTransferStarted(bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager);
+    event ManagerRoleTransferStarted(
+        bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager
+    );
     event ManagerRoleTransferAccepted(bytes4 indexed yieldSourceOracleId, address indexed newManager);
 
     /*//////////////////////////////////////////////////////////////

@@ -55,7 +55,15 @@ abstract contract BaseLedger is ISuperLedger {
     }
 
     /// @inheritdoc ISuperLedger
-    function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) public view returns (uint256 costBasis) {
+    function calculateCostBasisView(
+        address user,
+        address yieldSource,
+        uint256 usedShares
+    )
+        public
+        view
+        returns (uint256 costBasis)
+    {
         uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
@@ -84,7 +92,16 @@ abstract contract BaseLedger is ISuperLedger {
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function _takeSnapshot(address user, uint256 amountShares, address yieldSource, uint256 pps, uint256 decimals) internal virtual {
+    function _takeSnapshot(
+        address user,
+        uint256 amountShares,
+        address yieldSource,
+        uint256 pps,
+        uint256 decimals
+    )
+        internal
+        virtual
+    {
         usersAccumulatorShares[user][yieldSource] += amountShares;
         usersAccumulatorCostBasis[user][yieldSource] += Math.mulDiv(amountShares, pps, 10 ** decimals);
     }
@@ -103,7 +120,14 @@ abstract contract BaseLedger is ISuperLedger {
         return amountSharesOrAssets;
     }
 
-    function _calculateCostBasis(address user, address yieldSource, uint256 usedShares) internal returns (uint256 costBasis) {
+    function _calculateCostBasis(
+        address user,
+        address yieldSource,
+        uint256 usedShares
+    )
+        internal
+        returns (uint256 costBasis)
+    {
         costBasis = calculateCostBasisView(user, yieldSource, usedShares);
 
         usersAccumulatorShares[user][yieldSource] -= usedShares;
@@ -166,7 +190,11 @@ abstract contract BaseLedger is ISuperLedger {
 
         if (isInflow) {
             _takeSnapshot(
-                user, amountSharesOrAssets, yieldSource, pps, IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
+                user,
+                amountSharesOrAssets,
+                yieldSource,
+                pps,
+                IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
             );
 
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
