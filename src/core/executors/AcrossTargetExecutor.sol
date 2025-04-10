@@ -134,6 +134,7 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             uint256 intentAmount
         ) = abi.decode(message, (bytes, bytes, bytes, address, uint256));
 
+
         if (account.code.length > 0) {
             string memory accountId = IERC7579Account(account).accountId();
             if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
@@ -148,12 +149,11 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
 
         uint256 _nonce = nonces[account];
-        nonces[account]++;
 
         // @dev validate execution
 
         bytes memory destinationData =
-            abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this));
+            abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this), tokenSent, intentAmount);
         bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(
             account, abi.encode(sigData, destinationData)
         );
@@ -168,6 +168,8 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             emit AcrossTargetExecutorReceivedButNotEnoughBalance(account);
             return;
         }
+
+        nonces[account]++;
 
         // check if we have hooks
         if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
