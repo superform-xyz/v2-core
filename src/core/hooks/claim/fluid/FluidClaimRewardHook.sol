@@ -13,7 +13,7 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 /// @title FluidClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+/// @notice         address stakingRewards = BytesLib.toAddress(data, 0);
 contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook {
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 

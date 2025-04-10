@@ -13,16 +13,16 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address recipient = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         uint256 outputAmount = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-/// @notice         uint256 destinationChainId = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-/// @notice         address exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 188, 20), 0);
-/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 208, 4), 0);
-/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 212, 4), 0);
+/// @notice         uint256 value = BytesLib.toUint256(data, 0);
+/// @notice         address recipient = BytesLib.toAddress(data, 32);
+/// @notice         address inputToken = BytesLib.toAddress(data, 52);
+/// @notice         address outputToken = BytesLib.toAddress(data, 72);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 92);
+/// @notice         uint256 outputAmount = BytesLib.toUint256(data, 124);
+/// @notice         uint256 destinationChainId = BytesLib.toUint256(data, 156);
+/// @notice         address exclusiveRelayer = BytesLib.toAddress(data, 188);
+/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
+/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler

@@ -13,9 +13,9 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @title TransferERC20Hook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         address token = BytesLib.toAddress(data, 0);
+/// @notice         address to = BytesLib.toAddress(data, 20);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;

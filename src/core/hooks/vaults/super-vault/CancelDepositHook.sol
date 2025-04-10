@@ -16,8 +16,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title CancelDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = BytesLib.toAddress(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+/// @notice         bytes4 placeholder = BytesLib.toAddress(data, 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 contract CancelDepositHook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 

@@ -12,9 +12,9 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @title Swap1InchHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address dstToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address dstReceiver = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+/// @notice         address dstToken = BytesLib.toAddress(data, 0);
+/// @notice         address dstReceiver = BytesLib.toAddress(data, 20);
+/// @notice         uint256 value = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 /// @notice         bytes txData_ = BytesLib.slice(data, 73, data.length - 73);
 contract Swap1InchHook is BaseHook, ISuperHookContextAware {

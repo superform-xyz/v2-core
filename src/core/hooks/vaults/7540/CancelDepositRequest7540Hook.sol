@@ -12,8 +12,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title CancelDepositRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = BytesLib.toAddress(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+/// @notice         bytes4 placeholder = BytesLib.toAddress(data, 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 contract CancelDepositRequest7540Hook is BaseHook {
     using HookDataDecoder for bytes;
 

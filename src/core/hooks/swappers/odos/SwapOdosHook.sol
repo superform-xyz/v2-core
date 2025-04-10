@@ -14,19 +14,17 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @title SwapOdosHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
-/// @notice         address inputReceiver = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 outputQuote = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         uint256 outputMin = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
+/// @notice         address inputToken = BytesLib.toAddress(data, 0);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 20);
+/// @notice         address inputReceiver = BytesLib.toAddress(data, 52);
+/// @notice         address outputToken = BytesLib.toAddress(data, 72);
+/// @notice         uint256 outputQuote = BytesLib.toUint256(data, 92);
+/// @notice         uint256 outputMin = BytesLib.toUint256(data, 124);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(BytesLib.slice(data, 157, 32), 0);
+/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
 /// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
-/// @notice         address executor = BytesLib.toAddress(BytesLib.slice(data, 189 + pathDefinition_paramLength, 20),
-/// 0);
-/// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20,
-/// 4), 0);
+/// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
+/// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
 contract SwapOdosHook is BaseHook, ISuperHookContextAware {
     IOdosRouterV2 public immutable odosRouterV2;
 
@@ -53,10 +51,9 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware {
         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
         bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
-        uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20, 4), 0);
+        uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
         address inputToken = BytesLib.toAddress(data, 0);
         uint256 inputAmount = BytesLib.toUint256(data, 20);
-
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {

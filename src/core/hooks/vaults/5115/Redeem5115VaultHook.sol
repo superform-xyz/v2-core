@@ -21,10 +21,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 24);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 44);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 76);
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 108);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 109);
 /// @notice         bool lockForSP = _decodeBool(data, 110);
