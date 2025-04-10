@@ -105,6 +105,12 @@ interface ISuperVaultStrategy {
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
     event HooksExecuted(address[] hooks);
     event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 processedShares);
+    event AsyncYieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets);
+    event AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(address indexed source, uint256 assets);
+    event AsyncYieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets);
+    event AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(address indexed source, uint256 assets);
+    event YieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets);
+    event YieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets);
 
     /*////////////////////////////////`//////////////////////////////
                                 STRUCTS
