@@ -234,7 +234,7 @@ contract SuperExecutorTest is BaseTest {
         maliciousToken.blacklist(feeRecipient);
 
         MockHook maliciousHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(maliciousToken));
-        maliciousHook.setOutAmount(1000);
+        maliciousHook.setOutAmount(910);
         maliciousHook.setUsedShares(500);
 
         ledger.setFeeAmount(100);

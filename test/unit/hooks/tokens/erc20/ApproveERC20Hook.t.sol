@@ -10,7 +10,6 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { console2 } from "forge-std/console2.sol";
 
-
 contract ApproveERC20HookTest is BaseTest {
     ApproveERC20Hook public hook;
 
@@ -40,18 +39,18 @@ contract ApproveERC20HookTest is BaseTest {
         assertEq(executions.length, 2);
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0); 
+        assertGt(executions[0].callData.length, 0);
 
         assertEq(executions[1].target, token);
         assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0); 
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_Build_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-        
+
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
         assertEq(executions.length, 2);
@@ -95,18 +94,12 @@ contract ApproveERC20HookTest is BaseTest {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-        
+
         hook.postExecute(mockPrevHook, address(this), _encodeData(true));
         assertEq(hook.outAmount(), 0);
     }
-    
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
-        return abi.encodePacked(
-            token,
-            spender,
-            amount,
-            usePrev
-        );
+        return abi.encodePacked(token, spender, amount, usePrev);
     }
 }

@@ -18,7 +18,7 @@ contract RequestRedeem7540VaultHookTest is BaseTest {
     address token;
     uint256 amount;
 
-    function setUp() public override { 
+    function setUp() public override {
         super.setUp();
 
         yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
@@ -39,21 +39,21 @@ contract RequestRedeem7540VaultHookTest is BaseTest {
         assertEq(executions.length, 1);
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0); 
+        assertGt(executions[0].callData.length, 0);
     }
 
     function test_Build_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-        
+
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 1);
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0); 
+        assertGt(executions[0].callData.length, 0);
     }
 
     function test_Build_RevertIf_AddressZero() public {
@@ -82,7 +82,7 @@ contract RequestRedeem7540VaultHookTest is BaseTest {
         assertEq(isShares, true);
     }
 
-     function test_PreAndPostExecute() public {
+    function test_PreAndPostExecute() public {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
         bytes memory data = _encodeData(false);
@@ -90,16 +90,10 @@ contract RequestRedeem7540VaultHookTest is BaseTest {
         assertEq(hook.outAmount(), amount);
 
         hook.postExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 0);    
+        assertEq(hook.outAmount(), 0);
     }
 
-   
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId,
-            yieldSource,
-            amount,
-            usePrevHook
-        );
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHook);
     }
 }

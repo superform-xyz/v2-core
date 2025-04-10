@@ -12,7 +12,6 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // superform
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
-import { PaymasterGasCalculator } from "../libraries/PaymasterGasCalculator.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
@@ -78,40 +77,17 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     function _validatePaymasterUserOp(
         PackedUserOperation calldata userOp,
         bytes32,
-        /**
-         * userOpHash
-         */
-        uint256 maxCost
+        uint256
     )
         internal
         virtual
         override
         returns (bytes memory context, uint256 validationData)
     {
-        if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
-            revert INSUFFICIENT_BALANCE();
-        }
-        // 52
-        uint256 maxGasLimitOffsetStart = UserOperationLib.PAYMASTER_DATA_OFFSET;
-        // 52 + 16 = 68
-        uint256 maxGasLimitOffsetEnd = maxGasLimitOffsetStart + UINT128_BYTES;
+        (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
+            abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
 
-        // 68
-        uint256 nodeOperatorPremiumOffsetStart = maxGasLimitOffsetEnd;
-        // 68 + 16 = 84
-        uint256 nodeOperatorPremiumOffsetEnd = nodeOperatorPremiumOffsetStart + UINT128_BYTES;
-
-        uint128 maxGasLimit = uint128(bytes16(userOp.paymasterAndData[maxGasLimitOffsetStart:maxGasLimitOffsetEnd]));
-
-        // verification + call  gas limit <= maxGasLimit
-        uint256 totalGasLimit =
-            PaymasterGasCalculator.getVerificationGasLimit(userOp) + PaymasterGasCalculator.getCallGasLimit(userOp);
-        if (maxGasLimit > totalGasLimit || maxGasLimit == 0) revert INVALID_MAX_GAS_LIMIT();
-
-        uint128 nodeOperatorPremium =
-            uint128(bytes16(userOp.paymasterAndData[nodeOperatorPremiumOffsetStart:nodeOperatorPremiumOffsetEnd]));
-
-        if (nodeOperatorPremium < 0 || nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
+        if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
             revert INVALID_NODE_OPERATOR_PREMIUM();
         }
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);

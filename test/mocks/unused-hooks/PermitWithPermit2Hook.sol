@@ -9,7 +9,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
 import { IPermit2Single } from "../../../src/vendor/uniswap/permit2/IPermit2Single.sol";
 import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
@@ -22,7 +22,7 @@ import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowan
 /// @notice         address spender = BytesLib.toAddress(BytesLib.slice(data, 117, 20), 0);
 /// @notice         uint256 sigDeadline = BytesLib.toUint256(BytesLib.slice(data, 137, 32), 0);
 /// @notice         bytes signature = BytesLib.slice(data, 169, data.length - 169);
-contract PermitWithPermit2Hook is BaseHook, ISuperHook {
+contract PermitWithPermit2Hook is BaseHook {
     using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -38,7 +38,6 @@ contract PermitWithPermit2Hook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -78,17 +77,15 @@ contract PermitWithPermit2Hook is BaseHook, ISuperHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external {
+    function _preExecute(address, address, bytes calldata data) internal override {
         (,, IAllowanceTransfer.PermitSingle memory permitSingle,) =
             abi.decode(data, (address, bool, IAllowanceTransfer.PermitSingle, bytes));
         outAmount = permitSingle.details.amount;
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external {
+    function _postExecute(address, address, bytes calldata data) internal override {
         (,, IAllowanceTransfer.PermitSingle memory permitSingle,) =
             abi.decode(data, (address, bool, IAllowanceTransfer.PermitSingle, bytes));
         outAmount = permitSingle.details.amount;

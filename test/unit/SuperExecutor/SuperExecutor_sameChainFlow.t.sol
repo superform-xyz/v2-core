@@ -177,7 +177,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             flags: 0
         });
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _create1InchGenericRouterSwapHookData(account, underlying, executor, desc, "", "", false);
+        hooksData[0] = _create1InchGenericRouterSwapHookData(account, underlying, executor, desc, "", false);
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
@@ -367,7 +367,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             "",
             address(this),
             uint32(0),
-            true
+            false
         );
         hooksData[3] = _createApproveHookData(underlying, yieldSourceAddress, amount, true);
         hooksData[4] = _createDeposit4626HookData(

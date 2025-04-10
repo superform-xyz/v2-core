@@ -11,6 +11,7 @@ import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 
 /// @title SuperDestinationValidator
+/// @dev Can't be used for ERC-1271 validation
 /// @author Superform Labs
 /// @notice A destination validator contract
 contract SuperDestinationValidator is SuperValidatorBase {
@@ -22,6 +23,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         bytes callData;
         uint64 chainId;
         address sender;
+        address executor;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -53,15 +55,14 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @notice Validate a signature with sender
     /// @dev EIP1271 compatible
     function isValidSignatureWithSender(
-        address sender,
+        address,
         bytes32,
-        bytes calldata data
-    )
-        external
-        view
-        override
-        returns (bytes4)
-    {
+        bytes calldata
+    ) external pure virtual override returns (bytes4) {
+        revert NOT_IMPLEMENTED();
+    }
+
+    function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) = _decodeSignatureAndDestinationData(data, sender);
         // Process signature
@@ -70,27 +71,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
         return isValid ? bytes4(0x1626ba7e) : bytes4("");
-    }
-
-    /// @notice Validate a signature with data
-    function validateSignatureWithData(
-        bytes32,
-        bytes calldata sigDataRaw,
-        bytes calldata destinationDataRaw
-    )
-        external
-        view
-        virtual
-        returns (bool validSig)
-    {
-        // Decode signature and user operation data
-        SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
-        DestinationData memory destinationData = _decodeDestinationData(destinationDataRaw, msg.sender);
-
-        // Process signature
-        (address signer, ) = _processSignatureAndVerifyLeaf(sigData, destinationData);
-
-        return _isSignatureValid(signer, msg.sender, sigData.validUntil);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -102,7 +82,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
-
+        /// @dev `executor` is included in the leaf to ensure that the leaf is unique for each executor
+        ///      otherwise it allows the owner's signature to be replayed if the account mistakenly installs two of the same executors
         return keccak256(
             bytes.concat(
                 keccak256(
@@ -111,6 +92,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
                         destinationData.chainId,
                         destinationData.sender,
                         destinationData.nonce,
+                        destinationData.executor,
                         validUntil
                     )
                 )
@@ -154,11 +136,11 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
  
     function _decodeDestinationData(bytes memory destinationDataRaw, address sender_) private view returns (DestinationData memory) {
-        (uint256 nonce, bytes memory callData, uint64 chainId, address decodedSender) =
-            abi.decode(destinationDataRaw, (uint256, bytes, uint64, address));
+        (uint256 nonce, bytes memory callData, uint64 chainId, address decodedSender, address executor) =
+            abi.decode(destinationDataRaw, (uint256, bytes, uint64, address, address));
         if (sender_ != decodedSender) revert INVALID_SENDER();
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();
-        return DestinationData(nonce, callData, chainId, decodedSender);
+        return DestinationData(nonce, callData, chainId, decodedSender, executor);
     }
 
     function _decodeSignatureAndDestinationData(

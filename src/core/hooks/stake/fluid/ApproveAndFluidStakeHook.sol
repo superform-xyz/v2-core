@@ -9,12 +9,7 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title ApproveAndFluidStakeHook
@@ -26,7 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract ApproveAndFluidStakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -37,7 +32,6 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address,
@@ -77,17 +71,6 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
-        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -97,6 +80,19 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutfl
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 57);
+        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////

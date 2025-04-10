@@ -151,13 +151,13 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
     }
 
     function test_RebalanceCrossChain_4626_Mainnet_FlowXX() public {
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
         uint256 amount = 1e8;
         uint256 previewRedeemAmount = vaultInstanceEth.previewRedeem(vaultInstanceEth.previewDeposit(amount));
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         bytes memory targetExecutorMessage;
         {
@@ -197,7 +197,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         }
 
         // ETH is SRC
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
+
         address[] memory srcHooksAddresses = new address[](4);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -226,7 +227,9 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
 
         UserOpData memory srcUserOpData = _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entry));
 
-        _processAcrossV3Message(ETH, BASE, 0, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase);
+        _processAcrossV3Message(
+            ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
