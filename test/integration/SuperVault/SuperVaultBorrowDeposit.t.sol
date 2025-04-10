@@ -90,7 +90,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         // TODO: Swap this for Fluid vault and try find market where loan token is one that can be staked 
 
         // Set up underlying vault
-        morphoVault = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY];
+        morphoVault = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
         morphoVaultInstance = IERC4626(morphoVault);
         vm.label(morphoVault, "MorphoVault");
 
@@ -166,7 +166,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
         // Set up odos router
         swapRouter = address(new MockOdosRouterWETH());
-        deal(address(asset), swapRouter, 1e12);
+        deal(address(asset), swapRouter, 1e18);
+        deal(address(asset), odosRouters[BASE], 1e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -187,19 +188,22 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
 
         // Claim deposit into superVault as user1
-        _claimDepositOnBase(instanceOnBase, collateralAmount);
+        _claimDepositOnBase(instanceOnBase, amount);
         console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
 
         // Warp forward to simulate yield
         //vm.warp(block.timestamp + 15 weeks);
 
         // Request redeem on superVault as user1
-        //_requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
+        _requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
         console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountBase));
 
         // Fulfill redeem request
-        //_fulfillRedeemRequests();
-        //console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
+        _fulfillRedeemRequests();
+        console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
+        console2.log("\n pps After Fulfill Redeem", _getSuperVaultPricePerShare());
+
+        _claimRedeemOnBase();
     }
 
     function test_BorrowHook() public {
@@ -404,24 +408,21 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         vm.prank(STRATEGIST);
         strategy.executeHooks(executeArgs);
 
-        // swap
-        address[] memory swapHooks = new address[](2);
-        swapHooks[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        swapHooks[1] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
+        console2.log("\n pps After Borrow", _getSuperVaultPricePerShare());
 
-        bytes[] memory swapHookDataArray = new bytes[](2);
-        swapHookDataArray[0] = _createApproveHookData(
+        // swap
+        address[] memory swapHooks = new address[](1);
+        swapHooks[0] = _getHookAddress(BASE, APPROVE_AND_SWAP_ODOS_HOOK_KEY);
+
+        uint256 amountWithoutSlippage = amount + (amount * 100 / 10_000);
+
+        bytes[] memory swapHookDataArray = new bytes[](1);
+        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(
             address(loanToken),
-            swapRouter,
             _deriveLoanAmount(amount),
-            false
-        );
-        swapHookDataArray[1] = _createOdosSwapHookData(
-            address(loanToken),
-            _deriveLoanAmount(amount),
-            address(strategy),
+            address(this),
             address(asset),
-            amount,
+            amountWithoutSlippage,
             0,
             bytes(""),
             swapRouter,
@@ -434,19 +435,19 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             hooks: swapHooks,
             hookCalldata: swapHookDataArray,
             hookProofs: _getMerkleProofsForAddresses(BASE, swapHooks),
-            expectedAssetsOrSharesOut: new uint256[](2)
+            expectedAssetsOrSharesOut: new uint256[](1)
         });
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(executeSwapArgs);
+
+        console2.log("\n pps After Swap", _getSuperVaultPricePerShare());
     }
 
     function _fulfillDepositRequestsWithBorrow() public {
         _executeSuperVault_Borrow_And_Swap();
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountBase;
-
-        uint256 loanAmount = _deriveLoanAmount(amount);
         
         // Fulfill deposit into morpho vault
         address depositHook = _getHookAddress(BASE, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -457,15 +458,15 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         bytes[] memory depositHookDataArray = new bytes[](1);
         depositHookDataArray[0] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(morphoVaultInstance),
-            loanToken,
-            loanAmount,
+            morphoVault,
+            collateralToken,
+            amount,
             false,
             false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
-        expectedAssetsOrSharesOut[0] = morphoVaultInstance.previewDeposit(loanAmount);
+        expectedAssetsOrSharesOut[0] = IERC4626(morphoVault).previewDeposit(amount);
 
         ISuperVaultStrategy.ExecuteArgs memory depositArgs = ISuperVaultStrategy.ExecuteArgs({
             users: requestingUsers,
@@ -550,7 +551,24 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         );
 
         console2.log("----loanToken balance after redeem", IERC20(loanToken).balanceOf(address(strategy)));
+    }
 
+    function _claimRedeemOnBase() internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(BASE, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        uint256 withdrawAssets = vault.maxWithdraw(accountBase);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createWithdraw7540VaultHookData(bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), withdrawAssets, false, false);
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
+    }
+
+    function _repayLoan() internal {
         // repay and claim collateral
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
         
@@ -572,8 +590,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         );
 
         console2.log("----collateral balance after repay", IERC20(collateralToken).balanceOf(address(strategy)));
-        
-        
     }
 
     /*//////////////////////////////////////////////////////////////
