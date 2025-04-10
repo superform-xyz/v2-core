@@ -32,7 +32,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 146);
-contract MorphoRepayHook is BaseHook, ISuperHook {
+contract MorphoRepayHook is BaseHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;

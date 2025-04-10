@@ -27,7 +27,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-contract MorphoBorrowHook is BaseHook, ISuperHook {
+contract MorphoBorrowHook is BaseHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
