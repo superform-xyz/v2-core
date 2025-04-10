@@ -169,6 +169,12 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             return;
         }
 
+        /// @dev increment the nonce here to allow multiple messages to be sent using current nonce
+        ///      nonce increased after the account has enough balance (`token.balanceOf(account) < intentAmount`)
+        ///      Example: 
+        ///       - User sends 100 USDC from chain A, intent amount is 200
+        ///       - User sends 100 USDC from chain B, intent amount is 200
+        ///      Nonce will be increased after both tx are finalized and `executorCalldata` is performed
         nonces[account]++;
 
         // check if we have hooks
