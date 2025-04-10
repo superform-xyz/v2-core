@@ -86,7 +86,7 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
+        lockForSP = _decodeBool(data, 77);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 

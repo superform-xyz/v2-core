@@ -54,11 +54,11 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (yieldSource == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
-        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         if (usePrevHookAmount) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
+        if (amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](4);
         executions[0] =

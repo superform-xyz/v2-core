@@ -76,7 +76,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         });
         executions[2] = Execution({
             target: address(odosRouterV2),
-            value: inputToken == address(0) ? inputAmount : 0,
+            value: 0,
             callData: abi.encodeCall(
                 IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), pathDefinition, executor, referralCode)
             )
