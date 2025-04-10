@@ -143,13 +143,7 @@ abstract contract SuperExecutorBase is
         virtual
     {
         uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
-        Execution[] memory feeExecution = new Execution[](1);
-        feeExecution[0] = Execution({
-            target: assetToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount))
-        });
-        _execute(account, feeExecution);
+        _execute(account, assetToken, 0, abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount)));
         uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
 
         uint256 actualFee = balanceAfter - balanceBefore;
@@ -161,9 +155,7 @@ abstract contract SuperExecutorBase is
 
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) internal virtual {
         uint256 balanceBefore = feeRecipient.balance;
-        Execution[] memory feeExecution = new Execution[](1);
-        feeExecution[0] = Execution({ target: feeRecipient, value: feeAmount, callData: "" });
-        _execute(account, feeExecution);
+        _execute(account, feeRecipient, feeAmount, abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount)));
         uint256 balanceAfter = feeRecipient.balance;
         if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
     }

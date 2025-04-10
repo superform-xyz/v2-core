@@ -8,10 +8,18 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 abstract contract SignatureHelper is Test {
-
-    function _createSignature(string memory hashNamespace, bytes32 merkleRoot, address signer, uint256 signerPrivateKey) internal pure returns (bytes memory signature) {
+    function _createSignature(
+        string memory hashNamespace,
+        bytes32 merkleRoot,
+        address signer,
+        uint256 signerPrivateKey
+    )
+        internal
+        pure
+        returns (bytes memory signature)
+    {
         if (signer == address(0) || signerPrivateKey == 0) revert("signer not set");
-        
+
         bytes32 messageHash = keccak256(abi.encode(hashNamespace, merkleRoot));
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrivateKey, ethSignedMessageHash);
@@ -21,5 +29,4 @@ abstract contract SignatureHelper is Test {
         address _expectedSigner = ECDSA.recover(ethSignedMessageHash, signature);
         assertEq(_expectedSigner, signer, "Signature should be valid");
     }
-
 }

@@ -56,7 +56,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
         view
         override
         returns (uint256)
-    {   
+    {
         return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 

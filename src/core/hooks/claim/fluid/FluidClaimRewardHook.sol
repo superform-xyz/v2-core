@@ -19,8 +19,14 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 /// @title FluidClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+/// @notice         address stakingRewards = BytesLib.toAddress(data, 0);
+contract FluidClaimRewardHook is
+    BaseHook,
+    BaseClaimRewardHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -36,7 +42,7 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflow
         override
         returns (Execution[] memory executions)
     {
-        address stakingRewards = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address stakingRewards = BytesLib.toAddress(data, 0);
         if (stakingRewards == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(stakingRewards, abi.encodeCall(IFluidLendingStakingRewards.getReward, ()));
@@ -67,6 +73,4 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflow
     function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
-
-  
 }

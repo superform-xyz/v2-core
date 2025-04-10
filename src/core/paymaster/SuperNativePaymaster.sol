@@ -97,15 +97,11 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     ///         Executes userOp and gives back refund to the userOp.sender if userOp.sender has overpaid for execution.
     /// @dev Verified to be called only through the entryPoint.
     ///      If subclass returns a non-empty context from validatePaymasterUserOp, it must also implement this method.
-    /// @param mode The mode of the post-operation
-    ///                  opSucceeded - user operation succeeded.
-    ///                  opReverted  - user op reverted. still has to pay for gas.
-    ///                  postOpReverted - user op succeeded, but caused postOp (in mode=opSucceeded) to revert.
     ///                                    Now this is the 2nd call, after user's op was deliberately reverted.
     /// @param context The context value returned by validatePaymasterUserOp.
     /// @param actualGasCost The actual gas used so far (without this postOp call).
     function _postOp(
-        PostOpMode mode,
+        PostOpMode,
         bytes calldata context,
         uint256 actualGasCost,
         uint256
@@ -117,9 +113,6 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         virtual
         override
     {
-        if (mode == PostOpMode.postOpReverted) {
-            return;
-        }
         (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium) =
             abi.decode(context, (address, uint256, uint256, uint256));
 

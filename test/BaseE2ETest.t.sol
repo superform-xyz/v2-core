@@ -100,14 +100,8 @@ contract BaseE2ETest is BaseTest {
     /*//////////////////////////////////////////////////////////////
                                 USER OPERATION METHODS
     //////////////////////////////////////////////////////////////*/
-    
 
-    function _executeThroughEntrypoint(
-        address account,
-        ISuperExecutor.ExecutorEntry memory entry
-    )
-        internal
-    {
+    function _executeThroughEntrypoint(address account, ISuperExecutor.ExecutorEntry memory entry) internal {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
             target: address(superExecutorModule),
@@ -118,13 +112,13 @@ contract BaseE2ETest is BaseTest {
         bytes memory callData = _prepareExecutionCalldata(executions);
         uint256 nonce = _prepareNonce(account);
         PackedUserOperation memory userOp = _createPackedUserOperation(account, nonce, callData);
-        
+
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil);
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
-        bytes memory signature = _getSignature(root);   
+        bytes memory signature = _getSignature(root);
         bytes memory sigData = abi.encode(validUntil, root, proof[0], signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
@@ -189,7 +183,6 @@ contract BaseE2ETest is BaseTest {
             signature: hex"1234"
         });
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                 VALIDATOR HELPER METHODS

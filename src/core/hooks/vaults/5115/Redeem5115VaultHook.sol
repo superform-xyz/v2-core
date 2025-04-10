@@ -21,10 +21,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 24);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 44);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 76);
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 108);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 109);
 /// @notice         bool lockForSP = _decodeBool(data, 110);
@@ -51,9 +51,9 @@ contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address tokenOut = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+        address tokenOut = BytesLib.toAddress(data, 24);
         uint256 shares = _decodeAmount(data);
-        uint256 minTokenOut = BytesLib.toUint256(BytesLib.slice(data, 76, 32), 0);
+        uint256 minTokenOut = BytesLib.toUint256(data, 76);
         bool burnFromInternalBalance = _decodeBool(data, 108);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
@@ -97,7 +97,7 @@ contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0); // tokenOut from data
+        asset = BytesLib.toAddress(data, 24); // tokenOut from data
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         lockForSP = _decodeBool(data, 110);
@@ -113,7 +113,7 @@ contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory) private view returns (uint256) {
