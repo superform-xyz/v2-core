@@ -2,7 +2,7 @@
     "types": [
         "address"
     ],
-    "count": 34,
+    "count": 36,
     "values": {
         "0": {
             "0": "0xd5992ecd53861F488aD0C58d3E0E594EDd99C4cb"
@@ -105,6 +105,12 @@
         },
         "33": {
             "0": "0x3ED9BE330Fd46807652D986E1B4d70146439C7F4"
+        },
+        "34": {
+            "0": "0xcbDBaaCbcaa83c0FC480c65271F6D8C5C894c5B5"
+        },
+        "35": {
+            "0": "0x302dC6780Fe04c17F640BB28a5e4b218534827Ef"
         }
     }
 }
