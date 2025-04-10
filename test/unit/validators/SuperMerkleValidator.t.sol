@@ -82,7 +82,6 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     }
 
     function test_ValidateUserOp_1LeafMerkleTree() public {
-
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
@@ -90,7 +89,6 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
-
 
         bytes memory signature = _getSignature(root);
 
@@ -211,7 +209,8 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         validSigData = abi.encode(validUntil, root, proof[0], signature);
 
         approveUserOp.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
         uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
         bool _sigFailed = rawResult & 1 == 1;
         uint48 _validUntil = uint48(rawResult >> 160);
@@ -234,11 +233,9 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         bytes memory signature = _getSignature(root);
 
-
-
         // tamper the merkle root
         bytes32 _prevRoot = root;
-        root = keccak256(abi.encode("tampered root"));  
+        root = keccak256(abi.encode("tampered root"));
         validSigData = abi.encode(validUntil, root, proof, signature);
 
         approveUserOp.userOp.signature = validSigData;
@@ -256,7 +253,6 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
         validator.validateUserOp(approveUserOp.userOp, bytes32(0));
-        
     }
 
     /*//////////////////////////////////////////////////////////////

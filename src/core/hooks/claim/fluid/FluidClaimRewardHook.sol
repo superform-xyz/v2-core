@@ -20,7 +20,13 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address stakingRewards = BytesLib.toAddress(data, 0);
-contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+contract FluidClaimRewardHook is
+    BaseHook,
+    BaseClaimRewardHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
@@ -67,6 +73,4 @@ contract FluidClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflow
     function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
-
-  
 }

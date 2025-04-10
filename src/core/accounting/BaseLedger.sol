@@ -16,7 +16,6 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 /// @author Superform Labs
 /// @notice Base ledger contract for managing user ledger entries
 abstract contract BaseLedger is ISuperLedger {
-
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
     ISuperRegistry public immutable superRegistry;
 

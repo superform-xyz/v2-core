@@ -21,12 +21,18 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address farmingPool = BytesLib.toAddress(data, 0);
-contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+contract GearboxClaimRewardHook is
+    BaseHook,
+    BaseClaimRewardHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
->>>>>>> e860ed9ce1f705295c6be
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
     function build(
         address,
         address,

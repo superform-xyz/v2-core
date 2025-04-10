@@ -22,9 +22,14 @@ import {
 /// @dev data has the following structure
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+contract YearnClaimOneRewardHook is
+    BaseHook,
+    BaseClaimRewardHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
-
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
