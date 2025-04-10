@@ -2,16 +2,16 @@
 pragma solidity 0.8.28;
 
 // external
-import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import { IFluidLendingStakingRewards } from "../../../vendor/fluid/IFluidLendingStakingRewards.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IStakingVault } from "../../../vendor/staking/IStakingVault.sol";
 
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 
-/// @title FluidYieldSourceOracle
+/// @title StakingYieldSourceOracle
 /// @author Superform Labs
-/// @notice Oracle for Fluid Staking
-contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
+/// @notice Oracle for Staking Yield Sources
+contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -44,7 +44,7 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {
-        return IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares);
+        return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -57,16 +57,16 @@ contract FluidYieldSourceOracle is AbstractYieldSourceOracle {
         override
         returns (uint256)
     {   
-        return IFluidLendingStakingRewards(yieldSourceAddress).balanceOf(ownerOfShares);
+        return IERC20(yieldSourceAddress).balanceOf(ownerOfShares);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
-        return IERC20Metadata(yieldSourceAddress).totalSupply();
+        return IERC20(yieldSourceAddress).totalSupply();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function _validateBaseAsset(address yieldSourceAddress, address base) internal view override {
-        if (base != IFluidLendingStakingRewards(yieldSourceAddress).stakingToken()) revert INVALID_BASE_ASSET();
+        if (base != IStakingVault(yieldSourceAddress).stakingToken()) revert INVALID_BASE_ASSET();
     }
 }
