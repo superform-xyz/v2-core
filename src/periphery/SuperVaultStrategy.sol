@@ -2,9 +2,7 @@
 pragma solidity 0.8.28;
 
 // External
-import { IERC7540 } from "../vendor/vaults/7540/IERC7540.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { IStandardizedYield } from "../vendor/pendle/IStandardizedYield.sol";
 import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
@@ -12,7 +10,6 @@ import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/Reentran
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-
 // Core Interfaces
 import {
     Execution,
@@ -330,8 +327,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                         ) {
                             if (cancelationType == ISuperHookAsyncCancelations.CancelationType.INFLOW) {
                                 asyncYieldSourceAssetsInTransitInflows[vars.targetedYieldSource] = 0;
-                            } else if (cancelationType == ISuperHookAsyncCancelations.CancelationType.OUTFLOW) { } else
-                            {
+                            } else if (cancelationType == ISuperHookAsyncCancelations.CancelationType.OUTFLOW) {
+                                asyncYieldSourceSharesInTransitOutflows[vars.targetedYieldSource] = 0;
+                            } else {
                                 revert INVALID_CANCELATION_TYPE();
                             }
                         } catch {
@@ -1143,10 +1141,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             uint256 assetsOut =
                 IYieldSourceOracle(asyncYieldSources[target].oracle).getAssetOutput(target, address(_asset), outAmount);
             if (asyncYieldSourceAssetsInTransitInflows[target] >= assetsOut) {
+                // This can allow some leftover shares to remain in the tracker
+                // Could be important to understand the impact to this over time
+                // The tests in test_SuperVault_7540_Underlying_E2E_Flow showcase this behaviour
                 asyncYieldSourceAssetsInTransitInflows[target] -= assetsOut;
+                emit AsyncYieldSourceInflowFulfillmentProcessed(target, outAmount);
+            } else {
+                asyncYieldSourceAssetsInTransitInflows[target] = 0;
+                emit AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(target, outAmount);
             }
             amountAssetSpent += assetsOut;
+        } else {
+            emit YieldSourceInflowFulfillmentProcessed(target, outAmount);
         }
+        return (amountAssetSpent, outAmount);
     }
 
     /// @notice Process outflow hook execution
@@ -1186,8 +1194,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 execVars.target, address(_asset), outAmount
             );
             if (asyncYieldSourceSharesInTransitOutflows[execVars.target] >= underlyingSharesOut) {
+                // This can allow some leftover shares to remain in the tracker
+                // Could be important to understand the impact to this over time
+                // The tests in test_SuperVault_7540_Underlying_E2E_Flow showcase this behaviour
                 asyncYieldSourceSharesInTransitOutflows[execVars.target] -= underlyingSharesOut;
+                emit AsyncYieldSourceOutflowFulfillmentProcessed(execVars.target, outAmount);
+            } else {
+                asyncYieldSourceSharesInTransitOutflows[execVars.target] = 0;
+                emit AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(execVars.target, outAmount);
             }
+        } else {
+            emit YieldSourceOutflowFulfillmentProcessed(execVars.target, outAmount);
         }
 
         return (execVars.amount, outAmount);
