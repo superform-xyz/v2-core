@@ -206,12 +206,12 @@ contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHookContextAware {
         });
     }
 
-    function _preExecute(address prevHook, address account, bytes calldata data) external {
+    function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = _getBalance(account, data);
     }
 
-    function _postExecute(address prevHook, address account, bytes calldata data) external {
+    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
         outAmount = outAmount - _getBalance(account, data);
     }
 

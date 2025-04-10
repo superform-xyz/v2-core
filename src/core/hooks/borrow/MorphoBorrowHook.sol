@@ -144,12 +144,12 @@ contract MorphoBorrowHook is BaseHook, ISuperHookContextAware {
         });
     }
 
-    function _preExecute(address prevHook, address account, bytes calldata data) external {
+    function _preExecute(address prevHook, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = _getLoanBalance(account, data);
     }
 
-    function _postExecute(address prevHook, address account, bytes calldata data) external {
+    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
         outAmount = _getLoanBalance(account, data) - outAmount;
     }
 
