@@ -205,7 +205,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_ORACLE_KEY),
             abi.encodePacked(
                 type(SuperOracle).creationCode,
-                abi.encode(configuration.owner, new address[](0), new uint256[](0), new address[](0))
+                abi.encode(configuration.owner, new address[](0), new address[](0), new uint256[](0), new address[](0))
             )
         );
 

@@ -43,9 +43,9 @@ interface ISuperOracle {
 
     /// @notice Error when provider max staleness period is exceeded
     error MAX_STALENESS_EXCEEDED();
-    
-    /// @notice Error when provider max count is exceeded
-    error MAX_PROVIDERS_EXCEEDED();
+
+    /// @notice Error when no prices are reported
+    error NO_PRICES();  
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -54,26 +54,26 @@ interface ISuperOracle {
     /// @notice Emitted when oracles are configured
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
-    event OraclesConfigured(address[] bases, uint256[] providers, address[] oracleAddresses);
+    /// @param feeds Array of oracle addresses
+    event OraclesConfigured(address[] bases, address[] quotes, uint256[] providers, address[] feeds);
 
     /// @notice Emitted when oracle update is queued
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
+    /// @param feeds Array of oracle addresses
     /// @param timestamp Timestamp when update was queued
-    event OracleUpdateQueued(address[] bases, uint256[] providers, address[] oracleAddresses, uint256 timestamp);
+    event OracleUpdateQueued(address[] bases, address[] quotes, uint256[] providers, address[] feeds, uint256 timestamp);
 
     /// @notice Emitted when oracle update is executed
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
-    event OracleUpdateExecuted(address[] bases, uint256[] providers, address[] oracleAddresses);
+    /// @param feeds Array of oracle addresses
+    event OracleUpdateExecuted(address[] bases, address[] quotes, uint256[] providers, address[] feeds);
 
     /// @notice Emitted when provider max staleness period is updated
-    /// @param provider Provider index
+    /// @param feed Feed address
     /// @param newMaxStaleness New maximum staleness period in seconds
-    event ProviderMaxStalenessUpdated(uint256 provider, uint256 newMaxStaleness);
+    event FeedMaxStalenessUpdated(address feed, uint256 newMaxStaleness);
 
     /// @notice Emitted when max staleness period is updated
     /// @param newMaxStaleness New maximum staleness period in seconds
@@ -86,8 +86,9 @@ interface ISuperOracle {
     /// @notice Struct for pending oracle update
     struct PendingUpdate {
         address[] bases;
+        address[] quotes;
         uint256[] providers;
-        address[] oracleAddresses;
+        address[] feeds;
         uint256 timestamp;
     }
     /*//////////////////////////////////////////////////////////////
@@ -96,9 +97,10 @@ interface ISuperOracle {
 
     /// @notice Get oracle address for a base asset and provider
     /// @param base Base asset address
+    /// @param quote Quote asset address
     /// @param provider Provider index
     /// @return oracle Oracle address
-    function getOracleAddress(address base, uint256 provider) external view returns (address oracle);
+    function getOracleAddress(address base, address quote, uint256 provider) external view returns (address oracle);
 
     /// @notice Get quote from specified oracle provider
     /// @param baseAmount Amount of base asset
@@ -114,16 +116,18 @@ interface ISuperOracle {
     )
         external
         view
-        returns (uint256 quoteAmount);
+        returns (uint256 quoteAmount, uint256 deviation, uint256 totalProviders, uint256 availableProviders);
 
     /// @notice Queue oracle update for timelock
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
+    /// @param quotes Array of quote assets
+    /// @param feeds Array of oracle addresses
     function queueOracleUpdate(
         address[] calldata bases,
+        address[] calldata quotes,
         uint256[] calldata providers,
-        address[] calldata oracleAddresses
+        address[] calldata feeds
     )
         external;
 
@@ -131,9 +135,9 @@ interface ISuperOracle {
     function executeOracleUpdate() external;
 
     /// @notice Set the maximum staleness period for a specific provider
-    /// @param provider Provider index
+    /// @param feed Feed address
     /// @param newMaxStaleness New maximum staleness period in seconds
-    function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external;
+    function setFeedMaxStaleness(address feed, uint256 newMaxStaleness) external;
 
     /// @notice Set the maximum staleness period for all providers
     /// @param newMaxStaleness New maximum staleness period in seconds
