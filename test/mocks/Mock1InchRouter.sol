@@ -51,7 +51,6 @@ contract Mock1InchRouter {
     function swap(
         IAggregationExecutor,
         I1InchAggregationRouterV6.SwapDescription calldata desc,
-        bytes calldata,
         bytes calldata
     )
         external

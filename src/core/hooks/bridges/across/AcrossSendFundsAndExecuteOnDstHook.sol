@@ -8,7 +8,7 @@ import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpo
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -26,7 +26,7 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
-contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -56,7 +56,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookC
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -82,7 +81,15 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookC
         acrossV3DepositAndExecuteData.message = BytesLib.slice(data, 217, data.length - 217);
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
-            acrossV3DepositAndExecuteData.inputAmount = ISuperHookResult(prevHook).outAmount();
+            uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+            acrossV3DepositAndExecuteData.inputAmount = outAmount;
+            if (
+                acrossV3DepositAndExecuteData.inputToken
+                    == address(IAcrossSpokePoolV3(spokePoolV3).wrappedNativeToken())
+                    && acrossV3DepositAndExecuteData.value != 0
+            ) {
+                acrossV3DepositAndExecuteData.value = outAmount;
+            }
         }
 
         if (acrossV3DepositAndExecuteData.inputAmount == 0) revert AMOUNT_NOT_VALID();
@@ -118,14 +125,16 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookC
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view { }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view { }
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address, bytes calldata) internal override { }
+
+    function _postExecute(address, address, bytes calldata) internal override { }
 }

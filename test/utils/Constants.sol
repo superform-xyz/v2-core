@@ -58,6 +58,12 @@ abstract contract Constants {
     string public constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string public constant APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY = "ApproveAndWithdraw7540VaultHook";
     string public constant APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRedeem7540VaultHook";
+    string public constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
+    string public constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
+    string public constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
+    string public constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
+    string public constant CANCEL_DEPOSIT_HOOK_KEY = "CancelDepositHook";
+    string public constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
@@ -100,8 +106,6 @@ abstract contract Constants {
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string public constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
-    string public constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
-    string public constant GEARBOX_YIELD_SOURCE_ORACLE_KEY = "GearboxYieldSourceOracle";
     string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string public constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
     string public constant SUPER_GAS_TANK_KEY = "SuperGasTank";
@@ -153,7 +157,7 @@ abstract contract Constants {
     string public constant PENDLE_ETHENA_KEY = "PendleEthena";
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_KEY";
-    
+
     string public constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
     string public constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
     string public constant ACROSS_TARGET_EXECUTOR_ID = "ACROSS_TARGET_EXECUTOR_ID";
@@ -197,15 +201,14 @@ abstract contract Constants {
     // Nexus
     string public constant NEXUS_ACCOUNT_IMPLEMENTATION_ID = "biconomy.nexus.1.0.0";
     bytes1 constant MODE_VALIDATION = 0x00;
-    
+
     address public constant CHAIN_1_NEXUS_BOOTSTRAP = 0x000000F5b753Fdd20C5CA2D7c1210b3Ab1EA5903;
     address public constant CHAIN_10_NEXUS_BOOTSTRAP = 0x000000F5b753Fdd20C5CA2D7c1210b3Ab1EA5903;
     address public constant CHAIN_8453_NEXUS_BOOTSTRAP = 0x000000F5b753Fdd20C5CA2D7c1210b3Ab1EA5903;
 
-
     address public constant CHAIN_1_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address public constant CHAIN_10_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-    address public constant CHAIN_8453_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A; 
+    address public constant CHAIN_8453_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
 
     // Yield sources
 }

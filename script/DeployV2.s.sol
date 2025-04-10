@@ -49,6 +49,12 @@ import { ApproveAndRequestDeposit7540VaultHook } from
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
+import { CancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
+import { CancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import { CancelDepositHook } from "../src/core/hooks/vaults/super-vault/CancelDepositHook.sol";
+import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 
 // ---- | stake
 import { ApproveAndGearboxStakeHook } from "../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
@@ -66,8 +72,7 @@ import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { GearboxYieldSourceOracle } from "../src/core/accounting/oracles/GearboxYieldSourceOracle.sol";
-import { FluidYieldSourceOracle } from "../src/core/accounting/oracles/FluidYieldSourceOracle.sol";
+import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
 // SuperVault
 
@@ -132,6 +137,12 @@ contract DeployV2 is Script, Configuration {
         address fluidClaimRewardHook;
         address gearboxClaimRewardHook;
         address yearnClaimOneRewardHook;
+        address cancelDepositRequest7540Hook;
+        address cancelRedeemRequest7540Hook;
+        address claimCancelDepositRequest7540Hook;
+        address claimCancelRedeemRequest7540Hook;
+        address cancelDepositHook;
+        address cancelRedeemHook;
     }
 
     modifier broadcast(uint256 env) {
@@ -218,7 +229,6 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
         );
 
-
         // Deploy SuperLedgerConfiguration
         deployedContracts.superLedgerConfiguration = __deployContract(
             deployer,
@@ -234,7 +244,10 @@ contract DeployV2 is Script, Configuration {
             SUPER_LEDGER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
-            abi.encodePacked(type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry))
+            abi.encodePacked(
+                type(SuperLedger).creationCode,
+                abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry)
+            )
         );
 
         // Deploy ERC5115Ledger
@@ -243,7 +256,10 @@ contract DeployV2 is Script, Configuration {
             ERC1155_LEDGER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
-            abi.encodePacked(type(ERC5115Ledger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry))
+            abi.encodePacked(
+                type(ERC5115Ledger).creationCode,
+                abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry)
+            )
         );
 
         // Deploy SuperNativePaymaster
@@ -252,11 +268,8 @@ contract DeployV2 is Script, Configuration {
             SUPER_NATIVE_PAYMASTER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_NATIVE_PAYMASTER_KEY),
-            abi.encodePacked(
-                type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT)
-            )
+            abi.encodePacked(type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT))
         );
-        
 
         // Deploy SuperVaultFactory
         deployedContracts.superVaultFactory = __deployContract(
@@ -291,9 +304,16 @@ contract DeployV2 is Script, Configuration {
             ACROSS_TARGET_EXECUTOR_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
-            abi.encodePacked(type(AcrossTargetExecutor).creationCode, abi.encode(deployedContracts.superRegistry, configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationValidator, configuration.nexusFactories[chainId]))
+            abi.encodePacked(
+                type(AcrossTargetExecutor).creationCode,
+                abi.encode(
+                    deployedContracts.superRegistry,
+                    configuration.acrossSpokePoolV3s[chainId],
+                    deployedContracts.superDestinationValidator,
+                    configuration.nexusFactories[chainId]
+                )
+            )
         );
-
 
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);
@@ -301,7 +321,7 @@ contract DeployV2 is Script, Configuration {
         _registerHooks(hookAddresses, PeripheryRegistry(deployedContracts.peripheryRegistry));
 
         // Deploy Oracles
-        _deployOracles(deployer, deployedContracts.superRegistry, chainId);
+        _deployOracles(deployer, deployedContracts.oracleRegistry, chainId);
     }
 
     function _configure(uint64 chainId) internal {
@@ -311,7 +331,9 @@ contract DeployV2 is Script, Configuration {
             keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
         );
         superRegistry.setExecutor(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setExecutor(keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainId, ACROSS_TARGET_EXECUTOR_KEY));
+        superRegistry.setExecutor(
+            keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainId, ACROSS_TARGET_EXECUTOR_KEY)
+        );
         superRegistry.setAddress(
             keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainId, SUPER_NATIVE_PAYMASTER_KEY)
         );
@@ -361,7 +383,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (HookAddresses memory hookAddresses)
     {
-        uint256 len = 26;
+        uint256 len = 32;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -467,6 +489,29 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry))
         );
 
+        hooks[26] = HookDeployment(
+            CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+            abi.encodePacked(type(CancelDepositRequest7540Hook).creationCode, abi.encode(registry))
+        );
+        hooks[27] = HookDeployment(
+            CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+            abi.encodePacked(type(CancelRedeemRequest7540Hook).creationCode, abi.encode(registry))
+        );
+        hooks[28] = HookDeployment(
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+            abi.encodePacked(type(ClaimCancelDepositRequest7540Hook).creationCode, abi.encode(registry))
+        );
+        hooks[29] = HookDeployment(
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+            abi.encodePacked(type(ClaimCancelRedeemRequest7540Hook).creationCode, abi.encode(registry))
+        );
+        hooks[30] = HookDeployment(
+            CANCEL_DEPOSIT_HOOK_KEY, abi.encodePacked(type(CancelDepositHook).creationCode, abi.encode(registry))
+        );
+        hooks[31] = HookDeployment(
+            CANCEL_REDEEM_HOOK_KEY, abi.encodePacked(type(CancelRedeemHook).creationCode, abi.encode(registry))
+        );
+
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
             addresses[i] = __deployContract(
@@ -527,6 +572,18 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[24].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.yearnClaimOneRewardHook =
             Strings.equal(hooks[25].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[25] : address(0);
+        hookAddresses.cancelDepositRequest7540Hook =
+            Strings.equal(hooks[26].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
+        hookAddresses.cancelRedeemRequest7540Hook =
+            Strings.equal(hooks[27].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
+        hookAddresses.claimCancelDepositRequest7540Hook =
+            Strings.equal(hooks[28].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[28] : address(0);
+        hookAddresses.claimCancelRedeemRequest7540Hook =
+            Strings.equal(hooks[29].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[29] : address(0);
+        hookAddresses.cancelDepositHook =
+            Strings.equal(hooks[30].name, CANCEL_DEPOSIT_HOOK_KEY) ? addresses[30] : address(0);
+        hookAddresses.cancelRedeemHook =
+            Strings.equal(hooks[31].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[31] : address(0);
 
         // Verify no hooks were assigned address(0)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -560,12 +617,23 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.fluidStakeHook != address(0), "fluidStakeHook not assigned");
         require(hookAddresses.approveAndFluidStakeHook != address(0), "approveAndFluidStakeHook not assigned");
         require(hookAddresses.fluidUnstakeHook != address(0), "fluidUnstakeHook not assigned");
-        require(hookAddresses.fluidClaimRewardHook != address(0), "fluidClaimRewardHook not assigned");
         require(hookAddresses.gearboxClaimRewardHook != address(0), "gearboxClaimRewardHook not assigned");
         require(hookAddresses.gearboxStakeHook != address(0), "gearboxStakeHook not assigned");
         require(hookAddresses.approveAndGearboxStakeHook != address(0), "approveAndGearboxStakeHook not assigned");
         require(hookAddresses.gearboxUnstakeHook != address(0), "gearboxUnstakeHook not assigned");
         require(hookAddresses.yearnClaimOneRewardHook != address(0), "yearnClaimOneRewardHook not assigned");
+        require(hookAddresses.cancelDepositRequest7540Hook != address(0), "cancelDepositRequest7540Hook not assigned");
+        require(hookAddresses.cancelRedeemRequest7540Hook != address(0), "cancelRedeemRequest7540Hook not assigned");
+        require(
+            hookAddresses.claimCancelDepositRequest7540Hook != address(0),
+            "claimCancelDepositRequest7540Hook not assigned"
+        );
+        require(
+            hookAddresses.claimCancelRedeemRequest7540Hook != address(0),
+            "claimCancelRedeemRequest7540Hook not assigned"
+        );
+        require(hookAddresses.cancelDepositHook != address(0), "cancelDepositHook not assigned");
+        require(hookAddresses.cancelRedeemHook != address(0), "cancelRedeemHook not assigned");
     }
 
     function _registerHooks(HookAddresses memory hookAddresses, PeripheryRegistry peripheryRegistry) internal {
@@ -594,6 +662,12 @@ contract DeployV2 is Script, Configuration {
         peripheryRegistry.registerHook(address(hookAddresses.approveAndGearboxStakeHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.gearboxUnstakeHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.yearnClaimOneRewardHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.cancelDepositRequest7540Hook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.cancelRedeemRequest7540Hook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.claimCancelDepositRequest7540Hook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.claimCancelRedeemRequest7540Hook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.cancelDepositHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.cancelRedeemHook), false);
     }
 
     function _deployOracles(
@@ -604,7 +678,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory oracleAddresses)
     {
-        uint256 len = 5;
+        uint256 len = 4;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -621,12 +695,8 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(registry))
         );
         oracles[3] = OracleDeployment(
-            FLUID_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(FluidYieldSourceOracle).creationCode, abi.encode(registry))
-        );
-        oracles[4] = OracleDeployment(
-            GEARBOX_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(GearboxYieldSourceOracle).creationCode, abi.encode(registry))
+            STAKING_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(registry))
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -644,7 +714,7 @@ contract DeployV2 is Script, Configuration {
     function _setupSuperLedgerConfiguration(uint64 chainId) private {
         PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainId, PERIPHERY_REGISTRY_KEY));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](5);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -667,15 +737,8 @@ contract DeployV2 is Script, Configuration {
             ledger: _getContract(chainId, ERC1155_LEDGER_KEY)
         });
         configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(FLUID_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(chainId, FLUID_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
-            feeRecipient: peripheryRegistry.getTreasury(),
-            ledger: _getContract(chainId, SUPER_LEDGER_KEY)
-        });
-        configs[4] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(chainId, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
+            yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
             feeRecipient: peripheryRegistry.getTreasury(),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)

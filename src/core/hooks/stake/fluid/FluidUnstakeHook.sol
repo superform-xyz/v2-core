@@ -8,10 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import {
-    ISuperHook,
     ISuperHookResultOutflow,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
@@ -28,9 +25,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool lockForSP = _decodeBool(data, 57);
 contract FluidUnstakeHook is
     BaseHook,
-    ISuperHook,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -38,12 +32,11 @@ contract FluidUnstakeHook is
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address,
@@ -76,32 +69,25 @@ contract FluidUnstakeHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        asset = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
-        outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
-        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
-    }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-    }
-
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
-    }
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
-    /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
-        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        asset = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 57);
+        /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////

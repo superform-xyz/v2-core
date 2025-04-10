@@ -10,7 +10,6 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { console2 } from "forge-std/console2.sol";
 
-
 contract ApproveAndGearboxStakeHookTest is BaseTest {
     ApproveAndGearboxStakeHook public hook;
 
@@ -33,7 +32,7 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
     }
 
     function test_Constructor() public view {
-        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_Build() public view {
@@ -61,16 +60,11 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-        
+
         bytes memory data = _encodeData(true, false);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
         _assertExecutions(executions);
-    }
-    
-    function test_DecodeAmount() public view {
-        bytes memory data = _encodeData(false, false);
-        assertEq(hook.decodeAmount(data), amount);
     }
 
     function test_PreAndPostExecute() public {
@@ -86,8 +80,6 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);
     }
-    
-    
 
     function _assertExecutions(Execution[] memory executions) internal view {
         assertEq(executions.length, 4);
@@ -95,7 +87,6 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
         assertEq(executions[1].target, token);
         assertEq(executions[2].target, yieldSource);
         assertEq(executions[3].target, token);
-
 
         assertEq(executions[0].value, 0);
         assertEq(executions[1].value, 0);
@@ -106,16 +97,9 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
         assertGt(executions[1].callData.length, 0);
         assertGt(executions[2].callData.length, 0);
         assertGt(executions[3].callData.length, 0);
-    }   
+    }
 
     function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId,
-            yieldSource,
-            token,
-            amount,
-            usePrevHook,
-            lockForSp
-        );
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHook, lockForSp);
     }
 }

@@ -9,28 +9,29 @@ import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
 import {
-    ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
-    ISuperHookContextAware
+    ISuperHookAsync,
+    ISuperHookContextAware,
+    ISuperHookAsyncCancelations
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title ApproveAndRequestDeposit7540VaultHook
 /// @author Superform Labs
+/// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 contract ApproveAndRequestDeposit7540VaultHook is
     BaseHook,
-    ISuperHook,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
+    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -43,7 +44,6 @@ contract ApproveAndRequestDeposit7540VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -80,25 +80,19 @@ contract ApproveAndRequestDeposit7540VaultHook is
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @return outAmount The amount of assets or shares processed by the hook
-    /// @return isShares Whether the amount is in shares
+    /// @inheritdoc ISuperHookAsync
     function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
         return (outAmount, false);
+    }
+
+    /// @inheritdoc ISuperHookAsyncCancelations
+    function isAsyncCancelHook() external pure returns (CancelationType) {
+        return CancelationType.NONE;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = outAmount - _getBalance(account, data);
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -108,6 +102,17 @@ contract ApproveAndRequestDeposit7540VaultHook is
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////    
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data);
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = outAmount - _getBalance(account, data);
     }
 
     /*//////////////////////////////////////////////////////////////

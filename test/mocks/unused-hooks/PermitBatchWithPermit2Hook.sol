@@ -9,7 +9,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 
-import { ISuperHook, ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
 import { IPermit2Batch } from "../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
@@ -27,7 +27,7 @@ import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowan
 /// @notice             uint48 expiration = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 52, 32), 0));
 /// @notice             uint48 nonce = uint48(BytesLib.toUint256(BytesLib.slice(data, offset + 84, 32), 0));
 /// @notice         uint256 offset increments by 116 bytes for each PermitDetails entry.
-contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
+contract PermitBatchWithPermit2Hook is BaseHook {
     using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -35,12 +35,7 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     //////////////////////////////////////////////////////////////*/
     address public permit2;
 
-    constructor(
-        address registry_,
-        address permit2_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address permit2_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
         permit2 = permit2_;
     }
@@ -48,7 +43,6 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -98,16 +92,14 @@ contract PermitBatchWithPermit2Hook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external {
+    function _preExecute(address, address, bytes calldata data) internal override {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 
         outAmount = permitBatch.details[indexOfAmount].amount;
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external {
+    function _postExecute(address, address, bytes calldata data) internal override {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 

@@ -8,12 +8,7 @@ import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Deposit7540VaultHook
@@ -24,7 +19,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         bool lockForSP = _decodeBool(data, 57);
-contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract Deposit7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -35,7 +30,6 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -68,18 +62,6 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        // store current balance
-        outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
-        spToken = data.extractYieldSource();
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -89,6 +71,20 @@ contract Deposit7540VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 57);
+        spToken = IERC7540(data.extractYieldSource()).share();
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////

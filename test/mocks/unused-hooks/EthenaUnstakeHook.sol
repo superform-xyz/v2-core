@@ -11,7 +11,6 @@ import { IStakedUSDeCooldown } from "../../../src/vendor/ethena/IStakedUSDeCoold
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 import {
-    ISuperHook,
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow
@@ -27,7 +26,7 @@ import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol
 /// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 56, 20), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract EthenaUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -40,7 +39,6 @@ contract EthenaUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISu
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address, /* prevHook */
         address account,
@@ -71,21 +69,6 @@ contract EthenaUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISu
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        address yieldSource = data.extractYieldSource();
-        asset = IERC4626(yieldSource).asset();
-        outAmount = _getBalance(account, data);
-        usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
-        spToken = yieldSource;
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-        usedShares = usedShares - _getSharesBalance(account, data);
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -95,6 +78,23 @@ contract EthenaUnstakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISu
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        address yieldSource = data.extractYieldSource();
+        asset = IERC4626(yieldSource).asset();
+        outAmount = _getBalance(account, data);
+        usedShares = _getSharesBalance(account, data);
+        lockForSP = _decodeBool(data, 57);
+        spToken = yieldSource;
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
+        usedShares = usedShares - _getSharesBalance(account, data);
     }
 
     /*//////////////////////////////////////////////////////////////

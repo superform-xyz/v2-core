@@ -34,7 +34,5 @@ interface IMinimalEntryPoint {
      */
     function getNonce(address sender, uint192 key) external view returns (uint256 nonce);
 
-    function getUserOpHash(
-        PackedUserOperation calldata userOp
-    ) external view returns (bytes32);
+    function getUserOpHash(PackedUserOperation calldata userOp) external view returns (bytes32);
 }

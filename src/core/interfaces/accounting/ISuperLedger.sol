@@ -54,6 +54,7 @@ interface ISuperLedgerData {
     error MANAGER_NOT_SET();
     error ZERO_LENGTH();
     error ZERO_ID_NOT_ALLOWED();
+    error INVALID_LEDGER();
 }
 
 /// @title ISuperHookRegistry
@@ -104,5 +105,12 @@ interface ISuperLedger is ISuperLedgerData {
     /// @param yieldSource The yield source address
     /// @param usedShares The amount of shares used
     /// @return costBasis The cost basis
-    function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) external view returns (uint256 costBasis);
+    function calculateCostBasisView(
+        address user,
+        address yieldSource,
+        uint256 usedShares
+    )
+        external
+        view
+        returns (uint256 costBasis);
 }
