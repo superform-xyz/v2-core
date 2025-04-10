@@ -28,7 +28,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20,
 /// 4), 0);
 contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
-    IOdosRouterV2 public odosRouterV2;
+    IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 

@@ -96,12 +96,7 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
     function _postExecute(address prevHook, address account, bytes calldata data) internal virtual;
 
     function _decodeBool(bytes memory data, uint256 offset) internal pure returns (bool) {
-        if (data.length < offset + 1) revert DATA_LENGTH_INSUFFICIENT();
-        uint8 value;
-        assembly {
-            value := byte(0, mload(add(data, add(offset, 32))))
-        }
-        return value != 0;
+        return data[offset] != 0;
     }
 
     function _replaceCalldataAmount(bytes memory data, uint256 amount, uint256 offset) internal pure returns (bytes memory) {

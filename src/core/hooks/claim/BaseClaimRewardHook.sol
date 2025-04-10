@@ -9,8 +9,6 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 /// @title BaseClaimRewardHook
 /// @author Superform Labs
 abstract contract BaseClaimRewardHook {
-    uint256 public transient obtainedReward;
-
     error REWARD_TOKEN_ZERO_ADDRESS();
 
     /*//////////////////////////////////////////////////////////////

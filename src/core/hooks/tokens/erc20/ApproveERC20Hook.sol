@@ -37,9 +37,10 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address spender = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        address token = BytesLib.toAddress(data, 0);
+        address spender = BytesLib.toAddress(data, 20);
+        uint256 amount = BytesLib.toUint256(data, 40);
+
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -69,7 +70,7 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
+        outAmount = BytesLib.toUint256(data, 40);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
