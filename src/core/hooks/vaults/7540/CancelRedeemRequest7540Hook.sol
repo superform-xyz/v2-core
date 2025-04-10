@@ -2,13 +2,11 @@
 pragma solidity 0.8.28;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540CancelRedeem } from "../../../../vendor/standards/ERC7540/IERC7540Vault.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title CancelRedeemRequest7540Hook
@@ -16,7 +14,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = BytesLib.toAddress(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-contract CancelRedeemRequest7540Hook is BaseHook, ISuperHook {
+contract CancelRedeemRequest7540Hook is BaseHook {
     using HookDataDecoder for bytes;
 
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
@@ -24,7 +22,6 @@ contract CancelRedeemRequest7540Hook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address,
         address account,
@@ -48,11 +45,9 @@ contract CancelRedeemRequest7540Hook is BaseHook, ISuperHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external { }
+    function _preExecute(address, address, bytes calldata) internal override { }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory) external { }
+    function _postExecute(address, address, bytes calldata) internal override { }
 }

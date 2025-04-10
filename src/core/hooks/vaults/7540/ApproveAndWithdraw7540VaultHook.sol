@@ -10,7 +10,6 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import {
-    ISuperHook,
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
@@ -29,7 +28,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool lockForSP = _decodeBool(data, 77);
 contract ApproveAndWithdraw7540VaultHook is
     BaseHook,
-    ISuperHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware
@@ -44,7 +42,6 @@ contract ApproveAndWithdraw7540VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -84,21 +81,6 @@ contract ApproveAndWithdraw7540VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        address yieldSource = data.extractYieldSource();
-        asset = IERC7540(yieldSource).asset();
-        outAmount = _getBalance(account, data);
-        usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 77);
-        spToken = IERC7540(yieldSource).share();
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-        usedShares = usedShares - _getSharesBalance(account, data);
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -113,6 +95,23 @@ contract ApproveAndWithdraw7540VaultHook is
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        address yieldSource = data.extractYieldSource();
+        asset = IERC7540(yieldSource).asset();
+        outAmount = _getBalance(account, data);
+        usedShares = _getSharesBalance(account, data);
+        lockForSP = _decodeBool(data, 77);
+        spToken = IERC7540(yieldSource).share();
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
+        usedShares = usedShares - _getSharesBalance(account, data);
     }
 
     /*//////////////////////////////////////////////////////////////

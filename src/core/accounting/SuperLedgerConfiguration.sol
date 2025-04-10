@@ -20,7 +20,8 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     /// @notice Yield source oracle configurations proposals
     mapping(bytes4 yieldSourceOracleId => YieldSourceOracleConfig config) private yieldSourceOracleConfigProposals;
     /// @notice Yield source oracle configurations proposal expiration time
-    mapping(bytes4 yieldSourceOracleId => uint256 proposalExpirationTime) private yieldSourceOracleConfigProposalExpirationTime;
+    mapping(bytes4 yieldSourceOracleId => uint256 proposalExpirationTime) private
+        yieldSourceOracleConfigProposalExpirationTime;
     /// @notice Pending manager for yield source oracle
     mapping(bytes4 => address) private pendingManager;
 
@@ -63,7 +64,9 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
 
             if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
 
-            if (yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] > 0) revert CHANGE_ALREADY_PROPOSED();
+            if (yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] > 0) {
+                revert CHANGE_ALREADY_PROPOSED();
+            }
 
             if (existingConfig.feePercent > 0) {
                 // allow fee percent change without validation when the new fee percentage is 0
@@ -72,9 +75,15 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
                     uint256 maxFee = Math.mulDiv(existingConfig.feePercent, (10_000 + MAX_FEE_PERCENT_CHANGE), 10_000);
                     if (config.feePercent < minFee || config.feePercent > maxFee) revert INVALID_FEE_PERCENT();
                 }
-            }  
+            }
 
-            _validateYieldSourceOracleConfig(config.yieldSourceOracleId, config.yieldSourceOracle, config.feePercent, config.feeRecipient, config.ledger);
+            _validateYieldSourceOracleConfig(
+                config.yieldSourceOracleId,
+                config.yieldSourceOracle,
+                config.feePercent,
+                config.feeRecipient,
+                config.ledger
+            );
 
             yieldSourceOracleConfigProposals[config.yieldSourceOracleId] = YieldSourceOracleConfig({
                 yieldSourceOracle: config.yieldSourceOracle,
@@ -83,9 +92,17 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
                 manager: existingConfig.manager,
                 ledger: config.ledger
             });
-            yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] = block.timestamp + PROPOSAL_EXPIRATION_TIME; 
+            yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] =
+                block.timestamp + PROPOSAL_EXPIRATION_TIME;
 
-            emit YieldSourceOracleConfigProposalSet(config.yieldSourceOracleId, config.yieldSourceOracle, config.feePercent, config.feeRecipient, existingConfig.manager, config.ledger);
+            emit YieldSourceOracleConfigProposalSet(
+                config.yieldSourceOracleId,
+                config.yieldSourceOracle,
+                config.feePercent,
+                config.feeRecipient,
+                existingConfig.manager,
+                config.ledger
+            );
         }
     }
 
@@ -99,14 +116,23 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
             YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
 
             if (proposal.manager != msg.sender) revert NOT_MANAGER();
-            if (yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId] > block.timestamp) revert CANNOT_ACCEPT_YET();
+            if (yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId] > block.timestamp) {
+                revert CANNOT_ACCEPT_YET();
+            }
 
             yieldSourceOracleConfig[yieldSourceOracleId] = proposal;
 
             delete yieldSourceOracleConfigProposals[yieldSourceOracleId];
             delete yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId];
 
-            emit YieldSourceOracleConfigAccepted(yieldSourceOracleId, proposal.yieldSourceOracle, proposal.feePercent, proposal.feeRecipient, proposal.manager, proposal.ledger);
+            emit YieldSourceOracleConfigAccepted(
+                yieldSourceOracleId,
+                proposal.yieldSourceOracle,
+                proposal.feePercent,
+                proposal.feeRecipient,
+                proposal.manager,
+                proposal.ledger
+            );
         }
     }
 
@@ -170,7 +196,9 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
         internal
         virtual
     {
-        _validateYieldSourceOracleConfig(yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, ledgerContract);
+        _validateYieldSourceOracleConfig(
+            yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
+        );
 
         // Only allow updates if no config exists or if caller is the manager
         YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
@@ -195,7 +223,11 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
         uint256 feePercent,
         address feeRecipient,
         address ledgerContract
-    ) internal virtual view {
+    )
+        internal
+        view
+        virtual
+    {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (ledgerContract == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();

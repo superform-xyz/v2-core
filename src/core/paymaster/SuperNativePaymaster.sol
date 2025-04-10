@@ -84,7 +84,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         override
         returns (bytes memory context, uint256 validationData)
     {
-       (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
+        (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
             abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
 
         if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {

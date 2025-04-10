@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { ISuperVault } from "../../../../periphery/interfaces/ISuperVault.sol";
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title CancelDepositHook
@@ -18,7 +18,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = BytesLib.toAddress(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-contract CancelDepositHook is BaseHook, ISuperHook, ISuperHookAsyncCancelations {
+contract CancelDepositHook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
@@ -26,7 +26,6 @@ contract CancelDepositHook is BaseHook, ISuperHook, ISuperHookAsyncCancelations 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address,
         address account,
@@ -49,22 +48,24 @@ contract CancelDepositHook is BaseHook, ISuperHook, ISuperHookAsyncCancelations 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
+
+    /// @inheritdoc ISuperHookAsyncCancelations
+    function isAsyncCancelHook() external pure returns (CancelationType) {
+        return CancelationType.INFLOW;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
         // store current balance
         outAmount = _getBalance(account, data);
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data) - outAmount;
-    }
-
-    /// @inheritdoc ISuperHookAsyncCancelations
-    function isAsyncCancelHook() external pure returns (CancelationType) {
-        return CancelationType.INFLOW;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -324,11 +324,5 @@ interface I1InchAggregationRouterV6 {
         uint256 flags;
     }
 
-    function swap(
-        IAggregationExecutor executor,
-        SwapDescription calldata desc,
-        bytes calldata data
-    )
-        external
-        payable;
+    function swap(IAggregationExecutor executor, SwapDescription calldata desc, bytes calldata data) external payable;
 }

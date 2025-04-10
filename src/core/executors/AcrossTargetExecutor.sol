@@ -66,7 +66,8 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
 
-    // @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays + the 4 bytes of the `execute` function selector
+    // @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays + the 4
+    // bytes of the `execute` function selector
     // @dev saves decoding gas
     uint256 constant EMPTY_EXECUTION_LENGTH = 228;
 
@@ -78,8 +79,17 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
 
-    constructor(address registry_, address acrossSpokePool_, address superDestinationValidator_, address nexusFactory_) SuperExecutorBase(registry_) {
-        if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) revert ADDRESS_NOT_VALID();
+    constructor(
+        address registry_,
+        address acrossSpokePool_,
+        address superDestinationValidator_,
+        address nexusFactory_
+    )
+        SuperExecutorBase(registry_)
+    {
+        if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
+            revert ADDRESS_NOT_VALID();
+        }
         acrossSpokePool = acrossSpokePool_;
         superDestinationValidator = superDestinationValidator_;
         nexusFactory = INexusFactory(nexusFactory_);
@@ -116,13 +126,19 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
         //      - bytes32[] proof
         //      - bytes signature
         // @dev executor calldata represents the ExecutorEntry object (hooksAddresses, hooksData)
-        (bytes memory initData, bytes memory executorCalldata, bytes memory sigData, address account, uint256 intentAmount) = abi.decode(message, (bytes, bytes, bytes, address, uint256));
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            bytes memory sigData,
+            address account,
+            uint256 intentAmount
+        ) = abi.decode(message, (bytes, bytes, bytes, address, uint256));
 
         if (account.code.length > 0) {
             string memory accountId = IERC7579Account(account).accountId();
             if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
         }
-        // @dev we need to create the account   
+        // @dev we need to create the account
         if (initData.length > 0 && account.code.length == 0) {
             (bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32));
             address computedAddress = nexusFactory.createAccount(factoryInitData, salt);
@@ -130,15 +146,18 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
         }
 
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
-        
+
         uint256 _nonce = nonces[account];
         nonces[account]++;
 
         // @dev validate execution
-        bytes memory destinationData = abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this));
-        bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(account, abi.encode(sigData, destinationData));
-        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
 
+        bytes memory destinationData =
+            abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this));
+        bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(
+            account, abi.encode(sigData, destinationData)
+        );
+        if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
 
         // @dev send tokens to the smart account
         IERC20 token = IERC20(tokenSent);
@@ -158,11 +177,8 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
 
         // @dev _execute -> executeFromExecutor -> SuperExecutorBase.execute
         Execution[] memory execs = new Execution[](1);
-        execs[0] = Execution({
-            target: address(this),
-            value: 0,
-            callData: executorCalldata
-        });
+
+        execs[0] = Execution({ target: address(this), value: 0, callData: executorCalldata });
 
         ModeCode modeCode = ERC7579ModeLib.encode({
             callType: CALLTYPE_BATCH,
@@ -170,11 +186,8 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             mode: MODE_DEFAULT,
             payload: ModePayload.wrap(bytes22(0))
         });
-      
-        try IERC7579Account(account).executeFromExecutor(
-            modeCode,
-            ERC7579ExecutionLib.encodeBatch(execs)
-        ) {
+
+        try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
             emit AcrossTargetExecutorExecuted(account);
         } catch Error(string memory reason) {
             emit AcrossTargetExecutorFailed(reason);

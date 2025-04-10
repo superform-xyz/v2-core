@@ -9,20 +9,18 @@ import { IYearnStakingRewardsMulti } from "../../../../vendor/yearn/IYearnStakin
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 
 /// @title YearnClaimOneRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
+contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook {
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address,
         address,
@@ -41,15 +39,13 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external {
+    function _preExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data);
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external {
+    function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
 }

@@ -11,7 +11,6 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import {
-    ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
@@ -34,7 +33,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool lockForSP = _decodeBool(data, 130);
 contract ApproveAndRedeem5115VaultHook is
     BaseHook,
-    ISuperHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware
@@ -49,7 +47,6 @@ contract ApproveAndRedeem5115VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -96,20 +93,6 @@ contract ApproveAndRedeem5115VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-        outAmount = _getBalance(account, data);
-        usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 130);
-        spToken = data.extractYieldSource();
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-        usedShares = usedShares - _getSharesBalance(account, data);
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -124,6 +107,22 @@ contract ApproveAndRedeem5115VaultHook is
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+        outAmount = _getBalance(account, data);
+        usedShares = _getSharesBalance(account, data);
+        lockForSP = _decodeBool(data, 130);
+        spToken = data.extractYieldSource();
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
+        usedShares = usedShares - _getSharesBalance(account, data);
     }
 
     /*//////////////////////////////////////////////////////////////

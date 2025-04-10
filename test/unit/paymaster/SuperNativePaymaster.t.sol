@@ -107,28 +107,28 @@ contract SuperNativePaymasterTest is BaseTest {
     function test_ValidatePaymasterUserOp_InsufficientBalance() public {
         // Setup test values
         uint256 addBalance = 0.001 ether;
-        
+
         // Create user operation with specific gas parameters
         PackedUserOperation memory userOp = _createUserOp();
 
         // Use the same encoding that works in test_ValidatePaymasterUserOp_RevertIf_InvalidMaxGasLimit
         userOp.paymasterAndData = bytes.concat(
-            bytes20(address(paymaster)),                          // 20 bytes
-            new bytes(32),                                        // 32 bytes of padding (to align to offset 52)
-            abi.encode(maxGasLimit, nodeOperatorPremium)          // your actual payload
+            bytes20(address(paymaster)), // 20 bytes
+            new bytes(32), // 32 bytes of padding (to align to offset 52)
+            abi.encode(maxGasLimit, nodeOperatorPremium) // your actual payload
         );
-        
+
         // Initially paymaster has no balance
         assertEq(address(paymaster).balance, 0, "Initial paymaster balance should be 0");
         assertEq(mockEntryPoint.getDepositInfo(address(paymaster)).deposit, 0, "Initial deposit should be 0");
-        
+
         // Transfer and deposit the exact required amount
         vm.deal(address(paymaster), addBalance);
         vm.prank(address(paymaster));
-        mockEntryPoint.depositTo{value: addBalance}(address(paymaster));
-        
+        mockEntryPoint.depositTo{ value: addBalance }(address(paymaster));
+
         // Call handleOps which should deposit the funds to EntryPoint
-        PackedUserOperation[] memory ops = new PackedUserOperation[](1);    
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
         vm.expectRevert("AA31 paymaster deposit too low");
         mockEntryPoint.handleOps(ops, payable(sender));
