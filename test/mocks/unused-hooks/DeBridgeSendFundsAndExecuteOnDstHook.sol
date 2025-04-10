@@ -8,7 +8,7 @@ import { IDeBridgeGate } from "../../../src/vendor/bridges/debridge/IDeBridgeGat
 
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
 
 /// @title DeBridgeSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -25,7 +25,7 @@ import { ISuperHook, ISuperHookResult } from "../../../src/core/interfaces/ISupe
 /// @notice         bytes autoParams = BytesLib.slice(data, 174, autoParamsLength);
 /// @notice         bytes permit = BytesLib.slice(data, 174 + autoParamsLength, data.length - 174 - autoParamsLength;
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
-contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
+contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -54,12 +54,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
         bytes permit;
     }
 
-    constructor(
-        address registry_,
-        address deBridgeGate_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING)
-    {
+    constructor(address registry_, address deBridgeGate_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (deBridgeGate_ == address(0)) revert ADDRESS_NOT_VALID();
         deBridgeGate = deBridgeGate_;
     }
@@ -67,7 +62,6 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address,
@@ -131,13 +125,11 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view { }
+    function _preExecute(address, address, bytes calldata) internal override { }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view { }
+    function _postExecute(address, address, bytes calldata) internal override { }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

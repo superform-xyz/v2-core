@@ -9,7 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title SwapOdosHook
 /// @author Superform Labs
@@ -27,7 +27,7 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 /// 0);
 /// @notice         uint32 referralCode = BytesLib.toUint32(BytesLib.slice(data, 189 + pathDefinition_paramLength + 20,
 /// 4), 0);
-contract SwapOdosHook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract SwapOdosHook is BaseHook, ISuperHookContextAware {
     IOdosRouterV2 public odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
@@ -40,7 +40,6 @@ contract SwapOdosHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -58,6 +57,12 @@ contract SwapOdosHook is BaseHook, ISuperHook, ISuperHookContextAware {
         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 
+
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        if (usePrevHookAmount) {
+            inputAmount = ISuperHookResult(prevHook).outAmount();
+        }
+
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(odosRouterV2),
@@ -71,19 +76,21 @@ contract SwapOdosHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-    }
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data);
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////

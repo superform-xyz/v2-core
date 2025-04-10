@@ -8,7 +8,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import {
-    ISuperHook,
     ISuperHookResultOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
@@ -26,7 +25,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool lockForSP = _decodeBool(data, 57);
 contract FluidUnstakeHook is
     BaseHook,
-    ISuperHook,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -39,7 +37,6 @@ contract FluidUnstakeHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address,
@@ -72,23 +69,25 @@ contract FluidUnstakeHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
+
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
         asset = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 57);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data) - outAmount;
-    }
-
-
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

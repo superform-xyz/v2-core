@@ -14,7 +14,6 @@ import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldS
 
 import { IAcrossTargetExecutor } from "../../src/core/interfaces/IAcrossTargetExecutor.sol";
 
-
 import { BaseTest } from "../BaseTest.t.sol";
 
 import "forge-std/console2.sol";
@@ -34,7 +33,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
     address public underlyingETH_USDC;
     address public underlyingOP_USDC;
 
-
     address public accountEth;
     address public accountBase;
     AccountInstance public instanceOnEth;
@@ -50,7 +48,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
 
     IValidator public validatorOnBase;
     IValidator public validatorOnETH;
-    IValidator public validatorOnOP;    
+    IValidator public validatorOnOP;
 
     address public yieldSource4626AddressBase_USDC;
     address public yieldSource4626AddressBase_WETH;
@@ -67,7 +65,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
     string public constant YIELD_SOURCE_4626_BASE_USDC_KEY = "ERC4626_BASE_USDC";
     string public constant YIELD_SOURCE_4626_BASE_WETH_KEY = "ERC4626_BASE_WETH";
     uint256 public constant WARP_START_TIME = 1_740_559_708;
-
 
     function setUp() public override {
         super.setUp();
@@ -89,7 +86,6 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         underlyingBase_WETH = existingUnderlyingTokens[BASE][WETH_KEY];
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingOP_USDC = existingUnderlyingTokens[OP][USDC_KEY];
-
 
         underlyingEth_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];

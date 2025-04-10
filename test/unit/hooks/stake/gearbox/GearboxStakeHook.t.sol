@@ -10,7 +10,6 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { console2 } from "forge-std/console2.sol";
 
-
 contract GearboxStakeHookTest is BaseTest {
     GearboxStakeHook public hook;
 
@@ -43,7 +42,7 @@ contract GearboxStakeHookTest is BaseTest {
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
-        
+
         data = _encodeData(false, true);
         executions = hook.build(address(0), address(this), data);
         assertEq(executions.length, 1);
@@ -62,7 +61,7 @@ contract GearboxStakeHookTest is BaseTest {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-        
+
         bytes memory data = _encodeData(true, false);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
         assertEq(executions.length, 1);
@@ -70,7 +69,7 @@ contract GearboxStakeHookTest is BaseTest {
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
     }
-    
+
     function test_PreAndPostExecute() public {
         yieldSource = token; // to allow balanceOf call
         bytes memory data = _encodeData(false, false);
@@ -84,15 +83,8 @@ contract GearboxStakeHookTest is BaseTest {
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);
     }
-    
-    
+
     function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId,
-            yieldSource,
-            amount,
-            usePrevHook,
-            lockForSp
-        );
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHook, lockForSp);
     }
 }

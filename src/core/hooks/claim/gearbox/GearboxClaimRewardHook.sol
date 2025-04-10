@@ -21,13 +21,12 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address,
         address,
@@ -60,15 +59,13 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, IS
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external {
+    function _preExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data);
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external {
+    function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
 }

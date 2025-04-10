@@ -18,7 +18,6 @@ import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 
-
 import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
 
 contract MockTargetExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
@@ -61,7 +60,6 @@ contract MockTargetExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, IS
         return typeID == TYPE_EXECUTOR;
     }
 
-
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -75,8 +73,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, IS
         _initialized[msg.sender] = false;
     }
 
-
-    // @dev `message`  has data only for the account creation 
+    // @dev `message`  has data only for the account creation
     function handleV3AcrossMessage(
         address tokenSent,
         uint256 amount,
@@ -93,16 +90,16 @@ contract MockTargetExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, IS
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
         address deployedAddress = nexusFactory.createAccount(initData, initSalt);
-        
+
         // @dev use custom errors for the real executor
         if (deployedAddress != computedAddress) revert("Nexus SCA addresses mismatch");
 
         // @dev use safeTransfer for the real executor
         IERC20(tokenSent).transfer(deployedAddress, amount);
-        
+
         nexusCreatedAccount = deployedAddress;
         emit HappyAccountCreated(deployedAddress);
-    } 
+    }
 
     function execute(bytes calldata data) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();

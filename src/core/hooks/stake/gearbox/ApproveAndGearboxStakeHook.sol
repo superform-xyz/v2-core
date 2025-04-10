@@ -13,6 +13,7 @@ import {
     ISuperHookResult,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
+
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -25,7 +26,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -36,7 +37,6 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookContextAw
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address,
@@ -77,21 +77,23 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHook, ISuperHookContextAw
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 77);
         spToken = data.extractYieldSource();
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data) - outAmount;
-    }
-
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

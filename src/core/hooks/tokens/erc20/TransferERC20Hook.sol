@@ -8,7 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title TransferERC20Hook
 /// @author Superform Labs
@@ -17,14 +17,13 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 /// @notice         address to = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 40, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract TransferERC20Hook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
 
     function build(
         address prevHook,
@@ -56,19 +55,21 @@ contract TransferERC20Hook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external {
-        outAmount = _getBalance(data);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external {
-        outAmount = _getBalance(data) - outAmount;
-    }
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address, bytes calldata data) internal override {
+        outAmount = _getBalance(data);
+    }
+
+    function _postExecute(address, address, bytes calldata data) internal override {
+        outAmount = _getBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////

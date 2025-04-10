@@ -22,13 +22,13 @@ import {
 /// @dev data has the following structure
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
+
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address,
         address,
@@ -62,15 +62,13 @@ contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook, I
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external {
+    function _preExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data);
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external {
+    function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
 }
