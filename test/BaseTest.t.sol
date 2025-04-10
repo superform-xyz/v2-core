@@ -1550,7 +1550,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     enum RELAYER_TYPE {
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
-        NO_HOOKS
+        NO_HOOKS,
+        LOW_LEVEL_FAILED
     }
 
     function _processAcrossV3Message(
@@ -1572,6 +1573,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
             emit IAcrossTargetExecutor.AcrossTargetExecutorReceivedButNoHooks();
+        } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
+            vm.expectEmit(true, false, false, false);
+            emit IAcrossTargetExecutor.AcrossTargetExecutorFailedLowLevel("");
+
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
@@ -1704,7 +1709,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData, messageData.chainId, accountToUse, messageData.nonce, validUntil
+            executionData, messageData.chainId, accountToUse, messageData.nonce, messageData.targetExecutor, validUntil
         );
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
@@ -1723,9 +1728,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 accountCreationData,
                 executionData,
                 signatureData,
-                /**
-                 * address(0) to create account
-                 */
                 messageData.account,
                 messageData.amount
             ),

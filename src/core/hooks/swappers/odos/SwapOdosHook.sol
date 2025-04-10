@@ -57,6 +57,12 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware {
         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 20, 32), 0);
 
+
+        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        if (usePrevHookAmount) {
+            inputAmount = ISuperHookResult(prevHook).outAmount();
+        }
+
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(odosRouterV2),

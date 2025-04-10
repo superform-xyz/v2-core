@@ -35,6 +35,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         bytes callData;
         uint64 chainId;
         address sender;
+        address executor;
     }
 
     struct SignatureData {
@@ -113,11 +114,13 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
     function test_Dummy_OnChainMerkleTree_WithActualUserOps() public view {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](4);
+
         leaves[0] = _createDestinationValidatorLeaf(
             approveDestinationData.callData,
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.nonce,
+            approveDestinationData.executor,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -125,6 +128,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.nonce,
+            transferDestinationData.executor,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -132,6 +136,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.nonce,
+            depositDestinationData.executor,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -139,6 +144,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.nonce,
+            withdrawDestinationData.executor,
             validUntil
         );
 
@@ -148,16 +154,18 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         assertTrue(isValid, "Merkle proof should be valid");
     }
 
-    function test_IsValidSignatureWithSender() public {
+    function test_IsValidDestinationSignature() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
+
         leaves[0] = _createDestinationValidatorLeaf(
             approveDestinationData.callData,
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.nonce,
+            approveDestinationData.executor,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -165,6 +173,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.nonce,
+            transferDestinationData.executor,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -172,6 +181,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.nonce,
+            depositDestinationData.executor,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -179,6 +189,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.nonce,
+            withdrawDestinationData.executor,
             validUntil
         );
 
@@ -208,11 +219,13 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
+
         leaves[0] = _createDestinationValidatorLeaf(
             approveDestinationData.callData,
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.nonce,
+            approveDestinationData.executor,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -220,6 +233,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.nonce,
+            transferDestinationData.executor,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -227,6 +241,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.nonce,
+            depositDestinationData.executor,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -234,6 +249,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.nonce,
+            withdrawDestinationData.executor,
             validUntil
         );
 
@@ -242,15 +258,17 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         bytes memory signature = _getSignature(root);
 
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], signature);
+
         bytes memory destinationDataRaw = abi.encode(
             approveDestinationData.nonce,
             approveDestinationData.callData,
             approveDestinationData.chainId,
-            approveDestinationData.sender
+            approveDestinationData.sender,
+            approveDestinationData.executor
         );
 
         bytes4 validationResult =
-            validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
+            validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
 
         assertEq(validationResult, bytes4(""), "Sig should be invalid");
     }
@@ -281,11 +299,17 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         view
     {
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof, signature);
-        bytes memory destinationDataRaw =
-            abi.encode(destinationData.nonce, destinationData.callData, destinationData.chainId, destinationData.sender);
+
+        bytes memory destinationDataRaw = abi.encode(
+            destinationData.nonce,
+            destinationData.callData,
+            destinationData.chainId,
+            destinationData.sender,
+            destinationData.executor
+        );
 
         bytes4 validationResult =
-            validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
+            validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
         assertEq(validationResult, VALID_SIGNATURE, "Sig should be valid");
     }
 
@@ -305,6 +329,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
                         uint64(block.chainid),
                         destinationData.sender,
                         destinationData.nonce,
+                        destinationData.executor,
                         validUntil
                     )
                 )
@@ -349,7 +374,8 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this)
         );
     }
 
@@ -358,7 +384,8 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this)
         );
     }
 
@@ -367,7 +394,8 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC4626.deposit.selector, 1e18, address(this)),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this)
         );
     }
 
@@ -376,7 +404,8 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC4626.withdraw.selector, 1e18, address(this)),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this)
         );
     }
 }
