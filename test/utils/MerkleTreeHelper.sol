@@ -50,7 +50,9 @@ abstract contract MerkleTreeHelper {
         pure
         returns (bytes32)
     {
-        return keccak256(bytes.concat(keccak256(abi.encode(executionData, dstChainId, account, nonce, executor, validUntil))));
+        return keccak256(
+            bytes.concat(keccak256(abi.encode(executionData, dstChainId, account, nonce, executor, validUntil)))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

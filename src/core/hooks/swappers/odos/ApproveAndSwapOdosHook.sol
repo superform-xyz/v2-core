@@ -60,7 +60,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         if (usePrevHookAmount) {
             inputAmount = ISuperHookResult(prevHook).outAmount();
         }
-        
+
         executions = new Execution[](4);
         executions[0] = Execution({
             target: inputToken,
