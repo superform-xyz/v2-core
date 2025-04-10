@@ -434,7 +434,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             hooks: swapHooks,
             hookCalldata: swapHookDataArray,
             hookProofs: _getMerkleProofsForAddresses(BASE, swapHooks),
-            expectedAssetsOrSharesOut: new uint256[](1)
+            expectedAssetsOrSharesOut: new uint256[](2)
         });
 
         vm.prank(STRATEGIST);
