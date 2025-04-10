@@ -1480,7 +1480,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     enum RELAYER_TYPE {
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
-        NO_HOOKS
+        NO_HOOKS,
+        LOW_LEVEL_FAILED
     }
 
     function _processAcrossV3Message(
@@ -1502,6 +1503,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
             emit IAcrossTargetExecutor.AcrossTargetExecutorReceivedButNoHooks();
+        } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
+            vm.expectEmit(true, false, false, false);
+            emit IAcrossTargetExecutor.AcrossTargetExecutorFailedLowLevel("");
+
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
