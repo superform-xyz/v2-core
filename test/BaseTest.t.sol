@@ -2446,4 +2446,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
             );
     }
+
+    function _createApproveAndSwapOdosHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, usePrevHookAmount, pathDefinition.length, pathDefinition, executor, referralCode);
+    }
 }
