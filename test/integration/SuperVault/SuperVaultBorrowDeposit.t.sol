@@ -11,7 +11,6 @@ import { IIrm } from "../../../src/vendor/morpho/IIrm.sol";
 import { MathLib } from "../../../src/vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../src/vendor/morpho/IOracle.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { MockOdosRouterWETH } from "../../mocks/MockOdosRouterWETH.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { SharesMathLib } from "../../../src/vendor/morpho/SharesMathLib.sol";
@@ -165,7 +164,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         _getTokens(address(asset), accountBase, 1e18);
 
         // Set up odos router
-        swapRouter = address(new MockOdosRouterWETH());
+        swapRouter = odosRouters[BASE];
         deal(address(asset), swapRouter, 1e18);
         deal(address(asset), odosRouters[BASE], 1e18);
     }
@@ -204,6 +203,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         console2.log("\n pps After Fulfill Redeem", _getSuperVaultPricePerShare());
 
         _claimRedeemOnBase();
+        console2.log("hookWithdrawAddress", _getHookAddress(BASE, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY));
+        console2.log("hookRepayAddress", _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY));
     }
 
     function test_BorrowHook() public {
@@ -267,7 +268,7 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
             irm: irm,
             lltv: lltv
         }).id();
-        uint256 expectedCollateralBalanceAfterRepay = _deriveCollateralForPartialWithdraw(id, oracleAddress, loanToken, collateralToken, accountBase, amount / 2, amount, false);
+        uint256 expectedCollateralBalanceAfterRepay = _deriveCollateralForPartialWithdraw(loanToken, collateralToken, amount / 2, amount, false);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
@@ -312,7 +313,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
 
     function test_RepayHook_PartialRepayment() public {
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
 
         // borrow
         _implementBorrowFlow();
@@ -335,7 +335,6 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
         executeOp(repayUserOpData);
 
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
-        uint256 collateralBalanceAfterRepay = IERC20(collateralToken).balanceOf(accountBase);
 
         assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - amount / 2);
     }
@@ -711,11 +710,8 @@ contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
     }
 
     function _deriveCollateralForPartialWithdraw(
-        Id id,
-        address oracleAddr,
         address loanTokenAddress,
         address collateralTokenAddress,
-        address account,
         uint256 repaymentAmount,
         uint256 fullCollateral,
         bool isPositiveFeed
