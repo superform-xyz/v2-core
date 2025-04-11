@@ -208,9 +208,4 @@ interface IYieldSourceOracle {
         external
         view
         returns (uint256[] memory tvlsUSD);
-
-    /// @notice Returns the asset of the yield source
-    /// @param yieldSourceAddress The yield source to derive the asset for
-    /// @return asset The asset of the yield source
-    function getYieldSourceAsset(address yieldSourceAddress) external view returns (address);
 }
