@@ -194,7 +194,7 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EXTERNALVIEW FUNCTIONS
+                        EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperOracle
     function getQuoteFromProvider(
@@ -322,10 +322,26 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         uint256[] memory tempQuotes = new uint256[](numberOfProviders);
 
         // Loop through all active providers
-        for (uint256 i = 0; i < numberOfProviders; ++i) {
+        for (uint256 i; i < numberOfProviders; ++i) {
             bytes32 provider = activeProviders[i];
             address providerOracle = oracles[base][quote][provider];
-            if (providerOracle == address(0)) revert NO_ORACLES_CONFIGURED();
+            // provider is in active list but has no available oracle address
+            /*
+            base = ETH
+            quote = [USD, EUR]
+            providers = [CHAINLINK, eORACLE]
+
+            Let's say we have
+
+            ETH -> USD -> CHAINLINK -> address(0x1)
+            ETH -> USD - eORACLE -> address(0x2)
+            ETH -> EUR -> CHAINLINK -> address(0x3)
+
+            This would just continue for 
+
+            ETH -> EUR -> eOracle, because oracle address is 0
+            */
+            if (providerOracle == address(0)) continue;
 
             uint256 quote_ = _getQuoteFromOracle(providerOracle, baseAmount, base, quote, false);
             /// @dev we don't revert on error, we just skip the oracle value
@@ -359,7 +375,6 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         uint256 sum = 0;
         uint256 count = 0;
         for (uint256 i; i < length; ++i) {
-            if (values[i] == 0) continue;
             sum += values[i];
             count++;
         }
@@ -368,8 +383,6 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         uint256 mean = sum / count;
         uint256 sumSquaredDiff = 0;
         for (uint256 i; i < length; ++i) {
-            if (values[i] == 0) continue;
-
             uint256 diff;
             if (values[i] >= mean) {
                 diff = values[i] - mean;

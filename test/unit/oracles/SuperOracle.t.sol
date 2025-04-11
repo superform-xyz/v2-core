@@ -607,4 +607,69 @@ contract SuperOracleTest is BaseTest {
         // Should still give correct result with decimal conversion
         assertEq(quoteAmount, 1.1e6, "Quote should be $1100 with correct decimal conversion");
     }
+
+    function test_SkippingProvidersWithoutOracleAddress() public {
+        // Create a configuration where:
+        // - Provider 1, Provider 2 have ETH/USD oracles
+        // - Provider 3 has BTC/USD oracle but not ETH/USD
+        // - We add a new provider "BTC_ONLY_PROVIDER" that only has BTC/USD oracle
+
+        // First add a new provider that only has BTC/USD oracle, not ETH/USD
+        address[] memory bases = new address[](1);
+        bases[0] = address(mockBTC);
+
+        address[] memory quotes = new address[](1);
+        quotes[0] = address(mockUSD);
+
+        bytes32[] memory providers = new bytes32[](1);
+        bytes32 BTC_ONLY_PROVIDER = bytes32(keccak256("BTC_ONLY_PROVIDER"));
+        providers[0] = BTC_ONLY_PROVIDER;
+
+        address[] memory feeds = new address[](1);
+        feeds[0] = address(mockFeed4);
+
+        // Queue and execute the oracle update to add BTC/USD oracle for the new provider
+        superOracle.queueOracleUpdate(bases, quotes, providers, feeds);
+        vm.warp(block.timestamp + 1 weeks + 1 seconds);
+        mockFeed4.setUpdatedAt(block.timestamp);
+        superOracle.executeOracleUpdate();
+
+        // Verify the new provider is active
+        bytes32[] memory activeProviders = superOracle.getActiveProviders();
+
+        // Should have 4 active providers (the 3 initial ones + the new BTC-only one)
+        assertEq(activeProviders.length, 4, "Should have 4 active providers");
+
+        // Update all feed timestamps to avoid staleness
+        mockFeed1.setUpdatedAt(block.timestamp);
+        mockFeed2.setUpdatedAt(block.timestamp);
+        mockFeed3.setUpdatedAt(block.timestamp);
+
+        // Get average quote for ETH/USD - should only use providers that have ETH/USD oracles
+        (uint256 quoteAmount,, uint256 totalProviders, uint256 availableProviders) = superOracle.getQuoteFromProvider(
+            1e18, // 1 ETH
+            address(mockETH),
+            address(mockUSD),
+            AVERAGE_PROVIDER
+        );
+
+        // Even though we have 4 active providers, only 3 have ETH/USD oracles
+        assertEq(totalProviders, 4, "Total providers should be 4");
+        assertEq(availableProviders, 3, "Only 3 providers should be available for ETH/USD");
+        assertEq(quoteAmount, 1e6, "Average quote should still be $1000 from the 3 ETH/USD providers");
+
+        // Get average quote for BTC/USD - should only use providers that have BTC/USD oracles
+        (uint256 btcQuoteAmount,, uint256 btcTotalProviders, uint256 btcAvailableProviders) = superOracle
+            .getQuoteFromProvider(
+            1e8, // 1 BTC
+            address(mockBTC),
+            address(mockUSD),
+            AVERAGE_PROVIDER
+        );
+
+        // Only 1 provider (BTC_ONLY_PROVIDER) has BTC/USD oracle
+        assertEq(btcTotalProviders, 4, "Total providers should be 4");
+        assertEq(btcAvailableProviders, 1, "Only 1 provider should be available for BTC/USD");
+        assertEq(btcQuoteAmount, 2e6, "Quote should be $20000 from the only BTC/USD provider");
+    }
 }
