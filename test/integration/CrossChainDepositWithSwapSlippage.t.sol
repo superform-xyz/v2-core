@@ -190,7 +190,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 nonce: nonce,
                 chainId: uint64(BASE),
                 amount: amount,
-                account: accountBase
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
@@ -278,7 +279,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 nonce: nonce,
                 chainId: uint64(BASE),
                 amount: intentAmount,
-                account: accountBase
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
@@ -366,7 +368,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 nonce: nonce,
                 chainId: uint64(BASE),
                 amount: intentAmount,
-                account: accountBase
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);

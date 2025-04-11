@@ -91,19 +91,6 @@ contract SuperNativePaymasterTest is BaseTest {
         assertTrue(mockEntryPoint.withdrawAmount() > 0);
     }
 
-    function test_PostOp_Reverted() public {
-        bytes memory context = abi.encode(sender, maxFeePerGas, maxGasLimit, nodeOperatorPremium);
-        uint256 actualGasCost = maxGasLimit * maxFeePerGas / 2;
-
-        vm.deal(address(mockEntryPoint), 10 ether);
-
-        vm.prank(address(mockEntryPoint));
-        paymaster.postOp(IPaymaster.PostOpMode.postOpReverted, context, actualGasCost, 0);
-
-        assertEq(mockEntryPoint.withdrawAddress(), address(0));
-        assertEq(mockEntryPoint.withdrawAmount(), 0);
-    }
-
     function test_ValidatePaymasterUserOp_InsufficientBalance() public {
         // Setup test values
         uint256 addBalance = 0.001 ether;

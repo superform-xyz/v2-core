@@ -14,7 +14,7 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @notice Oracle for synchronous deposit and redeem 7540 Vaults
 contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
-    
+
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address yieldSourceAddress) external view override returns (uint8) {
         address share = IERC7540(yieldSourceAddress).share();

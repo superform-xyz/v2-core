@@ -1609,7 +1609,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
             vm.expectEmit(true, false, false, false);
             emit IAcrossTargetExecutor.AcrossTargetExecutorFailedLowLevel("");
-
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
@@ -1698,6 +1697,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint64 chainId;
         uint256 amount;
         address account;
+        address tokenSent;
     }
 
     function _precomputeTargetExecutorAccount(
@@ -1742,8 +1742,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData, messageData.chainId, accountToUse, messageData.nonce, messageData.targetExecutor, validUntil
+            executionData,
+            messageData.chainId,
+            accountToUse,
+            messageData.nonce,
+            messageData.targetExecutor,
+            messageData.tokenSent,
+            messageData.amount,
+            validUntil
         );
+
+        console2.log("---------- messageData.tokenSent", messageData.tokenSent);
+        console2.log("---------- messageData.amount", messageData.amount);
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 
@@ -1757,13 +1767,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             _createSignatureData_AcrossTargetExecutor(validUntil, merkleRoot, merkleProof[0], signature);
 
         return (
-            abi.encode(
-                accountCreationData,
-                executionData,
-                signatureData,
-                messageData.account,
-                messageData.amount
-            ),
+            abi.encode(accountCreationData, executionData, signatureData, messageData.account, messageData.amount),
             accountToUse
         );
     }
@@ -2460,3 +2464,4 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return abi.encodePacked(inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, usePrevHookAmount, pathDefinition.length, pathDefinition, executor, referralCode);
     }
 }
+

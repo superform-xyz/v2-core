@@ -7,10 +7,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHookResultOutflow,
-    ISuperHookContextAware
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResultOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -19,14 +16,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         bool lockForSP = _decodeBool(data, 57);
-contract FluidUnstakeHook is
-    BaseHook,
-    ISuperHookContextAware
-{
+contract FluidUnstakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -70,7 +64,6 @@ contract FluidUnstakeHook is
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
@@ -94,7 +87,7 @@ contract FluidUnstakeHook is
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory) private view returns (uint256) {

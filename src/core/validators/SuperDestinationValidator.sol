@@ -9,7 +9,6 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
-
 /// @title SuperDestinationValidator
 /// @dev Can't be used for ERC-1271 validation
 /// @author Superform Labs
@@ -24,6 +23,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
         uint64 chainId;
         address sender;
         address executor;
+        address tokenSent;
+        uint256 intentAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -33,21 +34,12 @@ contract SuperDestinationValidator is SuperValidatorBase {
     error NOT_IMPLEMENTED();
     error INVALID_CHAIN_ID();
 
-
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Validate a user operation
     /// @dev Not implemented
-    function validateUserOp(
-        PackedUserOperation calldata,
-        bytes32
-    )
-        external
-        pure
-        override
-        returns (ValidationData)
-    {   
+    function validateUserOp(PackedUserOperation calldata, bytes32) external pure override returns (ValidationData) {
         // @dev The following validator shouldn't be used for EntryPoint calls
         revert NOT_IMPLEMENTED();
     }
@@ -58,15 +50,22 @@ contract SuperDestinationValidator is SuperValidatorBase {
         address,
         bytes32,
         bytes calldata
-    ) external pure virtual override returns (bytes4) {
+    )
+        external
+        pure
+        virtual
+        override
+        returns (bytes4)
+    {
         revert NOT_IMPLEMENTED();
     }
 
     function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
         // Decode data
-        (SignatureData memory sigData, DestinationData memory destinationData) = _decodeSignatureAndDestinationData(data, sender);
+        (SignatureData memory sigData, DestinationData memory destinationData) =
+            _decodeSignatureAndDestinationData(data, sender);
         // Process signature
-        (address signer, ) = _processSignatureAndVerifyLeaf(sigData, destinationData);
+        (address signer,) = _processSignatureAndVerifyLeaf(sigData, destinationData);
 
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
@@ -83,7 +82,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
         /// @dev `executor` is included in the leaf to ensure that the leaf is unique for each executor
-        ///      otherwise it allows the owner's signature to be replayed if the account mistakenly installs two of the same executors
+        ///      otherwise it allows the owner's signature to be replayed if the account mistakenly installs two of the
+        /// same executors
         return keccak256(
             bytes.concat(
                 keccak256(
@@ -93,6 +93,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
                         destinationData.sender,
                         destinationData.nonce,
                         destinationData.executor,
+                        destinationData.tokenSent,
+                        destinationData.intentAmount,
                         validUntil
                     )
                 )
@@ -134,13 +136,26 @@ contract SuperDestinationValidator is SuperValidatorBase {
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
     }
 
- 
-    function _decodeDestinationData(bytes memory destinationDataRaw, address sender_) private view returns (DestinationData memory) {
-        (uint256 nonce, bytes memory callData, uint64 chainId, address decodedSender, address executor) =
-            abi.decode(destinationDataRaw, (uint256, bytes, uint64, address, address));
+    function _decodeDestinationData(
+        bytes memory destinationDataRaw,
+        address sender_
+    )
+        private
+        view
+        returns (DestinationData memory)
+    {
+        (
+            uint256 nonce,
+            bytes memory callData,
+            uint64 chainId,
+            address decodedSender,
+            address executor,
+            address tokenSent,
+            uint256 intentAmount
+        ) = abi.decode(destinationDataRaw, (uint256, bytes, uint64, address, address, address, uint256));
         if (sender_ != decodedSender) revert INVALID_SENDER();
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();
-        return DestinationData(nonce, callData, chainId, decodedSender, executor);
+        return DestinationData(nonce, callData, chainId, decodedSender, executor, tokenSent, intentAmount);
     }
 
     function _decodeSignatureAndDestinationData(

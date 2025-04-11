@@ -30,6 +30,7 @@ contract MockERC20 is ERC20 {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Get the number of decimals for the token
+
     function decimals() public view override returns (uint8) {
         return _decimals;
     }

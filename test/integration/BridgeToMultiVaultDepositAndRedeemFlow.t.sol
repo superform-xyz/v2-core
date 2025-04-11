@@ -232,7 +232,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           INDIVIDUAL TESTS
     //////////////////////////////////////////////////////////////*/
-     function test_RevertFrom_AcrossTargetExecutor() public {
+    function test_RevertFrom_AcrossTargetExecutor() public {
         uint256 amountPerVault = 1e8 / 2;
 
         // ETH IS DST
@@ -248,11 +248,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
             bytes[] memory eth7540HooksData = new bytes[](2);
             eth7540HooksData[0] =
-                _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault/2, false);
+                _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(0), 0, false
             );
-
 
             uint256 nonce = 0; // new account
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
@@ -266,8 +265,9 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
                 nonce: nonce,
                 chainId: uint64(ETH),
-                amount: amountPerVault/2,
-                account: address(0)
+                amount: amountPerVault / 2,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
             });
 
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
@@ -297,7 +297,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault/2, false);
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault / 2, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC,
             underlyingETH_USDC,
@@ -350,7 +350,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault / 2,
-                account: address(0)
+                account: address(0),
+                tokenSent: underlyingETH_USDC
             });
 
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
@@ -438,7 +439,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault,
-                account: accountETH
+                account: accountETH,
+                tokenSent: underlyingETH_USDC
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
@@ -499,7 +501,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             nonce: nonce,
             chainId: uint64(BASE),
             amount: 0,
-            account: accountBase
+            account: accountBase,
+            tokenSent: underlyingBase_USDC
         });
         (bytes memory targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
 
@@ -609,7 +612,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(OP),
                 amount: amountPerVault,
-                account: accountOP
+                account: accountOP,
+                tokenSent: underlyingOP_USDCe
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
@@ -712,7 +716,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 nonce: nonce,
                 chainId: uint64(BASE),
                 amount: assetOutAmount,
-                account: accountBase
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
             });
 
             (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);

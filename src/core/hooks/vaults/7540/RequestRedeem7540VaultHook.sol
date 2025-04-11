@@ -23,8 +23,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 contract RequestRedeem7540VaultHook is
     BaseHook,
@@ -112,7 +112,7 @@ contract RequestRedeem7540VaultHook is
     //////////////////////////////////////////////////////////////*/
 
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {

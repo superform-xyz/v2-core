@@ -20,13 +20,19 @@ import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+/// @notice         address farmingPool = BytesLib.toAddress(data, 0);
+contract GearboxClaimRewardHook is
+    BaseHook,
+    BaseClaimRewardHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
     constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+
     function build(
         address,
         address,
@@ -37,7 +43,7 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHookInfl
         override
         returns (Execution[] memory executions)
     {
-        address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address farmingPool = BytesLib.toAddress(data, 0);
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
