@@ -141,7 +141,6 @@ contract SuperOracle is Ownable2Step, ISuperOracle, IOracle {
         external
         onlyOwner
     {
-        if (pendingUpdate.timestamp != 0) revert PENDING_UPDATE_EXISTS();
         uint256 providersLength = providers.length;
         if (providersLength > MAX_PROVIDERS) {
             revert MAX_PROVIDERS_EXCEEDED();

@@ -12,6 +12,6 @@ library HookDataDecoder {
     }
 
     function extractYieldSource(bytes memory data) internal pure returns (address) {
-        return BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+        return BytesLib.toAddress(data, 4);
     }
 }

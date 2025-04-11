@@ -7,12 +7,8 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -20,22 +16,21 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         bool lockForSP = _decodeBool(data, 57);
-contract GearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract GearboxStakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address,
@@ -68,26 +63,23 @@ contract GearboxStakeHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISup
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
+        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
         lockForSP = _decodeBool(data, 57);
         spToken = data.extractYieldSource();
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data) - outAmount;
-    }
-
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
-    }
-
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

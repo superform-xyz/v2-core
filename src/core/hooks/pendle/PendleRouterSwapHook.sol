@@ -17,7 +17,7 @@ import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
 /// @notice         uint256 value = abi.decode(data[1:33], (uint256));
 /// @notice         bytes txData_ = data[33:];
-contract PendleRouterSwapHook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0; 
 
     /*//////////////////////////////////////////////////////////////
@@ -75,19 +75,20 @@ contract PendleRouterSwapHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes calldata data) external {
-        outAmount = _getBalance(data);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes calldata data) external {
-        outAmount = _getBalance(data) - outAmount;
-    }
-
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address, bytes calldata data) internal override {
+        outAmount = _getBalance(data);
+    }
+
+    function _postExecute(address, address, bytes calldata data) internal override {
+        outAmount = _getBalance(data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////

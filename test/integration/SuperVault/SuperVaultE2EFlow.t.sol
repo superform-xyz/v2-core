@@ -198,7 +198,8 @@ contract SuperVaultE2EFlow is BaseSuperVaultTest {
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
 
-        uint256 expectedLedgerFee = superLedgerETH.previewFees(accountEth, claimableAssets, userShares, 100);
+        uint256 expectedLedgerFee =
+            superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, userShares, 100);
 
         // Step 6: Claim Withdraw
         _claimWithdraw(claimableAssets);

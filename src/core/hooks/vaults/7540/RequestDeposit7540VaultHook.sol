@@ -10,10 +10,10 @@ import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol"
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import {
-    ISuperHook,
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
+    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -21,15 +21,15 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title RequestDeposit7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 contract RequestDeposit7540VaultHook is
     BaseHook,
-    ISuperHook,
     ISuperHookInflowOutflow,
-    ISuperHookNonAccounting,
+    ISuperHookAsync,
+    ISuperHookAsyncCancelations,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
@@ -42,7 +42,6 @@ contract RequestDeposit7540VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -72,25 +71,19 @@ contract RequestDeposit7540VaultHook is
         });
     }
 
-    /// @inheritdoc ISuperHookNonAccounting
-    /// @return outAmount The amount of assets or shares processed by the hook
-    /// @return isShares Whether the amount is in shares
+    /// @inheritdoc ISuperHookAsync
     function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
         return (outAmount, false);
+    }
+
+    /// @inheritdoc ISuperHookAsyncCancelations
+    function isAsyncCancelHook() external pure returns (CancelationType) {
+        return CancelationType.NONE;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = outAmount - _getBalance(account, data);
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -103,10 +96,21 @@ contract RequestDeposit7540VaultHook is
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data);
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = outAmount - _getBalance(account, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {

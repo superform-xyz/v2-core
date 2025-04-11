@@ -9,24 +9,20 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title ApproveAndDeposit4626VaultHook
 /// @author Superform Labs
+/// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         address token = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 44, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         address token = BytesLib.toAddress(data, 24);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 44);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         bool lockForSP = _decodeBool(data, 77);
-contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -37,7 +33,6 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -49,7 +44,7 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address token = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+        address token = BytesLib.toAddress(data, 24);
         uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
@@ -74,18 +69,6 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        // store current balance
-        outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 77);
-        spToken = data.extractYieldSource();
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -98,10 +81,24 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflo
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 77);
+        spToken = data.extractYieldSource();
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {

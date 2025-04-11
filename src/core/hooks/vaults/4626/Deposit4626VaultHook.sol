@@ -8,23 +8,18 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Deposit4626VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         bool lockForSP = _decodeBool(data, 57);
-contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -34,7 +29,6 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
 
     function build(
         address prevHook,
@@ -65,18 +59,6 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes memory data) external {
-        // store current balance
-        outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
-        spToken = data.extractYieldSource();
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes memory data) external {
-        outAmount = _getBalance(account, data) - outAmount;
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -89,10 +71,24 @@ contract Deposit4626VaultHook is BaseHook, ISuperHook, ISuperHookInflowOutflow, 
     }
 
     /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = _getBalance(account, data);
+        lockForSP = _decodeBool(data, 57);
+        spToken = data.extractYieldSource();
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data) - outAmount;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {

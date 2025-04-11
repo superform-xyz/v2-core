@@ -8,20 +8,31 @@ import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingP
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResultOutflow,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+} from "../../../interfaces/ISuperHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
-
+/// @notice         address farmingPool = BytesLib.toAddress(data, 0);
+contract GearboxClaimRewardHook is
+    BaseHook,
+    BaseClaimRewardHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
+
     function build(
         address,
         address,
@@ -32,22 +43,35 @@ contract GearboxClaimRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
         override
         returns (Execution[] memory executions)
     {
-        address farmingPool = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
+        address farmingPool = BytesLib.toAddress(data, 0);
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory) external pure returns (uint256) {
+        return 0;
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory) external pure returns (bool) {
+        return false;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
+        return data;
+    }
+
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory data) external {
+    function _preExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data);
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory data) external {
+    function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
 }

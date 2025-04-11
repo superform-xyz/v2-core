@@ -10,6 +10,8 @@ uint256 constant _CURVE_TO_COINS_ARG_OFFSET = 216;
 uint256 constant _PARTIAL_FILL = 1 << 0;
 uint256 constant _REQUIRES_EXTRA_ETH = 1 << 1;
 uint256 constant _USE_PERMIT2 = 1 << 2;
+uint256 constant _CURVE_TO_COINS_SELECTOR_OFFSET = 208;
+uint256 constant _CURVE_TO_COINS_SELECTOR_MASK = 0xff;
 
 library AddressLib {
     uint256 private constant _LOW_160_BIT_MASK = (1 << 160) - 1;
@@ -101,6 +103,10 @@ interface IUniswapPair {
 
 interface ICurvePool {
     function underlying_coins(int128 index) external view returns (address);
+    function underlying_coins(uint256 _index) external view returns (address);
+    function coins(int128 index) external view returns (address);
+    function coins(uint256 _index) external view returns (address);
+    function base_coins(uint256 index) external view returns (address);
 }
 
 interface IERC20 {
@@ -318,12 +324,5 @@ interface I1InchAggregationRouterV6 {
         uint256 flags;
     }
 
-    function swap(
-        IAggregationExecutor executor,
-        SwapDescription calldata desc,
-        bytes calldata permit,
-        bytes calldata data
-    )
-        external
-        payable;
+    function swap(IAggregationExecutor executor, SwapDescription calldata desc, bytes calldata data) external payable;
 }

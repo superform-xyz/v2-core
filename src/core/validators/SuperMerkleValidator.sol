@@ -17,13 +17,7 @@ contract SuperMerkleValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    struct UserOpData {
-        address sender;
-        uint256 nonce;
-        bytes callData;
-        bytes initCode;
-        bytes32 gasFees;
-    }
+    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -32,7 +26,7 @@ contract SuperMerkleValidator is SuperValidatorBase {
     /// @param _userOp The user operation to validate
     function validateUserOp(
         PackedUserOperation calldata _userOp,
-        bytes32
+        bytes32 _userOpHash
     )
         external
         view
@@ -43,20 +37,12 @@ contract SuperMerkleValidator is SuperValidatorBase {
 
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
-        UserOpData memory userOpData = UserOpData({
-            sender: _userOp.sender,
-            nonce: _userOp.nonce,
-            callData: _userOp.callData,
-            initCode: _userOp.initCode,
-            gasFees: _userOp.gasFees
-        });
 
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, userOpData);
+        (address signer,) = _processSignatureAndVerifyLeaf(sigData, _userOpHash);
 
         // Validate
-        bool isValid =
-            _isSignatureValid(signer, userOpData.sender, sigData.validUntil);
+        bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
         return _packValidationData(!isValid, sigData.validUntil, 0);
     }
@@ -64,7 +50,7 @@ contract SuperMerkleValidator is SuperValidatorBase {
     /// @notice Validate a signature with sender
     function isValidSignatureWithSender(
         address sender,
-        bytes32,
+        bytes32 dataHash,
         bytes calldata data
     )
         external
@@ -72,41 +58,19 @@ contract SuperMerkleValidator is SuperValidatorBase {
         override
         returns (bytes4)
     {
-        if (!_initialized[sender]) revert NOT_INITIALIZED();
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
 
         // Decode data
-        (SignatureData memory sigData, UserOpData memory userOpData) = _decodeSignatureAndUserOpData(data, sender);
+        bytes memory sigDataRaw = abi.decode(data, (bytes));
+        SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
 
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, userOpData);
+        (address signer,) = _processSignatureAndVerifyLeaf(sigData, dataHash);
 
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
 
-        return isValid ? bytes4(0x1626ba7e) : bytes4("");
-    }
-
-    /// @notice Validate a signature with data
-    function validateSignatureWithData(
-        bytes32,
-        bytes calldata sigDataRaw,
-        bytes calldata userOpDataRaw
-    )
-        external
-        view
-        virtual
-        returns (bool validSig)
-    {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-
-        // Decode signature and user operation data
-        SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
-        UserOpData memory userOpData = _decodeUserOpData(userOpDataRaw, msg.sender);
-
-        // Process signature
-        (address signer, ) = _processSignatureAndVerifyLeaf(sigData, userOpData);
-
-        return _isSignatureValid(signer, msg.sender, sigData.validUntil);
+        return isValid ? VALID_SIGNATURE : bytes4("");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -116,23 +80,9 @@ contract SuperMerkleValidator is SuperValidatorBase {
         return "SuperMerkleValidator-v0.0.1";
     }
 
-    function _createLeaf(bytes memory data, uint48 validUntil) internal view override returns (bytes32) {
-        UserOpData memory userOpData = abi.decode(data, (UserOpData));
-        return keccak256(
-            bytes.concat(
-                keccak256(
-                    abi.encode(
-                        userOpData.callData,
-                        userOpData.gasFees,
-                        userOpData.sender,
-                        userOpData.nonce,
-                        validUntil,
-                        block.chainid,
-                        userOpData.initCode
-                    )
-                )
-            )
-        );
+    function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
+        bytes32 userOpHash = abi.decode(data, (bytes32));
+        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil))));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -140,37 +90,18 @@ contract SuperMerkleValidator is SuperValidatorBase {
     //////////////////////////////////////////////////////////////*/
     function _processSignatureAndVerifyLeaf(
         SignatureData memory sigData,
-        UserOpData memory userOpData
+        bytes32 userOpHash
     )
         private
-        view
+        pure
         returns (address signer, bytes32 leaf)
     {
-
-        leaf = _createLeaf(abi.encode(userOpData), sigData.validUntil);
+        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil);
         if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Get signer
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
-    }
-
-    function _decodeUserOpData(bytes memory userOpDataRaw, address sender) private pure returns (UserOpData memory) {
-        (uint256 nonce, bytes memory callData, bytes32 gasFees, bytes memory initCode) =
-            abi.decode(userOpDataRaw, (uint256, bytes, bytes32, bytes));
-        return UserOpData(sender, nonce, callData, initCode, gasFees);
-    }
-
-    function _decodeSignatureAndUserOpData(
-        bytes memory data,
-        address sender
-    )
-        private
-        pure
-        returns (SignatureData memory, UserOpData memory)
-    {
-        (bytes memory sigDataRaw, bytes memory userOpDataRaw) = abi.decode(data, (bytes, bytes));
-        return (_decodeSignatureData(sigDataRaw), _decodeUserOpData(userOpDataRaw, sender));
     }
 }

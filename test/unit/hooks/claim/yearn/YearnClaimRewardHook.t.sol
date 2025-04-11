@@ -30,7 +30,7 @@ contract YearnClaimOneRewardHookTest is BaseTest {
     }
 
     function test_Constructor() public view {
-        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
     }
 
     function test_Build() public view {
@@ -42,7 +42,7 @@ contract YearnClaimOneRewardHookTest is BaseTest {
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
     }
-    
+
     function test_Build_RevertIf_AddressZero() public {
         mockYieldSource = address(0);
         bytes memory data = _encodeData();
@@ -59,12 +59,8 @@ contract YearnClaimOneRewardHookTest is BaseTest {
         hook.postExecute(address(0), mockAccount, _encodeData());
         assertEq(hook.outAmount(), 0);
     }
-    
+
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(
-            mockYieldSource,
-            mockRewardToken,
-            mockAccount
-        );
+        return abi.encodePacked(mockYieldSource, mockRewardToken, mockAccount);
     }
 }

@@ -10,7 +10,6 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { console2 } from "forge-std/console2.sol";
 
-
 contract FluidUnstakeHookTest is BaseTest {
     FluidUnstakeHook public hook;
 
@@ -33,7 +32,7 @@ contract FluidUnstakeHookTest is BaseTest {
     }
 
     function test_Constructor() public view {
-        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_Build() public view {
@@ -43,7 +42,7 @@ contract FluidUnstakeHookTest is BaseTest {
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
-        
+
         data = _encodeData(false, true);
         executions = hook.build(address(0), address(this), data);
         assertEq(executions.length, 1);
@@ -62,28 +61,13 @@ contract FluidUnstakeHookTest is BaseTest {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-        
+
         bytes memory data = _encodeData(true, false);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
-    }
-    
-    function test_DecodeAmount() public view {
-        bytes memory data = _encodeData(false, false);
-        assertEq(hook.decodeAmount(data), amount);
-    }
-
-    function test_ReplaceCalldata() public view {
-        bytes memory data = _encodeData(false, false);
-
-        bytes memory replacedData = hook.replaceCalldataAmount(data, 1);
-        assertEq(replacedData.length, data.length);
-
-        uint256 replacedAmount = hook.decodeAmount(replacedData);
-        assertEq(replacedAmount, 1);
     }
 
     function test_PreAndPostExecute() public {
@@ -103,15 +87,8 @@ contract FluidUnstakeHookTest is BaseTest {
     function stakingToken() external view returns (address) {
         return token;
     }
-    
-    
+
     function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId,
-            yieldSource,
-            amount,
-            usePrevHook,
-            lockForSp
-        );
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHook, lockForSp);
     }
 }

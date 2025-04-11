@@ -8,25 +8,25 @@ import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpo
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         uint256 value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address recipient = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-/// @notice         address inputToken = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-/// @notice         address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-/// @notice         uint256 inputAmount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-/// @notice         uint256 outputAmount = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-/// @notice         uint256 destinationChainId = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-/// @notice         address exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 188, 20), 0);
-/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 208, 4), 0);
-/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 212, 4), 0);
+/// @notice         uint256 value = BytesLib.toUint256(data, 0);
+/// @notice         address recipient = BytesLib.toAddress(data, 32);
+/// @notice         address inputToken = BytesLib.toAddress(data, 52);
+/// @notice         address outputToken = BytesLib.toAddress(data, 72);
+/// @notice         uint256 inputAmount = BytesLib.toUint256(data, 92);
+/// @notice         uint256 outputAmount = BytesLib.toUint256(data, 124);
+/// @notice         uint256 destinationChainId = BytesLib.toUint256(data, 156);
+/// @notice         address exclusiveRelayer = BytesLib.toAddress(data, 188);
+/// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
+/// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
-contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -56,7 +56,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookC
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
@@ -68,21 +67,29 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookC
         returns (Execution[] memory executions)
     {
         AcrossV3DepositAndExecuteData memory acrossV3DepositAndExecuteData;
-        acrossV3DepositAndExecuteData.value = BytesLib.toUint256(BytesLib.slice(data, 0, 32), 0);
-        acrossV3DepositAndExecuteData.recipient = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
-        acrossV3DepositAndExecuteData.inputToken = BytesLib.toAddress(BytesLib.slice(data, 52, 20), 0);
-        acrossV3DepositAndExecuteData.outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
-        acrossV3DepositAndExecuteData.inputAmount = BytesLib.toUint256(BytesLib.slice(data, 92, 32), 0);
-        acrossV3DepositAndExecuteData.outputAmount = BytesLib.toUint256(BytesLib.slice(data, 124, 32), 0);
-        acrossV3DepositAndExecuteData.destinationChainId = BytesLib.toUint256(BytesLib.slice(data, 156, 32), 0);
-        acrossV3DepositAndExecuteData.exclusiveRelayer = BytesLib.toAddress(BytesLib.slice(data, 188, 20), 0);
-        acrossV3DepositAndExecuteData.fillDeadlineOffset = BytesLib.toUint32(BytesLib.slice(data, 208, 4), 0);
-        acrossV3DepositAndExecuteData.exclusivityPeriod = BytesLib.toUint32(BytesLib.slice(data, 212, 4), 0);
+        acrossV3DepositAndExecuteData.value = BytesLib.toUint256(data, 0);
+        acrossV3DepositAndExecuteData.recipient = BytesLib.toAddress(data, 32);
+        acrossV3DepositAndExecuteData.inputToken = BytesLib.toAddress(data, 52);
+        acrossV3DepositAndExecuteData.outputToken = BytesLib.toAddress(data, 72);
+        acrossV3DepositAndExecuteData.inputAmount = BytesLib.toUint256(data, 92);
+        acrossV3DepositAndExecuteData.outputAmount = BytesLib.toUint256(data, 124);
+        acrossV3DepositAndExecuteData.destinationChainId = BytesLib.toUint256(data, 156);
+        acrossV3DepositAndExecuteData.exclusiveRelayer = BytesLib.toAddress(data, 188);
+        acrossV3DepositAndExecuteData.fillDeadlineOffset = BytesLib.toUint32(data, 208);
+        acrossV3DepositAndExecuteData.exclusivityPeriod = BytesLib.toUint32(data, 212);
         acrossV3DepositAndExecuteData.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         acrossV3DepositAndExecuteData.message = BytesLib.slice(data, 217, data.length - 217);
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
-            acrossV3DepositAndExecuteData.inputAmount = ISuperHookResult(prevHook).outAmount();
+            uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+            acrossV3DepositAndExecuteData.inputAmount = outAmount;
+            if (
+                acrossV3DepositAndExecuteData.inputToken
+                    == address(IAcrossSpokePoolV3(spokePoolV3).wrappedNativeToken())
+                    && acrossV3DepositAndExecuteData.value != 0
+            ) {
+                acrossV3DepositAndExecuteData.value = outAmount;
+            }
         }
 
         if (acrossV3DepositAndExecuteData.inputAmount == 0) revert AMOUNT_NOT_VALID();
@@ -118,14 +125,16 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHook, ISuperHookC
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address, bytes memory) external view { }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address, bytes memory) external view { }
 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address, bytes calldata) internal override { }
+
+    function _postExecute(address, address, bytes calldata) internal override { }
 }

@@ -33,4 +33,6 @@ interface IMinimalEntryPoint {
      * @return nonce a full nonce to pass for next UserOp with this sender.
      */
     function getNonce(address sender, uint192 key) external view returns (uint256 nonce);
+
+    function getUserOpHash(PackedUserOperation calldata userOp) external view returns (bytes32);
 }

@@ -16,7 +16,7 @@ import { ISpectraRouter } from "../../../vendor/spectra/ISpectraRouter.sol";
 /// @dev data has the following structure
 //TODO: fill data
 
-contract SpectraExchangeHook is BaseHook, ISuperHook, ISuperHookContextAware {
+contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
     /*//////////////////////////////////////////////////////////////
@@ -68,21 +68,21 @@ contract SpectraExchangeHook is BaseHook, ISuperHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, address account, bytes calldata data) external {
-        outAmount = _getBalance(data, account);
-    }
-
-    /// @inheritdoc ISuperHook
-    function postExecute(address, address account, bytes calldata data) external {
-        outAmount = _getBalance(data, account) - outAmount;
-    }
-
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(data, account);
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(data, account) - outAmount;
+    }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/

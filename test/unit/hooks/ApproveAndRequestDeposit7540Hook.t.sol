@@ -66,13 +66,8 @@ contract ApproveAndRequestDeposit7540Hook is BaseTest {
         );
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createApproveAndRequestDeposit7540HookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSource7540AddressUSDC,
-            underlyingETH_USDC,
-            amount,
-            false
-        );
+        hooksData[0] =
+            _createApproveAndRequestDeposit7540HookData(yieldSource7540AddressUSDC, underlyingETH_USDC, amount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

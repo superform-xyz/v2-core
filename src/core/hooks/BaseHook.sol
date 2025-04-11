@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+// External
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+
 // Superform
 import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
@@ -8,7 +11,7 @@ import { ISuperHook } from "../interfaces/ISuperHook.sol";
 /// @title BaseHook
 /// @author Superform Labs
 /// @notice Base hook for all hooks
-abstract contract BaseHook is SuperRegistryImplementer {
+abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -18,6 +21,8 @@ abstract contract BaseHook is SuperRegistryImplementer {
     bool public transient lockForSP;
     address public transient spToken;
     address public transient asset;
+    address public transient lastExecutionCaller;
+
     // forgefmt: disable-end
 
     ISuperHook.HookType public hookType;
@@ -35,15 +40,63 @@ abstract contract BaseHook is SuperRegistryImplementer {
     }
 
     /*//////////////////////////////////////////////////////////////
+                                EXECUTION SECURITY
+    //////////////////////////////////////////////////////////////*/
+
+    // built as a view function to allow test mocking
+    function getExecutionCaller() public view returns (address) {
+        return lastExecutionCaller;
+    }
+
+    // @inheritdoc ISuperHook
+    function build(address prevHook, address account, bytes calldata data) external view virtual returns (Execution[] memory executions) {}
+    
+    // @inheritdoc ISuperHook
+    function preExecute(address prevHook, address account, bytes calldata data) external  {
+        _validateCaller();
+        _preExecute(prevHook, account, data);
+    }
+    
+    // @inheritdoc ISuperHook
+    function postExecute(address prevHook, address account, bytes calldata data) external  {
+        _validateCaller();
+        _postExecute(prevHook, account, data);
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeBool(bytes memory data, uint256 offset) internal pure returns (bool) {
-        if (data.length < offset + 1) revert DATA_LENGTH_INSUFFICIENT();
-        uint8 value;
-        assembly {
-            value := byte(0, mload(add(data, add(offset, 32))))
+    // Internal function for validation logic
+    function _validateCaller() internal {
+        // start a new execution context, useful for testing
+        address caller = this.getExecutionCaller();
+
+        // First call in this transaction - allow it and set the caller
+        if (caller == address(0)) {
+            lastExecutionCaller = msg.sender;
+            return;
         }
-        return value != 0;
+        
+        // Subsequent calls must be from the same caller that initiated execution
+        if (msg.sender == caller) {
+            return;
+        }
+        
+        // If we already had a different caller and now we're trying to call from another address, reject
+        revert NOT_AUTHORIZED();
+    }
+
+    /// @notice Internal implementation of preExecute
+    /// @dev To be implemented by derived hooks
+    function _preExecute(address prevHook, address account, bytes calldata data) internal virtual;
+    
+    /// @notice Internal implementation of postExecute
+    /// @dev To be implemented by derived hooks
+    function _postExecute(address prevHook, address account, bytes calldata data) internal virtual;
+
+    function _decodeBool(bytes memory data, uint256 offset) internal pure returns (bool) {
+        return data[offset] != 0;
     }
 
     function _replaceCalldataAmount(bytes memory data, uint256 amount, uint256 offset) internal pure returns (bytes memory) {

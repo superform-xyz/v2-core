@@ -140,6 +140,12 @@ abstract contract Constants {
     string internal constant GEARBOX_APPROVE_AND_STAKE_HOOK_KEY = "GearboxApproveAndStakeHook";
     string internal constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
+    string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
+    string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
+    string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
+    string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
+    string internal constant CANCEL_DEPOSIT_HOOK_KEY = "CancelDepositHook";
+    string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
@@ -149,6 +155,5 @@ abstract contract Constants {
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
-    string internal constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
-    string internal constant GEARBOX_YIELD_SOURCE_ORACLE_KEY = "GearboxYieldSourceOracle";
+    string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
 }

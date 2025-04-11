@@ -82,15 +82,13 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     }
 
     function test_ValidateUserOp_1LeafMerkleTree() public {
-
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
-
 
         bytes memory signature = _getSignature(root);
 
@@ -156,10 +154,10 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     function test_Dummy_OnChainMerkleTree_WithActualUserOps() public view {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createSourceValidatorLeaf(approveUserOp, validUntil);
-        leaves[3] = _createSourceValidatorLeaf(transferUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -172,10 +170,10 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp, validUntil);
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -199,10 +197,10 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp, validUntil);
-        leaves[1] = _createSourceValidatorLeaf(transferUserOp, validUntil);
-        leaves[2] = _createSourceValidatorLeaf(depositUserOp, validUntil);
-        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -211,7 +209,8 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         validSigData = abi.encode(validUntil, root, proof[0], signature);
 
         approveUserOp.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(approveUserOp.userOp, bytes32(0));
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
         uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
         bool _sigFailed = rawResult & 1 == 1;
         uint48 _validUntil = uint48(rawResult >> 160);
@@ -225,7 +224,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 1 leaves
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(approveUserOp, validUntil);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -234,11 +233,9 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         bytes memory signature = _getSignature(root);
 
-
-
         // tamper the merkle root
         bytes32 _prevRoot = root;
-        root = keccak256(abi.encode("tampered root"));  
+        root = keccak256(abi.encode("tampered root"));
         validSigData = abi.encode(validUntil, root, proof, signature);
 
         approveUserOp.userOp.signature = validSigData;
@@ -256,7 +253,6 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
         validator.validateUserOp(approveUserOp.userOp, bytes32(0));
-        
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -286,7 +282,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         validSigData = abi.encode(validUntil, root, proof, signature);
 
         userOpData.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, bytes32(0));
+        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);
         uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
         bool _sigFailed = rawResult & 1 == 1;
         uint48 _validUntil = uint48(rawResult >> 160);

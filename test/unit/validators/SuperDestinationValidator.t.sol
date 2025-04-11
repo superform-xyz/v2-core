@@ -35,14 +35,17 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         bytes callData;
         uint64 chainId;
         address sender;
+        address executor;
+        address tokenSent;
+        uint256 intentAmount;
     }
+
     struct SignatureData {
         uint48 validUntil;
         bytes32 merkleRoot;
         bytes32[] proof;
         bytes signature;
     }
-
 
     IERC4626 public vaultInstance;
     ISuperExecutor public superExecutor;
@@ -70,7 +73,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
         validator = SuperDestinationValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
-        
+
         signerAddr = validatorSigners[BASE];
         privateKey = validatorSignerPrivateKeys[BASE];
 
@@ -113,10 +116,47 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
     function test_Dummy_OnChainMerkleTree_WithActualUserOps() public view {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createDestinationValidatorLeaf(approveDestinationData.callData, approveDestinationData.chainId, approveDestinationData.sender, approveDestinationData.nonce, validUntil);
-        leaves[1] = _createDestinationValidatorLeaf(transferDestinationData.callData, transferDestinationData.chainId, transferDestinationData.sender, transferDestinationData.nonce, validUntil);
-        leaves[2] = _createDestinationValidatorLeaf(depositDestinationData.callData, depositDestinationData.chainId, depositDestinationData.sender, depositDestinationData.nonce, validUntil);
-        leaves[3] = _createDestinationValidatorLeaf(withdrawDestinationData.callData, withdrawDestinationData.chainId, withdrawDestinationData.sender, withdrawDestinationData.nonce, validUntil);
+
+        leaves[0] = _createDestinationValidatorLeaf(
+            approveDestinationData.callData,
+            approveDestinationData.chainId,
+            approveDestinationData.sender,
+            approveDestinationData.nonce,
+            approveDestinationData.executor,
+            approveDestinationData.tokenSent,
+            approveDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[1] = _createDestinationValidatorLeaf(
+            transferDestinationData.callData,
+            transferDestinationData.chainId,
+            transferDestinationData.sender,
+            transferDestinationData.nonce,
+            transferDestinationData.executor,
+            transferDestinationData.tokenSent,
+            transferDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[2] = _createDestinationValidatorLeaf(
+            depositDestinationData.callData,
+            depositDestinationData.chainId,
+            depositDestinationData.sender,
+            depositDestinationData.nonce,
+            depositDestinationData.executor,
+            depositDestinationData.tokenSent,
+            depositDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[3] = _createDestinationValidatorLeaf(
+            withdrawDestinationData.callData,
+            withdrawDestinationData.chainId,
+            withdrawDestinationData.sender,
+            withdrawDestinationData.nonce,  
+            withdrawDestinationData.executor,
+            withdrawDestinationData.tokenSent,
+            withdrawDestinationData.intentAmount,
+            validUntil
+        );
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -124,15 +164,52 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         assertTrue(isValid, "Merkle proof should be valid");
     }
 
-    function test_IsValidSignatureWithSender() public {
+    function test_IsValidDestinationSignature() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createDestinationValidatorLeaf(approveDestinationData.callData, approveDestinationData.chainId, approveDestinationData.sender, approveDestinationData.nonce, validUntil);
-        leaves[1] = _createDestinationValidatorLeaf(transferDestinationData.callData, transferDestinationData.chainId, transferDestinationData.sender, transferDestinationData.nonce, validUntil);
-        leaves[2] = _createDestinationValidatorLeaf(depositDestinationData.callData, depositDestinationData.chainId, depositDestinationData.sender, depositDestinationData.nonce, validUntil);
-        leaves[3] = _createDestinationValidatorLeaf(withdrawDestinationData.callData, withdrawDestinationData.chainId, withdrawDestinationData.sender, withdrawDestinationData.nonce, validUntil);
+
+        leaves[0] = _createDestinationValidatorLeaf(
+            approveDestinationData.callData,
+            approveDestinationData.chainId,
+            approveDestinationData.sender,
+            approveDestinationData.nonce,
+            approveDestinationData.executor,
+            approveDestinationData.tokenSent,
+            approveDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[1] = _createDestinationValidatorLeaf(
+            transferDestinationData.callData,
+            transferDestinationData.chainId,
+            transferDestinationData.sender,
+            transferDestinationData.nonce,
+            transferDestinationData.executor,
+            transferDestinationData.tokenSent,
+            transferDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[2] = _createDestinationValidatorLeaf(
+            depositDestinationData.callData,
+            depositDestinationData.chainId,
+            depositDestinationData.sender,
+            depositDestinationData.nonce,
+            depositDestinationData.executor,
+            depositDestinationData.tokenSent,
+            depositDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[3] = _createDestinationValidatorLeaf(
+            withdrawDestinationData.callData,
+            withdrawDestinationData.chainId,
+            withdrawDestinationData.sender,
+            withdrawDestinationData.nonce,
+            withdrawDestinationData.executor,   
+            withdrawDestinationData.tokenSent,
+            withdrawDestinationData.intentAmount,
+            validUntil
+        );
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
@@ -160,19 +237,66 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
 
         // simulate a merkle tree with 4 leaves (4 user ops)
         bytes32[] memory leaves = new bytes32[](4);
-        leaves[0] = _createDestinationValidatorLeaf(approveDestinationData.callData, approveDestinationData.chainId, approveDestinationData.sender, approveDestinationData.nonce, validUntil);
-        leaves[1] = _createDestinationValidatorLeaf(transferDestinationData.callData, transferDestinationData.chainId, transferDestinationData.sender, transferDestinationData.nonce, validUntil);
-        leaves[2] = _createDestinationValidatorLeaf(depositDestinationData.callData, depositDestinationData.chainId, depositDestinationData.sender, depositDestinationData.nonce, validUntil);
-        leaves[3] = _createDestinationValidatorLeaf(withdrawDestinationData.callData, withdrawDestinationData.chainId, withdrawDestinationData.sender, withdrawDestinationData.nonce, validUntil);
+
+        leaves[0] = _createDestinationValidatorLeaf(
+            approveDestinationData.callData,
+            approveDestinationData.chainId,
+            approveDestinationData.sender,
+            approveDestinationData.nonce,
+            approveDestinationData.executor,
+            approveDestinationData.tokenSent,
+            approveDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[1] = _createDestinationValidatorLeaf(
+            transferDestinationData.callData,
+            transferDestinationData.chainId,
+            transferDestinationData.sender,
+            transferDestinationData.nonce,
+            transferDestinationData.executor,
+            transferDestinationData.tokenSent,
+            transferDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[2] = _createDestinationValidatorLeaf(
+            depositDestinationData.callData,
+            depositDestinationData.chainId,
+            depositDestinationData.sender,
+            depositDestinationData.nonce,
+            depositDestinationData.executor,
+            depositDestinationData.tokenSent,
+            depositDestinationData.intentAmount,
+            validUntil
+        );
+        leaves[3] = _createDestinationValidatorLeaf(
+            withdrawDestinationData.callData,
+            withdrawDestinationData.chainId,
+            withdrawDestinationData.sender,
+            withdrawDestinationData.nonce,
+            withdrawDestinationData.executor,
+            withdrawDestinationData.tokenSent,
+            withdrawDestinationData.intentAmount,
+            validUntil
+        );
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
         bytes memory signature = _getSignature(root);
 
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], signature);
-        bytes memory destinationDataRaw = abi.encode(approveDestinationData.nonce, approveDestinationData.callData, approveDestinationData.chainId, approveDestinationData.sender);
 
-        bytes4 validationResult = validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
+        bytes memory destinationDataRaw = abi.encode(
+            approveDestinationData.nonce,
+            approveDestinationData.callData,
+            approveDestinationData.chainId,
+            approveDestinationData.sender,
+            approveDestinationData.executor,
+            approveDestinationData.tokenSent,
+            approveDestinationData.intentAmount
+        );
+
+        bytes4 validationResult =
+            validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
 
         assertEq(validationResult, bytes4(""), "Sig should be invalid");
     }
@@ -199,17 +323,34 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         bytes memory signature,
         DestinationData memory destinationData
     )
-        private 
+        private
         view
     {
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof, signature);
-        bytes memory destinationDataRaw = abi.encode(destinationData.nonce, destinationData.callData, destinationData.chainId, destinationData.sender);
 
-        bytes4 validationResult = validator.isValidSignatureWithSender(signerAddr, bytes32(0), abi.encode(sigDataRaw, destinationDataRaw));
+        bytes memory destinationDataRaw = abi.encode(
+            destinationData.nonce,
+            destinationData.callData,
+            destinationData.chainId,
+            destinationData.sender,
+            destinationData.executor,
+            destinationData.tokenSent,
+            destinationData.intentAmount
+        );
+
+        bytes4 validationResult =
+            validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
         assertEq(validationResult, VALID_SIGNATURE, "Sig should be valid");
     }
 
-    function _createValidatorLeaf(DestinationData memory destinationData, uint48 validUntil) private view returns (bytes32) {
+    function _createValidatorLeaf(
+        DestinationData memory destinationData,
+        uint48 validUntil
+    )
+        private
+        view
+        returns (bytes32)
+    {
         return keccak256(
             bytes.concat(
                 keccak256(
@@ -218,6 +359,9 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
                         uint64(block.chainid),
                         destinationData.sender,
                         destinationData.nonce,
+                        destinationData.executor,
+                        destinationData.tokenSent,
+                        destinationData.intentAmount,
                         validUntil
                     )
                 )
@@ -262,7 +406,10 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this),
+            address(this),
+            1e18
         );
     }
 
@@ -271,7 +418,10 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this),
+            address(this),
+            1e18
         );
     }
 
@@ -280,7 +430,10 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC4626.deposit.selector, 1e18, address(this)),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this),
+            address(this),
+            1e18
         );
     }
 
@@ -289,7 +442,10 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             nonce,
             abi.encodeWithSelector(IERC4626.withdraw.selector, 1e18, address(this)),
             uint64(block.chainid),
-            signerAddr
+            signerAddr,
+            address(this),
+            address(this),
+            1e18
         );
     }
 }

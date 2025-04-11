@@ -54,6 +54,7 @@ interface ISuperLedgerData {
     error MANAGER_NOT_SET();
     error ZERO_LENGTH();
     error ZERO_ID_NOT_ALLOWED();
+    error INVALID_LEDGER();
 }
 
 /// @title ISuperHookRegistry
@@ -83,12 +84,14 @@ interface ISuperLedger is ISuperLedgerData {
 
     /// @notice Previews fees for a given amount of assets obtained from shares
     /// @param user The user address
+    /// @param yieldSourceAddress The yield source address
     /// @param amountAssets The amount of assets
     /// @param usedShares The amount of shares used
     /// @param feePercent The fee percentage in basis points (0-10000, where 10000 = 100%)
     /// @return feeAmount The amount of fee to be collected in the asset being withdrawn
     function previewFees(
         address user,
+        address yieldSourceAddress,
         uint256 amountAssets,
         uint256 usedShares,
         uint256 feePercent
@@ -99,7 +102,15 @@ interface ISuperLedger is ISuperLedgerData {
 
     /// @notice Calculates the cost basis for a given user and amount of shares
     /// @param user The user address
+    /// @param yieldSource The yield source address
     /// @param usedShares The amount of shares used
     /// @return costBasis The cost basis
-    function calculateCostBasisView(address user, uint256 usedShares) external view returns (uint256 costBasis);
+    function calculateCostBasisView(
+        address user,
+        address yieldSource,
+        uint256 usedShares
+    )
+        external
+        view
+        returns (uint256 costBasis);
 }
