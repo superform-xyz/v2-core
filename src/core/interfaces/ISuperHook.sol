@@ -61,14 +61,21 @@ interface ISuperHookAsync {
     function getUsedAssetsOrShares() external view returns (uint256, bool);
 }
 
-/// @title ISuperHookLoan
+/// @title ISuperHookLoans
 /// @author Superform Labs
-interface ISuperHookLoan {
-    /// @notice The fee amount
-    function getFeeAmount() external view returns (uint256);
+interface ISuperHookLoans is ISuperHookContextAware {
+    /// @notice The loan token address
+    function getLoanTokenAddress(bytes memory data) external view returns (address);
 
-    /// @notice The collateral amount
-    function getCollateralAmount() external view returns (uint256);
+    /// @notice The collateral token address
+    function getCollateralTokenAddress(bytes memory data) external view returns (address);
+
+    /// @notice The loan token balance
+    function getLoanTokenBalance(address account, bytes memory data) external view returns (uint256);
+
+    /// @notice The collateral token balance
+    function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
+
 }
 
 /// @title ISuperHookAsyncCancelations
