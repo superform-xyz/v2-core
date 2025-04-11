@@ -68,10 +68,6 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
         outAmount = getLoanTokenBalance(account, data);
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = getLoanTokenBalance(account, data) - outAmount;
-    }
-
     function _decodeAmount(bytes memory data) internal pure returns (uint256) {
         return BytesLib.toUint256(data, AMOUNT_POSITION);
     }

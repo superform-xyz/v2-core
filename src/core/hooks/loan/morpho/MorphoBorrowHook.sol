@@ -115,6 +115,9 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = getLoanTokenBalance(account, data) - outAmount;
+    }
 
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
         address loanToken = BytesLib.toAddress(data, 0);

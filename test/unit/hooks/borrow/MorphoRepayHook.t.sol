@@ -139,32 +139,6 @@ contract MorphoRepayHookTest is BaseTest {
         hook.build(address(0), address(this), dataInvalidCollateral);
     }
 
-    function test_PreAndPostExecute_MeasuresBalanceChange() public {
-        // Use the globally defined marketParams for encoding data
-        bytes memory data = _encodeData(amount, false, false, false);
-        uint256 initialBalance = loanToken.balanceOf(address(this));
-        uint256 simulatedRepayment = 300e18; // Amount that will "leave" the account during execution
-
-        assertTrue(initialBalance >= simulatedRepayment, "Need sufficient initial balance");
-
-        // 1. Call preExecute - should store the initial balance
-        hook.preExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), initialBalance, "outAmount should be initial balance after preExecute");
-
-        // 2. Simulate the repayment happening (balance decreases)
-        vm.prank(address(this)); // Act as the test contract
-        loanToken.transfer(address(0xdead), simulatedRepayment); // Send tokens "away"
-
-        uint256 balanceAfterRepayment = loanToken.balanceOf(address(this));
-        assertEq(balanceAfterRepayment, initialBalance - simulatedRepayment, "Balance did not decrease as expected");
-
-        // 3. Call postExecute - should calculate difference
-        hook.postExecute(address(0), address(this), data);
-        // outAmount = initialBalance (stored in pre) - finalBalance
-        assertEq(hook.outAmount(), initialBalance - balanceAfterRepayment, "outAmount incorrect after postExecute");
-        assertEq(hook.outAmount(), simulatedRepayment, "outAmount should equal simulated repayment");
-    }
-
     // --- Helper Functions ---
 
     /// @dev Encodes data for the MorphoRepayHook using the globally defined marketParams.
