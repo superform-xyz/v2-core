@@ -441,8 +441,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].peripheryRegistry), PERIPHERY_REGISTRY_KEY);
             contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A[i].peripheryRegistry);
 
-            A[i].oracleRegistry =
-                new SuperOracle{ salt: SALT }(address(this), new address[](0), new uint256[](0), new address[](0));
+            A[i].oracleRegistry = new SuperOracle{ salt: SALT }(
+                address(this), new address[](0), new address[](0), new bytes32[](0), new address[](0)
+            );
             vm.label(address(A[i].oracleRegistry), SUPER_ORACLE_KEY);
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A[i].oracleRegistry);
 
