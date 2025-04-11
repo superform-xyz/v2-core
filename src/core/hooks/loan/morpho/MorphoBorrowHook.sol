@@ -12,10 +12,10 @@ import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoBorrowHook
 /// @author Superform Labs
@@ -28,7 +28,7 @@ import { ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-contract MorphoBorrowHook is BaseHook, ISuperHookContextAware {
+contract MorphoBorrowHook is BaseHook, BaseLoanHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -125,14 +125,14 @@ contract MorphoBorrowHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
 
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
-        address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
+        address loanToken = BytesLib.toAddress(data, 0);
+        address collateralToken = BytesLib.toAddress(data, 20);
+        address oracle = BytesLib.toAddress(data, 40);
+        address irm = BytesLib.toAddress(data, 60);
         uint256 collateralAmount = _decodeAmount(data);
-        uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
-        bool usePrevHookAmount = _decodeBool(BytesLib.slice(data, 144, 1), 0);
-        bool isPositiveFeed = _decodeBool(BytesLib.slice(data, 145, 1), 0);
+        uint256 lltv = BytesLib.toUint256(data, 112);
+        bool usePrevHookAmount = _decodeBool(data, 144);
+        bool isPositiveFeed = _decodeBool(data, 145);
 
         vars = BuildHookLocalVars({
             loanToken: loanToken,

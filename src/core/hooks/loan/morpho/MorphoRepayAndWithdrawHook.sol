@@ -16,10 +16,10 @@ import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } f
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoRepayAndWithdrawHook
 /// @author Superform Labs
@@ -33,7 +33,7 @@ import { ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 146);
-contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHookContextAware {
+contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
@@ -46,6 +46,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHookContextAware {
     IMorpho public morphoInterface;
     IMorphoStaticTyping public morphoStaticTyping;
 
+    uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     struct BuildHookLocalVars {
@@ -168,7 +169,6 @@ contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
@@ -178,12 +178,12 @@ contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHookContextAware {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
-        address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-        address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-        uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
-        uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+        address loanToken = BytesLib.toAddress(data, 0);
+        address collateralToken = BytesLib.toAddress(data, 20);
+        address oracle = BytesLib.toAddress(data, 40);
+        address irm = BytesLib.toAddress(data, 60);
+        uint256 amount = _decodeAmount(data);
+        uint256 lltv = BytesLib.toUint256(data, 112);
         bool usePrevHookAmount = _decodeBool(data, 144);
         bool isFullRepayment = _decodeBool(data, 145);
         bool isPositiveFeed = _decodeBool(data, 146);
@@ -351,5 +351,9 @@ contract MorphoRepayAndWithdrawHook is BaseHook, ISuperHookContextAware {
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
         address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
         return IERC20(loanToken).balanceOf(account);
+    }
+
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 }
