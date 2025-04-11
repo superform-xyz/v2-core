@@ -32,7 +32,7 @@ contract GearboxStakeHookTest is BaseTest {
     }
 
     function test_Constructor() public view {
-        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_Build() public view {
@@ -68,11 +68,6 @@ contract GearboxStakeHookTest is BaseTest {
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
-    }
-
-    function test_DecodeAmount() public view {
-        bytes memory data = _encodeData(false, false);
-        assertEq(hook.decodeAmount(data), amount);
     }
 
     function test_PreAndPostExecute() public {

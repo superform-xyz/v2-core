@@ -155,6 +155,5 @@ abstract contract Constants {
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
-    string internal constant FLUID_YIELD_SOURCE_ORACLE_KEY = "FluidYieldSourceOracle";
-    string internal constant GEARBOX_YIELD_SOURCE_ORACLE_KEY = "GearboxYieldSourceOracle";
+    string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
 }

@@ -37,7 +37,6 @@ interface IYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Returns the oracle registry contract
     /// @return oracleRegistry The oracle registry contract
     function oracleRegistry() external view returns (IOracle);

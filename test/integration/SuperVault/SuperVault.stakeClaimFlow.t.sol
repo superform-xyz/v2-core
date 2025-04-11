@@ -71,7 +71,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         gearboxVault = IERC4626(gearboxVaultAddr);
 
         address gearboxStakingAddr =
-            realVaultAddresses[ETH][GEARBOX_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
+            realVaultAddresses[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
         console2.log("gearboxStakingAddr: ", gearboxStakingAddr);
         vm.label(gearboxStakingAddr, "GearboxStaking");
         gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
@@ -110,7 +110,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
         );
         strategyGearSuperVault.manageYieldSource(
             gearboxStakingAddr,
-            _getContract(ETH, GEARBOX_YIELD_SOURCE_ORACLE_KEY),
+            _getContract(ETH, STAKING_YIELD_SOURCE_ORACLE_KEY),
             0,
             false, // addYieldSource
             false
@@ -335,7 +335,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndGearboxStakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)),
+            bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
             address(gearboxFarmingPool),
             address(gearboxVault),
             amountToStake,
@@ -376,7 +376,7 @@ contract SuperVaultStakeClaimFlowTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createGearboxUnstakeHookData(
-            bytes4(bytes(GEARBOX_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false, false
+            bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false, false
         );
 
         vm.prank(STRATEGIST);
