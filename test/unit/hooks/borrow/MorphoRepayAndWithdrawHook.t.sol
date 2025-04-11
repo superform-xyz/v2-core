@@ -12,7 +12,7 @@ import { IMorphoBase, IMorphoStaticTyping, IMorpho, Id, MarketParams } from "../
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
-import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/borrow/MorphoRepayAndWithdrawHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {

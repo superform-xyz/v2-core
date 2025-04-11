@@ -31,7 +31,7 @@ import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol"
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
-contract SuperVaultBorrowDepositTest is BaseSuperVaultTest {
+contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     using MarketParamsLib for MarketParams;
     using SharesMathLib for uint256;
     using ModuleKitHelpers for *;

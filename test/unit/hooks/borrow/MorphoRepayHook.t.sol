@@ -5,10 +5,14 @@ import { console2 } from "forge-std/console2.sol";
 import { BaseTest } from "../../../BaseTest.t.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
+import { IIrm } from "../../../../src/vendor/morpho/Iirm.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
+import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 import {
     IMorphoBase,
     IMorphoStaticTyping,
@@ -18,11 +22,6 @@ import {
     Market,
     IMorpho
 } from "../../../../src/vendor/morpho/IMorpho.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { MorphoRepayHook } from "../../../../src/core/hooks/borrow/MorphoRepayHook.sol";
-import { IIrm } from "../../../../src/vendor/morpho/Iirm.sol";
-import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 contract MorphoRepayHookTest is BaseTest {
     using MarketParamsLib for MarketParams;

@@ -30,10 +30,11 @@ import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.so
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
 
-// borrow hooks
-import { MorphoBorrowHook } from "../src/core/hooks/borrow/MorphoBorrowHook.sol";
-import { MorphoRepayHook } from "../src/core/hooks/borrow/MorphoRepayHook.sol";
-import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/borrow/MorphoRepayAndWithdrawHook.sol";
+// loan hooks
+import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
+
 
 // vault hooks
 // --- erc5115

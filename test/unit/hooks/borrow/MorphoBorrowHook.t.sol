@@ -10,7 +10,7 @@ import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { IMorphoBase } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { MorphoBorrowHook } from "../../../../src/core/hooks/borrow/MorphoBorrowHook.sol";
+import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
 
 struct MarketParams {
     address loanToken;
