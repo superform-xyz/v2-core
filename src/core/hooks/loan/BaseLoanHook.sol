@@ -44,8 +44,27 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = _getLoanTokenBalance(account, data);
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getLoanTokenBalance(account, data) - outAmount;
+    }
+    
     function _decodeAmount(bytes memory data) internal pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
+    }
+
+    function _getCollateralBalance(address account, bytes memory data) internal view returns (uint256) {
+        address collateralToken = BytesLib.toAddress(data, 20);
+        return IERC20(collateralToken).balanceOf(account);
+    }
+
+    function _getLoanTokenBalance(address account, bytes memory data) internal view returns (uint256) {
+        address loanToken = BytesLib.toAddress(data, 0);
+        return IERC20(loanToken).balanceOf(account);
     }
     
 }

@@ -191,15 +191,6 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         });
     }
 
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
-        outAmount = _getBalance(account, data);
-    }
-
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - _getBalance(account, data);
-    }
-
     function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
         if (amount == 0) revert AMOUNT_NOT_VALID();
         uint256 fee = _deriveFeeAmount(marketParams);
@@ -248,17 +239,5 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         shares = assets.toSharesUp(market.totalBorrowAssets, market.totalBorrowShares);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        return IERC20(loanToken).balanceOf(account);
-    }
-
-    function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 }

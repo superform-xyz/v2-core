@@ -138,15 +138,6 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
         });
     }
 
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
-        outAmount = _getLoanBalance(account, data);
-    }
-
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getLoanBalance(account, data) - outAmount;
-    }
-
     /// @dev This function returns the loan amount required for a given collateral amount.
     /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
     /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
@@ -200,22 +191,5 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
             irm: irm,
             lltv: lltv
         });
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
-    }
-
-    function _getCollateralBalance(address account, bytes memory data) private view returns (uint256) {
-        address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        return IERC20(collateralToken).balanceOf(account);
-    }
-
-    function _getLoanBalance(address account, bytes memory data) private view returns (uint256) {
-        address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        return IERC20(loanToken).balanceOf(account);
     }
 }
