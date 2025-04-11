@@ -54,7 +54,7 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseHook(registry_, HookType.NONACCOUNTING) {
+    constructor(address registry_, address morpho_) BaseLoanHook(registry_) {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoInterface = IMorphoBase(morpho_);
@@ -110,14 +110,6 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account)) // derive loan
                 // amount from collateral amount
          });
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
     /*//////////////////////////////////////////////////////////////

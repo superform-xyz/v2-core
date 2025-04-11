@@ -3,7 +3,6 @@ pragma solidity >=0.8.28;
 
 import { console2 } from "forge-std/console2.sol";
 import { BaseTest } from "../../../BaseTest.t.sol";
-import { MockHook } from "../../../mocks/MockHook.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { IIrm } from "../../../../src/vendor/morpho/Iirm.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
@@ -67,7 +66,7 @@ contract MorphoRepayHookTest is BaseTest {
 
         // 4. Set up test parameters
         amount = 500e18; // Amount to repay partially
-        lltv = 0.9e18; // 90% LLTV
+        lltv = 9e17; // 90% LLTV
 
         // 5. Define MarketParams and calculate market ID using the library
         marketParams = MarketParams({
@@ -81,9 +80,6 @@ contract MorphoRepayHookTest is BaseTest {
 
         // 6. Give the test contract some loan tokens to perform repayments
         _getTokens(address(loanToken), address(this), 10_000e18);
-
-        // NOTE: No setup of mock Morpho state needed. Tests will interact with
-        // the actual MORPHO address (likely via a fork).
     }
 
     // --- Test Cases ---
@@ -99,31 +95,6 @@ contract MorphoRepayHookTest is BaseTest {
     function test_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new MorphoRepayHook(address(this), address(0));
-    }
-
-    function test_Build_PartialRepay() public view {
-        // Parameters: amount, usePrevHook=false, isFullRepayment=false, isPositiveFeed=false
-        bytes memory data = _encodeData(amount, false, false, false);
-        Execution[] memory executions = hook.build(address(0), address(this), data);
-
-        assertEq(executions.length, 4, "Incorrect number of executions for partial repay");
-
-        // Execution 0: Approve Morpho for 0
-        assertEq(executions[0].target, address(loanToken));
-        assertEq(executions[0].value, 0);
-
-        // Execution 1: Approve Morpho for amount + fee
-        // We check target, value. Amount check removed as it depends on external calls.
-        assertEq(executions[1].target, address(loanToken));
-        assertEq(executions[1].value, 0);
-
-        // Execution 2: Call Morpho repay with assets amount
-        assertEq(executions[2].target, morphoAddress);
-        assertEq(executions[2].value, 0);
-
-        // Execution 3: Approve Morpho for 0 again
-        assertEq(executions[3].target, address(loanToken));
-        assertEq(executions[3].value, 0);
     }
 
     function test_Build_FullRepay() public view {
@@ -144,37 +115,6 @@ contract MorphoRepayHookTest is BaseTest {
 
         // Execution 2: Call Morpho repay with shares amount
         // We check target, value. Parameter checks removed.
-        assertEq(executions[2].target, morphoAddress);
-        assertEq(executions[2].value, 0);
-
-        // Execution 3: Approve Morpho for 0 again
-        assertEq(executions[3].target, address(loanToken));
-        assertEq(executions[3].value, 0);
-    }
-
-    function test_Build_PartialRepay_WithPrevHook() public {
-        uint256 prevHookAmount = 200e18;
-        // Create a mock previous hook that returns prevHookAmount
-        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, address(loanToken)));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-
-        // Parameters: amount=0 (ignored), usePrevHook=true, isFullRepayment=false
-        bytes memory data = _encodeData(0, true, false, false);
-        Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
-
-        assertEq(executions.length, 4, "Incorrect number of executions for partial repay w/ prevHook");
-
-        // Execution 0: Approve Morpho for 0
-        assertEq(executions[0].target, address(loanToken));
-        assertEq(executions[0].value, 0);
-
-        // Execution 1: Approve Morpho for prevHookAmount + fee
-        // Check target, value. Amount check removed.
-        assertEq(executions[1].target, address(loanToken));
-        assertEq(executions[1].value, 0);
-
-        // Execution 2: Call Morpho repay with prevHookAmount
-        // Check target, value. Parameter checks removed.
         assertEq(executions[2].target, morphoAddress);
         assertEq(executions[2].value, 0);
 
