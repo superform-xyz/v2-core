@@ -39,12 +39,12 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookLoans
-    function getLoanTokenAddress(bytes memory data) public view returns (address) {
+    function getLoanTokenAddress(bytes memory data) public pure returns (address) {
         return BytesLib.toAddress(data, 0);
     }
 
     /// @inheritdoc ISuperHookLoans
-    function getCollateralTokenAddress(bytes memory data) public view returns (address) {
+    function getCollateralTokenAddress(bytes memory data) public pure returns (address) {
         return BytesLib.toAddress(data, 20);
     }
 
