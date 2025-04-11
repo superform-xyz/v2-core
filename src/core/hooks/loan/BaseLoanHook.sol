@@ -49,7 +49,7 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
     }
 
     /// @inheritdoc ISuperHookLoans
-    function getCollateralBalance(address account, bytes memory data) public view returns (uint256) {
+    function getCollateralTokenBalance(address account, bytes memory data) public view returns (uint256) {
         address collateralToken = BytesLib.toAddress(data, 20);
         return IERC20(collateralToken).balanceOf(account);
     }
