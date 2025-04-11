@@ -91,6 +91,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
         bytes[] updatedInputs;
         bytes commandsData;
         bytes[] inputs;
+        uint256 inputsLength;
         uint256 deadline;
         uint256[] commands;
         uint256 commandsLength;
@@ -115,20 +116,21 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     {
         ValidateTxDataParams memory params;
         params.selector = bytes4(data[0:4]);
-        params.updatedInputs = new bytes[](params.inputs.length);
 
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             (params.commandsData, params.inputs) = abi.decode(data[4:], (bytes, bytes[]));
-            params.updatedInputs = new bytes[](params.inputs.length);
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
         } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
             (params.commandsData, params.inputs, params.deadline) = abi.decode(data[4:], (bytes, bytes[], uint256));
             if (params.deadline < block.timestamp) revert INVALID_DEADLINE();
-            params.updatedInputs = new bytes[](params.inputs.length);
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
         } else {
             revert INVALID_SELECTOR();
         }
 
-        params.commands = _validateCommands(params.commandsData, params.inputs.length);
+        params.commands = _validateCommands(params.commandsData, params.inputsLength);
         params.commandsLength = params.commands.length;
 
         for (uint256 i; i < params.commandsLength; ++i) {
@@ -207,7 +209,8 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
             revert INVALID_SELECTOR();
         }
 
-        uint256[] memory commands = _validateCommands(commandsData, inputs.length);
+        uint256 inputsLength = inputs.length;
+        uint256[] memory commands = _validateCommands(commandsData, inputsLength);
         uint256 commandsLength = commands.length;
         for (uint256 i; i < commandsLength; ++i) {
             uint256 command = commands[i];

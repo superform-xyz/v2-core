@@ -157,7 +157,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     
     
     function _validateFillOrders(FillOrderParams[] memory fills) internal view {
-        for (uint256 i = 0; i < fills.length; ++i) {
+        for (uint256 i; i < fills.length; ++i) {
             if (fills[i].makingAmount == 0) revert MAKING_AMOUNT_NOT_VALID();
             _validateOrder(fills[i].order);
         }
