@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 // Superform
 import { SuperOracleBase } from "./SuperOracleBase.sol";
+import { ISuperOracleL2 } from "../../interfaces/accounting/ISuperOracleL2.sol";
 
 // external
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
@@ -12,7 +13,7 @@ import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Int
 /// @title SuperOracleL2
 /// @author Superform Labs
 /// @notice Layer 2 Oracle for Superform
-contract SuperOracleL2 is SuperOracleBase {
+contract SuperOracleL2 is SuperOracleBase, ISuperOracleL2 {
     using BoringERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -23,35 +24,20 @@ contract SuperOracleL2 is SuperOracleBase {
 
     uint256 private constant DEFAULT_GRACE_PERIOD_TIME = 3600;
 
-    /*//////////////////////////////////////////////////////////////
-                            EVENTS
-    //////////////////////////////////////////////////////////////*/
-    event UptimeFeedSet(address dataOracle, address uptimeOracle);
-    event GracePeriodSet(address uptimeOracle, uint256 gracePeriod);
-
-    /*//////////////////////////////////////////////////////////////
-                            ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error NO_UPTIME_FEED();
-    error SEQUENCER_DOWN();
-    error GRACE_PERIOD_NOT_OVER();
-
     constructor(
         address owner_,
         address[] memory bases,
         address[] memory quotes,
-        uint256[] memory providers,
+        bytes32[] memory providers,
         address[] memory feeds
     )
         SuperOracleBase(owner_, bases, quotes, providers, feeds)
     { }
 
     /*//////////////////////////////////////////////////////////////
-                            OWNER FUNCTIONS
+                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Set the uptime feed for a data oracle
-    /// @param dataOracle The data oracle to set the uptime feed for
-    /// @param uptimeOracle The uptime feed to set for the data oracle
+    /// @inheritdoc ISuperOracleL2
     function setUptimeFeed(address dataOracle, address uptimeOracle, uint256 gracePeriod) external onlyOwner {
         if (dataOracle == address(0) || uptimeOracle == address(0)) revert ZERO_ADDRESS();
         uptimeFeeds[dataOracle] = uptimeOracle;

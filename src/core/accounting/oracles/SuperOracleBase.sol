@@ -22,35 +22,35 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
 
     uint256 public maxDefaultStaleness;
 
-    /// @notice Mapping of base asset to array of oracle providers
-    /// @dev provider 0 (`ORACLE_PROVIDER_AVERAGE`) is the average provider
-    ///      1 - Chainlink ?
-    ///      2 - ...
-    ///      3 - ...
-    /// @dev quote uses address(isoCode)  https://en.wikipedia.org/wiki/ISO_4217#Active_codes
-    ///      address(840) for USD
-    mapping(address base => mapping(address quote => mapping(uint256 provider => address feed))) internal oracles;
+    /// @notice Mapping of base asset to array of oracle providers to oracle feed address
+    mapping(address base => mapping(address quote => mapping(bytes32 provider => address feed))) internal oracles;
+
+    /// @notice Array of active provider ids
+    bytes32[] public activeProviders;
 
     /// @notice Timelock period for oracle updates
     uint256 internal constant TIMELOCK_PERIOD = 1 weeks;
-    uint256 internal constant ORACLE_PROVIDER_AVERAGE = 0;
-    uint256 internal constant MAX_PROVIDERS = 10;
+    bytes32 internal constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
 
     /// @notice Pending oracle update
     PendingUpdate internal pendingUpdate;
+
+    /// @notice Pending provider removal
+    PendingRemoval internal pendingRemoval;
 
     constructor(
         address owner_,
         address[] memory bases,
         address[] memory quotes,
-        uint256[] memory providers,
+        bytes32[] memory providers,
         address[] memory feeds
     )
         Ownable(owner_)
     {
-        if (owner_ == address(0)) revert ZERO_ADDRESS();
-
         maxDefaultStaleness = 1 days;
+
+        // validate oracle inputs
+        _validateOracleInputs(bases, quotes, providers, feeds);
 
         // configure oracles
         _configureOracles(bases, quotes, providers, feeds);
@@ -63,63 +63,8 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    // -- Get quote functions --
-    /// @inheritdoc ISuperOracle
-    function getQuoteFromProvider(
-        uint256 baseAmount,
-        address base,
-        address quote,
-        uint256 oracleProvider
-    )
-        public
-        view
-        virtual
-        returns (uint256 quoteAmount, uint256 deviation, uint256 totalProviders, uint256 availableProviders)
-    {
-        // If average (0), calculate average of all oracles
-        if (oracleProvider == ORACLE_PROVIDER_AVERAGE) {
-            uint256[] memory validQuotes = new uint256[](MAX_PROVIDERS);
-            uint256 count;
-            (quoteAmount, validQuotes, count) = _getAverageQuote(base, quote, baseAmount);
-            totalProviders = MAX_PROVIDERS;
-            availableProviders = count;
-            deviation = _calculateStdDev(validQuotes);
-        } else {
-            quoteAmount = _getQuoteFromOracle(oracles[base][quote][oracleProvider], baseAmount, base, quote, true);
-            deviation = 0;
-            totalProviders = 1;
-            availableProviders = 1;
-        }
-    }
-
-    /// @inheritdoc IOracle
-    function getQuote(
-        uint256 baseAmount,
-        address base,
-        address quote
-    )
-        external
-        view
-        virtual
-        returns (uint256 quoteAmount)
-    {
-        // Extract provider from quote address if it's ISO 4217 code; from upper bits
-        uint256 provider = uint160(quote) >> 20;
-
-        // If no provider encoded or provider has no oracle, use average
-        if (provider == 0 || oracles[base][quote][provider] == address(0)) {
-            provider = ORACLE_PROVIDER_AVERAGE;
-        }
-
-        (quoteAmount,,,) = getQuoteFromProvider(baseAmount, base, quote, provider);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    // -- External configuration functions --
     /// @inheritdoc ISuperOracle
     function setMaxStaleness(uint256 newMaxStaleness) external onlyOwner {
         maxDefaultStaleness = newMaxStaleness;
@@ -128,34 +73,46 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
 
     /// @inheritdoc ISuperOracle
     function setFeedMaxStaleness(address feed, uint256 newMaxStaleness) external onlyOwner {
-        if (newMaxStaleness > maxDefaultStaleness) {
-            revert MAX_STALENESS_EXCEEDED();
+        _setFeedMaxStaleness(feed, newMaxStaleness);
+    }
+
+    /// @inheritdoc ISuperOracle
+    function setFeedMaxStalenessBatch(
+        address[] calldata feeds,
+        uint256[] calldata newMaxStalenessList
+    )
+        external
+        onlyOwner
+    {
+        uint256 length = feeds.length;
+        if (length == 0) revert ZERO_ARRAY_LENGTH();
+        if (length != newMaxStalenessList.length) {
+            revert ARRAY_LENGTH_MISMATCH();
         }
-        if (newMaxStaleness == 0) {
-            newMaxStaleness = maxDefaultStaleness;
+
+        for (uint256 i; i < length; ++i) {
+            _setFeedMaxStaleness(feeds[i], newMaxStalenessList[i]);
         }
-        feedMaxStaleness[feed] = newMaxStaleness;
-        emit FeedMaxStalenessUpdated(feed, newMaxStaleness);
     }
 
     /// @inheritdoc ISuperOracle
     function queueOracleUpdate(
         address[] calldata bases,
         address[] calldata quotes,
-        uint256[] calldata providers,
+        bytes32[] calldata providers,
         address[] calldata feeds
     )
         external
         onlyOwner
     {
         if (pendingUpdate.timestamp != 0) revert PENDING_UPDATE_EXISTS();
-        // no need to check MAX_PROVIDERS because we're only interating up to MAX_PROVIDERS
-        // everything above MAX_PROVIDERS is ignored
 
         uint256 length = bases.length;
         if (length != quotes.length || length != providers.length || length != feeds.length) {
             revert ARRAY_LENGTH_MISMATCH();
         }
+
+        _validateOracleInputs(bases, quotes, providers, feeds);
 
         pendingUpdate = PendingUpdate({
             bases: bases,
@@ -183,14 +140,142 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     }
 
     /// @inheritdoc ISuperOracle
-    function getOracleAddress(address base, address quote, uint256 provider) external view returns (address oracle) {
+    function getOracleAddress(address base, address quote, bytes32 provider) external view returns (address oracle) {
         oracle = oracles[base][quote][provider];
         if (oracle == address(0)) revert NO_ORACLES_CONFIGURED();
+    }
+
+    /// @inheritdoc ISuperOracle
+    function queueProviderRemoval(bytes32[] calldata providers) external onlyOwner {
+        if (pendingRemoval.timestamp != 0) revert PENDING_UPDATE_EXISTS();
+
+        uint256 length = providers.length;
+        if (length == 0) revert ZERO_ARRAY_LENGTH();
+
+        pendingRemoval = PendingRemoval({ providers: providers, timestamp: block.timestamp });
+
+        emit ProviderRemovalQueued(providers, block.timestamp);
+    }
+
+    /// @inheritdoc ISuperOracle
+    function executeProviderRemoval() external {
+        if (pendingRemoval.timestamp == 0) revert NO_PENDING_UPDATE();
+        if (block.timestamp < pendingRemoval.timestamp + TIMELOCK_PERIOD) revert TIMELOCK_NOT_ELAPSED();
+
+        bytes32[] memory providersToRemove = pendingRemoval.providers;
+
+        // Loop through each provider to remove
+        for (uint256 i = 0; i < providersToRemove.length; i++) {
+            bytes32 providerToRemove = providersToRemove[i];
+
+            // Find the provider in activeProviders array
+            for (uint256 j = 0; j < activeProviders.length; j++) {
+                if (activeProviders[j] == providerToRemove) {
+                    // Replace the provider to remove with the last provider in the array
+                    if (j < activeProviders.length - 1) {
+                        activeProviders[j] = activeProviders[activeProviders.length - 1];
+                    }
+
+                    // Remove the last element
+                    activeProviders.pop();
+                    break;
+                }
+            }
+        }
+
+        emit ProviderRemovalExecuted(providersToRemove);
+
+        delete pendingRemoval;
+    }
+
+    /// @inheritdoc ISuperOracle
+    function getActiveProviders() external view returns (bytes32[] memory) {
+        return activeProviders;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        EXTERNALVIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperOracle
+    function getQuoteFromProvider(
+        uint256 baseAmount,
+        address base,
+        address quote,
+        bytes32 oracleProvider
+    )
+        public
+        view
+        virtual
+        returns (uint256 quoteAmount, uint256 deviation, uint256 totalProviders, uint256 availableProviders)
+    {
+        // If average, calculate average of all oracles
+        if (oracleProvider == AVERAGE_PROVIDER) {
+            uint256 length = activeProviders.length;
+            uint256[] memory validQuotes = new uint256[](length);
+            uint256 count;
+            (quoteAmount, validQuotes, count) = _getAverageQuote(base, quote, baseAmount, length);
+            totalProviders = length;
+            availableProviders = count;
+            deviation = _calculateStdDev(validQuotes);
+        } else {
+            quoteAmount = _getQuoteFromOracle(oracles[base][quote][oracleProvider], baseAmount, base, quote, true);
+            deviation = 0;
+            totalProviders = 1;
+            availableProviders = 1;
+        }
+    }
+
+    /// @inheritdoc IOracle
+    function getQuote(
+        uint256 baseAmount,
+        address base,
+        address quote
+    )
+        external
+        view
+        virtual
+        returns (uint256 quoteAmount)
+    {
+        // using IOracle interface we always assume average provider
+        (quoteAmount,,,) = getQuoteFromProvider(baseAmount, base, quote, AVERAGE_PROVIDER);
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    function _validateOracleInputs(
+        address[] memory bases,
+        address[] memory quotes,
+        bytes32[] memory providers,
+        address[] memory feeds
+    )
+        internal
+        pure
+    {
+        uint256 length = bases.length;
+        for (uint256 i; i < length; ++i) {
+            address base = bases[i];
+            address quote = quotes[i];
+            bytes32 provider = providers[i];
+            address feed = feeds[i];
+
+            if (provider == bytes32(0)) revert ZERO_PROVIDER();
+            if (provider == AVERAGE_PROVIDER) revert AVERAGE_PROVIDER_NOT_ALLOWED();
+            if (base == address(0) || quote == address(0) || feed == address(0)) revert ZERO_ADDRESS();
+        }
+    }
+
+    function _setFeedMaxStaleness(address feed, uint256 newMaxStaleness) internal {
+        if (newMaxStaleness > maxDefaultStaleness) {
+            revert MAX_STALENESS_EXCEEDED();
+        }
+        if (newMaxStaleness == 0) {
+            newMaxStaleness = maxDefaultStaleness;
+        }
+        feedMaxStaleness[feed] = newMaxStaleness;
+        emit FeedMaxStalenessUpdated(feed, newMaxStaleness);
+    }
+
     function _getQuoteFromOracle(
         address oracle,
         uint256 baseAmount,
@@ -221,13 +306,11 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             (baseAmount * uint256(answer) * (10 ** quoteDecimals)) / ((10 ** baseDecimals) * (10 ** feedDecimals));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            PRIVATE FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
     function _getAverageQuote(
         address base,
         address quote,
-        uint256 baseAmount
+        uint256 baseAmount,
+        uint256 numberOfProviders
     )
         internal
         view
@@ -235,24 +318,34 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         returns (uint256 quoteAmount, uint256[] memory validQuotes, uint256 count)
     {
         uint256 total;
-        validQuotes = new uint256[](MAX_PROVIDERS);
+        // Create a temporary array to store valid quotes
+        uint256[] memory tempQuotes = new uint256[](numberOfProviders);
 
-        // Start from index 1 to skip the average provider
-        for (uint256 i = 1; i < MAX_PROVIDERS; ++i) {
-            address providerOracle = oracles[base][quote][i];
-            if (providerOracle == address(0)) break; // Stop if we hit an empty slot
+        // Loop through all active providers
+        for (uint256 i = 0; i < numberOfProviders; ++i) {
+            bytes32 provider = activeProviders[i];
+            address providerOracle = oracles[base][quote][provider];
+            if (providerOracle == address(0)) revert NO_ORACLES_CONFIGURED();
 
             uint256 quote_ = _getQuoteFromOracle(providerOracle, baseAmount, base, quote, false);
             /// @dev we don't revert on error, we just skip the oracle value
             if (quote_ > 0) {
                 total += quote_;
-                validQuotes[count] = quote_;
+                tempQuotes[count] = quote_;
                 unchecked {
                     ++count;
                 }
             }
         }
         if (count == 0) revert NO_VALID_REPORTED_PRICES();
+
+        // Create a new array with the exact size needed
+        validQuotes = new uint256[](count);
+
+        // Copy valid quotes to the properly sized array
+        for (uint256 i; i < count; i++) {
+            validQuotes[i] = tempQuotes[i];
+        }
 
         quoteAmount = total / count;
     }
@@ -292,7 +385,7 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         return _sqrt(variance);
     }
 
-    function _sqrt(uint256 x) private pure returns (uint256 y) {
+    function _sqrt(uint256 x) internal pure returns (uint256 y) {
         if (x == 0) return 0;
 
         uint256 z = (x + 1) / 2;
@@ -307,25 +400,34 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     function _configureOracles(
         address[] memory bases,
         address[] memory quotes,
-        uint256[] memory providers,
+        bytes32[] memory providers,
         address[] memory feeds
     )
-        private
+        internal
     {
         uint256 length = bases.length;
-        if (length != quotes.length || length != providers.length || length != feeds.length) {
-            revert ARRAY_LENGTH_MISMATCH();
-        }
 
         for (uint256 i; i < length; ++i) {
             address base = bases[i];
             address quote = quotes[i];
-            uint256 provider = providers[i];
+            bytes32 provider = providers[i];
             address feed = feeds[i];
 
             oracles[base][quote][provider] = feed;
-            // no need to check MAX_PROVIDERS because we're only interating up to MAX_PROVIDERS
-            // everything above MAX_PROVIDERS is ignored
+
+            // Update activeProviders array - add provider if not already present
+            bool providerExists = false;
+            uint256 activeProvidersLength = activeProviders.length;
+            for (uint256 j; j < activeProvidersLength; ++j) {
+                if (activeProviders[j] == provider) {
+                    providerExists = true;
+                    break;
+                }
+            }
+
+            if (!providerExists) {
+                activeProviders.push(provider);
+            }
         }
     }
 }

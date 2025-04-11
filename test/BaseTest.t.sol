@@ -431,8 +431,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].peripheryRegistry), PERIPHERY_REGISTRY_KEY);
             contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A[i].peripheryRegistry);
 
-            A[i].oracleRegistry =
-                new SuperOracle{ salt: SALT }(address(this), new address[](0), new address[](0), new uint256[](0), new address[](0));
+            A[i].oracleRegistry = new SuperOracle{ salt: SALT }(
+                address(this), new address[](0), new address[](0), new bytes32[](0), new address[](0)
+            );
             vm.label(address(A[i].oracleRegistry), SUPER_ORACLE_KEY);
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A[i].oracleRegistry);
 
@@ -1570,7 +1571,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
             vm.expectEmit(true, false, false, false);
             emit IAcrossTargetExecutor.AcrossTargetExecutorFailedLowLevel("");
-
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
@@ -1718,13 +1718,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             _createSignatureData_AcrossTargetExecutor(validUntil, merkleRoot, merkleProof[0], signature);
 
         return (
-            abi.encode(
-                accountCreationData,
-                executionData,
-                signatureData,
-                messageData.account,
-                messageData.amount
-            ),
+            abi.encode(accountCreationData, executionData, signatureData, messageData.account, messageData.amount),
             accountToUse
         );
     }

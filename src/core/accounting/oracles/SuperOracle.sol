@@ -12,7 +12,7 @@ contract SuperOracle is SuperOracleBase {
         address owner_,
         address[] memory bases,
         address[] memory quotes,
-        uint256[] memory providers,
+        bytes32[] memory providers,
         address[] memory feeds
     )
         SuperOracleBase(owner_, bases, quotes, providers, feeds)
