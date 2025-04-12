@@ -94,13 +94,13 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 fee = 0; // Temporarily set fee to 0
+        uint256 fee = _deriveFeeAmount(marketParams);
         uint256 collateralForWithdraw;
         executions = new Execution[](5);
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(vars.id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 assetsToPay = fee + _sharesToAssets(marketParams, account);
+            uint256 assetsToPay = _deriveInterest(marketParams) + fee + _sharesToAssets(marketParams, account);
             collateralForWithdraw = _deriveCollateralForFullRepayment(vars.id, account);
 
             executions[0] =
@@ -129,7 +129,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            _verifyAmount(vars.amount, marketParams);
+            _verifyAmount(vars.amount, vars.id, account);
             uint256 fullCollateral = _deriveCollateralForFullRepayment(vars.id, account);
             collateralForWithdraw = _deriveCollateralForPartialRepayment(
                 vars.id,
@@ -146,8 +146,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee)) // TODO: add interest or check
-                    // amount includes fee & interest
+                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
              });
             executions[2] = Execution({
                 target: morpho,
@@ -173,7 +172,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
     function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = outAmount - getLoanTokenBalance(account, data);
     }
-    
+
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
         address loanToken = BytesLib.toAddress(data, 0);
         address collateralToken = BytesLib.toAddress(data, 20);
@@ -222,14 +221,6 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         });
     }
 
-    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        uint256 fee = _deriveFeeAmount(marketParams);
-        uint256 interest = _deriveInterest(marketParams);
-        uint256 totalAmount = amount + fee + interest;
-        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
-    }
-
     function _deriveInterest(MarketParams memory marketParams) internal view returns (uint256 interest) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
@@ -254,6 +245,27 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         collateralAmount = uint256(collateral);
     }
 
+    function _deriveCollateralAmountFromLoanAmount(address loanToken, address oracle, address collateralToken, bool isPositiveFeed, uint256 loanAmount) internal view returns (uint256 collateralAmount) {
+        IOracle oracleInstance = IOracle(oracle);
+        uint256 price = oracleInstance.price();
+        uint256 loanDecimals = ERC20(loanToken).decimals();
+        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+
+        // Correct scaling factor as per the oracle's specification:
+        // 10^(36 + loanDecimals - collateralDecimals)
+        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
+
+        if (isPositiveFeed) {
+            // Inverting the original calculation when isPositiveFeed is true:
+            // loanAmount = collateralAmount * price / scalingFactor
+            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+        } else {
+            // Inverting the original calculation when isPositiveFeed is false:
+            // loanAmount = collateralAmount * scalingFactor / price
+            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
+        }
+    }
+
     function _deriveCollateralForPartialRepayment(
         Id id,
         address oracle,
@@ -269,8 +281,13 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         returns (uint256 withdrawableCollateral)
     {
         uint256 fullLoanAmount = _deriveLoanAmount(id, account);
-        uint256 remainingLoan = fullLoanAmount - amount;
-
+        uint256 fullLoanAmountInCollateral = _deriveCollateralAmountFromLoanAmount(loanToken, oracle, collateralToken, isPositiveFeed, fullLoanAmount);
+        uint256 remainingLoan;
+        if (fullLoanAmountInCollateral >= amount) {
+            remainingLoan = fullLoanAmountInCollateral - amount;
+        } else {
+            return 0;
+        }
         uint256 loanDecimals = ERC20(loanToken).decimals();
         uint256 collateralDecimals = ERC20(collateralToken).decimals();
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
@@ -331,5 +348,13 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         shares = assets.toSharesUp(market.totalBorrowAssets, market.totalBorrowShares);
+    }
+
+    function _verifyAmount(uint256 amount, Id id, address account) internal view {
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        Market memory market = morphoInterface.market(id);
+        uint256 shares = amount.toSharesDown(market.totalBorrowAssets, market.totalBorrowShares);
+        (,, uint128 positionShares) = morphoStaticTyping.position(id, account);
+        if (shares == 0 || shares > positionShares) revert AMOUNT_NOT_VALID();
     }
 }

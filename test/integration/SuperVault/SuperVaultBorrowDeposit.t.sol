@@ -166,7 +166,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // Set up odos router
         swapRouter = odosRouters[BASE];
         deal(address(asset), swapRouter, 1e18);
-        deal(address(asset), odosRouters[BASE], 1e18);
+        deal(address(loanToken), swapRouter, 1e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -202,9 +202,14 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
         console2.log("\n pps After Fulfill Redeem", _getSuperVaultPricePerShare());
 
+        // Swap collateral for loan
+        _swapCollateralForLoan();
+
+        // Try repaying loan (Should revert)
+        _repayLoan();
+
+        // Claim redeem as user
         _claimRedeemOnBase();
-        console2.log("hookWithdrawAddress", _getHookAddress(BASE, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY));
-        console2.log("hookRepayAddress", _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY));
     }
 
     function test_BorrowHook() public {
@@ -543,6 +548,34 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         );
 
         console2.log("----loanToken balance after redeem", IERC20(loanToken).balanceOf(address(strategy)));
+        console2.log("----collateral balance after redeem", IERC20(collateralToken).balanceOf(address(strategy)));
+    }
+
+    function _swapCollateralForLoan() internal {
+        address[] memory swapHooks = new address[](1);
+        swapHooks[0] = _getHookAddress(BASE, APPROVE_AND_SWAP_ODOS_HOOK_KEY);
+
+        uint256 collateralAmount = IERC20(collateralToken).balanceOf(address(strategy));
+
+        uint256 loanAmount = _deriveLoanAmount(collateralAmount);
+
+        uint256 amountWithoutSlippage = loanAmount + (loanAmount * 100 / 10_000);
+
+        bytes[] memory swapHookDataArray = new bytes[](1);
+        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(address(collateralToken), collateralAmount, address(this), address(loanToken), amountWithoutSlippage, 0, bytes(""), swapRouter, 0, false);
+
+        vm.prank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                users: new address[](0),
+                hooks: swapHooks,
+                hookCalldata: swapHookDataArray,
+                hookProofs: _getMerkleProofsForAddresses(BASE, swapHooks),
+                expectedAssetsOrSharesOut: new uint256[](1)
+            })
+        );
+        console2.log("----loanToken balance after swap", IERC20(loanToken).balanceOf(address(strategy)));
+        console2.log("----collateral balance after swap", IERC20(collateralToken).balanceOf(address(strategy)));
     }
 
     function _claimRedeemOnBase() internal {
@@ -562,15 +595,18 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
     function _repayLoan() internal {
         // repay and claim collateral
-        address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
+        address repayHook = _getHookAddress(BASE, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
         
         address[] memory repayHooks = new address[](1);
         repayHooks[0] = repayHook;
 
+        uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
+
         bytes[] memory repayHookData = new bytes[](1);
-        repayHookData[0] = _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true, false);
+        repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, false, false);
         
-        vm.prank(STRATEGIST);
+        vm.startPrank(STRATEGIST);
+        vm.expectRevert();
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
@@ -580,7 +616,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
                 expectedAssetsOrSharesOut: new uint256[](1)
             })
         );
-
+        vm.stopPrank();
         console2.log("----collateral balance after repay", IERC20(collateralToken).balanceOf(address(strategy)));
     }
 
