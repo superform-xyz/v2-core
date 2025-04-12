@@ -94,7 +94,7 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 fee = 0; // Temporarily set fee to 0
+        uint256 fee = _deriveFeeAmount(marketParams);
         executions = new Execution[](4);
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(vars.id, account);
@@ -120,7 +120,7 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            _verifyAmount(vars.amount, marketParams);
+            _verifyAmount(vars.amount, vars.id, account);
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
@@ -195,14 +195,6 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         });
     }
 
-    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        uint256 fee = _deriveFeeAmount(marketParams);
-        uint256 interest = _deriveInterest(marketParams);
-        uint256 totalAmount = amount + fee + interest;
-        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
-    }
-
     function _deriveInterest(MarketParams memory marketParams) internal view returns (uint256 interest) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
@@ -243,5 +235,13 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         shares = assets.toSharesUp(market.totalBorrowAssets, market.totalBorrowShares);
+    }
+
+    function _verifyAmount(uint256 amount, Id id, address account) internal view {
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        Market memory market = morphoInterface.market(id);
+        uint256 shares = amount.toSharesDown(market.totalBorrowAssets, market.totalBorrowShares);
+        (,, uint128 positionShares) = morphoStaticTyping.position(id, account);
+        if (shares == 0 || shares > positionShares) revert AMOUNT_NOT_VALID();
     }
 }
