@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 // external
-import { IIrm } from "../../../../vendor/morpho/Iirm.sol";
+import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
@@ -129,7 +129,6 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            _verifyAmount(vars.amount, vars.id, account);
             uint256 fullCollateral = _deriveCollateralForFullRepayment(vars.id, account);
             collateralForWithdraw = _deriveCollateralForPartialRepayment(
                 vars.id,
@@ -348,13 +347,5 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         shares = assets.toSharesUp(market.totalBorrowAssets, market.totalBorrowShares);
-    }
-
-    function _verifyAmount(uint256 amount, Id id, address account) internal view {
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        Market memory market = morphoInterface.market(id);
-        uint256 shares = amount.toSharesDown(market.totalBorrowAssets, market.totalBorrowShares);
-        (,, uint128 positionShares) = morphoStaticTyping.position(id, account);
-        if (shares == 0 || shares > positionShares) revert AMOUNT_NOT_VALID();
     }
 }
