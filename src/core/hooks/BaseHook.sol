@@ -5,8 +5,9 @@ pragma solidity 0.8.28;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../libraries/HookSubTypes.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -38,7 +39,7 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
 
     constructor(address registry_, ISuperHook.HookType hookType_, string memory subType_) SuperRegistryImplementer(registry_) {
         hookType = hookType_;
-        subType = keccak256(bytes(subType_));
+        subType = HookSubTypes.getHookSubType(subType_);
     }
 
     /*//////////////////////////////////////////////////////////////
