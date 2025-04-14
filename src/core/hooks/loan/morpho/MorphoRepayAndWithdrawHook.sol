@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import "forge-std/console2.sol";
+
 // external
 import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -34,8 +36,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isFullRepayment = _decodeBool(data, 145);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 146);
+/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
+/// @notice         bool isFullRepayment = _decodeBool(data, 146);
 contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -88,13 +90,14 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
 
         uint256 fee = deriveFeeAmount(marketParams);
         uint256 collateralForWithdraw;
+
         executions = new Execution[](5);
         executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         if (vars.isFullRepayment) {
             uint128 borrowBalance = deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 amountToApprove = deriveLoanAmount(id, account) + fee;
+            uint256 amountToApprove = deriveLoanAmount(id, account) + deriveInterest(marketParams) + fee;
             collateralForWithdraw = deriveCollateralForFullRepayment(id, account);
 
             executions[1] = Execution({
@@ -157,8 +160,15 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     }
 
     /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory) external view returns (uint256) {
-        return outAmount;
+    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+        MarketParams memory marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        Id id = marketParams.id();
+        if (vars.isFullRepayment) {
+            return outAmount + deriveCollateralForFullRepayment(id, account) + deriveInterest(marketParams);
+        } else {
+            return outAmount;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -304,5 +314,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = getCollateralTokenBalance(account, data) - outAmount;
+        console2.log("---collateral balance", getCollateralTokenBalance(account, data));
+        console2.log("---outAmount", outAmount);
     }
 }

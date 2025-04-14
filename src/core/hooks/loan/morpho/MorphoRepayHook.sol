@@ -34,8 +34,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isFullRepayment = _decodeBool(data, 145);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 146);
+/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
+/// @notice         bool isFullRepayment = _decodeBool(data, 146);
 contract MorphoRepayHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -86,7 +86,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
 
         Id id = marketParams.id();
 
-        uint256 fee = 0; // Temporarily set fee to 0
+        uint256 fee = deriveFeeAmount(marketParams);
         executions = new Execution[](4);
         executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -132,11 +132,10 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
 
     /// @inheritdoc ISuperHookLoans
     function getUsedAssets(address, bytes memory data) external view returns (uint256) {
-        address loanToken = BytesLib.toAddress(data, 0);
-        address oracle = BytesLib.toAddress(data, 40);
-        address collateralToken = BytesLib.toAddress(data, 20);
-        bool isPositiveFeed = _decodeBool(data, 146);
-        return deriveCollateralAmountFromLoanAmount(loanToken, oracle, collateralToken, isPositiveFeed, outAmount);
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+        uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(vars.loanToken, vars.oracle, vars.collateralToken, vars.isPositiveFeed, outAmount);
+        MarketParams memory marketParams = _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        return amountInCollateral + deriveFeeAmount(marketParams);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -28,7 +28,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);        
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
+/// @notice         bool isPositiveFeed = _decodeBool(data, 146);
 contract MorphoBorrowHook is BaseMorphoLoanHook {
     using HookDataDecoder for bytes;
 
@@ -97,8 +97,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         executions[3] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account)) // derive loan
-                // amount from collateral amount
+            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account)) 
          });
     }
 
