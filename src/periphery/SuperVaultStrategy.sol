@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
@@ -318,13 +316,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 vars.hookContract.postExecute(vars.prevHook, address(this), args.hookCalldata[i]);
 
                 // Track assets sent to lending protocols
+                // @dev `getUsedAssets()` of Loan hooks returns the amount of assets used denoted in collateral token
+                // ToDo: Lock all borrow hooks to use asset_ as collateral or add a new hook subtype for borrow hooks
+                // with a different token
                 if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
                     if (vars.hookSubtype == HookSubTypes.LOAN) {
                         liabilityAmount += ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
-                        console2.log("New liabilityAmount:", liabilityAmount);
                     } else if (vars.hookSubtype == HookSubTypes.LOAN_REPAY) {
-                        console2.log("Subtype matched LOAN_REPAY_SUBTYPE");
-                        console2.log("Current liabilityAmount:", liabilityAmount);
                         if (vars.outAmount <= liabilityAmount) {
                             liabilityAmount -= ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
                         } else {
