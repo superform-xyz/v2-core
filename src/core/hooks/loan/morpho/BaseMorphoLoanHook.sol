@@ -13,6 +13,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 abstract contract BaseMorphoLoanHook is BaseLoanHook {
     using HookDataDecoder for bytes;
 
+    error TOKEN_DECIMALS_NOT_SUPPORTED();
+
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
