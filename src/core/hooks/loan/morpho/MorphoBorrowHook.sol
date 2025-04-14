@@ -14,6 +14,7 @@ import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
