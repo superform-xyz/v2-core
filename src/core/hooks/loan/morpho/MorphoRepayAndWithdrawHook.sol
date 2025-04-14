@@ -170,7 +170,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
 
     /// @inheritdoc ISuperHookLoans
     function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
-        return getCollateralTokenBalance(account, data) - outAmount;
+        return outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
