@@ -42,7 +42,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
 
-    constructor(address registry_, address aggregationRouter_) BaseHook(registry_, HookType.NONACCOUNTING) {
+    constructor(address registry_, address aggregationRouter_) BaseHook(registry_, HookType.NONACCOUNTING, "Swap") {
         if (aggregationRouter_ == address(0)) {
             revert ZERO_ADDRESS();
         }

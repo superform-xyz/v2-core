@@ -12,7 +12,9 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import { IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market } from "../../../../vendor/morpho/IMorpho.sol";
+import {
+    IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market
+} from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -65,7 +67,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseLoanHook(registry_) {
+    constructor(address registry_, address morpho_) BaseLoanHook(registry_, "LoanRepay") {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);
@@ -146,7 +148,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
                 target: vars.loanToken,
                 value: 0,
                 callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
-             });
+            });
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
@@ -168,8 +170,13 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getLoanTokenBalance(account, data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = getCollateralTokenBalance(account, data);
+    }
+    
+    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
+        outAmount = getCollateralTokenBalance(account, data) - outAmount;
     }
 
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
@@ -244,7 +251,17 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         collateralAmount = uint256(collateral);
     }
 
-    function _deriveCollateralAmountFromLoanAmount(address loanToken, address oracle, address collateralToken, bool isPositiveFeed, uint256 loanAmount) internal view returns (uint256 collateralAmount) {
+    function _deriveCollateralAmountFromLoanAmount(
+        address loanToken,
+        address oracle,
+        address collateralToken,
+        bool isPositiveFeed,
+        uint256 loanAmount
+    )
+        internal
+        view
+        returns (uint256 collateralAmount)
+    {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
         uint256 loanDecimals = ERC20(loanToken).decimals();
@@ -280,13 +297,15 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         returns (uint256 withdrawableCollateral)
     {
         uint256 fullLoanAmount = _deriveLoanAmount(id, account);
-        uint256 fullLoanAmountInCollateral = _deriveCollateralAmountFromLoanAmount(loanToken, oracle, collateralToken, isPositiveFeed, fullLoanAmount);
-        uint256 remainingLoan;
-        if (fullLoanAmountInCollateral >= amount) {
-            remainingLoan = fullLoanAmountInCollateral - amount;
-        } else {
-            return 0;
-        }
+        // uint256 fullLoanAmountInCollateral = _deriveCollateralAmountFromLoanAmount(loanToken, oracle,
+        // collateralToken, isPositiveFeed, fullLoanAmount);
+        // uint256 remainingLoan;
+        // if (fullLoanAmountInCollateral >= amount) {
+        //     remainingLoan = fullLoanAmountInCollateral - amount;
+        // } else {
+        //     return 0;
+        // }
+        uint256 remainingLoanAmount = fullLoanAmount - amount;
         uint256 loanDecimals = ERC20(loanToken).decimals();
         uint256 collateralDecimals = ERC20(collateralToken).decimals();
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
@@ -300,12 +319,12 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
             // For a positive feed, the oracle returns the price in units of loan token per collateral token.
             // The collateral required is:
             //   requiredCollateral = remainingLoan * scalingFactor / price
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, scalingFactor, price);
+            requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, scalingFactor, price);
         } else {
             // For a negative feed, the oracle returns the price in units of collateral token per loan token.
             // The collateral required is:
             //   requiredCollateral = remainingLoan * price / scalingFactor
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, price, scalingFactor);
+            requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, price, scalingFactor);
         }
 
         withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;

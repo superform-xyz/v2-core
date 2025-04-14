@@ -138,6 +138,7 @@ interface ISuperVaultStrategy {
         bool success;
         ISuperHook hookContract;
         ISuperHook.HookType hookType;
+        bytes32 hookSubtype;
         uint256 outAmount;
         Execution[] executions;
         // Fulfill hooks specific

@@ -25,6 +25,7 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
 
     // forgefmt: disable-end
 
+    bytes32 public immutable subType;
     ISuperHook.HookType public hookType;
 
     /*//////////////////////////////////////////////////////////////
@@ -35,12 +36,13 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
     error ADDRESS_NOT_VALID();
     error DATA_LENGTH_INSUFFICIENT();
 
-    constructor(address registry_, ISuperHook.HookType hookType_) SuperRegistryImplementer(registry_) {
+    constructor(address registry_, ISuperHook.HookType hookType_, string memory subType_) SuperRegistryImplementer(registry_) {
         hookType = hookType_;
+        subType = keccak256(bytes(subType_));
     }
 
     /*//////////////////////////////////////////////////////////////
-                                EXECUTION SECURITY
+                          EXECUTION SECURITY
     //////////////////////////////////////////////////////////////*/
 
     // built as a view function to allow test mocking
@@ -63,6 +65,12 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
         _postExecute(prevHook, account, data);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    function subtype() external view returns (bytes32) {
+        return subType;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS

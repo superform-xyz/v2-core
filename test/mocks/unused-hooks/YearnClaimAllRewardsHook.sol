@@ -16,7 +16,7 @@ import { IYearnStakingRewardsMulti } from "../../../src/vendor/yearn/IYearnStaki
 //      How we store those to be used in the `postExecute` is the question?
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "Claim") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

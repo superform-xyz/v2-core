@@ -180,7 +180,6 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         _requestDepositOnBase(instanceOnBase, amount);
 
         console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountBase));
-        console2.log("\n pps After Request Deposit1", _getSuperVaultPricePerShare());
 
         // Deposit into underlying vaults as strategy
         _fulfillDepositRequestsWithBorrow();
@@ -197,16 +196,16 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         _requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
         console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountBase));
 
-        // Fulfill redeem request
-        _fulfillRedeemRequests();
-        console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
-        console2.log("\n pps After Fulfill Redeem", _getSuperVaultPricePerShare());
-
         // Swap collateral for loan
         _swapCollateralForLoan();
 
         // Try repaying loan (Should revert)
         _repayLoan();
+
+        // Fulfill redeem request
+        _fulfillRedeemRequests();
+        console2.log("\n user1 SV Share Balance After Fulfill Redeem", vault.balanceOf(accountBase));
+        console2.log("\n pps After Fulfill Redeem", _getSuperVaultPricePerShare());
 
         // Claim redeem as user
         _claimRedeemOnBase();
@@ -410,13 +409,13 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // swap
         address[] memory swapHooks = new address[](1);
         swapHooks[0] = _getHookAddress(BASE, APPROVE_AND_SWAP_ODOS_HOOK_KEY);
-
-        uint256 amountWithoutSlippage = amount + (amount * 100 / 10_000);
+        uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
+        uint256 amountWithoutSlippage = loanAmount + (loanAmount * 100 / 10_000);
 
         bytes[] memory swapHookDataArray = new bytes[](1);
         swapHookDataArray[0] = _createApproveAndSwapOdosHookData(
             address(loanToken),
-            _deriveLoanAmount(amount),
+            loanAmount,
             address(this),
             address(asset),
             amountWithoutSlippage,
@@ -438,7 +437,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         vm.prank(STRATEGIST);
         strategy.executeHooks(executeSwapArgs);
 
-        console2.log("\n pps After Swap", _getSuperVaultPricePerShare());
+        console2.log("\n pps After SwapLoanForCollateral", _getSuperVaultPricePerShare());
     }
 
     function _fulfillDepositRequestsWithBorrow() public {
@@ -490,6 +489,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnBase, abi.encode(claimEntry));
         executeOp(claimUserOpData);
+        console2.log("pps after claimDepositOnBase", _getSuperVaultPricePerShare());
     }
 
     function _requestRedeemOnBase(AccountInstance memory accInst, uint256 redeemShares) internal {
@@ -555,14 +555,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory swapHooks = new address[](1);
         swapHooks[0] = _getHookAddress(BASE, APPROVE_AND_SWAP_ODOS_HOOK_KEY);
 
-        uint256 collateralAmount = IERC20(collateralToken).balanceOf(address(strategy));
-
-        uint256 loanAmount = _deriveLoanAmount(collateralAmount);
-
-        uint256 amountWithoutSlippage = loanAmount + (loanAmount * 100 / 10_000);
+        uint256 amountWithoutSlippage = amount + (amount * 100 / 10_000);
 
         bytes[] memory swapHookDataArray = new bytes[](1);
-        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(address(collateralToken), collateralAmount, address(this), address(loanToken), amountWithoutSlippage, 0, bytes(""), swapRouter, 0, false);
+        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(address(collateralToken), amount, address(this), address(loanToken), amountWithoutSlippage, 0, bytes(""), swapRouter, 0, false);
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(
@@ -576,6 +572,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         );
         console2.log("----loanToken balance after swap", IERC20(loanToken).balanceOf(address(strategy)));
         console2.log("----collateral balance after swap", IERC20(collateralToken).balanceOf(address(strategy)));
+        console2.log("pps after swapCollateralForLoan", _getSuperVaultPricePerShare());
     }
 
     function _claimRedeemOnBase() internal {
@@ -606,7 +603,6 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, false, false);
         
         vm.startPrank(STRATEGIST);
-        vm.expectRevert();
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 users: new address[](0),
@@ -618,6 +614,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         );
         vm.stopPrank();
         console2.log("----collateral balance after repay", IERC20(collateralToken).balanceOf(address(strategy)));
+        console2.log("pps after loan repay", _getSuperVaultPricePerShare());
     }
 
     /*//////////////////////////////////////////////////////////////

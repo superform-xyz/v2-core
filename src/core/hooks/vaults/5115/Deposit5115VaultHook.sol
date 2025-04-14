@@ -28,7 +28,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
 
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, "5115") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -27,7 +27,7 @@ contract FluidClaimRewardHook is
     ISuperHookOutflow,
     ISuperHookContextAware
 {
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, "Claim") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

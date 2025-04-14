@@ -26,7 +26,7 @@ contract GearboxStakeHook is BaseHook, ISuperHookContextAware {
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "Stake") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

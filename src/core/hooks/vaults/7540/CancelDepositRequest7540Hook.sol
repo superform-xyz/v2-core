@@ -17,7 +17,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract CancelDepositRequest7540Hook is BaseHook {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "CancelDepositRequest") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

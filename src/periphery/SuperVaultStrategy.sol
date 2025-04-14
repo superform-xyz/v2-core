@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
+import { console2 } from "forge-std/console2.sol";
+
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
@@ -20,7 +22,8 @@ import {
     ISuperHookAsync,
     ISuperHookResultOutflow,
     ISuperHookContextAware,
-    ISuperHookAsyncCancelations
+    ISuperHookAsyncCancelations,
+    ISuperHookLoans
 } from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -45,6 +48,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     uint256 private constant PRECISION_DECIMALS = 18;
     uint256 private constant PRECISION = 1e18;
     uint256 private constant TOLERANCE_CONSTANT = 10 wei;
+    bytes32 private constant LOAN_SUBTYPE = keccak256(bytes("Loan"));
+    bytes32 private constant LOAN_REPAY_SUBTYPE = keccak256(bytes("LoanRepay"));
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -99,6 +104,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     mapping(address yieldSource => uint256 assetsInTransit) private asyncYieldSourceAssetsInTransitInflows;
     // Track assets in transit from two-step yield sources to vault for outflows
     mapping(address yieldSource => uint256 assetsInTransit) private asyncYieldSourceSharesInTransitOutflows;
+
+    // Track assets sent to lending protocols
+    //mapping(bytes32 hookSubtype => uint256 liabilities) private liabilities;
+    mapping(address yieldSource => uint256 liabilities) private liabilities;
+    address[] private liabilityYieldSources;
+    uint256 private liabilityAmount;
 
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
@@ -219,6 +230,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             // Get hook type
             vars.hookContract = ISuperHook(hook);
             vars.hookType = ISuperHookResult(hook).hookType();
+            vars.hookSubtype = vars.hookContract.subtype();
 
             if (isFulfillHook) {
                 vars.targetedYieldSource = HookDataDecoder.extractYieldSource(args.hookCalldata[i]);
@@ -306,6 +318,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
                 // Call postExecute to update outAmount tracking
                 vars.hookContract.postExecute(vars.prevHook, address(this), args.hookCalldata[i]);
+
+                // Track assets sent to lending protocols
+                if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
+                    if (vars.hookSubtype == LOAN_SUBTYPE) {
+                        liabilityAmount += ISuperHookLoans(hook).getUsedAssets();
+                        console2.log("New liabilityAmount:", liabilityAmount);
+                    } else if (vars.hookSubtype == LOAN_REPAY_SUBTYPE) {
+                        console2.log("Subtype matched LOAN_REPAY_SUBTYPE");
+                        console2.log("Current liabilityAmount:", liabilityAmount);
+                        if (vars.outAmount <= liabilityAmount) {
+                            liabilityAmount -= ISuperHookLoans(hook).getUsedAssets();
+                        }
+                    }
+                }
 
                 // If the hook is non-accounting and the yield source is active, add the asset balance change to
                 // assetsInTransit
@@ -542,6 +568,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvlSum });
             }
         }
+        totalAssets_ += liabilityAmount;
+        console2.log("liabilityAmount", liabilityAmount);
+
+        // Add liabilities to total assets
+        // for (uint256 i; i < liabilityYieldSources.length; ++i) {
+        //     address source = liabilityYieldSources[i];
+        //     totalAssets_ += liabilities[source];
+        //     sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: liabilities[source] });
+        // }
 
         if (activeSourceCount < length) {
             assembly {

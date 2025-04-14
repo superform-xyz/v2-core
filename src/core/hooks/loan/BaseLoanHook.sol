@@ -24,8 +24,10 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
-    /*//////////////////////////////////////////////////////////////
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) {}
+    /*/
+    /////////////////////////////////////////////////////////////
+    constructor(address registry_, string memory subType_) BaseHook(registry_, HookType.NONACCOUNTING, subType_) {
+    }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
@@ -60,14 +62,14 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
         return IERC20(loanToken).balanceOf(account);
     }
 
+    /// @inheritdoc ISuperHookLoans
+    function getUsedAssets() public view returns (uint256) {
+        return outAmount;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
-        outAmount = getLoanTokenBalance(account, data);
-    }
-
     function _decodeAmount(bytes memory data) internal pure returns (uint256) {
         return BytesLib.toUint256(data, AMOUNT_POSITION);
     }

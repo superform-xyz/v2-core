@@ -54,7 +54,7 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseLoanHook(registry_) {
+    constructor(address registry_, address morpho_) BaseLoanHook(registry_, "Loan") {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoInterface = IMorphoBase(morpho_);
@@ -115,8 +115,13 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = getLoanTokenBalance(account, data) - outAmount;
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = getCollateralTokenBalance(account, data);
+    }
+
+    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
+        outAmount = outAmount - getCollateralTokenBalance(account, data);
     }
 
     function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {

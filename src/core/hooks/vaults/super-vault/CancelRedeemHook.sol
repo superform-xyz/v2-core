@@ -21,7 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "CancelRedeem") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
