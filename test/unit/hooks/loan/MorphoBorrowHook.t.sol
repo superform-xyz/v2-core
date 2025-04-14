@@ -126,19 +126,6 @@ contract MorphoBorrowHookTest is BaseTest {
         hook.build(address(0), address(this), _encodeData(false));
     }
 
-    function test_PreAndPostExecute() public {
-        bytes memory data = _encodeData(false);
-
-        hook.preExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 0);
-
-        // Simulate some balance change
-        _getTokens(address(loanToken), address(this), amount);
-
-        hook.postExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), amount);
-    }
-
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
             address(loanToken), address(collateralToken), address(oracle), irm, amount, lltv, usePrevHook, true

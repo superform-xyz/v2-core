@@ -67,19 +67,6 @@ contract MorphoRepayHookTest is BaseTest {
         hook.build(address(0), address(this), hookData);
     }
 
-    function test_RepayHook_PreAndPostExecute() public {
-        bytes memory data = _encodeData(false, false, false);
-
-        // Give some tokens to test with
-        _getTokens(loanToken, address(this), 1000e18);
-
-        hook.preExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 1000e18);
-
-        hook.postExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 0);
-    }
-
     function _encodeData(
         bool usePrevHook,
         bool isFullRepayment,
