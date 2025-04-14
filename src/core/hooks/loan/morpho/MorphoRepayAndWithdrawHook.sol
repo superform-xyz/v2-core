@@ -245,14 +245,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         returns (uint256 withdrawableCollateral)
     {
         uint256 fullLoanAmount = _deriveLoanAmount(id, account);
-        // uint256 fullLoanAmountInCollateral = _deriveCollateralAmountFromLoanAmount(loanToken, oracle,
-        // collateralToken, isPositiveFeed, fullLoanAmount);
-        // uint256 remainingLoan;
-        // if (fullLoanAmountInCollateral >= amount) {
-        //     remainingLoan = fullLoanAmountInCollateral - amount;
-        // } else {
-        //     return 0;
-        // }
+        if (fullLoanAmount < amount) revert AMOUNT_NOT_VALID();
         uint256 remainingLoanAmount = fullLoanAmount - amount;
         uint256 loanDecimals = ERC20(loanToken).decimals();
         uint256 collateralDecimals = ERC20(collateralToken).decimals();
