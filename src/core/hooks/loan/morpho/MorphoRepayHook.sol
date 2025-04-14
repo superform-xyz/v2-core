@@ -93,7 +93,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         if (vars.isFullRepayment) {
             uint128 borrowBalance = deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 assetsToPay = fee + sharesToAssets(marketParams, account);
+            uint256 assetsToPay = fee + deriveInterest(marketParams) + sharesToAssets(marketParams, account);
 
             executions[1] = Execution({
                 target: vars.loanToken,
@@ -117,7 +117,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee)) 
+                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount)) 
              });
             executions[2] = Execution({
                 target: morpho,
