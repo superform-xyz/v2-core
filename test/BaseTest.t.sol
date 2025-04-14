@@ -120,7 +120,7 @@ import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-
+import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 
 // SuperformNativePaymaster
@@ -978,8 +978,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_HOOK_KEY] = address(A[i].spectraExchangeHook);
             hooksAddresses[32] = address(A[i].spectraExchangeHook);
             
-            MockPendleRouter pendleRouter = new MockPendleRouter();
-            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(pendleRouter));
+            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), CHAIN_1_PendleRouter); //TODO: update per chain
             vm.label(address(A[i].pendleRouterSwapHook), PENDLE_ROUTER_SWAP_HOOK_KEY);
             hookAddresses[chainIds[i]][PENDLE_ROUTER_SWAP_HOOK_KEY] = address(A[i].pendleRouterSwapHook);
             hooksAddresses[33] = address(A[i].pendleRouterSwapHook);
@@ -2250,6 +2249,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
 
         return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+    }
+
+    function _createOdosSwap(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        address account
+    ) internal pure returns (IOdosRouterV2.swapTokenInfo memory) {
+        return IOdosRouterV2.swapTokenInfo(
+            inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
+        );
     }
 
     function _createOdosSwapHookData(
