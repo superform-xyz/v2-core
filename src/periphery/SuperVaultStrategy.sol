@@ -567,14 +567,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             }
         }
         totalAssets_ += liabilityAmount;
-        console2.log("liabilityAmount", liabilityAmount);
-
-        // Add liabilities to total assets
-        // for (uint256 i; i < liabilityYieldSources.length; ++i) {
-        //     address source = liabilityYieldSources[i];
-        //     totalAssets_ += liabilities[source];
-        //     sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: liabilities[source] });
-        // }
 
         if (activeSourceCount < length) {
             assembly {
