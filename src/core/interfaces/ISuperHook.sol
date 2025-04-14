@@ -77,7 +77,6 @@ interface ISuperHookLoans is ISuperHookContextAware {
     function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
 
     function getUsedAssets(address account, bytes memory data) external view returns (uint256);
-
 }
 
 /// @title ISuperHookAsyncCancelations
