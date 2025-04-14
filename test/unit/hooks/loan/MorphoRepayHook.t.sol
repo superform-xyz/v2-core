@@ -55,7 +55,7 @@ contract MorphoRepayHookTest is BaseTest {
         irmAddress = MORPHO_IRM;
         morphoAddress = MORPHO;
         amount = 100e6;
-        lltv = 860000000000000000;
+        lltv = 860_000_000_000_000_000;
     }
 
     // --- Test Cases ---
@@ -73,7 +73,7 @@ contract MorphoRepayHookTest is BaseTest {
         new MorphoRepayHook(address(this), address(0));
     }
 
-    function test_Build_FullRepay() public view {
+    function test_Build_Repay_FullRepay() public view {
         bytes memory data = _encodeData(address(loanToken), address(collateralToken), oracleAddress, irmAddress, amount, lltv, false, true, false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
 

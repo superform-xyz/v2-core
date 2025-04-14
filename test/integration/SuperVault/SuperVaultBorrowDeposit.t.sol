@@ -57,6 +57,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     uint256 public collateralAmount;
     uint256 public constant PRECISION = 1e18;
 
+    uint256 liabilityAmount;
+
     address public accountBase;
     AccountInstance public instanceOnBase;
 
