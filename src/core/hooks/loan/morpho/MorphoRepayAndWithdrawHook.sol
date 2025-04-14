@@ -215,11 +215,9 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
         if (isPositiveFeed) {
-            // Inverting the original calculation when isPositiveFeed is true:
             // loanAmount = collateralAmount * price / scalingFactor
             collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
         } else {
-            // Inverting the original calculation when isPositiveFeed is false:
             // loanAmount = collateralAmount * scalingFactor / price
             collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
         }
@@ -249,7 +247,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
 
-        // Compute the collateral still required to back the remaining debt.
         uint256 requiredCollateralForRemaining;
         if (isPositiveFeed) {
             // For a positive feed, the oracle returns the price in units of loan token per collateral token.
