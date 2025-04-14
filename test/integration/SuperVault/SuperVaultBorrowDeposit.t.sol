@@ -598,7 +598,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         repayHooks[0] = repayHook;
 
         uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
-
+        console2.log("----loanAmount", loanAmount);
+        
         bytes[] memory repayHookData = new bytes[](1);
         repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, true, false);
         
