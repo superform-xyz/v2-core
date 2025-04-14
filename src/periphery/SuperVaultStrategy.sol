@@ -47,8 +47,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     uint256 private constant PRECISION_DECIMALS = 18;
     uint256 private constant PRECISION = 1e18;
     uint256 private constant TOLERANCE_CONSTANT = 10 wei;
-    bytes32 private constant LOAN_SUBTYPE = keccak256(bytes("Loan"));
-    bytes32 private constant LOAN_REPAY_SUBTYPE = keccak256(bytes("LoanRepay"));
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
