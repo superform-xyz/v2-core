@@ -199,7 +199,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // Swap collateral for loan
         _swapCollateralForLoan();
 
-        // Try repaying loan (Should revert)
+        // Repay loan 
         _repayLoan();
 
         // Fulfill redeem request
@@ -600,7 +600,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
 
         bytes[] memory repayHookData = new bytes[](1);
-        repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, false, false);
+        repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, true, false);
         
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
