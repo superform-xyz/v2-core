@@ -125,7 +125,7 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
         outAmount = getCollateralTokenBalance(account, data);
     }
 
-    function _postExecute(address, address account, bytes calldata) internal override {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = outAmount - getCollateralTokenBalance(account, data);
     }
 
