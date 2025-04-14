@@ -322,13 +322,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 // Track assets sent to lending protocols
                 if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
                     if (vars.hookSubtype == LOAN_SUBTYPE) {
-                        liabilityAmount += ISuperHookLoans(hook).getUsedAssets(args.hookCalldata[i]);
+                        liabilityAmount += ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
                         console2.log("New liabilityAmount:", liabilityAmount);
                     } else if (vars.hookSubtype == LOAN_REPAY_SUBTYPE) {
                         console2.log("Subtype matched LOAN_REPAY_SUBTYPE");
                         console2.log("Current liabilityAmount:", liabilityAmount);
                         if (vars.outAmount <= liabilityAmount) {
-                            liabilityAmount -= ISuperHookLoans(hook).getUsedAssets(args.hookCalldata[i]);
+                            liabilityAmount -= ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
                         }
                     }
                 }
