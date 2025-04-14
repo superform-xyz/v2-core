@@ -88,13 +88,13 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
 
         uint256 fee = 0; // Temporarily set fee to 0
         executions = new Execution[](4);
+        executions[0] =
+                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
             uint256 assetsToPay = fee + _sharesToAssets(marketParams, account);
 
-            executions[0] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
@@ -113,13 +113,11 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
             _verifyAmount(vars.amount, marketParams);
-            executions[0] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee)) // TODO: add interest or check
-                    // amount includes fee & interest
+                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount + fee)) 
              });
             executions[2] = Execution({
                 target: morpho,

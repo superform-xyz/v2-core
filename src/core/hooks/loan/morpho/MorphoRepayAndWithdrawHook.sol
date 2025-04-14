@@ -89,14 +89,14 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 fee = _deriveFeeAmount(marketParams);
         uint256 collateralForWithdraw;
         executions = new Execution[](5);
+        executions[0] =
+                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
             uint256 amountToApprove = _deriveLoanAmount(id, account) + fee;
             collateralForWithdraw = _deriveCollateralForFullRepayment(id, account);
 
-            executions[0] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
@@ -132,8 +132,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 fullCollateral,
                 vars.isPositiveFeed
             );
-            executions[0] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
