@@ -62,11 +62,6 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
         return IERC20(loanToken).balanceOf(account);
     }
 
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets() public view returns (uint256) {
-        return outAmount;
-    }
-
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

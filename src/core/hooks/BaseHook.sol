@@ -68,6 +68,7 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
     function subtype() external view returns (bytes32) {
         return subType;
     }

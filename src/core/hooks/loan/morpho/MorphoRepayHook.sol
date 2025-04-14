@@ -20,6 +20,7 @@ import {
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseLoanHook } from "../BaseLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -142,6 +143,16 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         }
     }
 
+    /// @inheritdoc ISuperHookLoans
+    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
+        address loanToken = BytesLib.toAddress(data, 0);
+        address oracle = BytesLib.toAddress(data, 40);
+        address collateralToken = BytesLib.toAddress(data, 20);
+        bool isPositiveFeed = _decodeBool(data, 146);
+        uint256 loanAmount = _decodeAmount(data);
+        return _deriveCollateralAmountFromLoanAmount(loanToken, oracle, collateralToken, isPositiveFeed, outAmount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -149,7 +160,7 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);
     }
-    
+
     function _postExecute(address prevHook, address account, bytes calldata data) internal override {
         outAmount = 0;
     }
@@ -220,6 +231,37 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
 
     function _deriveShareBalance(Id id, address account) internal view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
+    }
+
+    function _deriveCollateralAmountFromLoanAmount(
+        address loanToken,
+        address oracle,
+        address collateralToken,
+        bool isPositiveFeed,
+        uint256 loanAmount
+    )
+        internal
+        view
+        returns (uint256 collateralAmount)
+    {
+        IOracle oracleInstance = IOracle(oracle);
+        uint256 price = oracleInstance.price();
+        uint256 loanDecimals = ERC20(loanToken).decimals();
+        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+
+        // Correct scaling factor as per the oracle's specification:
+        // 10^(36 + loanDecimals - collateralDecimals)
+        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
+
+        if (isPositiveFeed) {
+            // Inverting the original calculation when isPositiveFeed is true:
+            // loanAmount = collateralAmount * price / scalingFactor
+            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+        } else {
+            // Inverting the original calculation when isPositiveFeed is false:
+            // loanAmount = collateralAmount * scalingFactor / price
+            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
+        }
     }
 
     function _deriveFeeAmount(MarketParams memory marketParams) internal view returns (uint256 feeAmount) {
