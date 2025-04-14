@@ -112,6 +112,14 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
          });
     }
 
+    /// @inheritdoc ISuperHookLoans
+    function getUsedAssets(bytes memory data) external view returns (uint256) {
+        address loanToken = BytesLib.toAddress(data, 0);
+        address oracle = BytesLib.toAddress(data, 40);
+        address collateralToken = BytesLib.toAddress(data, 20);
+        bool isPositiveFeed = _decodeBool(data, 146);
+        uint256 loanAmount = _decodeAmount(data);
+    }
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
