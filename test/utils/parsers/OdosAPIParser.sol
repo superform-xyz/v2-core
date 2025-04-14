@@ -41,7 +41,8 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
 
     string constant API_QUOTE_URL = "https://api.odos.xyz/sor/quote/v2";
     string constant API_ASSEMBLE_URL = "https://api.odos.xyz/sor/assemble";
-
+    uint256 private constant addressListStart = 
+        80084422859880547211683076133703299733277748156566366325829078699459944778998;
     
     /*//////////////////////////////////////////////////////////////
                             API_QUOTE_URL
@@ -139,7 +140,7 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
     /*//////////////////////////////////////////////////////////////
                             DECODE SWAP
     //////////////////////////////////////////////////////////////*/
-    function decodeCompactSwap(bytes memory txData) internal pure returns (OdosDecodedSwap memory decoded) {
+    function decodeOdosSwapCalldata(bytes memory txData) internal view returns (OdosDecodedSwap memory decoded) {
         if (txData.length < 4) {
             revert("OdosAPIParser: invalid tx data length");
         }
@@ -147,15 +148,133 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         bytes4 selector = bytes4(txData.slice(0, 4));
         console2.log("selector");
         console2.logBytes4(selector);
-        if (selector != IOdosRouterV2.swap.selector) {
-            revert("OdosAPIParser: invalid selector");
-        }
-
-        
+        console2.log("IOdosRouterV2.swap.selector");
+        console2.logBytes4(IOdosRouterV2.swap.selector);
+        console2.log("IOdosRouterV2.swapCompact.selector");
+        console2.logBytes4(IOdosRouterV2.swapCompact.selector);
         bytes memory data = txData.slice(4, txData.length - 4);
-        (decoded.tokenInfo, decoded.pathDefinition, decoded.executor, decoded.referralCode) = abi.decode(data, (IOdosRouterV2.swapTokenInfo, bytes, address, uint32));
+        if (selector == IOdosRouterV2.swap.selector) {
+            (decoded.tokenInfo, decoded.pathDefinition, decoded.executor, decoded.referralCode) = abi.decode(data, (IOdosRouterV2.swapTokenInfo, bytes, address, uint32));
+        } else if (selector == IOdosRouterV2.swapCompact.selector) {
+            (decoded.executor, decoded.referralCode, decoded.pathDefinition, decoded.tokenInfo) = _decode(data);
+        }
 
         return decoded;
     }
+    
+    /*//////////////////////////////////////////////////////////////
+                            PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _decode(bytes memory rawData) private view returns (address executor, uint32 referralCode, bytes memory pathDefinition, IOdosRouterV2.swapTokenInfo memory tokenInfo) {
+        bytes memory data = rawData;
+
+        tokenInfo = IOdosRouterV2.swapTokenInfo({
+            inputToken: address(0),
+            inputAmount: 0,
+            inputReceiver: address(0),
+            outputToken: address(0),
+            outputQuote: 0,
+            outputMin: 0,
+            outputReceiver: address(0)
+        });
+        pathDefinition = new bytes(0);
+
+        address msgSender = msg.sender;
+
+        assembly {
+            let dataPtr := add(data, 0x20)
+
+            tokenInfo := mload(0x40)
+            mstore(0x40, add(tokenInfo, 0xE0)) // Reserve 7 * 32 bytes
+            let tokenInfoPtr := tokenInfo
+            let pos := 0
+
+            function getAddress(currPos, ptr) -> result, newPos {
+                let inputPos := shr(240, mload(add(ptr, currPos)))
+                switch inputPos
+                case 0x0000 {
+                    result := 0
+                    newPos := add(currPos, 2)
+                }
+                case 0x0001 {
+                    result := and(shr(80, mload(add(ptr, currPos))), 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF)
+                    newPos := add(currPos, 22)
+                }
+                default {
+                    result := sload(add(addressListStart, sub(inputPos, 2)))
+                    newPos := add(currPos, 2)
+                }
+            }
+
+            let tmp := 0
+
+            tmp, pos := getAddress(pos, dataPtr)
+            mstore(tokenInfo, tmp) // inputToken
+
+            tmp, pos := getAddress(pos, dataPtr)
+            mstore(add(tokenInfo, 0x60), tmp) // outputToken
+
+            // inputAmount
+            let inputLen := shr(248, mload(add(dataPtr, pos)))
+            pos := add(pos, 1)
+            if inputLen {
+                mstore(add(tokenInfoPtr, 0x20), shr(mul(sub(32, inputLen), 8), mload(add(dataPtr, pos))))
+                pos := add(pos, inputLen)
+            }
+
+            // outputQuote
+            let quoteLen := shr(248, mload(add(dataPtr, pos)))
+            pos := add(pos, 1)
+            let quote := shr(mul(sub(32, quoteLen), 8), mload(add(dataPtr, pos)))
+            mstore(add(tokenInfoPtr, 0x80), quote)
+            pos := add(pos, quoteLen)
+
+            // outputMin from slippage
+            {
+                let slip := shr(232, mload(add(dataPtr, pos))) // 3 bytes
+                mstore(add(tokenInfoPtr, 0xA0), div(mul(quote, sub(0xFFFFFF, slip)), 0xFFFFFF))
+            }
+            pos := add(pos, 3)
+
+            executor, pos := getAddress(pos, dataPtr)
+
+            tmp, pos := getAddress(pos, dataPtr)
+            if eq(tmp, 0) {
+                tmp := executor
+            }
+            mstore(add(tokenInfoPtr, 0x40), tmp) // inputReceiver
+
+            tmp, pos := getAddress(pos, dataPtr)
+            if eq(tmp, 0) {
+                tmp := msgSender
+            }
+            mstore(add(tokenInfoPtr, 0xC0), tmp) // outputReceiver
+
+            referralCode := shr(224, mload(add(dataPtr, pos)))
+            pos := add(pos, 4)
+
+            let pathLen := mul(shr(248, mload(add(dataPtr, pos))), 32)
+            pathDefinition := mload(0x40)
+            mstore(pathDefinition, pathLen)
+            let dest := add(pathDefinition, 0x20)
+            mstore(0x40, add(dest, pathLen))
+            let pathData := add(add(dataPtr, pos), 1)
+            for { let i := 0 } lt(i, pathLen) { i := add(i, 32) } {
+                mstore(add(dest, i), mload(add(pathData, i)))
+            }
+        }
+
+        console2.log("inputToken", tokenInfo.inputToken);
+        console2.log("inputAmount", tokenInfo.inputAmount);
+        console2.log("inputReceiver", tokenInfo.inputReceiver);
+        console2.log("outputToken", tokenInfo.outputToken);
+        console2.log("outputQuote", tokenInfo.outputQuote);
+        console2.log("outputMin", tokenInfo.outputMin);
+        console2.log("outputReceiver", tokenInfo.outputReceiver);
+        console2.log("executor", executor);
+        console2.log("referralCode", referralCode);
+        console2.log("pathDefinition.length", pathDefinition.length);
+    }
+
 }
 

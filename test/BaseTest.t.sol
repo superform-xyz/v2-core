@@ -200,6 +200,7 @@ struct Addresses {
     MockTargetExecutor mockTargetExecutor;
 }
 
+
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -290,6 +291,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bytes32 constant SALT = keccak256("TEST");
 
     address public mockBaseHook;
+
+    bool public useLatestFork = false;
+
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -1288,9 +1292,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
-        forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
-        forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
+
+        if (useLatestFork) {
+            forks[ETH] = vm.createFork(ETHEREUM_RPC_URL);
+            forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
+            forks[BASE] = vm.createFork(BASE_RPC_URL);
+        } else {
+            forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
+            forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
+            forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
+        }
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
         rpcURLs[ETH] = ETHEREUM_RPC_URL;

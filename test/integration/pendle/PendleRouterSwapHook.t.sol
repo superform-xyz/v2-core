@@ -15,7 +15,7 @@ import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
 
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 
-
+import "forge-std/console2.sol";
 contract PendleRouterSwapHook is BaseTest, OdosAPIParser {
     ISuperExecutor public superExecutor;
     AccountInstance public instance;
@@ -28,9 +28,11 @@ contract PendleRouterSwapHook is BaseTest, OdosAPIParser {
     address public odosRouter;
 
     function setUp() public override {
+        useLatestFork = true;
         super.setUp();
 
         vm.selectFork(FORKS[ETH]);
+
 
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         instance = accountInstances[ETH];
@@ -42,42 +44,42 @@ contract PendleRouterSwapHook is BaseTest, OdosAPIParser {
         odosRouter = CHAIN_1_ODOS_ROUTER;
     }
 
-    /**
-        // tx example: https://etherscan.io/tx/0x36b2c58e314e9d9bf73fc0d632ed228e35cd6b840066d12d39f72c633bad27a5
-        function test_PendleRouterSwap_Token_To_Pt() public {
-            uint256 amount = 1e12;
+    // tx example: https://etherscan.io/tx/0x36b2c58e314e9d9bf73fc0d632ed228e35cd6b840066d12d39f72c633bad27a5
+    function test_PendleRouterSwap_Token_To_Pt() public {
+        uint256 amount = 1e6;
 
-            // get tokens
-            deal(token, account, amount);
+        console2.log("--------timestamp", block.timestamp);
 
-            address[] memory hookAddresses = new address[](2);
-            hookAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-            hookAddresses[1] = _getHookAddress(ETH, PENDLE_ROUTER_SWAP_HOOK_KEY);
+        // get tokens
+        deal(token, account, amount);
 
-            bytes[] memory hookData = new bytes[](2);
-            hookData[0] = _createApproveHookData(token, CHAIN_1_PendleRouter, amount, false);
-            hookData[1] = _createPendleRouterSwapHookDataWithOdos(false, 1 ether, false, amount, CHAIN_1_USDC, CHAIN_1_cUSDO);
+        address[] memory hookAddresses = new address[](2);
+        hookAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hookAddresses[1] = _getHookAddress(ETH, PENDLE_ROUTER_SWAP_HOOK_KEY);
 
-            ISuperExecutor.ExecutorEntry memory entryToExecute =
-                    ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookData });
-            UserOpData memory opData = _getExecOps(
-                    instance,
-                    superExecutor,
-                    abi.encode(entryToExecute),
-                    _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
-            );
-            opData.userOp.paymasterAndData = bytes("");
+        bytes[] memory hookData = new bytes[](2);
+        hookData[0] = _createApproveHookData(token, CHAIN_1_PendleRouter, amount, false);
+        hookData[1] = _createPendleRouterSwapHookDataWithOdos(false, 1 ether, false, amount, CHAIN_1_USDC, CHAIN_1_cUSDO);
 
-            executeOp(opData);
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookData });
+        UserOpData memory opData = _getExecOps(
+                instance,
+                superExecutor,
+                abi.encode(entryToExecute),
+                _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
+        );
+        opData.userOp.paymasterAndData = bytes("");
 
-                IPendleMarket _market = IPendleMarket(CHAIN_1_PendleDefaultMarket);
-                (,address pt,) = _market.readTokens();
+        executeOp(opData);
 
-                uint256 balance = IERC20(pt).balanceOf(account);
-                assertGt(balance, 0);
+        IPendleMarket _market = IPendleMarket(CHAIN_1_PendleDefaultMarket);
+        (,address pt,) = _market.readTokens();
 
-        }
-    */
+        uint256 balance = IERC20(pt).balanceOf(account);
+        assertGt(balance, 0);
+
+    }
 
     //TODO: Move this to BaseTest
     function _createOdosSwapCalldataRequest(address _tokenIn, address _tokenOut, uint256 _amount, address _receiver) internal returns (bytes memory) {
@@ -99,6 +101,20 @@ contract PendleRouterSwapHook is BaseTest, OdosAPIParser {
         if (!ptToToken) {
             // call Odos swapAPI to get the calldata
             bytes memory odosCalldata = _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, account);
+            console2.log("odosCalldata");
+            console2.logBytes(odosCalldata);
+
+            console2.log("----------------decoding test");
+            decodeOdosSwapCalldata(odosCalldata);
+
+            console2.log("---account", account);    
+            console2.log("---tokenIn", tokenIn);    
+            console2.log("---tokenMint", tokenMint);    
+            console2.log("---amount", amount);    
+
+            console2.log("----------------decoding test for hardcoded data - taken from an existing tx");
+            decodeOdosSwapCalldata(hex"83bd37f90001a0b86991c6218b36c1d19d4a2e9eb0ce3606eb480001ad55aebc9b8c03fc43cd9f62260391c13c23e7c005012b6965500a010da7b828fa1570000000c49b0001fb2139331532e3ee59777fbbcb14af674f3fd671000190455bd11ce8a67c57d467e634dc142b8e4105aa0001888888888889758f76e7103c6cbf23abbf58f94635d39ebf03010203006701010001020100ff0000000000000000000000000000000000000090455bd11ce8a67c57d467e634dc142b8e4105aaa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000000000000000000000000000");
+
             pendleTxData = _createTokenToPtPendleTxDataWithOdos(pendleMarket, account, tokenIn, 1, amount, tokenMint, odosCalldata);
         } else {
             //TODO: fill with the other 
