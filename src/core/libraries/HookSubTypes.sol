@@ -5,19 +5,19 @@ pragma solidity 0.8.28;
 /// @author Superform Labs
 /// @notice Library for hook subtypes
 library HookSubTypes {
-    string constant BRIDGE = "Bridge";
-    string constant CLAIM = "Claim";
-    string constant COOLDOWN = "Cooldown";
-    string constant ERC4626 = "ERC4626";
-    string constant ERC5115 = "ERC5115";
-    string constant ERC7540 = "ERC7540";
-    string constant LOAN = "Loan";
-    string constant LOAN_REPAY = "LoanRepay";
-    string constant MISC = "Misc";
-    string constant STAKE = "Stake";
-    string constant SWAP = "Swap";
-    string constant TOKEN = "Token";
-    string constant UNSTAKE = "Unstake";
+    bytes32 constant BRIDGE = keccak256(bytes("Bridge"));
+    bytes32 constant CLAIM = keccak256(bytes("Claim"));
+    bytes32 constant COOLDOWN = keccak256(bytes("Cooldown"));
+    bytes32 constant ERC4626 = keccak256(bytes("ERC4626"));
+    bytes32 constant ERC5115 = keccak256(bytes("ERC5115"));
+    bytes32 constant ERC7540 = keccak256(bytes("ERC7540"));
+    bytes32 constant LOAN = keccak256(bytes("Loan"));
+    bytes32 constant LOAN_REPAY = keccak256(bytes("LoanRepay"));
+    bytes32 constant MISC = keccak256(bytes("Misc"));
+    bytes32 constant STAKE = keccak256(bytes("Stake"));
+    bytes32 constant SWAP = keccak256(bytes("Swap"));
+    bytes32 constant TOKEN = keccak256(bytes("Token"));
+    bytes32 constant UNSTAKE = keccak256(bytes("Unstake"));
 
     function getHookSubType(string memory hookSubtype) internal pure returns (bytes32) {
         return keccak256(bytes(hookSubtype));
