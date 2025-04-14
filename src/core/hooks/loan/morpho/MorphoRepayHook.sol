@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 // external
-import { IIrm } from "../../../../vendor/morpho/Iirm.sol";
+import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
