@@ -25,7 +25,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
 //                  The amount of collateral to supply to the morpho contract
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);        
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 146);
@@ -77,9 +77,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount = deriveLoanAmount(
-            vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed
-        );
+        uint256 loanAmount =
+            deriveLoanAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
 
         executions = new Execution[](4);
         executions[0] =
@@ -97,8 +96,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         executions[3] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account)) 
-         });
+            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account))
+        });
     }
 
     /// @inheritdoc ISuperHookLoans
@@ -143,7 +142,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
             loanAmount = Math.mulDiv(collateralAmount, scalingFactor, price);
         }
     }
-
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS

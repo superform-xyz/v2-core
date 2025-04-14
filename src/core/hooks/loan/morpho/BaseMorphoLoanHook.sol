@@ -33,8 +33,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, string memory hookSubtype_) BaseLoanHook(registry_, hookSubtype_) {
-    }
+    constructor(address registry_, string memory hookSubtype_) BaseLoanHook(registry_, hookSubtype_) { }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
@@ -52,7 +51,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         bool usePrevHookAmount = _decodeBool(data, 144);
         bool isPositiveFeed = _decodeBool(data, 145);
         bool isFullRepayment = _decodeBool(data, 146);
-        
+
         vars = BuildHookLocalVars({
             loanToken: loanToken,
             collateralToken: collateralToken,
