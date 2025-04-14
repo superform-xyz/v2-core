@@ -144,12 +144,11 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
     }
 
     /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
+    function getUsedAssets(address, bytes memory data) external view returns (uint256) {
         address loanToken = BytesLib.toAddress(data, 0);
         address oracle = BytesLib.toAddress(data, 40);
         address collateralToken = BytesLib.toAddress(data, 20);
         bool isPositiveFeed = _decodeBool(data, 146);
-        uint256 loanAmount = _decodeAmount(data);
         return _deriveCollateralAmountFromLoanAmount(loanToken, oracle, collateralToken, isPositiveFeed, outAmount);
     }
 
@@ -161,7 +160,7 @@ contract MorphoRepayHook is BaseHook, BaseLoanHook {
         outAmount = getCollateralTokenBalance(account, data);
     }
 
-    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
+    function _postExecute(address, address, bytes calldata) internal override {
         outAmount = 0;
     }
 

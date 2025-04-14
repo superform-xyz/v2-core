@@ -114,7 +114,7 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
     }
 
     /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
+    function getUsedAssets(address, bytes memory) external view returns (uint256) {
         return outAmount;
     }
     /*//////////////////////////////////////////////////////////////
@@ -125,7 +125,7 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
         outAmount = getCollateralTokenBalance(account, data);
     }
 
-    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
+    function _postExecute(address, address account, bytes calldata) internal override {
         outAmount = outAmount - getCollateralTokenBalance(account, data);
     }
 

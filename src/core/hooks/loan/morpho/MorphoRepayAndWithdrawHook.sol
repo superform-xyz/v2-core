@@ -103,7 +103,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(vars.id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 amountToApprove = _deriveLoanAmount(vars.id, account);
+            uint256 amountToApprove = _deriveLoanAmount(vars.id, account) + fee;
             collateralForWithdraw = _deriveCollateralForFullRepayment(vars.id, account);
 
             executions[0] =
@@ -169,7 +169,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
     }
 
     /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
+    function getUsedAssets(address, bytes memory) external view returns (uint256) {
         return outAmount;
     }
 
@@ -181,7 +181,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         outAmount = getCollateralTokenBalance(account, data);
     }
 
-    function _postExecute(address prevHook, address account, bytes calldata data) internal override {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = getCollateralTokenBalance(account, data) - outAmount;
     }
 
