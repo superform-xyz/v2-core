@@ -327,6 +327,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                         console2.log("Current liabilityAmount:", liabilityAmount);
                         if (vars.outAmount <= liabilityAmount) {
                             liabilityAmount -= ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
+                        } else {
+                            liabilityAmount = 0;
                         }
                     }
                 }
