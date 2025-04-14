@@ -31,7 +31,7 @@ var (
 
 // PeripheryRegistryMetaData contains all meta data concerning the PeripheryRegistry contract.
 var PeripheryRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"owner_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"treasury_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeFeeSplitUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getRegisteredHooks\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperformFeeSplit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTreasury\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isHookRegistered\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeFeeSplit\",\"inputs\":[{\"name\":\"feeSplit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registeredHooks\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTreasury\",\"inputs\":[{\"name\":\"treasury_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"unregisterHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"FeeSplitProposed\",\"inputs\":[{\"name\":\"superformFeeSplit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeSplitUpdated\",\"inputs\":[{\"name\":\"superformFeeSplit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookUnregistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"TreasuryUpdated\",\"inputs\":[{\"name\":\"treasury\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"HOOK_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_SPLIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_EXPIRED\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"owner_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"treasury_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeFeeSplitUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getRegisteredHooks\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperformFeeSplit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTreasury\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isFulfillRequestsHookRegistered\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isHookRegistered\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeFeeSplit\",\"inputs\":[{\"name\":\"feeSplit_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isFulfillRequestsHook_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registeredFulfillRequestsHooks\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"registeredHooks\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSvSlippageTolerance\",\"inputs\":[{\"name\":\"svSlippageTolerance_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTreasury\",\"inputs\":[{\"name\":\"treasury_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"svSlippageTolerance\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"unregisterHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isFulfillRequestsHook_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"FeeSplitProposed\",\"inputs\":[{\"name\":\"superformFeeSplit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeSplitUpdated\",\"inputs\":[{\"name\":\"superformFeeSplit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FulfillRequestsHookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FulfillRequestsHookUnregistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookUnregistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SvSlippageToleranceUpdated\",\"inputs\":[{\"name\":\"svSlippageTolerance\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"TreasuryUpdated\",\"inputs\":[{\"name\":\"treasury\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"HOOK_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_SPLIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SLIPPAGE_TOLERANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_EXPIRED\",\"inputs\":[]}]",
 }
 
 // PeripheryRegistryABI is the input ABI used to generate the binding from.
@@ -273,6 +273,37 @@ func (_PeripheryRegistry *PeripheryRegistryCallerSession) GetTreasury() (common.
 	return _PeripheryRegistry.Contract.GetTreasury(&_PeripheryRegistry.CallOpts)
 }
 
+// IsFulfillRequestsHookRegistered is a free data retrieval call binding the contract method 0x7d3e649e.
+//
+// Solidity: function isFulfillRequestsHookRegistered(address ) view returns(bool)
+func (_PeripheryRegistry *PeripheryRegistryCaller) IsFulfillRequestsHookRegistered(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
+	var out []interface{}
+	err := _PeripheryRegistry.contract.Call(opts, &out, "isFulfillRequestsHookRegistered", arg0)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// IsFulfillRequestsHookRegistered is a free data retrieval call binding the contract method 0x7d3e649e.
+//
+// Solidity: function isFulfillRequestsHookRegistered(address ) view returns(bool)
+func (_PeripheryRegistry *PeripheryRegistrySession) IsFulfillRequestsHookRegistered(arg0 common.Address) (bool, error) {
+	return _PeripheryRegistry.Contract.IsFulfillRequestsHookRegistered(&_PeripheryRegistry.CallOpts, arg0)
+}
+
+// IsFulfillRequestsHookRegistered is a free data retrieval call binding the contract method 0x7d3e649e.
+//
+// Solidity: function isFulfillRequestsHookRegistered(address ) view returns(bool)
+func (_PeripheryRegistry *PeripheryRegistryCallerSession) IsFulfillRequestsHookRegistered(arg0 common.Address) (bool, error) {
+	return _PeripheryRegistry.Contract.IsFulfillRequestsHookRegistered(&_PeripheryRegistry.CallOpts, arg0)
+}
+
 // IsHookRegistered is a free data retrieval call binding the contract method 0x0cbad00c.
 //
 // Solidity: function isHookRegistered(address ) view returns(bool)
@@ -366,6 +397,37 @@ func (_PeripheryRegistry *PeripheryRegistryCallerSession) PendingOwner() (common
 	return _PeripheryRegistry.Contract.PendingOwner(&_PeripheryRegistry.CallOpts)
 }
 
+// RegisteredFulfillRequestsHooks is a free data retrieval call binding the contract method 0x77b5764a.
+//
+// Solidity: function registeredFulfillRequestsHooks(uint256 ) view returns(address)
+func (_PeripheryRegistry *PeripheryRegistryCaller) RegisteredFulfillRequestsHooks(opts *bind.CallOpts, arg0 *big.Int) (common.Address, error) {
+	var out []interface{}
+	err := _PeripheryRegistry.contract.Call(opts, &out, "registeredFulfillRequestsHooks", arg0)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// RegisteredFulfillRequestsHooks is a free data retrieval call binding the contract method 0x77b5764a.
+//
+// Solidity: function registeredFulfillRequestsHooks(uint256 ) view returns(address)
+func (_PeripheryRegistry *PeripheryRegistrySession) RegisteredFulfillRequestsHooks(arg0 *big.Int) (common.Address, error) {
+	return _PeripheryRegistry.Contract.RegisteredFulfillRequestsHooks(&_PeripheryRegistry.CallOpts, arg0)
+}
+
+// RegisteredFulfillRequestsHooks is a free data retrieval call binding the contract method 0x77b5764a.
+//
+// Solidity: function registeredFulfillRequestsHooks(uint256 ) view returns(address)
+func (_PeripheryRegistry *PeripheryRegistryCallerSession) RegisteredFulfillRequestsHooks(arg0 *big.Int) (common.Address, error) {
+	return _PeripheryRegistry.Contract.RegisteredFulfillRequestsHooks(&_PeripheryRegistry.CallOpts, arg0)
+}
+
 // RegisteredHooks is a free data retrieval call binding the contract method 0xc754336c.
 //
 // Solidity: function registeredHooks(uint256 ) view returns(address)
@@ -395,6 +457,37 @@ func (_PeripheryRegistry *PeripheryRegistrySession) RegisteredHooks(arg0 *big.In
 // Solidity: function registeredHooks(uint256 ) view returns(address)
 func (_PeripheryRegistry *PeripheryRegistryCallerSession) RegisteredHooks(arg0 *big.Int) (common.Address, error) {
 	return _PeripheryRegistry.Contract.RegisteredHooks(&_PeripheryRegistry.CallOpts, arg0)
+}
+
+// SvSlippageTolerance is a free data retrieval call binding the contract method 0x3f1d3f07.
+//
+// Solidity: function svSlippageTolerance() view returns(uint256)
+func (_PeripheryRegistry *PeripheryRegistryCaller) SvSlippageTolerance(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _PeripheryRegistry.contract.Call(opts, &out, "svSlippageTolerance")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// SvSlippageTolerance is a free data retrieval call binding the contract method 0x3f1d3f07.
+//
+// Solidity: function svSlippageTolerance() view returns(uint256)
+func (_PeripheryRegistry *PeripheryRegistrySession) SvSlippageTolerance() (*big.Int, error) {
+	return _PeripheryRegistry.Contract.SvSlippageTolerance(&_PeripheryRegistry.CallOpts)
+}
+
+// SvSlippageTolerance is a free data retrieval call binding the contract method 0x3f1d3f07.
+//
+// Solidity: function svSlippageTolerance() view returns(uint256)
+func (_PeripheryRegistry *PeripheryRegistryCallerSession) SvSlippageTolerance() (*big.Int, error) {
+	return _PeripheryRegistry.Contract.SvSlippageTolerance(&_PeripheryRegistry.CallOpts)
 }
 
 // AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
@@ -460,25 +553,25 @@ func (_PeripheryRegistry *PeripheryRegistryTransactorSession) ProposeFeeSplit(fe
 	return _PeripheryRegistry.Contract.ProposeFeeSplit(&_PeripheryRegistry.TransactOpts, feeSplit_)
 }
 
-// RegisterHook is a paid mutator transaction binding the contract method 0x6354b661.
+// RegisterHook is a paid mutator transaction binding the contract method 0x8481643b.
 //
-// Solidity: function registerHook(address hook_) returns()
-func (_PeripheryRegistry *PeripheryRegistryTransactor) RegisterHook(opts *bind.TransactOpts, hook_ common.Address) (*types.Transaction, error) {
-	return _PeripheryRegistry.contract.Transact(opts, "registerHook", hook_)
+// Solidity: function registerHook(address hook_, bool isFulfillRequestsHook_) returns()
+func (_PeripheryRegistry *PeripheryRegistryTransactor) RegisterHook(opts *bind.TransactOpts, hook_ common.Address, isFulfillRequestsHook_ bool) (*types.Transaction, error) {
+	return _PeripheryRegistry.contract.Transact(opts, "registerHook", hook_, isFulfillRequestsHook_)
 }
 
-// RegisterHook is a paid mutator transaction binding the contract method 0x6354b661.
+// RegisterHook is a paid mutator transaction binding the contract method 0x8481643b.
 //
-// Solidity: function registerHook(address hook_) returns()
-func (_PeripheryRegistry *PeripheryRegistrySession) RegisterHook(hook_ common.Address) (*types.Transaction, error) {
-	return _PeripheryRegistry.Contract.RegisterHook(&_PeripheryRegistry.TransactOpts, hook_)
+// Solidity: function registerHook(address hook_, bool isFulfillRequestsHook_) returns()
+func (_PeripheryRegistry *PeripheryRegistrySession) RegisterHook(hook_ common.Address, isFulfillRequestsHook_ bool) (*types.Transaction, error) {
+	return _PeripheryRegistry.Contract.RegisterHook(&_PeripheryRegistry.TransactOpts, hook_, isFulfillRequestsHook_)
 }
 
-// RegisterHook is a paid mutator transaction binding the contract method 0x6354b661.
+// RegisterHook is a paid mutator transaction binding the contract method 0x8481643b.
 //
-// Solidity: function registerHook(address hook_) returns()
-func (_PeripheryRegistry *PeripheryRegistryTransactorSession) RegisterHook(hook_ common.Address) (*types.Transaction, error) {
-	return _PeripheryRegistry.Contract.RegisterHook(&_PeripheryRegistry.TransactOpts, hook_)
+// Solidity: function registerHook(address hook_, bool isFulfillRequestsHook_) returns()
+func (_PeripheryRegistry *PeripheryRegistryTransactorSession) RegisterHook(hook_ common.Address, isFulfillRequestsHook_ bool) (*types.Transaction, error) {
+	return _PeripheryRegistry.Contract.RegisterHook(&_PeripheryRegistry.TransactOpts, hook_, isFulfillRequestsHook_)
 }
 
 // RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
@@ -500,6 +593,27 @@ func (_PeripheryRegistry *PeripheryRegistrySession) RenounceOwnership() (*types.
 // Solidity: function renounceOwnership() returns()
 func (_PeripheryRegistry *PeripheryRegistryTransactorSession) RenounceOwnership() (*types.Transaction, error) {
 	return _PeripheryRegistry.Contract.RenounceOwnership(&_PeripheryRegistry.TransactOpts)
+}
+
+// SetSvSlippageTolerance is a paid mutator transaction binding the contract method 0x95638bb5.
+//
+// Solidity: function setSvSlippageTolerance(uint256 svSlippageTolerance_) returns()
+func (_PeripheryRegistry *PeripheryRegistryTransactor) SetSvSlippageTolerance(opts *bind.TransactOpts, svSlippageTolerance_ *big.Int) (*types.Transaction, error) {
+	return _PeripheryRegistry.contract.Transact(opts, "setSvSlippageTolerance", svSlippageTolerance_)
+}
+
+// SetSvSlippageTolerance is a paid mutator transaction binding the contract method 0x95638bb5.
+//
+// Solidity: function setSvSlippageTolerance(uint256 svSlippageTolerance_) returns()
+func (_PeripheryRegistry *PeripheryRegistrySession) SetSvSlippageTolerance(svSlippageTolerance_ *big.Int) (*types.Transaction, error) {
+	return _PeripheryRegistry.Contract.SetSvSlippageTolerance(&_PeripheryRegistry.TransactOpts, svSlippageTolerance_)
+}
+
+// SetSvSlippageTolerance is a paid mutator transaction binding the contract method 0x95638bb5.
+//
+// Solidity: function setSvSlippageTolerance(uint256 svSlippageTolerance_) returns()
+func (_PeripheryRegistry *PeripheryRegistryTransactorSession) SetSvSlippageTolerance(svSlippageTolerance_ *big.Int) (*types.Transaction, error) {
+	return _PeripheryRegistry.Contract.SetSvSlippageTolerance(&_PeripheryRegistry.TransactOpts, svSlippageTolerance_)
 }
 
 // SetTreasury is a paid mutator transaction binding the contract method 0xf0f44260.
@@ -544,25 +658,25 @@ func (_PeripheryRegistry *PeripheryRegistryTransactorSession) TransferOwnership(
 	return _PeripheryRegistry.Contract.TransferOwnership(&_PeripheryRegistry.TransactOpts, newOwner)
 }
 
-// UnregisterHook is a paid mutator transaction binding the contract method 0xf76f48cb.
+// UnregisterHook is a paid mutator transaction binding the contract method 0xdf30fc07.
 //
-// Solidity: function unregisterHook(address hook_) returns()
-func (_PeripheryRegistry *PeripheryRegistryTransactor) UnregisterHook(opts *bind.TransactOpts, hook_ common.Address) (*types.Transaction, error) {
-	return _PeripheryRegistry.contract.Transact(opts, "unregisterHook", hook_)
+// Solidity: function unregisterHook(address hook_, bool isFulfillRequestsHook_) returns()
+func (_PeripheryRegistry *PeripheryRegistryTransactor) UnregisterHook(opts *bind.TransactOpts, hook_ common.Address, isFulfillRequestsHook_ bool) (*types.Transaction, error) {
+	return _PeripheryRegistry.contract.Transact(opts, "unregisterHook", hook_, isFulfillRequestsHook_)
 }
 
-// UnregisterHook is a paid mutator transaction binding the contract method 0xf76f48cb.
+// UnregisterHook is a paid mutator transaction binding the contract method 0xdf30fc07.
 //
-// Solidity: function unregisterHook(address hook_) returns()
-func (_PeripheryRegistry *PeripheryRegistrySession) UnregisterHook(hook_ common.Address) (*types.Transaction, error) {
-	return _PeripheryRegistry.Contract.UnregisterHook(&_PeripheryRegistry.TransactOpts, hook_)
+// Solidity: function unregisterHook(address hook_, bool isFulfillRequestsHook_) returns()
+func (_PeripheryRegistry *PeripheryRegistrySession) UnregisterHook(hook_ common.Address, isFulfillRequestsHook_ bool) (*types.Transaction, error) {
+	return _PeripheryRegistry.Contract.UnregisterHook(&_PeripheryRegistry.TransactOpts, hook_, isFulfillRequestsHook_)
 }
 
-// UnregisterHook is a paid mutator transaction binding the contract method 0xf76f48cb.
+// UnregisterHook is a paid mutator transaction binding the contract method 0xdf30fc07.
 //
-// Solidity: function unregisterHook(address hook_) returns()
-func (_PeripheryRegistry *PeripheryRegistryTransactorSession) UnregisterHook(hook_ common.Address) (*types.Transaction, error) {
-	return _PeripheryRegistry.Contract.UnregisterHook(&_PeripheryRegistry.TransactOpts, hook_)
+// Solidity: function unregisterHook(address hook_, bool isFulfillRequestsHook_) returns()
+func (_PeripheryRegistry *PeripheryRegistryTransactorSession) UnregisterHook(hook_ common.Address, isFulfillRequestsHook_ bool) (*types.Transaction, error) {
+	return _PeripheryRegistry.Contract.UnregisterHook(&_PeripheryRegistry.TransactOpts, hook_, isFulfillRequestsHook_)
 }
 
 // PeripheryRegistryFeeSplitProposedIterator is returned from FilterFeeSplitProposed and is used to iterate over the raw logs and unpacked data for FeeSplitProposed events raised by the PeripheryRegistry contract.
@@ -828,6 +942,294 @@ func (_PeripheryRegistry *PeripheryRegistryFilterer) WatchFeeSplitUpdated(opts *
 func (_PeripheryRegistry *PeripheryRegistryFilterer) ParseFeeSplitUpdated(log types.Log) (*PeripheryRegistryFeeSplitUpdated, error) {
 	event := new(PeripheryRegistryFeeSplitUpdated)
 	if err := _PeripheryRegistry.contract.UnpackLog(event, "FeeSplitUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// PeripheryRegistryFulfillRequestsHookRegisteredIterator is returned from FilterFulfillRequestsHookRegistered and is used to iterate over the raw logs and unpacked data for FulfillRequestsHookRegistered events raised by the PeripheryRegistry contract.
+type PeripheryRegistryFulfillRequestsHookRegisteredIterator struct {
+	Event *PeripheryRegistryFulfillRequestsHookRegistered // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PeripheryRegistryFulfillRequestsHookRegisteredIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PeripheryRegistryFulfillRequestsHookRegistered)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PeripheryRegistryFulfillRequestsHookRegistered)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PeripheryRegistryFulfillRequestsHookRegisteredIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PeripheryRegistryFulfillRequestsHookRegisteredIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PeripheryRegistryFulfillRequestsHookRegistered represents a FulfillRequestsHookRegistered event raised by the PeripheryRegistry contract.
+type PeripheryRegistryFulfillRequestsHookRegistered struct {
+	Hook common.Address
+	Raw  types.Log // Blockchain specific contextual infos
+}
+
+// FilterFulfillRequestsHookRegistered is a free log retrieval operation binding the contract event 0x11764f0d0c3db8483b5aa057c1f5266bac770010886dc97e83bec7f34f315807.
+//
+// Solidity: event FulfillRequestsHookRegistered(address indexed hook)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) FilterFulfillRequestsHookRegistered(opts *bind.FilterOpts, hook []common.Address) (*PeripheryRegistryFulfillRequestsHookRegisteredIterator, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+
+	logs, sub, err := _PeripheryRegistry.contract.FilterLogs(opts, "FulfillRequestsHookRegistered", hookRule)
+	if err != nil {
+		return nil, err
+	}
+	return &PeripheryRegistryFulfillRequestsHookRegisteredIterator{contract: _PeripheryRegistry.contract, event: "FulfillRequestsHookRegistered", logs: logs, sub: sub}, nil
+}
+
+// WatchFulfillRequestsHookRegistered is a free log subscription operation binding the contract event 0x11764f0d0c3db8483b5aa057c1f5266bac770010886dc97e83bec7f34f315807.
+//
+// Solidity: event FulfillRequestsHookRegistered(address indexed hook)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) WatchFulfillRequestsHookRegistered(opts *bind.WatchOpts, sink chan<- *PeripheryRegistryFulfillRequestsHookRegistered, hook []common.Address) (event.Subscription, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+
+	logs, sub, err := _PeripheryRegistry.contract.WatchLogs(opts, "FulfillRequestsHookRegistered", hookRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PeripheryRegistryFulfillRequestsHookRegistered)
+				if err := _PeripheryRegistry.contract.UnpackLog(event, "FulfillRequestsHookRegistered", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseFulfillRequestsHookRegistered is a log parse operation binding the contract event 0x11764f0d0c3db8483b5aa057c1f5266bac770010886dc97e83bec7f34f315807.
+//
+// Solidity: event FulfillRequestsHookRegistered(address indexed hook)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) ParseFulfillRequestsHookRegistered(log types.Log) (*PeripheryRegistryFulfillRequestsHookRegistered, error) {
+	event := new(PeripheryRegistryFulfillRequestsHookRegistered)
+	if err := _PeripheryRegistry.contract.UnpackLog(event, "FulfillRequestsHookRegistered", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// PeripheryRegistryFulfillRequestsHookUnregisteredIterator is returned from FilterFulfillRequestsHookUnregistered and is used to iterate over the raw logs and unpacked data for FulfillRequestsHookUnregistered events raised by the PeripheryRegistry contract.
+type PeripheryRegistryFulfillRequestsHookUnregisteredIterator struct {
+	Event *PeripheryRegistryFulfillRequestsHookUnregistered // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PeripheryRegistryFulfillRequestsHookUnregisteredIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PeripheryRegistryFulfillRequestsHookUnregistered)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PeripheryRegistryFulfillRequestsHookUnregistered)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PeripheryRegistryFulfillRequestsHookUnregisteredIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PeripheryRegistryFulfillRequestsHookUnregisteredIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PeripheryRegistryFulfillRequestsHookUnregistered represents a FulfillRequestsHookUnregistered event raised by the PeripheryRegistry contract.
+type PeripheryRegistryFulfillRequestsHookUnregistered struct {
+	Hook common.Address
+	Raw  types.Log // Blockchain specific contextual infos
+}
+
+// FilterFulfillRequestsHookUnregistered is a free log retrieval operation binding the contract event 0x305fc42e276ebac0666dd3b0dbe7bd4014ce8a289b4078026176e821c4b5ef1d.
+//
+// Solidity: event FulfillRequestsHookUnregistered(address indexed hook)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) FilterFulfillRequestsHookUnregistered(opts *bind.FilterOpts, hook []common.Address) (*PeripheryRegistryFulfillRequestsHookUnregisteredIterator, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+
+	logs, sub, err := _PeripheryRegistry.contract.FilterLogs(opts, "FulfillRequestsHookUnregistered", hookRule)
+	if err != nil {
+		return nil, err
+	}
+	return &PeripheryRegistryFulfillRequestsHookUnregisteredIterator{contract: _PeripheryRegistry.contract, event: "FulfillRequestsHookUnregistered", logs: logs, sub: sub}, nil
+}
+
+// WatchFulfillRequestsHookUnregistered is a free log subscription operation binding the contract event 0x305fc42e276ebac0666dd3b0dbe7bd4014ce8a289b4078026176e821c4b5ef1d.
+//
+// Solidity: event FulfillRequestsHookUnregistered(address indexed hook)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) WatchFulfillRequestsHookUnregistered(opts *bind.WatchOpts, sink chan<- *PeripheryRegistryFulfillRequestsHookUnregistered, hook []common.Address) (event.Subscription, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+
+	logs, sub, err := _PeripheryRegistry.contract.WatchLogs(opts, "FulfillRequestsHookUnregistered", hookRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PeripheryRegistryFulfillRequestsHookUnregistered)
+				if err := _PeripheryRegistry.contract.UnpackLog(event, "FulfillRequestsHookUnregistered", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseFulfillRequestsHookUnregistered is a log parse operation binding the contract event 0x305fc42e276ebac0666dd3b0dbe7bd4014ce8a289b4078026176e821c4b5ef1d.
+//
+// Solidity: event FulfillRequestsHookUnregistered(address indexed hook)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) ParseFulfillRequestsHookUnregistered(log types.Log) (*PeripheryRegistryFulfillRequestsHookUnregistered, error) {
+	event := new(PeripheryRegistryFulfillRequestsHookUnregistered)
+	if err := _PeripheryRegistry.contract.UnpackLog(event, "FulfillRequestsHookUnregistered", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -1422,6 +1824,140 @@ func (_PeripheryRegistry *PeripheryRegistryFilterer) WatchOwnershipTransferred(o
 func (_PeripheryRegistry *PeripheryRegistryFilterer) ParseOwnershipTransferred(log types.Log) (*PeripheryRegistryOwnershipTransferred, error) {
 	event := new(PeripheryRegistryOwnershipTransferred)
 	if err := _PeripheryRegistry.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// PeripheryRegistrySvSlippageToleranceUpdatedIterator is returned from FilterSvSlippageToleranceUpdated and is used to iterate over the raw logs and unpacked data for SvSlippageToleranceUpdated events raised by the PeripheryRegistry contract.
+type PeripheryRegistrySvSlippageToleranceUpdatedIterator struct {
+	Event *PeripheryRegistrySvSlippageToleranceUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *PeripheryRegistrySvSlippageToleranceUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(PeripheryRegistrySvSlippageToleranceUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(PeripheryRegistrySvSlippageToleranceUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *PeripheryRegistrySvSlippageToleranceUpdatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *PeripheryRegistrySvSlippageToleranceUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// PeripheryRegistrySvSlippageToleranceUpdated represents a SvSlippageToleranceUpdated event raised by the PeripheryRegistry contract.
+type PeripheryRegistrySvSlippageToleranceUpdated struct {
+	SvSlippageTolerance *big.Int
+	Raw                 types.Log // Blockchain specific contextual infos
+}
+
+// FilterSvSlippageToleranceUpdated is a free log retrieval operation binding the contract event 0x8dd48321d22449688cd87d29c7d3bd05cadadf105dc17e85ae63c1e0cd53f5fc.
+//
+// Solidity: event SvSlippageToleranceUpdated(uint256 svSlippageTolerance)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) FilterSvSlippageToleranceUpdated(opts *bind.FilterOpts) (*PeripheryRegistrySvSlippageToleranceUpdatedIterator, error) {
+
+	logs, sub, err := _PeripheryRegistry.contract.FilterLogs(opts, "SvSlippageToleranceUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return &PeripheryRegistrySvSlippageToleranceUpdatedIterator{contract: _PeripheryRegistry.contract, event: "SvSlippageToleranceUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchSvSlippageToleranceUpdated is a free log subscription operation binding the contract event 0x8dd48321d22449688cd87d29c7d3bd05cadadf105dc17e85ae63c1e0cd53f5fc.
+//
+// Solidity: event SvSlippageToleranceUpdated(uint256 svSlippageTolerance)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) WatchSvSlippageToleranceUpdated(opts *bind.WatchOpts, sink chan<- *PeripheryRegistrySvSlippageToleranceUpdated) (event.Subscription, error) {
+
+	logs, sub, err := _PeripheryRegistry.contract.WatchLogs(opts, "SvSlippageToleranceUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(PeripheryRegistrySvSlippageToleranceUpdated)
+				if err := _PeripheryRegistry.contract.UnpackLog(event, "SvSlippageToleranceUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSvSlippageToleranceUpdated is a log parse operation binding the contract event 0x8dd48321d22449688cd87d29c7d3bd05cadadf105dc17e85ae63c1e0cd53f5fc.
+//
+// Solidity: event SvSlippageToleranceUpdated(uint256 svSlippageTolerance)
+func (_PeripheryRegistry *PeripheryRegistryFilterer) ParseSvSlippageToleranceUpdated(log types.Log) (*PeripheryRegistrySvSlippageToleranceUpdated, error) {
+	event := new(PeripheryRegistrySvSlippageToleranceUpdated)
+	if err := _PeripheryRegistry.contract.UnpackLog(event, "SvSlippageToleranceUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

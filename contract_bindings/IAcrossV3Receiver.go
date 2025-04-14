@@ -31,7 +31,7 @@ var (
 
 // IAcrossV3ReceiverMetaData contains all meta data concerning the IAcrossV3Receiver contract.
 var IAcrossV3ReceiverMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"handleV3AcrossMessage\",\"inputs\":[{\"name\":\"tokenSent\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"relayer\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"message\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedAndExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"INVALID_SENDER\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"handleV3AcrossMessage\",\"inputs\":[{\"name\":\"tokenSent\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"relayer\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"message\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedAndExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButExecutionFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AcrossFundsReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"INVALID_SENDER\",\"inputs\":[]}]",
 }
 
 // IAcrossV3ReceiverABI is the input ABI used to generate the binding from.
@@ -339,6 +339,150 @@ func (_IAcrossV3Receiver *IAcrossV3ReceiverFilterer) WatchAcrossFundsReceivedAnd
 func (_IAcrossV3Receiver *IAcrossV3ReceiverFilterer) ParseAcrossFundsReceivedAndExecuted(log types.Log) (*IAcrossV3ReceiverAcrossFundsReceivedAndExecuted, error) {
 	event := new(IAcrossV3ReceiverAcrossFundsReceivedAndExecuted)
 	if err := _IAcrossV3Receiver.contract.UnpackLog(event, "AcrossFundsReceivedAndExecuted", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailedIterator is returned from FilterAcrossFundsReceivedButExecutionFailed and is used to iterate over the raw logs and unpacked data for AcrossFundsReceivedButExecutionFailed events raised by the IAcrossV3Receiver contract.
+type IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailedIterator struct {
+	Event *IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed represents a AcrossFundsReceivedButExecutionFailed event raised by the IAcrossV3Receiver contract.
+type IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed struct {
+	Account common.Address
+	Raw     types.Log // Blockchain specific contextual infos
+}
+
+// FilterAcrossFundsReceivedButExecutionFailed is a free log retrieval operation binding the contract event 0x04c138373117f58fea06058b5a537a58b5a5324f226667d219560baa728b609a.
+//
+// Solidity: event AcrossFundsReceivedButExecutionFailed(address indexed account)
+func (_IAcrossV3Receiver *IAcrossV3ReceiverFilterer) FilterAcrossFundsReceivedButExecutionFailed(opts *bind.FilterOpts, account []common.Address) (*IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailedIterator, error) {
+
+	var accountRule []interface{}
+	for _, accountItem := range account {
+		accountRule = append(accountRule, accountItem)
+	}
+
+	logs, sub, err := _IAcrossV3Receiver.contract.FilterLogs(opts, "AcrossFundsReceivedButExecutionFailed", accountRule)
+	if err != nil {
+		return nil, err
+	}
+	return &IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailedIterator{contract: _IAcrossV3Receiver.contract, event: "AcrossFundsReceivedButExecutionFailed", logs: logs, sub: sub}, nil
+}
+
+// WatchAcrossFundsReceivedButExecutionFailed is a free log subscription operation binding the contract event 0x04c138373117f58fea06058b5a537a58b5a5324f226667d219560baa728b609a.
+//
+// Solidity: event AcrossFundsReceivedButExecutionFailed(address indexed account)
+func (_IAcrossV3Receiver *IAcrossV3ReceiverFilterer) WatchAcrossFundsReceivedButExecutionFailed(opts *bind.WatchOpts, sink chan<- *IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed, account []common.Address) (event.Subscription, error) {
+
+	var accountRule []interface{}
+	for _, accountItem := range account {
+		accountRule = append(accountRule, accountItem)
+	}
+
+	logs, sub, err := _IAcrossV3Receiver.contract.WatchLogs(opts, "AcrossFundsReceivedButExecutionFailed", accountRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed)
+				if err := _IAcrossV3Receiver.contract.UnpackLog(event, "AcrossFundsReceivedButExecutionFailed", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseAcrossFundsReceivedButExecutionFailed is a log parse operation binding the contract event 0x04c138373117f58fea06058b5a537a58b5a5324f226667d219560baa728b609a.
+//
+// Solidity: event AcrossFundsReceivedButExecutionFailed(address indexed account)
+func (_IAcrossV3Receiver *IAcrossV3ReceiverFilterer) ParseAcrossFundsReceivedButExecutionFailed(log types.Log) (*IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed, error) {
+	event := new(IAcrossV3ReceiverAcrossFundsReceivedButExecutionFailed)
+	if err := _IAcrossV3Receiver.contract.UnpackLog(event, "AcrossFundsReceivedButExecutionFailed", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
