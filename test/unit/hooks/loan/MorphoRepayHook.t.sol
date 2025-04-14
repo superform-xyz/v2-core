@@ -152,7 +152,7 @@ contract MorphoRepayHookTest is BaseTest {
         view
         returns (bytes memory)
     {
-        return _encodeDataWithParams(marketParams, _amount, usePrevHook, isFullRepayment, isPositiveFeed);
+        return _encodeDataWithParams(marketParams, _amount, usePrevHook, isPositiveFeed, isFullRepayment);
     }
 
     /// @dev Encodes data for the MorphoRepayHook using specific MarketParams.
@@ -175,8 +175,8 @@ contract MorphoRepayHookTest is BaseTest {
             _amount, // uint256 amount (80-111)
             _params.lltv, // uint256 lltv (112-143)
             usePrevHook, // bool usePrevHookAmount (144)
-            isFullRepayment, // bool isFullRepayment (145)
-            isPositiveFeed // bool isPositiveFeed (146)
+            isPositiveFeed, // bool isPositiveFeed (145)
+            isFullRepayment // bool isFullRepayment (146)
         );
     }
 }
