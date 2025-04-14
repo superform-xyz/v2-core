@@ -52,6 +52,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         bool usePrevHookAmount = _decodeBool(data, 144);
         bool isPositiveFeed = _decodeBool(data, 145);
         bool isFullRepayment = _decodeBool(data, 146);
+        
         vars = BuildHookLocalVars({
             loanToken: loanToken,
             collateralToken: collateralToken,

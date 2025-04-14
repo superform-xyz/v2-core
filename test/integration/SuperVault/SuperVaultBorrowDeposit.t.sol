@@ -190,7 +190,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
 
         // Warp forward to simulate yield
-        //vm.warp(block.timestamp + 15 weeks);
+        vm.warp(block.timestamp + 1 weeks);
 
         // Swap collateral for loan
         _swapCollateralForLoan();
@@ -232,7 +232,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory repayHookDataArray = new bytes[](1);
         bytes memory repayHookData =
-            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true, false);
+            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false, true);
         repayHookDataArray[0] = repayHookData;
 
         uint256 assetsPaid = _deriveAssetsPaid();
@@ -296,7 +296,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory repayHookDataArray = new bytes[](1);
         bytes memory repayHookData =
-            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true, false);
+            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false, true);
         repayHookDataArray[0] = repayHookData;
 
         uint256 assetsPaid = _deriveAssetsPaid();
@@ -606,7 +606,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         console2.log("----loanAmount", loanAmount);
 
         bytes[] memory repayHookData = new bytes[](1);
-        repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, true, false);
+        repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, false, true);
         
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
