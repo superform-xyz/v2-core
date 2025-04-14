@@ -18,7 +18,7 @@ import {
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { BaseLoanHook } from "../BaseLoanHook.sol";
+import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -36,7 +36,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 146);
-contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
+contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
@@ -52,23 +52,10 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
-    struct BuildHookLocalVars {
-        address loanToken;
-        address collateralToken;
-        address oracle;
-        address irm;
-        uint256 amount;
-        uint256 lltv;
-        bool usePrevHookAmount;
-        bool isFullRepayment;
-        bool isPositiveFeed;
-        Id id;
-    }
-
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseLoanHook(registry_, "LoanRepay") {
+    constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, "LoanRepay") {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);
@@ -97,14 +84,16 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
+        Id id = marketParams.id();
+
         uint256 fee = _deriveFeeAmount(marketParams);
         uint256 collateralForWithdraw;
         executions = new Execution[](5);
         if (vars.isFullRepayment) {
-            uint128 borrowBalance = _deriveShareBalance(vars.id, account);
+            uint128 borrowBalance = _deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 amountToApprove = _deriveLoanAmount(vars.id, account) + fee;
-            collateralForWithdraw = _deriveCollateralForFullRepayment(vars.id, account);
+            uint256 amountToApprove = _deriveLoanAmount(id, account) + fee;
+            collateralForWithdraw = _deriveCollateralForFullRepayment(id, account);
 
             executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -132,9 +121,9 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            uint256 fullCollateral = _deriveCollateralForFullRepayment(vars.id, account);
+            uint256 fullCollateral = _deriveCollateralForFullRepayment(id, account);
             collateralForWithdraw = _deriveCollateralForPartialRepayment(
-                vars.id,
+                id,
                 vars.oracle,
                 vars.loanToken,
                 vars.collateralToken,
@@ -183,54 +172,6 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = getCollateralTokenBalance(account, data) - outAmount;
-    }
-
-    function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
-        address loanToken = BytesLib.toAddress(data, 0);
-        address collateralToken = BytesLib.toAddress(data, 20);
-        address oracle = BytesLib.toAddress(data, 40);
-        address irm = BytesLib.toAddress(data, 60);
-        uint256 amount = _decodeAmount(data);
-        uint256 lltv = BytesLib.toUint256(data, 112);
-        bool usePrevHookAmount = _decodeBool(data, 144);
-        bool isFullRepayment = _decodeBool(data, 145);
-        bool isPositiveFeed = _decodeBool(data, 146);
-
-        MarketParams memory marketParams = _generateMarketParams(loanToken, collateralToken, oracle, irm, lltv);
-        Id id = marketParams.id();
-
-        vars = BuildHookLocalVars({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            amount: amount,
-            lltv: lltv,
-            usePrevHookAmount: usePrevHookAmount,
-            isFullRepayment: isFullRepayment,
-            isPositiveFeed: isPositiveFeed,
-            id: id
-        });
-    }
-
-    function _generateMarketParams(
-        address loanToken,
-        address collateralToken,
-        address oracle,
-        address irm,
-        uint256 lltv
-    )
-        internal
-        pure
-        returns (MarketParams memory)
-    {
-        return MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
-        });
     }
 
     function _deriveInterest(MarketParams memory marketParams) internal view returns (uint256 interest) {

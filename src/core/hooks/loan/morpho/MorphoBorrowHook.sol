@@ -11,8 +11,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { BaseLoanHook } from "../BaseLoanHook.sol";
+import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -25,11 +24,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-/// @notice         uint256 collateralAmount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
+//                  The amount of collateral to supply to the morpho contract
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);        
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-contract MorphoBorrowHook is BaseHook, BaseLoanHook {
+contract MorphoBorrowHook is BaseMorphoLoanHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -41,21 +41,10 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
-    struct BuildHookLocalVars {
-        address loanToken;
-        address collateralToken;
-        address oracle;
-        address irm;
-        uint256 collateralAmount;
-        uint256 lltv;
-        bool usePrevHookAmount;
-        bool isPositiveFeed;
-    }
-
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseLoanHook(registry_, "Loan") {
+    constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, "Loan") {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoInterface = IMorphoBase(morpho_);
@@ -79,17 +68,17 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
         BuildHookLocalVars memory vars = _decodeHookData(data);
 
         if (vars.usePrevHookAmount) {
-            vars.collateralAmount = ISuperHookResult(prevHook).outAmount();
+            vars.amount = ISuperHookResult(prevHook).outAmount();
         }
 
-        if (vars.collateralAmount == 0) revert AMOUNT_NOT_VALID();
+        if (vars.amount == 0) revert AMOUNT_NOT_VALID();
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         uint256 loanAmount = _deriveLoanAmount(
-            vars.collateralAmount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed
+            vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed
         );
 
         executions = new Execution[](4);
@@ -98,12 +87,12 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
         executions[1] = Execution({
             target: vars.collateralToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, vars.collateralAmount))
+            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
         });
         executions[2] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.collateralAmount, account, ""))
+            callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.amount, account, ""))
         });
         executions[3] = Execution({
             target: morpho,
@@ -127,28 +116,6 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = outAmount - getCollateralTokenBalance(account, data);
-    }
-
-    function _decodeHookData(bytes memory data) internal pure returns (BuildHookLocalVars memory vars) {
-        address loanToken = BytesLib.toAddress(data, 0);
-        address collateralToken = BytesLib.toAddress(data, 20);
-        address oracle = BytesLib.toAddress(data, 40);
-        address irm = BytesLib.toAddress(data, 60);
-        uint256 collateralAmount = _decodeAmount(data);
-        uint256 lltv = BytesLib.toUint256(data, 112);
-        bool usePrevHookAmount = _decodeBool(data, 144);
-        bool isPositiveFeed = _decodeBool(data, 145);
-
-        vars = BuildHookLocalVars({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            collateralAmount: collateralAmount,
-            lltv: lltv,
-            usePrevHookAmount: usePrevHookAmount,
-            isPositiveFeed: isPositiveFeed
-        });
     }
 
     /// @dev This function returns the loan amount required for a given collateral amount.
@@ -184,25 +151,5 @@ contract MorphoBorrowHook is BaseHook, BaseLoanHook {
             // loanAmount = collateralAmount * scalingFactor / price
             loanAmount = Math.mulDiv(collateralAmount, scalingFactor, price);
         }
-    }
-
-    function _generateMarketParams(
-        address loanToken,
-        address collateralToken,
-        address oracle,
-        address irm,
-        uint256 lltv
-    )
-        internal
-        pure
-        returns (MarketParams memory)
-    {
-        return MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
-        });
     }
 }

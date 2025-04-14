@@ -8,6 +8,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
+import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 import { ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
@@ -24,9 +25,8 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
-    /*/
-    /////////////////////////////////////////////////////////////
-    constructor(address registry_, string memory subType_) BaseHook(registry_, HookType.NONACCOUNTING, subType_) {
+    //////////////////////////////////////////////////////////////*/
+    constructor(address registry_, string memory hookSubtype_) BaseHook(registry_, HookType.NONACCOUNTING, hookSubtype_) {
     }
 
     /*//////////////////////////////////////////////////////////////
