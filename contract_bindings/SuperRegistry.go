@@ -31,7 +31,7 @@ var (
 
 // SuperRegistryMetaData contains all meta data concerning the SuperRegistry contract.
 var SuperRegistryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"owner_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addresses\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AddressSet\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"addr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"owner_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addresses\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isExecutorAllowed\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAddress\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setExecutor\",\"inputs\":[{\"name\":\"id_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"address_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AddressSet\",\"inputs\":[{\"name\":\"id\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"addr\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_EXECUTOR\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]}]",
 }
 
 // SuperRegistryABI is the input ABI used to generate the binding from.
@@ -242,6 +242,37 @@ func (_SuperRegistry *SuperRegistryCallerSession) GetAddress(id_ [32]byte) (comm
 	return _SuperRegistry.Contract.GetAddress(&_SuperRegistry.CallOpts, id_)
 }
 
+// IsExecutorAllowed is a free data retrieval call binding the contract method 0x7d701102.
+//
+// Solidity: function isExecutorAllowed(address ) view returns(bool)
+func (_SuperRegistry *SuperRegistryCaller) IsExecutorAllowed(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
+	var out []interface{}
+	err := _SuperRegistry.contract.Call(opts, &out, "isExecutorAllowed", arg0)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// IsExecutorAllowed is a free data retrieval call binding the contract method 0x7d701102.
+//
+// Solidity: function isExecutorAllowed(address ) view returns(bool)
+func (_SuperRegistry *SuperRegistrySession) IsExecutorAllowed(arg0 common.Address) (bool, error) {
+	return _SuperRegistry.Contract.IsExecutorAllowed(&_SuperRegistry.CallOpts, arg0)
+}
+
+// IsExecutorAllowed is a free data retrieval call binding the contract method 0x7d701102.
+//
+// Solidity: function isExecutorAllowed(address ) view returns(bool)
+func (_SuperRegistry *SuperRegistryCallerSession) IsExecutorAllowed(arg0 common.Address) (bool, error) {
+	return _SuperRegistry.Contract.IsExecutorAllowed(&_SuperRegistry.CallOpts, arg0)
+}
+
 // Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
 //
 // Solidity: function owner() view returns(address)
@@ -365,6 +396,27 @@ func (_SuperRegistry *SuperRegistrySession) SetAddress(id_ [32]byte, address_ co
 // Solidity: function setAddress(bytes32 id_, address address_) returns()
 func (_SuperRegistry *SuperRegistryTransactorSession) SetAddress(id_ [32]byte, address_ common.Address) (*types.Transaction, error) {
 	return _SuperRegistry.Contract.SetAddress(&_SuperRegistry.TransactOpts, id_, address_)
+}
+
+// SetExecutor is a paid mutator transaction binding the contract method 0x66462634.
+//
+// Solidity: function setExecutor(bytes32 id_, address address_) returns()
+func (_SuperRegistry *SuperRegistryTransactor) SetExecutor(opts *bind.TransactOpts, id_ [32]byte, address_ common.Address) (*types.Transaction, error) {
+	return _SuperRegistry.contract.Transact(opts, "setExecutor", id_, address_)
+}
+
+// SetExecutor is a paid mutator transaction binding the contract method 0x66462634.
+//
+// Solidity: function setExecutor(bytes32 id_, address address_) returns()
+func (_SuperRegistry *SuperRegistrySession) SetExecutor(id_ [32]byte, address_ common.Address) (*types.Transaction, error) {
+	return _SuperRegistry.Contract.SetExecutor(&_SuperRegistry.TransactOpts, id_, address_)
+}
+
+// SetExecutor is a paid mutator transaction binding the contract method 0x66462634.
+//
+// Solidity: function setExecutor(bytes32 id_, address address_) returns()
+func (_SuperRegistry *SuperRegistryTransactorSession) SetExecutor(id_ [32]byte, address_ common.Address) (*types.Transaction, error) {
+	return _SuperRegistry.Contract.SetExecutor(&_SuperRegistry.TransactOpts, id_, address_)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
