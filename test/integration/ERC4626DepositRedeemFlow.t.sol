@@ -114,7 +114,7 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         validatorOnOP = IValidator(_getContract(OP, SUPER_DESTINATION_VALIDATOR_KEY));
 
         vm.selectFork(FORKS[BASE]);
-        deal(underlyingBase_WETH, odosRouters[BASE], 1e12);
+        deal(underlyingBase_WETH, mockOdosRouters[BASE], 1e12);
     }
 
     function test_Deposit_4626_Mainnet_Flow() public {

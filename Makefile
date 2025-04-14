@@ -7,6 +7,7 @@ ifeq ($(ENVIRONMENT), local)
 	export ETHEREUM_RPC_URL = $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential)
 	export OPTIMISM_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential)
 	export BASE_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
+	export ONE_INCH_API_KEY := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OneInch/credential)
 endif
 
 
@@ -24,7 +25,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 test-vvv :; forge test --match-test test_SuperVault_7540_Underlying_E2E_Flow -vv
 
-test-integration :; forge test --match-test test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow -vvv
+test-integration :; forge test --match-test test_PendleRouterSwap_Token_To_Pt -vvv
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report

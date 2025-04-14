@@ -68,6 +68,8 @@ import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.so
 // --- Odos
 import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
+import { OdosAPIParser } from "./utils/parsers/OdosAPIParser.sol";
+import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 
 // Stake hooks
 // --- Gearbox
@@ -89,7 +91,17 @@ import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxC
 // --- Yearn
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
-// Experimental hooks
+// --- Pendle
+
+import {
+    IPendleRouterV4,
+    LimitOrderData,
+    FillOrderParams,
+    TokenInput,
+    ApproxParams,
+    SwapType,
+    SwapData
+} from "../src/vendor/pendle/IPendleRouterV4.sol";
 
 // --- Ethena
 import { EthenaCooldownSharesHook } from "./mocks/unused-hooks/EthenaCooldownSharesHook.sol";
@@ -107,9 +119,7 @@ import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540
 import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -200,8 +210,7 @@ struct Addresses {
     MockTargetExecutor mockTargetExecutor;
 }
 
-
-contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper {
+contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -270,7 +279,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     mapping(uint64 chainId => AccountInstance accountInstance) public accountInstances;
     mapping(uint64 chainId => AccountInstance[] randomAccountInstances) public randomAccountInstances;
 
-    mapping(uint64 chainId => address odosRouter) public odosRouters;
+    mapping(uint64 chainId => address mockOdosRouter) public mockOdosRouters;
+    mapping(uint64 chainId => address pendleRouter) public PENDLE_ROUTERS;
+    mapping(uint64 chainId => address pendleSwap) public PENDLE_SWAP;
+    mapping(uint64 chainId => address odosRouter) public ODOS_ROUTER;
 
     // chainID => FORK
     mapping(uint64 chainId => uint256 fork) public FORKS;
@@ -293,7 +305,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     address public mockBaseHook;
 
     bool public useLatestFork = false;
-
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -813,7 +824,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[17] = address(A[i].swap1InchHook);
 
             MockOdosRouterV2 odosRouter = new MockOdosRouterV2{ salt: SALT }();
-            odosRouters[chainIds[i]] = address(odosRouter);
+            mockOdosRouters[chainIds[i]] = address(odosRouter);
             vm.label(address(odosRouter), "MockOdosRouterV2");
             A[i].swapOdosHook =
                 new SwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
@@ -977,12 +988,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[31] = address(A[i].ethenaUnstakeHook);
 
             MockSpectraRouter spectraRouter = new MockSpectraRouter();
-            A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(spectraRouter));
+            A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(spectraRouter)
+            );
             vm.label(address(A[i].spectraExchangeHook), SPECTRA_EXCHANGE_HOOK_KEY);
             hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_HOOK_KEY] = address(A[i].spectraExchangeHook);
             hooksAddresses[32] = address(A[i].spectraExchangeHook);
-            
-            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), CHAIN_1_PendleRouter); //TODO: update per chain
+
+            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), CHAIN_1_PendleRouter
+            ); //TODO: update per chain
             vm.label(address(A[i].pendleRouterSwapHook), PENDLE_ROUTER_SWAP_HOOK_KEY);
             hookAddresses[chainIds[i]][PENDLE_ROUTER_SWAP_HOOK_KEY] = address(A[i].pendleRouterSwapHook);
             hooksAddresses[33] = address(A[i].pendleRouterSwapHook);
@@ -1331,6 +1346,30 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.label(deBridgeGateAdminAddressesMap[OP], "DeBridgeGateAdminOP");
         deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
         vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
+
+        mapping(uint64 => address) storage pendleRouters = PENDLE_ROUTERS;
+        pendleRouters[ETH] = CHAIN_1_PendleRouter;
+        vm.label(pendleRouters[ETH], "PendleRouterETH");
+        pendleRouters[OP] = CHAIN_10_PendleRouter;
+        vm.label(pendleRouters[OP], "PendleRouterOP");
+        pendleRouters[BASE] = CHAIN_8453_PendleRouter;
+        vm.label(pendleRouters[BASE], "PendleRouterBASE");
+
+        mapping(uint64 => address) storage pendleSwaps = PENDLE_SWAP;
+        pendleSwaps[ETH] = CHAIN_1_PendleSwap;
+        vm.label(pendleSwaps[ETH], "PendleSwapETH");
+        pendleSwaps[OP] = CHAIN_10_PendleSwap;
+        vm.label(pendleSwaps[OP], "PendleSwapOP");
+        pendleSwaps[BASE] = CHAIN_8453_PendleSwap;
+        vm.label(pendleSwaps[BASE], "PendleSwapBASE");
+
+        mapping(uint64 => address) storage odosRouters = ODOS_ROUTER;
+        odosRouters[ETH] = CHAIN_1_ODOS_ROUTER;
+        vm.label(odosRouters[ETH], "OdosRouterETH");
+        odosRouters[OP] = CHAIN_10_ODOS_ROUTER;
+        vm.label(odosRouters[OP], "OdosRouterOP");
+        odosRouters[BASE] = CHAIN_8453_ODOS_ROUTER;
+        vm.label(odosRouters[BASE], "OdosRouterBASE");
 
         mapping(uint64 => address) storage nexusFactoryAddressesMap = NEXUS_FACTORY_ADDRESSES;
         nexusFactoryAddressesMap[ETH] = CHAIN_1_NEXUS_FACTORY;
@@ -2270,7 +2309,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256 outputQuote,
         uint256 outputMin,
         address account
-    ) internal pure returns (IOdosRouterV2.swapTokenInfo memory) {
+    )
+        internal
+        pure
+        returns (IOdosRouterV2.swapTokenInfo memory)
+    {
         return IOdosRouterV2.swapTokenInfo(
             inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
         );
@@ -2387,5 +2430,130 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     function _createClaimCancelHookData(address yieldSource, address receiver) internal pure returns (bytes memory) {
         return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
+    }
+
+    function _createPendleRouterSwapHookDataWithOdos(
+        address market,
+        address account,
+        bool usePrevHookAmount,
+        uint256 value,
+        bool ptToToken,
+        uint256 amount,
+        address tokenIn,
+        address tokenMint,
+        uint64 chainId
+    )
+        internal
+        returns (bytes memory)
+    {
+        bytes memory pendleTxData;
+        if (!ptToToken) {
+            // call Odos swapAPI to get the calldata
+            // note, odos swap receiver has to be pendle router
+            bytes memory odosCalldata =
+                _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, PENDLE_ROUTERS[chainId]);
+            console2.log("odosCalldata");
+            console2.logBytes(odosCalldata);
+
+            console2.log("----------------decoding test");
+            decodeOdosSwapCalldata(odosCalldata);
+
+            console2.log("---account", account);
+            console2.log("---tokenIn", tokenIn);
+            console2.log("---tokenMint", tokenMint);
+            console2.log("---amount", amount);
+
+            console2.log("----------------decoding test for hardcoded data - taken from an existing tx");
+            decodeOdosSwapCalldata(
+                hex"83bd37f90001a0b86991c6218b36c1d19d4a2e9eb0ce3606eb480001ad55aebc9b8c03fc43cd9f62260391c13c23e7c005012b6965500a010da7b828fa1570000000c49b0001fb2139331532e3ee59777fbbcb14af674f3fd671000190455bd11ce8a67c57d467e634dc142b8e4105aa0001888888888889758f76e7103c6cbf23abbf58f94635d39ebf03010203006701010001020100ff0000000000000000000000000000000000000090455bd11ce8a67c57d467e634dc142b8e4105aaa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000000000000000000000000000"
+            );
+
+            pendleTxData = _createTokenToPtPendleTxDataWithOdos(
+                market, account, tokenIn, 1, amount, tokenMint, odosCalldata, chainId
+            );
+        } else {
+            //TODO: fill with the other
+            revert("Not implemented");
+        }
+        return abi.encodePacked(usePrevHookAmount, value, pendleTxData);
+    }
+
+    function _createOdosSwapCalldataRequest(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amount,
+        address _receiver
+    )
+        internal
+        returns (bytes memory)
+    {
+        // get pathId
+        QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
+        inputTokens[0] = QuoteInputToken({ tokenAddress: _tokenIn, amount: _amount });
+        QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
+        outputTokens[0] = QuoteOutputToken({ tokenAddress: _tokenOut, proportion: 1 });
+        string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, _receiver, ETH, true);
+
+        // get assemble data
+        string memory swapCompactData = surlCallAssemble(pathId, _receiver);
+        return fromHex(swapCompactData);
+    }
+
+    function _createTokenToPtPendleTxDataWithOdos(
+        address _market,
+        address _receiver,
+        address _tokenIn,
+        uint256 _minPtOut,
+        uint256 _amount,
+        address _tokenMintSY,
+        bytes memory _odosCalldata,
+        uint64 chainId
+    )
+        internal
+        view
+        returns (bytes memory pendleTxData)
+    {
+        // no limit order needed
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: "0x"
+        });
+
+        // TokenInput
+        TokenInput memory input = TokenInput({
+            tokenIn: _tokenIn,
+            netTokenIn: _amount,
+            tokenMintSy: _tokenMintSY, //CHAIN_1_cUSDO,
+            pendleSwap: PENDLE_SWAP[chainId],
+            swapData: SwapData({
+                extRouter: ODOS_ROUTER[chainId],
+                extCalldata: _odosCalldata,
+                needScale: false,
+                swapType: SwapType.ODOS
+            })
+        });
+        /*
+        The guessMax and guessOffchain are being set based on the initial USDC _amount (1e6). However, these guesses are
+        used for the internal Pendle swap which involves SY and PT tokens, likely with 18 decimals and completely
+        different magnitudes. A guessMax of 2e6 wei for an 18-decimal token is extremely small and likely far below the
+        actual expected PT output amount. The true value falls outside the provided [guessMin, guessMax] range, causing
+        the approximation to fail.
+        We need to provide more realistic bounds for the expected PT output. Since 1 USDC is roughly $1 and the PT is
+        likely near par, a reasonable very rough guess for the PT amount (18 decimals) might be around 1e18. Let's widen
+        the approximation bounds significantly.*/
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 1,
+            guessMax: 1e24,
+            guessOffchain: 1e18,
+            maxIteration: 30,
+            eps: 10_000_000_000_000
+        });
+
+        pendleTxData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, _receiver, _market, _minPtOut, guessPtOut, input, limit
+        );
     }
 }

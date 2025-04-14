@@ -8,7 +8,15 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../BaseHook.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
-import { IPendleRouterV4, ApproxParams, TokenInput, LimitOrderData, TokenOutput, FillOrderParams, Order } from "../../../vendor/pendle/IPendleRouterV4.sol";
+import {
+    IPendleRouterV4,
+    ApproxParams,
+    TokenInput,
+    LimitOrderData,
+    TokenOutput,
+    FillOrderParams,
+    Order
+} from "../../../vendor/pendle/IPendleRouterV4.sol";
 import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
 
 /// @title PendleRouterSwapHook
@@ -18,7 +26,7 @@ import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
 /// @notice         uint256 value = abi.decode(data[1:33], (uint256));
 /// @notice         bytes txData_ = data[33:];
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0; 
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -38,7 +46,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     error INVALID_GUESS_PT_OUT();
     error MAKING_AMOUNT_NOT_VALID();
 
-
     constructor(address registry_, address pendleRouterV4_) BaseHook(registry_, HookType.NONACCOUNTING) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
         pendleRouterV4 = IPendleRouterV4(pendleRouterV4_);
@@ -48,7 +55,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-     function build(
+    function build(
         address prevHook,
         address account,
         bytes calldata data
@@ -94,12 +101,28 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _validateTxData(bytes calldata data, address account, bool usePrevHookAmount, address prevHook) private view returns (bytes memory updatedTxData) {
+    function _validateTxData(
+        bytes calldata data,
+        address account,
+        bool usePrevHookAmount,
+        address prevHook
+    )
+        private
+        view
+        returns (bytes memory updatedTxData)
+    {
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector
-            (address receiver, address market, uint256 minPtOut, ApproxParams memory guessPtOut, TokenInput memory input, LimitOrderData memory limit) = abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
-            
+            (
+                address receiver,
+                address market,
+                uint256 minPtOut,
+                ApproxParams memory guessPtOut,
+                TokenInput memory input,
+                LimitOrderData memory limit
+            ) = abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
             if (receiver != account) revert RECEIVER_NOT_VALID();
             if (market == address(0)) revert MARKET_NOT_VALID();
             if (minPtOut == 0) revert MIN_OUT_NOT_VALID();
@@ -127,7 +150,13 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
             updatedTxData = abi.encodeWithSelector(selector, receiver, market, minPtOut, guessPtOut, input, limit);
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
             // skip selector
-            (address receiver, address market, uint256 exactPtIn, TokenOutput memory output, LimitOrderData memory limit) = abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
+            (
+                address receiver,
+                address market,
+                uint256 exactPtIn,
+                TokenOutput memory output,
+                LimitOrderData memory limit
+            ) = abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
 
             if (receiver != account) revert RECEIVER_NOT_VALID();
             if (market == address(0)) revert MARKET_NOT_VALID();
@@ -154,8 +183,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
             revert INVALID_SWAP_TYPE();
         }
     }
-    
-    
+
     function _validateFillOrders(FillOrderParams[] memory fills) internal view {
         for (uint256 i; i < fills.length; ++i) {
             if (fills[i].makingAmount == 0) revert MAKING_AMOUNT_NOT_VALID();
@@ -176,7 +204,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
             // 36-68 market
 
             address market = abi.decode(data[36:68], (address));
-            (,tokenOut,) = IPendleMarket(market).readTokens();
+            (, tokenOut,) = IPendleMarket(market).readTokens();
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
             // 0-4 selector
             // 4-36 receiver

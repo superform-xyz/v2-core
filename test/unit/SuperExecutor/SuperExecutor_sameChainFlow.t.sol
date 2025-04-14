@@ -264,10 +264,10 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         hooksAddresses[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
 
         _getTokens(address(inputToken), account, amount);
-        _getTokens(address(outputToken), odosRouters[ETH], amount);
+        _getTokens(address(outputToken), mockOdosRouters[ETH], amount);
 
         bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(inputToken), odosRouters[ETH], amount, false);
+        hooksData[0] = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
         hooksData[1] = _createOdosSwapHookData(
             address(inputToken),
             amount,
@@ -313,8 +313,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         hooksData[2] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
-        uint256 routerEthBalanceBefore = address(odosRouters[ETH]).balance;
-        _getTokens(address(underlying), odosRouters[ETH], amount);
+        uint256 routerEthBalanceBefore = address(mockOdosRouters[ETH]).balance;
+        _getTokens(address(underlying), mockOdosRouters[ETH], amount);
 
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -323,7 +323,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         executeOp(userOpData);
 
-        uint256 routerEthBalanceAfter = address(odosRouters[ETH]).balance;
+        uint256 routerEthBalanceAfter = address(mockOdosRouters[ETH]).balance;
         assertEq(routerEthBalanceAfter, routerEthBalanceBefore + amount);
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
@@ -333,8 +333,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     function test_SwapUnderlyingToNativeAndThenUnderlying() external {
         uint256 amount = 1 ether;
 
-        _getTokens(address(underlying), odosRouters[ETH], amount);
-        vm.deal(address(odosRouters[ETH]), amount);
+        _getTokens(address(underlying), mockOdosRouters[ETH], amount);
+        vm.deal(address(mockOdosRouters[ETH]), amount);
 
         address[] memory hooksAddresses = new address[](5);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -344,7 +344,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         hooksAddresses[4] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](5);
-        hooksData[0] = _createApproveHookData(underlying, odosRouters[ETH], amount, false);
+        hooksData[0] = _createApproveHookData(underlying, mockOdosRouters[ETH], amount, false);
         hooksData[1] = _createOdosSwapHookData(
             address(underlying),
             amount,
