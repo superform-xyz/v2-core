@@ -91,9 +91,9 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         executions[0] =
                 Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         if (vars.isFullRepayment) {
-            uint128 borrowBalance = _deriveShareBalance(id, account);
+            uint128 borrowBalance = deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 assetsToPay = fee + _sharesToAssets(marketParams, account);
+            uint256 assetsToPay = fee + sharesToAssets(marketParams, account);
 
             executions[1] = Execution({
                 target: vars.loanToken,
@@ -136,30 +136,13 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         address oracle = BytesLib.toAddress(data, 40);
         address collateralToken = BytesLib.toAddress(data, 20);
         bool isPositiveFeed = _decodeBool(data, 146);
-        return _deriveCollateralAmountFromLoanAmount(loanToken, oracle, collateralToken, isPositiveFeed, outAmount);
+        return deriveCollateralAmountFromLoanAmount(loanToken, oracle, collateralToken, isPositiveFeed, outAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
-                            INTERNAL METHODS
+                            PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
-    }
-
-    function _postExecute(address, address, bytes calldata) internal override {
-        outAmount = 0;
-    }
-
-    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        uint256 fee = _deriveFeeAmount(marketParams);
-        uint256 interest = _deriveInterest(marketParams);
-        uint256 totalAmount = amount + fee + interest;
-        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
-    }
-
-    function _deriveInterest(MarketParams memory marketParams) internal view returns (uint256 interest) {
+    function deriveInterest(MarketParams memory marketParams) public view returns (uint256 interest) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
@@ -167,18 +150,18 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
     }
 
-    function _deriveShareBalance(Id id, address account) internal view returns (uint128 borrowShares) {
+    function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
 
-    function _deriveCollateralAmountFromLoanAmount(
+    function deriveCollateralAmountFromLoanAmount(
         address loanToken,
         address oracle,
         address collateralToken,
         bool isPositiveFeed,
         uint256 loanAmount
     )
-        internal
+        public
         view
         returns (uint256 collateralAmount)
     {
@@ -204,7 +187,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         }
     }
 
-    function _deriveFeeAmount(MarketParams memory marketParams) internal view returns (uint256 feeAmount) {
+    function deriveFeeAmount(MarketParams memory marketParams) public view returns (uint256 feeAmount) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
@@ -214,23 +197,37 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         feeAmount = MathLib.wMulDown(interest, market.fee);
     }
 
-    function _sharesToAssets(
+    function sharesToAssets(
         MarketParams memory marketParams,
         address account
     )
-        internal
+        public
         view
         returns (uint256 assets)
     {
         Id id = marketParams.id();
-        uint256 shareBalance = _deriveShareBalance(id, account);
+        uint256 shareBalance = deriveShareBalance(id, account);
         Market memory market = morphoInterface.market(id);
         assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
-    function _assetsToShares(MarketParams memory marketParams, uint256 assets) internal view returns (uint256 shares) {
-        Id id = marketParams.id();
-        Market memory market = morphoInterface.market(id);
-        shares = assets.toSharesUp(market.totalBorrowAssets, market.totalBorrowShares);
+    /*//////////////////////////////////////////////////////////////
+                            INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = getCollateralTokenBalance(account, data);
+    }
+
+    function _postExecute(address, address, bytes calldata) internal override {
+        outAmount = 0;
+    }
+
+    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
+        if (amount == 0) revert AMOUNT_NOT_VALID();
+        uint256 fee = deriveFeeAmount(marketParams);
+        uint256 interest = deriveInterest(marketParams);
+        uint256 totalAmount = amount + fee + interest;
+        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
     }
 }

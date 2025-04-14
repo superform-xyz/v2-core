@@ -77,7 +77,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount = _deriveLoanAmount(
+        uint256 loanAmount = deriveLoanAmount(
             vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed
         );
 
@@ -106,30 +106,22 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     function getUsedAssets(address, bytes memory) external view returns (uint256) {
         return outAmount;
     }
+
     /*//////////////////////////////////////////////////////////////
-                            INTERNAL METHODS
+                            PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
-    }
-
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getCollateralTokenBalance(account, data);
-    }
-
     /// @dev This function returns the loan amount required for a given collateral amount.
     /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
     /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
     /// decimals of precision.
-    function _deriveLoanAmount(
+    function deriveLoanAmount(
         uint256 collateralAmount,
         address oracleAddress,
         address loanToken,
         address collateralToken,
         bool isPositiveFeed
     )
-        internal
+        public
         view
         returns (uint256 loanAmount)
     {
@@ -151,5 +143,18 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
             // loanAmount = collateralAmount * scalingFactor / price
             loanAmount = Math.mulDiv(collateralAmount, scalingFactor, price);
         }
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
+                            INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        // store current balance
+        outAmount = getCollateralTokenBalance(account, data);
+    }
+
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = outAmount - getCollateralTokenBalance(account, data);
     }
 }
