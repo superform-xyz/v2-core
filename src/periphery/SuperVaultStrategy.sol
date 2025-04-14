@@ -29,6 +29,7 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 
 // Periphery Interfaces
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
+import { HookSubTypes } from "../core/libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
@@ -106,9 +107,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     mapping(address yieldSource => uint256 assetsInTransit) private asyncYieldSourceSharesInTransitOutflows;
 
     // Track assets sent to lending protocols
-    //mapping(bytes32 hookSubtype => uint256 liabilities) private liabilities;
-    mapping(address yieldSource => uint256 liabilities) private liabilities;
-    address[] private liabilityYieldSources;
     uint256 private liabilityAmount;
 
     function _requireVault() internal view {
@@ -321,10 +319,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
                 // Track assets sent to lending protocols
                 if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
-                    if (vars.hookSubtype == LOAN_SUBTYPE) {
+                    if (vars.hookSubtype == HookSubTypes.LOAN) {
                         liabilityAmount += ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
                         console2.log("New liabilityAmount:", liabilityAmount);
-                    } else if (vars.hookSubtype == LOAN_REPAY_SUBTYPE) {
+                    } else if (vars.hookSubtype == HookSubTypes.LOAN_REPAY) {
                         console2.log("Subtype matched LOAN_REPAY_SUBTYPE");
                         console2.log("Current liabilityAmount:", liabilityAmount);
                         if (vars.outAmount <= liabilityAmount) {
