@@ -2403,7 +2403,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory)
     {
         return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed);
+            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed, false);
     }
 
     function _createMorphoRepayHookData(
