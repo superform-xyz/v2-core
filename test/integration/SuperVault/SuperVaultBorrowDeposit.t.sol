@@ -192,15 +192,18 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // Warp forward to simulate yield
         //vm.warp(block.timestamp + 15 weeks);
 
-        // Request redeem on superVault as user1
-        _requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
-        console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountBase));
-
         // Swap collateral for loan
         _swapCollateralForLoan();
 
         // Repay loan 
         _repayLoan();
+
+        console2.log("\n pps After Repay", _getSuperVaultPricePerShare());
+        console2.log("----collateralBalanceAfterRepay", IERC20(collateralToken).balanceOf(address(strategy)));
+
+        // Request redeem on superVault as user1
+        _requestRedeemOnBase(instanceOnBase, vault.balanceOf(accountBase));
+        console2.log("\n user1 pending redeem", strategy.pendingRedeemRequest(accountBase));
 
         // Fulfill redeem request
         _fulfillRedeemRequests();
@@ -555,10 +558,11 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory swapHooks = new address[](1);
         swapHooks[0] = _getHookAddress(BASE, APPROVE_AND_SWAP_ODOS_HOOK_KEY);
 
-        uint256 amountWithoutSlippage = amount + (amount * 100 / 10_000);
+        uint256 loanAmount = _deriveLoanAmount(amount);
+        uint256 amountWithoutSlippage = loanAmount + (loanAmount * 100 / 10_000);
 
         bytes[] memory swapHookDataArray = new bytes[](1);
-        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(address(collateralToken), amount, address(this), address(loanToken), amountWithoutSlippage, 0, bytes(""), swapRouter, 0, false);
+        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(address(collateralToken), loanAmount, address(this), address(loanToken), amountWithoutSlippage, 0, bytes(""), swapRouter, 0, false);
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(
@@ -597,9 +601,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory repayHooks = new address[](1);
         repayHooks[0] = repayHook;
 
-        uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
+        //uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
+        uint256 loanAmount = _deriveLoanAmount(amount);
         console2.log("----loanAmount", loanAmount);
-        
+
         bytes[] memory repayHookData = new bytes[](1);
         repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, true, false);
         

@@ -103,7 +103,6 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
         if (vars.isFullRepayment) {
             uint128 borrowBalance = _deriveShareBalance(vars.id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 loanAmountToPay = _deriveInterest(marketParams) + fee + _sharesToAssets(marketParams, account);
             uint256 amountToApprove = _deriveLoanAmount(vars.id, account);
             collateralForWithdraw = _deriveCollateralForFullRepayment(vars.id, account);
 
@@ -112,7 +111,7 @@ contract MorphoRepayAndWithdrawHook is BaseHook, BaseLoanHook {
             executions[1] = Execution({
                 target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, loanAmountToPay))
+                callData: abi.encodeCall(IERC20.approve, (morpho, amountToApprove))
             });
             executions[2] = Execution({
                 target: morpho,
