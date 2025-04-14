@@ -48,7 +48,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     //////////////////////////////////////////////////////////////*/
     address public morpho;
     IMorphoBase public morphoBase;
-    IMorpho public morphoInterface;
     IMorphoStaticTyping public morphoStaticTyping;
 
     uint256 private constant AMOUNT_POSITION = 80;
@@ -269,16 +268,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
 
         Market memory market = morphoInterface.market(id);
         loanAmount = castShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
-    }
-
-    function deriveFeeAmount(MarketParams memory marketParams) public view returns (uint256 feeAmount) {
-        Id id = marketParams.id();
-        Market memory market = morphoInterface.market(id);
-        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
-        uint256 elapsed = block.timestamp - market.lastUpdate;
-        uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
-
-        feeAmount = MathLib.wMulDown(interest, market.fee);
     }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {

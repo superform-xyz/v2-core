@@ -10,8 +10,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SharesMathLib } from "../../../../vendor/morpho/SharesMathLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
 import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
 import {
     IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market
 } from "../../../../vendor/morpho/IMorpho.sol";
@@ -46,7 +46,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     //////////////////////////////////////////////////////////////*/
     address public morpho;
     IMorphoBase public morphoBase;
-    IMorpho public morphoInterface;
     IMorphoStaticTyping public morphoStaticTyping;
 
     uint256 private constant AMOUNT_POSITION = 80;
@@ -187,16 +186,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
             // loanAmount = collateralAmount * scalingFactor / price
             collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
         }
-    }
-
-    function deriveFeeAmount(MarketParams memory marketParams) public view returns (uint256 feeAmount) {
-        Id id = marketParams.id();
-        Market memory market = morphoInterface.market(id);
-        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
-        uint256 elapsed = block.timestamp - market.lastUpdate;
-        uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
-
-        feeAmount = MathLib.wMulDown(interest, market.fee);
     }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {

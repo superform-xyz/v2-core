@@ -36,7 +36,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
                                STORAGE
     //////////////////////////////////////////////////////////////*/
     address public morpho;
-    IMorphoBase public morphoInterface;
+    IMorphoBase public morphoBase;
 
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
@@ -47,7 +47,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, "Loan") {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
-        morphoInterface = IMorphoBase(morpho_);
+        morphoBase = IMorphoBase(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////

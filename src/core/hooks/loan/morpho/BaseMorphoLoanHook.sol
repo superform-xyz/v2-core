@@ -2,8 +2,12 @@
 pragma solidity 0.8.28;
 
 // external
+import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
+import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
+import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
+import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
+import { MarketParams, Market, IMorpho,Id } from "../../../../vendor/morpho/IMorpho.sol";
 
 // superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
@@ -11,9 +15,12 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 abstract contract BaseMorphoLoanHook is BaseLoanHook {
+    using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
 
     error TOKEN_DECIMALS_NOT_SUPPORTED();
+
+    IMorpho public morphoInterface;
 
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
@@ -33,7 +40,22 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, string memory hookSubtype_) BaseLoanHook(registry_, hookSubtype_) { }
+    constructor(address registry_, string memory hookSubtype_) BaseLoanHook(registry_, hookSubtype_) { 
+      morphoInterface = IMorpho(registry_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            PUBLIC METHODS
+    //////////////////////////////////////////////////////////////*/
+    function deriveFeeAmount(MarketParams memory marketParams) public view returns (uint256 feeAmount) {
+        Id id = marketParams.id();
+        Market memory market = morphoInterface.market(id);
+        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
+        uint256 elapsed = block.timestamp - market.lastUpdate;
+        uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
+
+        feeAmount = MathLib.wMulDown(interest, market.fee);
+    }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
