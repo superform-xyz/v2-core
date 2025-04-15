@@ -208,7 +208,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 loanDecimals = ERC20(loanToken).decimals();
         uint256 collateralDecimals = ERC20(collateralToken).decimals();
 
-        if (collateralDecimals > 36 + loanDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
+        if (collateralDecimals > 36 + loanDecimals || loanDecimals > 36 + collateralDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
 
         // Correct scaling factor as per the oracle's specification:
         // 10^(36 + loanDecimals - collateralDecimals)
