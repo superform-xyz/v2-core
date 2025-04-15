@@ -201,15 +201,19 @@ abstract contract Constants {
     address public constant CHAIN_1_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_1_SpectraRouter = 0xD733e545C65d539f588d7c3793147B497403F0d2;
     address public constant CHAIN_1_SpectraPTToken = 0x3b660B2f136FddF98A081439De483D8712c16ca4; // PT-cUSDO
+    address public constant CHAIN_1_PendlePyYtLpOracle = 0x9a9Fa8338dd5E5B2188006f1Cd2Ef26d921650C2; // PT-cUSDO
 
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
     address public constant CHAIN_10_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_10_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_10_PendlePyYtLpOracle = 0x9a9Fa8338dd5E5B2188006f1Cd2Ef26d921650C2; // PT-cUSDO
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
     address public constant CHAIN_8453_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_8453_PendlePyYtLpOracle = 0x9a9Fa8338dd5E5B2188006f1Cd2Ef26d921650C2; // PT-cUSDO
+
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
