@@ -36,4 +36,11 @@ contract MockOdosRouterV2 {
 
         return tokenInfo.outputMin;
     }
+
+    function swapCompact() 
+        external
+        payable
+        returns (uint256) {
+            return 0;
+        }
 }

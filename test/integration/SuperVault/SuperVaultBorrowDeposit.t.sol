@@ -88,7 +88,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         asset = IERC20Metadata(collateralToken);
 
-        // TODO: Swap this for Fluid vault and try find market where loan token is one that can be staked 
+        // TODO: Swap this for Fluid vault and try find market where loan token is one that can be staked
 
         // Set up underlying vault
         morphoVault = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
@@ -166,7 +166,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         _getTokens(address(asset), accountBase, 1e18);
 
         // Set up odos router
-        swapRouter = odosRouters[BASE];
+        swapRouter = ODOS_ROUTER[BASE];
         deal(address(asset), swapRouter, 1e18);
         deal(address(loanToken), swapRouter, 1e18);
     }
@@ -197,7 +197,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // Swap collateral for loan
         _swapCollateralForLoan();
 
-        // Repay loan 
+        // Repay loan
         _repayLoan();
 
         console2.log("\n pps After Repay", _getSuperVaultPricePerShare());
@@ -270,7 +270,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         );
         repayHookDataArray[0] = repayHookData;
 
-        uint256 expectedCollateralBalanceAfterRepay = _deriveCollateralForPartialWithdraw(loanToken, collateralToken, amount / 2, amount, false);
+        uint256 expectedCollateralBalanceAfterRepay =
+            _deriveCollateralForPartialWithdraw(loanToken, collateralToken, amount / 2, amount, false);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
@@ -375,9 +376,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooksAddresses[0] = _getHookAddress(BASE, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createApproveAndRequestDeposit7540HookData(
-            address(vault), address(asset), depositAmount, false
-        );
+        hooksData[0] = _createApproveAndRequestDeposit7540HookData(address(vault), address(asset), depositAmount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -449,7 +448,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         _executeSuperVault_Borrow_And_Swap();
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountBase;
-        
+
         // Fulfill deposit into morpho vault
         address depositHook = _getHookAddress(BASE, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
@@ -458,12 +457,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory depositHookDataArray = new bytes[](1);
         depositHookDataArray[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            morphoVault,
-            collateralToken,
-            amount,
-            false,
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, collateralToken, amount, false, false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
@@ -564,7 +558,18 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 amountWithoutSlippage = loanAmount + (loanAmount * 100 / 10_000);
 
         bytes[] memory swapHookDataArray = new bytes[](1);
-        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(address(collateralToken), loanAmount, address(this), address(loanToken), amountWithoutSlippage, 0, bytes(""), swapRouter, 0, false);
+        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(
+            address(collateralToken),
+            loanAmount,
+            address(this),
+            address(loanToken),
+            amountWithoutSlippage,
+            0,
+            bytes(""),
+            swapRouter,
+            0,
+            false
+        );
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(
@@ -588,7 +593,9 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 withdrawAssets = vault.maxWithdraw(accountBase);
 
         bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createWithdraw7540VaultHookData(bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), withdrawAssets, false, false);
+        claimHooksData[0] = _createWithdraw7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), withdrawAssets, false, false
+        );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
@@ -599,7 +606,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     function _repayLoan() internal {
         // repay and claim collateral
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
-        
+
         address[] memory repayHooks = new address[](1);
         repayHooks[0] = repayHook;
 
@@ -608,8 +615,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         console2.log("----loanAmount", loanAmount);
 
         bytes[] memory repayHookData = new bytes[](1);
-        repayHookData[0] = _createMorphoRepayAndWithdrawHookData(loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, false, true);
-        
+        repayHookData[0] = _createMorphoRepayAndWithdrawHookData(
+            loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, false, true
+        );
+
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
@@ -709,13 +718,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         assetsPaid = shareBalance.toAssetsUp(totalBorrowAssets, totalBorrowShares);
     }
 
-    function _deriveLoanAmount(
-        uint256 collateralIn
-    )
-        internal
-        view
-        returns (uint256 loanAmount)
-    {
+    function _deriveLoanAmount(uint256 collateralIn) internal view returns (uint256 loanAmount) {
         uint256 price = oracle.price();
         uint256 loanDecimals = ERC20(loanToken).decimals();
         uint256 collateralDecimals = ERC20(collateralToken).decimals();
@@ -723,7 +726,6 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // Correct scaling factor as per the oracle's specification:
         // 10^(36 + loanDecimals - collateralDecimals)
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
 
         // Inverting the original calculation when isPositiveFeed is false:
         // loanAmount = collateralAmount * scalingFactor / price

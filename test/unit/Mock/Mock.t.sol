@@ -18,15 +18,17 @@ import "modulekit/accounts/erc7579/ERC7579Factory.sol";
 import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 
 import { Helpers } from "../../utils/Helpers.sol";
+import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
 
 import { MockSignature } from "../../mocks/MockSignature.sol";
 
 import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
 import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 
+
 import "forge-std/console2.sol";
 
-contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles {
+contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser {
     using ECDSA for bytes32;
     using ModuleKitHelpers for *;
     using ExecutionLib for *;

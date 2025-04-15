@@ -138,7 +138,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         vm.selectFork(FORKS[BASE]);
 
         // Set up the 1inch swap router
-        deal(underlyingBase_WETH, odosRouters[BASE], 1e12);
+        deal(underlyingBase_WETH, mockOdosRouters[BASE], 1e12);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -332,7 +332,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
             dstHooksAddresses[3] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
             bytes[] memory dstHooksData = new bytes[](4);
-            dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, odosRouters[BASE], intentAmount / 2, false);
+            dstHooksData[0] =
+                _createApproveHookData(underlyingBase_USDC, mockOdosRouters[BASE], intentAmount / 2, false);
             dstHooksData[1] = _createOdosSwapHookData(
                 underlyingBase_USDC,
                 intentAmount / 2,
@@ -341,7 +342,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 intentAmount / 2,
                 0,
                 bytes(""),
-                odosRouters[BASE],
+                mockOdosRouters[BASE],
                 0,
                 true
             );

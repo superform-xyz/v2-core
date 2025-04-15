@@ -41,6 +41,14 @@ contract MockOdosRouter is IOdosRouterV2 {
     {
         return 0;
     }
+
+    function swapCompact()
+        external
+        payable
+        override
+        returns (uint256) {
+            return 0;
+    }
 }
 
 contract SwapOdosHookTest is BaseTest {

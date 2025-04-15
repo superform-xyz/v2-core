@@ -35,7 +35,6 @@ import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/Morpho
 import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 
-
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
@@ -74,6 +73,12 @@ import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.so
 // --- Odos
 import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
+import { OdosAPIParser } from "./utils/parsers/OdosAPIParser.sol";
+import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
+
+// --- Spectra
+import { SpectraCommands } from "../src/vendor/spectra/SpectraCommands.sol";
+import { ISpectraRouter } from "../src/vendor/spectra/ISpectraRouter.sol";
 
 // Stake hooks
 // --- Gearbox
@@ -95,11 +100,25 @@ import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxC
 // --- Yearn
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
-// Experimental hooks
+// --- Pendle
+
+import {
+    IPendleRouterV4,
+    LimitOrderData,
+    FillOrderParams,
+    TokenInput,
+    ApproxParams,
+    SwapType,
+    SwapData
+} from "../src/vendor/pendle/IPendleRouterV4.sol";
 
 // --- Ethena
 import { EthenaCooldownSharesHook } from "./mocks/unused-hooks/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "./mocks/unused-hooks/EthenaUnstakeHook.sol";
+import { SpectraExchangeHook } from "../src/core/hooks/spectra/SpectraExchangeHook.sol";
+import { PendleRouterSwapHook } from "../src/core/hooks/pendle/PendleRouterSwapHook.sol";
+import { MockSpectraRouter } from "./mocks/MockSpectraRouter.sol";
+import { MockPendleRouter } from "./mocks/MockPendleRouter.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -109,9 +128,7 @@ import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540
 import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -122,7 +139,7 @@ import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-
+import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 
 // SuperformNativePaymaster
@@ -186,6 +203,8 @@ struct Addresses {
     ApproveAndGearboxStakeHook approveAndGearboxStakeHook;
     FluidStakeHook fluidStakeHook;
     FluidUnstakeHook fluidUnstakeHook;
+    SpectraExchangeHook spectraExchangeHook;
+    PendleRouterSwapHook pendleRouterSwapHook;
     FluidClaimRewardHook fluidClaimRewardHook;
     GearboxClaimRewardHook gearboxClaimRewardHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
@@ -203,7 +222,7 @@ struct Addresses {
     MockTargetExecutor mockTargetExecutor;
 }
 
-contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper {
+contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -273,7 +292,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     mapping(uint64 chainId => AccountInstance accountInstance) public accountInstances;
     mapping(uint64 chainId => AccountInstance[] randomAccountInstances) public randomAccountInstances;
 
-    mapping(uint64 chainId => address odosRouter) public odosRouters;
+    mapping(uint64 chainId => address mockOdosRouter) public mockOdosRouters;
+    mapping(uint64 chainId => address pendleRouter) public PENDLE_ROUTERS;
+    mapping(uint64 chainId => address pendleSwap) public PENDLE_SWAP;
+    mapping(uint64 chainId => address odosRouter) public ODOS_ROUTER;
 
     // chainID => FORK
     mapping(uint64 chainId => uint256 fork) public FORKS;
@@ -294,6 +316,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bytes32 constant SALT = keccak256("TEST");
 
     address public mockBaseHook;
+
+    bool public useLatestFork = false;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -814,7 +838,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[17] = address(A[i].swap1InchHook);
 
             MockOdosRouterV2 odosRouter = new MockOdosRouterV2{ salt: SALT }();
-            odosRouters[chainIds[i]] = address(odosRouter);
+            mockOdosRouters[chainIds[i]] = address(odosRouter);
             vm.label(address(odosRouter), "MockOdosRouterV2");
             A[i].swapOdosHook =
                 new SwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
@@ -977,6 +1001,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
             hooksAddresses[31] = address(A[i].ethenaUnstakeHook);
 
+            A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY),
+                address(CHAIN_1_SpectraRouter) //TODO: update per chain
+            );
+            vm.label(address(A[i].spectraExchangeHook), SPECTRA_EXCHANGE_HOOK_KEY);
+            hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_HOOK_KEY] = address(A[i].spectraExchangeHook);
+            hooksAddresses[32] = address(A[i].spectraExchangeHook);
+
+            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), CHAIN_1_PendleRouter
+            ); //TODO: update per chain
+            vm.label(address(A[i].pendleRouterSwapHook), PENDLE_ROUTER_SWAP_HOOK_KEY);
+            hookAddresses[chainIds[i]][PENDLE_ROUTER_SWAP_HOOK_KEY] = address(A[i].pendleRouterSwapHook);
+            hooksAddresses[33] = address(A[i].pendleRouterSwapHook);
+
             A[i].cancelDepositRequest7540Hook =
                 new CancelDepositRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].cancelDepositRequest7540Hook), CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
@@ -992,7 +1031,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[32] = address(A[i].cancelDepositRequest7540Hook);
+            hooksAddresses[34] = address(A[i].cancelDepositRequest7540Hook);
 
             A[i].cancelRedeemRequest7540Hook =
                 new CancelRedeemRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
@@ -1008,7 +1047,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CANCEL_REDEEM_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[33] = address(A[i].cancelRedeemRequest7540Hook);
+            hooksAddresses[35] = address(A[i].cancelRedeemRequest7540Hook);
 
             A[i].claimCancelDepositRequest7540Hook =
                 new ClaimCancelDepositRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
@@ -1025,7 +1064,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[34] = address(A[i].claimCancelDepositRequest7540Hook);
+            hooksAddresses[36] = address(A[i].claimCancelDepositRequest7540Hook);
 
             A[i].claimCancelRedeemRequest7540Hook =
                 new ClaimCancelRedeemRequest7540Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
@@ -1042,7 +1081,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[35] = address(A[i].claimCancelRedeemRequest7540Hook);
+            hooksAddresses[37] = address(A[i].claimCancelRedeemRequest7540Hook);
 
             A[i].cancelDepositHook = new CancelDepositHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].cancelDepositHook), CANCEL_DEPOSIT_HOOK_KEY);
@@ -1057,7 +1096,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY]
             );
-            hooksAddresses[36] = address(A[i].cancelDepositHook);
+            hooksAddresses[38] = address(A[i].cancelDepositHook);
 
             A[i].cancelRedeemHook = new CancelRedeemHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].cancelRedeemHook), CANCEL_REDEEM_HOOK_KEY);
@@ -1070,7 +1109,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
-            hooksAddresses[37] = address(A[i].cancelRedeemHook);
+            hooksAddresses[39] = address(A[i].cancelRedeemHook);
 
             A[i].morphoBorrowHook =
                 new MorphoBorrowHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
@@ -1093,10 +1132,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].morphoRepayAndWithdrawHook =
                 new MorphoRepayAndWithdrawHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
             vm.label(address(A[i].morphoRepayAndWithdrawHook), MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
-            hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] =
-                address(A[i].morphoRepayAndWithdrawHook);
+            hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] = address(A[i].morphoRepayAndWithdrawHook);
             hooksAddresses[40] = address(A[i].morphoRepayAndWithdrawHook);
-            
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
@@ -1311,9 +1348,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     function _preDeploymentSetup() internal {
         mapping(uint64 => uint256) storage forks = FORKS;
-        forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
-        forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
-        forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
+
+        if (useLatestFork) {
+            forks[ETH] = vm.createFork(ETHEREUM_RPC_URL);
+            forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
+            forks[BASE] = vm.createFork(BASE_RPC_URL);
+        } else {
+            forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
+            forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
+            forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
+        }
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
         rpcURLs[ETH] = ETHEREUM_RPC_URL;
@@ -1343,6 +1387,30 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.label(deBridgeGateAdminAddressesMap[OP], "DeBridgeGateAdminOP");
         deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
         vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
+
+        mapping(uint64 => address) storage pendleRouters = PENDLE_ROUTERS;
+        pendleRouters[ETH] = CHAIN_1_PendleRouter;
+        vm.label(pendleRouters[ETH], "PendleRouterETH");
+        pendleRouters[OP] = CHAIN_10_PendleRouter;
+        vm.label(pendleRouters[OP], "PendleRouterOP");
+        pendleRouters[BASE] = CHAIN_8453_PendleRouter;
+        vm.label(pendleRouters[BASE], "PendleRouterBASE");
+
+        mapping(uint64 => address) storage pendleSwaps = PENDLE_SWAP;
+        pendleSwaps[ETH] = CHAIN_1_PendleSwap;
+        vm.label(pendleSwaps[ETH], "PendleSwapETH");
+        pendleSwaps[OP] = CHAIN_10_PendleSwap;
+        vm.label(pendleSwaps[OP], "PendleSwapOP");
+        pendleSwaps[BASE] = CHAIN_8453_PendleSwap;
+        vm.label(pendleSwaps[BASE], "PendleSwapBASE");
+
+        mapping(uint64 => address) storage odosRouters = ODOS_ROUTER;
+        odosRouters[ETH] = CHAIN_1_ODOS_ROUTER;
+        vm.label(odosRouters[ETH], "OdosRouterETH");
+        odosRouters[OP] = CHAIN_10_ODOS_ROUTER;
+        vm.label(odosRouters[OP], "OdosRouterOP");
+        odosRouters[BASE] = CHAIN_8453_ODOS_ROUTER;
+        vm.label(odosRouters[BASE], "OdosRouterBASE");
 
         mapping(uint64 => address) storage nexusFactoryAddressesMap = NEXUS_FACTORY_ADDRESSES;
         nexusFactoryAddressesMap[ETH] = CHAIN_1_NEXUS_FACTORY;
@@ -2275,6 +2343,24 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
+    function _createOdosSwap(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        address account
+    )
+        internal
+        pure
+        returns (IOdosRouterV2.swapTokenInfo memory)
+    {
+        return IOdosRouterV2.swapTokenInfo(
+            inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
+        );
+    }
+
     function _createOdosSwapHookData(
         address inputToken,
         uint256 inputAmount,
@@ -2402,8 +2488,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed, false);
+        return abi.encodePacked(
+            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed, false
+        );
     }
 
     function _createMorphoRepayHookData(
@@ -2441,10 +2528,164 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return
-            abi.encodePacked(
-                loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
+        return abi.encodePacked(
+            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
+        );
+    }
+
+    function _createSpectraExchangeSwapHookData(
+        bool usePrevHookAmount,
+        uint256 value,
+        address ptToken,
+        address tokenIn,
+        uint256 amount,
+        address account
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
+        return abi.encodePacked(usePrevHookAmount, value, txData);
+    }
+
+    function _createSpectraExchangeSimpleCommandTxData(
+        address ptToken_,
+        address tokenIn_,
+        uint256 amount_,
+        address account_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory commandsData = new bytes(2);
+        commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
+        commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
+
+        /// https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_pt-command
+        // ptToken
+        // amount
+        // ptRecipient
+        // ytRecipient
+        // minShares
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(tokenIn_, amount_);
+        inputs[1] = abi.encode(ptToken_, amount_, account_, account_, 1);
+
+        return abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
+    }
+
+    function _createPendleRouterSwapHookDataWithOdos(
+        address market,
+        address account,
+        bool usePrevHookAmount,
+        uint256 value,
+        bool ptToToken,
+        uint256 amount,
+        address tokenIn,
+        address tokenMint,
+        uint64 chainId
+    )
+        internal
+        returns (bytes memory)
+    {
+        bytes memory pendleTxData;
+        if (!ptToToken) {
+            // call Odos swapAPI to get the calldata
+            // note, odos swap receiver has to be pendle router
+            bytes memory odosCalldata =
+                _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, PENDLE_ROUTERS[chainId]);
+
+            decodeOdosSwapCalldata(odosCalldata);
+
+            pendleTxData = _createTokenToPtPendleTxDataWithOdos(
+                market, account, tokenIn, 1, amount, tokenMint, odosCalldata, chainId
             );
+        } else {
+            //TODO: fill with the other
+            revert("Not implemented");
+        }
+        return abi.encodePacked(usePrevHookAmount, value, pendleTxData);
+    }
+
+    function _createOdosSwapCalldataRequest(
+        address _tokenIn,
+        address _tokenOut,
+        uint256 _amount,
+        address _receiver
+    )
+        internal
+        returns (bytes memory)
+    {
+        // get pathId
+        QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
+        inputTokens[0] = QuoteInputToken({ tokenAddress: _tokenIn, amount: _amount });
+        QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
+        outputTokens[0] = QuoteOutputToken({ tokenAddress: _tokenOut, proportion: 1 });
+        string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, _receiver, ETH, true);
+
+        // get assemble data
+        string memory swapCompactData = surlCallAssemble(pathId, _receiver);
+        return fromHex(swapCompactData);
+    }
+
+    function _createTokenToPtPendleTxDataWithOdos(
+        address _market,
+        address _receiver,
+        address _tokenIn,
+        uint256 _minPtOut,
+        uint256 _amount,
+        address _tokenMintSY,
+        bytes memory _odosCalldata,
+        uint64 chainId
+    )
+        internal
+        view
+        returns (bytes memory pendleTxData)
+    {
+        // no limit order needed
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: "0x"
+        });
+
+        // TokenInput
+        TokenInput memory input = TokenInput({
+            tokenIn: _tokenIn,
+            netTokenIn: _amount,
+            tokenMintSy: _tokenMintSY, //CHAIN_1_cUSDO,
+            pendleSwap: PENDLE_SWAP[chainId],
+            swapData: SwapData({
+                extRouter: ODOS_ROUTER[chainId],
+                extCalldata: _odosCalldata,
+                needScale: false,
+                swapType: SwapType.ODOS
+            })
+        });
+        /*
+        The guessMax and guessOffchain are being set based on the initial USDC _amount (1e6). However, these guesses are
+        used for the internal Pendle swap which involves SY and PT tokens, likely with 18 decimals and completely
+        different magnitudes. A guessMax of 2e6 wei for an 18-decimal token is extremely small and likely far below the
+        actual expected PT output amount. The true value falls outside the provided [guessMin, guessMax] range, causing
+        the approximation to fail.
+        We need to provide more realistic bounds for the expected PT output. Since 1 USDC is roughly $1 and the PT is
+        likely near par, a reasonable very rough guess for the PT amount (18 decimals) might be around 1e18. Let's widen
+        the approximation bounds significantly.*/
+        ApproxParams memory guessPtOut = ApproxParams({
+            guessMin: 1,
+            guessMax: 1e24,
+            guessOffchain: 1e18,
+            maxIteration: 30,
+            eps: 10_000_000_000_000
+        });
+
+        pendleTxData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, _receiver, _market, _minPtOut, guessPtOut, input, limit
+        );
     }
 
     function _createApproveAndSwapOdosHookData(
@@ -2463,7 +2704,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, usePrevHookAmount, pathDefinition.length, pathDefinition, executor, referralCode);
+        return abi.encodePacked(
+            inputToken,
+            inputAmount,
+            inputReceiver,
+            outputToken,
+            outputQuote,
+            outputMin,
+            usePrevHookAmount,
+            pathDefinition.length,
+            pathDefinition,
+            executor,
+            referralCode
+        );
     }
 }
-

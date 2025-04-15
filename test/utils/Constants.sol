@@ -40,6 +40,9 @@ abstract contract Constants {
     string public constant OPTIMISM_RPC_URL_KEY = "OPTIMISM_RPC_URL"; // Native token: ETH
     string public constant BASE_RPC_URL_KEY = "BASE_RPC_URL"; // Native token: ETH
 
+    // api keys
+    string public constant ONE_INCH_API_KEY = "ONE_INCH_API_KEY";
+
     // hooks
     string public constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
     string public constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
@@ -88,6 +91,8 @@ abstract contract Constants {
     string public constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string public constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
+    string public constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
+    string public constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
     string public constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
     string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
@@ -113,7 +118,7 @@ abstract contract Constants {
     string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string public constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
     string public constant SUPER_GAS_TANK_KEY = "SuperGasTank";
-    
+
     // tokens
     string public constant DAI_KEY = "DAI";
     string public constant USDC_KEY = "USDC";
@@ -131,7 +136,7 @@ abstract contract Constants {
     address public constant CHAIN_1_USDE = 0x4c9EDD5852cd905f086C759E8383e09bff1E68B3;
     address public constant CHAIN_1_GEAR = 0xBa3335588D9403515223F109EdC4eB7269a9Ab5D;
     address public constant CHAIN_1_WST_ETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
-    
+
     address public constant CHAIN_10_DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     address public constant CHAIN_10_USDC = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
     address public constant CHAIN_10_WETH = 0x4200000000000000000000000000000000000006;
@@ -147,6 +152,10 @@ abstract contract Constants {
     // 1inch
     address public constant ONE_INCH_ROUTER = 0x111111125421cA6dc452d289314280a0f8842A65;
 
+    // odos
+    address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
+    address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
+    address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
     // morpho
     string public constant MORPHO_KEY = "Morpho";
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
@@ -186,12 +195,21 @@ abstract contract Constants {
     address public constant CHAIN_1_YearnVault = 0x028eC7330ff87667b6dfb0D94b954c820195336c;
     address public constant CHAIN_1_PendleEthena = 0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185;
     address public constant CHAIN_1_GearboxVault = 0xda00000035fef4082F78dEF6A8903bee419FbF8E;
+    address public constant CHAIN_1_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address public constant CHAIN_1_cUSDO = 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0;
+    address public constant CHAIN_1_USDO = 0x8238884Ec9668Ef77B90C6dfF4D1a9F4F4823BFe;
+    address public constant CHAIN_1_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_1_SpectraRouter = 0xD733e545C65d539f588d7c3793147B497403F0d2;
+    address public constant CHAIN_1_SpectraPTToken = 0x3b660B2f136FddF98A081439De483D8712c16ca4; // PT-cUSDO
 
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
+    address public constant CHAIN_10_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address public constant CHAIN_10_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
-
+    address public constant CHAIN_8453_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 

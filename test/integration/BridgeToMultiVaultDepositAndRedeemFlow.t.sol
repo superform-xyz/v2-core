@@ -189,7 +189,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
 
         vm.selectFork(FORKS[OP]);
-        deal(underlyingOP_USDC, odosRouters[OP], 1e18);
+        deal(underlyingOP_USDC, mockOdosRouters[OP], 1e18);
 
         (validatorSigner, validatorSignerPrivateKey) = makeAddrAndKey("The signer");
         vm.label(validatorSigner, "The signer");
@@ -736,7 +736,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory opHooksData = new bytes[](4);
-        opHooksData[0] = _createApproveHookData(underlyingOP_USDCe, odosRouters[OP], assetOutAmount, false);
+        opHooksData[0] = _createApproveHookData(underlyingOP_USDCe, mockOdosRouters[OP], assetOutAmount, false);
         opHooksData[1] = _createOdosSwapHookData(
             underlyingOP_USDCe,
             assetOutAmount,
@@ -745,7 +745,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             assetOutAmount,
             0,
             bytes(""),
-            odosRouters[OP],
+            mockOdosRouters[OP],
             0,
             true
         );
