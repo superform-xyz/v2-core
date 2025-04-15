@@ -264,7 +264,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         if (fullCollateral > requiredCollateralForRemaining) {
             withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
         } else {
-            withdrawableCollateral = 0;
+            revert AMOUNT_NOT_VALID();
         }
     }
 
