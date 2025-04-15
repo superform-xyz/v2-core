@@ -105,9 +105,10 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
         address[] memory tokensIn = yieldSource.getTokensIn();
         address[] memory tokensOut = yieldSource.getTokensOut();
-
+        uint256 tokensInLength = tokensIn.length;
+        uint256 tokensOutLength = tokensOut.length;
         bool foundInTokensIn = false;
-        for (uint256 i = 0; i < tokensIn.length; ++i) {
+        for (uint256 i; i < tokensInLength; ++i) {
             if (tokensIn[i] == expectedUnderlying) {
                 foundInTokensIn = true;
                 break;
@@ -117,7 +118,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         if (!foundInTokensIn) return false;
 
         bool foundInTokensOut = false;
-        for (uint256 i = 0; i < tokensOut.length; ++i) {
+        for (uint256 i; i < tokensOutLength; ++i) {
             if (tokensOut[i] == expectedUnderlying) {
                 foundInTokensOut = true;
                 break;

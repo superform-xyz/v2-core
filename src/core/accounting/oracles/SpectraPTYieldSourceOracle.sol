@@ -8,10 +8,10 @@ import { IPrincipalToken } from "../../../vendor/spectra/IPrincipalToken.sol";
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 
-/// @title SpectraYieldSourceOracle
+/// @title SpectraPTYieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for Spectra Principal Tokens (PTs)
-contract SpectraYieldSourceOracle is AbstractYieldSourceOracle {
+contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
 
     /*//////////////////////////////////////////////////////////////

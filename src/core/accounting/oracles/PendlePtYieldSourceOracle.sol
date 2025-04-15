@@ -1,4 +1,3 @@
-/*
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
@@ -6,6 +5,8 @@ pragma solidity 0.8.28;
 import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 import { IPMarket } from "@pendle/interfaces/IPMarket.sol";
 import { PendlePYOracleLib } from "@pendle/oracles/PtYtLpOracle/PendlePYOracleLib.sol";
+import { IPPrincipalToken } from "@pendle/interfaces/IPPrincipalToken.sol";
+import { IStandardizedYield } from "@pendle/interfaces/IStandardizedYield.sol";
 // Superform
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol"; // Already inherited via
@@ -23,14 +24,18 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
     /// @notice Default TWAP duration set to 15 minutes.
     uint32 private constant DEFAULT_TWAP_DURATION = 900; // 15 * 60
 
+    uint256 private constant PRICE_DECIMALS = 18;
+
     /// @notice Emitted when the TWAP duration is updated (though currently immutable).
     event TwapDurationSet(uint32 newDuration);
 
     error INVALID_ASSET();
+    error NOT_AVAILABLE_ERC20_ON_CHAIN();
 
-    /// @notice Constructor
-    /// @param _oracleRegistry The address of the Superform oracle registry.
-    /// @param _pendleOracle The address of the Pendle PT/YT/LP oracle.
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     constructor(address _oracleRegistry) AbstractYieldSourceOracle(_oracleRegistry) {
         TWAP_DURATION = DEFAULT_TWAP_DURATION; // Set default duration
         emit TwapDurationSet(DEFAULT_TWAP_DURATION);
@@ -45,7 +50,7 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
     function getShareOutput(
         address market,
-        address assetIn,
+        address,
         uint256 assetsIn
     )
         external
@@ -58,20 +63,38 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
 
         // sharesOut = assetsIn * 1e18 / pricePerShare
         // Asset decimals might differ from 18, need to adjust. PT decimals also matter.
-        uint8 assetDecimals = IERC20Metadata(assetIn).decimals();
+        IStandardizedYield sY = IStandardizedYield(_sy(market));
+        (uint256 assetType, address assetAddress, uint8 assetDecimals) = _getAssetInfo(sY);
+        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
+
+        // warning: if the SY token upgrades and asset stops being part of token in or out array this could start
+        // reverting
+        // this can have repercurssions in periphery code!
+        // todo: decide to keep or remove this check
+        if (!_validateAssetFoundInSY(sY, assetAddress)) revert INVALID_ASSET();
+
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
 
-        // Scale assetsIn to 18 decimals before dividing by price (which is 1e18)
-        uint256 assetsIn18 = assetsIn * (10 ** (uint256(18) - assetDecimals));
+        // Scale assetsIn to Price Decimals (1e18) before calculating shares
+        uint256 assetsIn18;
+        if (assetDecimals <= PRICE_DECIMALS) {
+            // Scale up if assetDecimals <= 18
+            assetsIn18 = assetsIn * (10 ** (PRICE_DECIMALS - assetDecimals));
+        } else {
+            // Scale down if assetDecimals > 18
+            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals)
+            assetsIn18 = assetsIn / (10 ** (assetDecimals - PRICE_DECIMALS));
+        }
 
-        // Result is in 1e18 terms, scale to PT decimals
+        // Result is in PT decimals: sharesOut = assetsIn18 * 1e(ptDecimals) / pricePerShare
+        // pricePerShare is PT/Asset in 1e18
         sharesOut = (assetsIn18 * (10 ** uint256(ptDecimals))) / pricePerShare;
     }
 
     /// @inheritdoc IYieldSourceOracle
     function getAssetOutput(
         address market,
-        address assetOut,
+        address,
         uint256 sharesIn
     )
         public
@@ -83,14 +106,29 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
 
         // assetsOut = sharesIn * pricePerShare / 1e(ptDecimals) / 1e(18 - assetDecimals)
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
-        uint8 assetDecimals = IERC20Metadata(assetOut).decimals();
+        IStandardizedYield sY = IStandardizedYield(_sy(market));
+        (uint256 assetType, address assetAddress, uint8 assetDecimals) = _getAssetInfo(sY);
+        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
 
-        // Calculate asset value in 1e18 terms, then scale to asset decimals
+        // warning: if the SY token upgrades and asset stops being part of token in or out array this could start
+        // reverting
+        // this can have repercurssions in periphery code!
+        // todo: decide to keep or remove this check
+        if (!_validateAssetFoundInSY(sY, assetAddress)) revert INVALID_ASSET();
+
+        // Calculate asset value in 1e18 terms first
         // assetsOut18 = sharesIn * pricePerShare / 10^ptDecimals
         uint256 assetsOut18 = (sharesIn * pricePerShare) / (10 ** uint256(ptDecimals));
 
-        // Scale from 18 decimals to asset's decimals
-        assetsOut = assetsOut18 / (10 ** (uint256(18) - assetDecimals));
+        // Scale from 1e18 representation (PRICE_DECIMALS) to asset's actual decimals
+        if (assetDecimals >= PRICE_DECIMALS) {
+            // Scale up if assetDecimals >= 18
+            assetsOut = assetsOut18 * (10 ** (assetDecimals - PRICE_DECIMALS));
+        } else {
+            // Scale down if assetDecimals < 18
+            // Avoids underflow in 10**(PRICE_DECIMALS - assetDecimals) which happens in the division below
+            assetsOut = assetsOut18 / (10 ** (PRICE_DECIMALS - assetDecimals));
+        }
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -102,25 +140,23 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc IYieldSourceOracle
     function getTVLByOwnerOfShares(address market, address ownerOfShares) public view override returns (uint256 tvl) {
         IERC20Metadata pt = IERC20Metadata(_pt(market));
-        address underlyingAsset = IPMarket(market).underlyingAsset();
         uint256 ptBalance = pt.balanceOf(ownerOfShares);
 
         if (ptBalance == 0) return 0;
 
         // Use getAssetOutput for consistency in calculation logic
-        tvl = getAssetOutput(market, underlyingAsset, ptBalance);
+        tvl = getAssetOutput(market, address(0), ptBalance);
     }
 
     /// @inheritdoc IYieldSourceOracle
     function getTVL(address market) public view override returns (uint256 tvl) {
         IERC20Metadata pt = IERC20Metadata(_pt(market));
-        address underlyingAsset = IPMarket(market).underlyingAsset();
         uint256 ptTotalSupply = pt.totalSupply();
 
         if (ptTotalSupply == 0) return 0;
 
         // Use getAssetOutput for consistency in calculation logic
-        tvl = getAssetOutput(market, underlyingAsset, ptTotalSupply);
+        tvl = getAssetOutput(market, address(0), ptTotalSupply);
     }
 
     /// @inheritdoc IYieldSourceOracle
@@ -138,15 +174,65 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAsset(address market, address expectedUnderlying) external view override returns (bool) {
+        IStandardizedYield sY = IStandardizedYield(_sy(market));
+        (uint256 assetType, address assetAddress,) = _getAssetInfo(sY);
+        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
+
+        return _validateAssetFoundInSY(sY, expectedUnderlying);
+    }
+
+    function _validateAssetFoundInSY(IStandardizedYield sY, address expectedUnderlying) internal view returns (bool) {
+        address[] memory tokensIn = sY.getTokensIn();
+        address[] memory tokensOut = sY.getTokensOut();
+        uint256 tokensInLength = tokensIn.length;
+        uint256 tokensOutLength = tokensOut.length;
+        bool foundInTokensIn = false;
+        for (uint256 i; i < tokensInLength; ++i) {
+            if (tokensIn[i] == expectedUnderlying) {
+                foundInTokensIn = true;
+                break;
+            }
+        }
+
+        if (!foundInTokensIn) return false;
+
+        bool foundInTokensOut = false;
+        for (uint256 i; i < tokensOutLength; ++i) {
+            if (tokensOut[i] == expectedUnderlying) {
+                foundInTokensOut = true;
+                break;
+            }
+        }
+        return foundInTokensOut;
+    }
+
+    function _getAssetInfo(IStandardizedYield sY) internal view returns (uint256, address, uint8) {
+        (IStandardizedYield.AssetType assetType, address assetAddress, uint8 assetDecimals) = sY.assetInfo();
+
+        return (uint256(assetType), assetAddress, assetDecimals);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Validates if the provided base asset matches the market's underlying asset.
     function _validateBaseAsset(address market, address base) internal view override {
-        if (base != IPMarket(market).underlyingAsset()) {
+        (uint256 assetType, address assetAddress,) = _getAssetInfo(IStandardizedYield(market));
+        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
+
+        if (base != assetAddress) {
             revert INVALID_BASE_ASSET();
         }
     }
 
     function _pt(address market) internal view returns (address ptAddress) {
-        (, ptAddress,) = IPMarket(market).readTokens();
+        (, IPPrincipalToken ptAddressInt,) = IPMarket(market).readTokens();
+
+        ptAddress = address(ptAddressInt);
+    }
+
+    function _sy(address market) internal view returns (address sYAddress) {
+        (IStandardizedYield sYAddressInt,,) = IPMarket(market).readTokens();
+
+        sYAddress = address(sYAddressInt);
     }
 }
-*/

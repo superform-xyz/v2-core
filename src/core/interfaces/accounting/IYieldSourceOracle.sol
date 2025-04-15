@@ -135,12 +135,10 @@ interface IYieldSourceOracle {
     /// @notice Returns the price per share in USD terms
     /// @param yieldSourceAddress The yield source to derive the price for
     /// @param base The underlying asset of the yield source
-    /// @param provider The provider ID to use for price conversion
     /// @return pricePerShareUSD The price per share in USD terms
     function getPricePerShareUSD(
         address yieldSourceAddress,
-        address base,
-        uint256 provider
+        address base
     )
         external
         view
@@ -150,13 +148,11 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddress The yield source to derive TVL for
     /// @param ownerOfShares The owner of the shares
     /// @param base The underlying asset of the yield source
-    /// @param provider The provider ID to use for price conversion
     /// @return tvlUSD The TVL in USD terms
     function getTVLByOwnerOfSharesUSD(
         address yieldSourceAddress,
         address ownerOfShares,
-        address base,
-        uint256 provider
+        address base
     )
         external
         view
@@ -165,26 +161,16 @@ interface IYieldSourceOracle {
     /// @notice Returns the total TVL in USD terms
     /// @param yieldSourceAddress The yield source to derive TVL for
     /// @param base The underlying asset of the yield source
-    /// @param provider The provider ID to use for price conversion
     /// @return tvlUSD The TVL in USD terms
-    function getTVLUSD(
-        address yieldSourceAddress,
-        address base,
-        uint256 provider
-    )
-        external
-        view
-        returns (uint256 tvlUSD);
+    function getTVLUSD(address yieldSourceAddress, address base) external view returns (uint256 tvlUSD);
 
     /// @notice Returns the price per share in USD terms for multiple yield sources
     /// @param yieldSourceAddresses Array of yield sources to derive the price for
     /// @param baseAddresses Array of underlying assets for each yield source
-    /// @param providers Array of provider IDs to use for price conversion
     /// @return pricesPerShareUSD Array of prices in USD terms for each yield source
     function getPricePerShareMultipleUSD(
         address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses,
-        uint256[] memory providers
+        address[] memory baseAddresses
     )
         external
         view
@@ -194,14 +180,12 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddresses Array of yield sources to derive TVL for
     /// @param ownersOfShares Array of arrays containing owner addresses for each yield source
     /// @param baseAddresses Array of underlying assets for each yield source
-    /// @param providers Array of provider IDs to use for price conversion
     /// @return userTvlsUSD Array of arrays containing TVLs in USD terms for each owner in each yield source
     /// @return totalTvlsUSD Array containing total TVL in USD terms for each yield source for the selected owners
     function getTVLByOwnerOfSharesMultipleUSD(
         address[] memory yieldSourceAddresses,
         address[][] memory ownersOfShares,
-        address[] memory baseAddresses,
-        uint256[] memory providers
+        address[] memory baseAddresses
     )
         external
         view
@@ -210,12 +194,10 @@ interface IYieldSourceOracle {
     /// @notice Returns the total TVL in USD terms for multiple yield sources
     /// @param yieldSourceAddresses Array of yield sources to derive TVL for
     /// @param baseAddresses Array of underlying assets for each yield source
-    /// @param providers Array of provider IDs to use for price conversion
     /// @return tvlsUSD Array containing total TVL in USD terms for each yield source
     function getTVLMultipleUSD(
         address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses,
-        uint256[] memory providers
+        address[] memory baseAddresses
     )
         external
         view
