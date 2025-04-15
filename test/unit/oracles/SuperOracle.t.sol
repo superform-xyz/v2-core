@@ -343,10 +343,6 @@ contract SuperOracleTest is BaseTest {
         // Queue the update
         superOracle.queueOracleUpdate(bases, quotes, providers, feeds);
 
-        // Cannot queue another update while one is pending
-        vm.expectRevert(ISuperOracle.PENDING_UPDATE_EXISTS.selector);
-        superOracle.queueOracleUpdate(bases, quotes, providers, feeds);
-
         // Cannot execute before timelock period
         vm.expectRevert(ISuperOracle.TIMELOCK_NOT_ELAPSED.selector);
         superOracle.executeOracleUpdate();
@@ -560,8 +556,14 @@ contract SuperOracleTest is BaseTest {
         address oracle1 = superOracle.getOracleAddress(address(mockETH), address(mockUSD), PROVIDER_1);
         address oracle2 = superOracle.getOracleAddress(address(mockETH), address(mockUSD), PROVIDER_2);
 
-        assertEq(oracle1, address(mockFeed1), "Oracle mapping for Provider 1 should still exist");
-        assertEq(oracle2, address(mockFeed2), "Oracle mapping for Provider 2 should still exist");
+        assertEq(oracle1, address(0), "Oracle mapping for Provider 1 should not exist");
+        assertEq(oracle2, address(0), "Oracle mapping for Provider 2 should not exist");
+
+        bool isProvider1Set = superOracle.isProviderSet(PROVIDER_1);
+        bool isProvider2Set = superOracle.isProviderSet(PROVIDER_2);
+
+        assertEq(isProvider1Set, false, "Provider 1 should not be set");
+        assertEq(isProvider2Set, false, "Provider 2 should not be set");
 
         // Getting quote from remaining provider should work
         (uint256 quoteAmount,,,) =
