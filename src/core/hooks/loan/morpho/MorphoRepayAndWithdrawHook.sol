@@ -259,8 +259,11 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             //   requiredCollateral = remainingLoan * price / scalingFactor
             requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, price, scalingFactor);
         }
-
-        withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
+        if (fullCollateral > requiredCollateralForRemaining) {
+            withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
+        } else {
+            withdrawableCollateral = 0;
+        }
     }
 
     function deriveLoanAmount(Id id, address account) public view returns (uint256 loanAmount) {
