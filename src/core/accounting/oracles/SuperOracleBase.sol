@@ -21,22 +21,24 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     mapping(address feed => uint256 maxStaleness) public feedMaxStaleness;
 
     uint256 public maxDefaultStaleness;
+    
+    /// @notice Pending oracle update
+    PendingUpdate public pendingUpdate;
+
+    /// @notice Pending provider removal
+    PendingRemoval public pendingRemoval;
 
     /// @notice Mapping of base asset to array of oracle providers to oracle feed address
     mapping(address base => mapping(address quote => mapping(bytes32 provider => address feed))) internal oracles;
 
     /// @notice Array of active provider ids
     bytes32[] public activeProviders;
+    mapping (bytes32 provider => bool isSet) public isProviderSet;
 
     /// @notice Timelock period for oracle updates
     uint256 internal constant TIMELOCK_PERIOD = 1 weeks;
     bytes32 internal constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
 
-    /// @notice Pending oracle update
-    PendingUpdate internal pendingUpdate;
-
-    /// @notice Pending provider removal
-    PendingRemoval internal pendingRemoval;
 
     constructor(
         address owner_,
@@ -105,8 +107,6 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         external
         onlyOwner
     {
-        if (pendingUpdate.timestamp != 0) revert PENDING_UPDATE_EXISTS();
-
         uint256 length = bases.length;
         if (length != quotes.length || length != providers.length || length != feeds.length) {
             revert ARRAY_LENGTH_MISMATCH();
@@ -141,6 +141,8 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
 
     /// @inheritdoc ISuperOracle
     function getOracleAddress(address base, address quote, bytes32 provider) external view returns (address oracle) {
+        if (!isProviderSet[provider]) return address(0);
+
         oracle = oracles[base][quote][provider];
         if (oracle == address(0)) revert NO_ORACLES_CONFIGURED();
     }
@@ -167,6 +169,7 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         // Loop through each provider to remove
         for (uint256 i = 0; i < providersToRemove.length; i++) {
             bytes32 providerToRemove = providersToRemove[i];
+            isProviderSet[providerToRemove] = false;
 
             // Find the provider in activeProviders array
             for (uint256 j = 0; j < activeProviders.length; j++) {
@@ -440,6 +443,7 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
 
             if (!providerExists) {
                 activeProviders.push(provider);
+                isProviderSet[provider] = true;
             }
         }
     }
