@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { SwapOdosHook } from "../../../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { MockSwapOdosHook } from "../../../../mocks/unused-hooks/MockSwapOdosHook.sol";
 import { BaseTest } from "../../../../BaseTest.t.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
@@ -52,7 +52,7 @@ contract MockOdosRouter is IOdosRouterV2 {
 }
 
 contract SwapOdosHookTest is BaseTest {
-    SwapOdosHook public hook;
+    MockSwapOdosHook public hook;
     MockOdosRouter public odosRouter;
     MockHook public prevHook;
 
@@ -90,7 +90,7 @@ contract SwapOdosHookTest is BaseTest {
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
-        hook = new SwapOdosHook(address(this), address(odosRouter));
+        hook = new MockSwapOdosHook(address(this), address(odosRouter));
     }
 
     function test_Constructor() public view {
@@ -100,7 +100,7 @@ contract SwapOdosHookTest is BaseTest {
 
     function test_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SwapOdosHook(address(this), address(0));
+        new MockSwapOdosHook(address(this), address(0));
     }
 
     function _buildData(bool usePrevious) internal view returns (bytes memory) {
