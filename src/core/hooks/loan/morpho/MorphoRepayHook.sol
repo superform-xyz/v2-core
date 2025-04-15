@@ -20,6 +20,7 @@ import {
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
