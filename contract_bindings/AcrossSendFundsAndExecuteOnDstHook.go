@@ -38,7 +38,7 @@ type Execution struct {
 
 // AcrossSendFundsAndExecuteOnDstHookMetaData contains all meta data concerning the AcrossSendFundsAndExecuteOnDstHook contract.
 var AcrossSendFundsAndExecuteOnDstHookMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"registry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"author_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spokePoolV3_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"acrossGatewayExecutor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acrossGatewayExecutor\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"asset\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"author\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"build\",\"inputs\":[{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"executions\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"hookType\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"enumISuperHook.HookType\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"lockForSP\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"outAmount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"postExecute\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"preExecute\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"spToken\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"spokePoolV3\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperRegistry\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"usedShares\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AMOUNT_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"registry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spokePoolV3_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"asset\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"build\",\"inputs\":[{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"executions\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"decodeUsePrevHookAmount\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"getExecutionCaller\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"hookType\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"enumISuperHook.HookType\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"lastExecutionCaller\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"lockForSP\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"outAmount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"postExecute\",\"inputs\":[{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"preExecute\",\"inputs\":[{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"spToken\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"spokePoolV3\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superRegistry\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperRegistry\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"usedShares\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AMOUNT_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"DATA_LENGTH_INSUFFICIENT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
 }
 
 // AcrossSendFundsAndExecuteOnDstHookABI is the input ABI used to generate the binding from.
@@ -187,37 +187,6 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookTra
 	return _AcrossSendFundsAndExecuteOnDstHook.Contract.contract.Transact(opts, method, params...)
 }
 
-// AcrossGatewayExecutor is a free data retrieval call binding the contract method 0x34780f53.
-//
-// Solidity: function acrossGatewayExecutor() view returns(address)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) AcrossGatewayExecutor(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "acrossGatewayExecutor")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// AcrossGatewayExecutor is a free data retrieval call binding the contract method 0x34780f53.
-//
-// Solidity: function acrossGatewayExecutor() view returns(address)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) AcrossGatewayExecutor() (common.Address, error) {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.AcrossGatewayExecutor(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
-}
-
-// AcrossGatewayExecutor is a free data retrieval call binding the contract method 0x34780f53.
-//
-// Solidity: function acrossGatewayExecutor() view returns(address)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) AcrossGatewayExecutor() (common.Address, error) {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.AcrossGatewayExecutor(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
-}
-
 // Asset is a free data retrieval call binding the contract method 0x38d52e0f.
 //
 // Solidity: function asset() view returns(address)
@@ -249,43 +218,12 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCal
 	return _AcrossSendFundsAndExecuteOnDstHook.Contract.Asset(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
 }
 
-// Author is a free data retrieval call binding the contract method 0xa6c3e6b9.
-//
-// Solidity: function author() view returns(address)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) Author(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "author")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Author is a free data retrieval call binding the contract method 0xa6c3e6b9.
-//
-// Solidity: function author() view returns(address)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) Author() (common.Address, error) {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.Author(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
-}
-
-// Author is a free data retrieval call binding the contract method 0xa6c3e6b9.
-//
-// Solidity: function author() view returns(address)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) Author() (common.Address, error) {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.Author(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
-}
-
 // Build is a free data retrieval call binding the contract method 0x3b5896bc.
 //
-// Solidity: function build(address prevHook, address , bytes data) view returns((address,uint256,bytes)[] executions)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) Build(opts *bind.CallOpts, prevHook common.Address, arg1 common.Address, data []byte) ([]Execution, error) {
+// Solidity: function build(address prevHook, address account, bytes data) view returns((address,uint256,bytes)[] executions)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) Build(opts *bind.CallOpts, prevHook common.Address, account common.Address, data []byte) ([]Execution, error) {
 	var out []interface{}
-	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "build", prevHook, arg1, data)
+	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "build", prevHook, account, data)
 
 	if err != nil {
 		return *new([]Execution), err
@@ -299,16 +237,78 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCal
 
 // Build is a free data retrieval call binding the contract method 0x3b5896bc.
 //
-// Solidity: function build(address prevHook, address , bytes data) view returns((address,uint256,bytes)[] executions)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) Build(prevHook common.Address, arg1 common.Address, data []byte) ([]Execution, error) {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.Build(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, prevHook, arg1, data)
+// Solidity: function build(address prevHook, address account, bytes data) view returns((address,uint256,bytes)[] executions)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) Build(prevHook common.Address, account common.Address, data []byte) ([]Execution, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.Build(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, prevHook, account, data)
 }
 
 // Build is a free data retrieval call binding the contract method 0x3b5896bc.
 //
-// Solidity: function build(address prevHook, address , bytes data) view returns((address,uint256,bytes)[] executions)
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) Build(prevHook common.Address, arg1 common.Address, data []byte) ([]Execution, error) {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.Build(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, prevHook, arg1, data)
+// Solidity: function build(address prevHook, address account, bytes data) view returns((address,uint256,bytes)[] executions)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) Build(prevHook common.Address, account common.Address, data []byte) ([]Execution, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.Build(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, prevHook, account, data)
+}
+
+// DecodeUsePrevHookAmount is a free data retrieval call binding the contract method 0xe7745517.
+//
+// Solidity: function decodeUsePrevHookAmount(bytes data) pure returns(bool)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) DecodeUsePrevHookAmount(opts *bind.CallOpts, data []byte) (bool, error) {
+	var out []interface{}
+	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "decodeUsePrevHookAmount", data)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// DecodeUsePrevHookAmount is a free data retrieval call binding the contract method 0xe7745517.
+//
+// Solidity: function decodeUsePrevHookAmount(bytes data) pure returns(bool)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) DecodeUsePrevHookAmount(data []byte) (bool, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.DecodeUsePrevHookAmount(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, data)
+}
+
+// DecodeUsePrevHookAmount is a free data retrieval call binding the contract method 0xe7745517.
+//
+// Solidity: function decodeUsePrevHookAmount(bytes data) pure returns(bool)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) DecodeUsePrevHookAmount(data []byte) (bool, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.DecodeUsePrevHookAmount(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, data)
+}
+
+// GetExecutionCaller is a free data retrieval call binding the contract method 0x6aa04ec5.
+//
+// Solidity: function getExecutionCaller() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) GetExecutionCaller(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "getExecutionCaller")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GetExecutionCaller is a free data retrieval call binding the contract method 0x6aa04ec5.
+//
+// Solidity: function getExecutionCaller() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) GetExecutionCaller() (common.Address, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.GetExecutionCaller(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
+}
+
+// GetExecutionCaller is a free data retrieval call binding the contract method 0x6aa04ec5.
+//
+// Solidity: function getExecutionCaller() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) GetExecutionCaller() (common.Address, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.GetExecutionCaller(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
 }
 
 // HookType is a free data retrieval call binding the contract method 0xe445e7dd.
@@ -340,6 +340,37 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSes
 // Solidity: function hookType() view returns(uint8)
 func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) HookType() (uint8, error) {
 	return _AcrossSendFundsAndExecuteOnDstHook.Contract.HookType(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
+}
+
+// LastExecutionCaller is a free data retrieval call binding the contract method 0x82c3c729.
+//
+// Solidity: function lastExecutionCaller() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) LastExecutionCaller(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "lastExecutionCaller")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// LastExecutionCaller is a free data retrieval call binding the contract method 0x82c3c729.
+//
+// Solidity: function lastExecutionCaller() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) LastExecutionCaller() (common.Address, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.LastExecutionCaller(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
+}
+
+// LastExecutionCaller is a free data retrieval call binding the contract method 0x82c3c729.
+//
+// Solidity: function lastExecutionCaller() view returns(address)
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) LastExecutionCaller() (common.Address, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.LastExecutionCaller(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
 }
 
 // LockForSP is a free data retrieval call binding the contract method 0x514ea109.
@@ -402,64 +433,6 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSes
 // Solidity: function outAmount() view returns(uint256)
 func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) OutAmount() (*big.Int, error) {
 	return _AcrossSendFundsAndExecuteOnDstHook.Contract.OutAmount(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
-}
-
-// PostExecute is a free data retrieval call binding the contract method 0x05b4fe91.
-//
-// Solidity: function postExecute(address , address , bytes ) view returns()
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) PostExecute(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address, arg2 []byte) error {
-	var out []interface{}
-	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "postExecute", arg0, arg1, arg2)
-
-	if err != nil {
-		return err
-	}
-
-	return err
-
-}
-
-// PostExecute is a free data retrieval call binding the contract method 0x05b4fe91.
-//
-// Solidity: function postExecute(address , address , bytes ) view returns()
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) PostExecute(arg0 common.Address, arg1 common.Address, arg2 []byte) error {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PostExecute(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, arg0, arg1, arg2)
-}
-
-// PostExecute is a free data retrieval call binding the contract method 0x05b4fe91.
-//
-// Solidity: function postExecute(address , address , bytes ) view returns()
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) PostExecute(arg0 common.Address, arg1 common.Address, arg2 []byte) error {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PostExecute(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, arg0, arg1, arg2)
-}
-
-// PreExecute is a free data retrieval call binding the contract method 0x2ae2fe3d.
-//
-// Solidity: function preExecute(address , address , bytes ) view returns()
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCaller) PreExecute(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address, arg2 []byte) error {
-	var out []interface{}
-	err := _AcrossSendFundsAndExecuteOnDstHook.contract.Call(opts, &out, "preExecute", arg0, arg1, arg2)
-
-	if err != nil {
-		return err
-	}
-
-	return err
-
-}
-
-// PreExecute is a free data retrieval call binding the contract method 0x2ae2fe3d.
-//
-// Solidity: function preExecute(address , address , bytes ) view returns()
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) PreExecute(arg0 common.Address, arg1 common.Address, arg2 []byte) error {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PreExecute(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, arg0, arg1, arg2)
-}
-
-// PreExecute is a free data retrieval call binding the contract method 0x2ae2fe3d.
-//
-// Solidity: function preExecute(address , address , bytes ) view returns()
-func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) PreExecute(arg0 common.Address, arg1 common.Address, arg2 []byte) error {
-	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PreExecute(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts, arg0, arg1, arg2)
 }
 
 // SpToken is a free data retrieval call binding the contract method 0x8e148776.
@@ -584,4 +557,46 @@ func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSes
 // Solidity: function usedShares() view returns(uint256)
 func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookCallerSession) UsedShares() (*big.Int, error) {
 	return _AcrossSendFundsAndExecuteOnDstHook.Contract.UsedShares(&_AcrossSendFundsAndExecuteOnDstHook.CallOpts)
+}
+
+// PostExecute is a paid mutator transaction binding the contract method 0x05b4fe91.
+//
+// Solidity: function postExecute(address prevHook, address account, bytes data) returns()
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookTransactor) PostExecute(opts *bind.TransactOpts, prevHook common.Address, account common.Address, data []byte) (*types.Transaction, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.contract.Transact(opts, "postExecute", prevHook, account, data)
+}
+
+// PostExecute is a paid mutator transaction binding the contract method 0x05b4fe91.
+//
+// Solidity: function postExecute(address prevHook, address account, bytes data) returns()
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) PostExecute(prevHook common.Address, account common.Address, data []byte) (*types.Transaction, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PostExecute(&_AcrossSendFundsAndExecuteOnDstHook.TransactOpts, prevHook, account, data)
+}
+
+// PostExecute is a paid mutator transaction binding the contract method 0x05b4fe91.
+//
+// Solidity: function postExecute(address prevHook, address account, bytes data) returns()
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookTransactorSession) PostExecute(prevHook common.Address, account common.Address, data []byte) (*types.Transaction, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PostExecute(&_AcrossSendFundsAndExecuteOnDstHook.TransactOpts, prevHook, account, data)
+}
+
+// PreExecute is a paid mutator transaction binding the contract method 0x2ae2fe3d.
+//
+// Solidity: function preExecute(address prevHook, address account, bytes data) returns()
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookTransactor) PreExecute(opts *bind.TransactOpts, prevHook common.Address, account common.Address, data []byte) (*types.Transaction, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.contract.Transact(opts, "preExecute", prevHook, account, data)
+}
+
+// PreExecute is a paid mutator transaction binding the contract method 0x2ae2fe3d.
+//
+// Solidity: function preExecute(address prevHook, address account, bytes data) returns()
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookSession) PreExecute(prevHook common.Address, account common.Address, data []byte) (*types.Transaction, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PreExecute(&_AcrossSendFundsAndExecuteOnDstHook.TransactOpts, prevHook, account, data)
+}
+
+// PreExecute is a paid mutator transaction binding the contract method 0x2ae2fe3d.
+//
+// Solidity: function preExecute(address prevHook, address account, bytes data) returns()
+func (_AcrossSendFundsAndExecuteOnDstHook *AcrossSendFundsAndExecuteOnDstHookTransactorSession) PreExecute(prevHook common.Address, account common.Address, data []byte) (*types.Transaction, error) {
+	return _AcrossSendFundsAndExecuteOnDstHook.Contract.PreExecute(&_AcrossSendFundsAndExecuteOnDstHook.TransactOpts, prevHook, account, data)
 }
