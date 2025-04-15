@@ -327,7 +327,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         {
             address[] memory dstHooksAddresses = new address[](4);
             dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-            dstHooksAddresses[1] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
+            dstHooksAddresses[1] = _getHookAddress(BASE, MOCK_SWAP_ODOS_HOOK_KEY);
             dstHooksAddresses[2] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
             dstHooksAddresses[3] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
