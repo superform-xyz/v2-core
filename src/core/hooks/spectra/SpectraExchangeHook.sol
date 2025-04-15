@@ -10,6 +10,7 @@ import { BaseHook } from "../BaseHook.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
 import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 import { ISpectraRouter } from "../../../vendor/spectra/ISpectraRouter.sol";
+import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 
 /// @title SpectraExchangeHook
 /// @author Superform Labs
@@ -38,7 +39,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     error INVALID_MIN_SHARES();
     error INVALID_TRANSFER_TOKEN();
 
-    constructor(address registry_, address router_) BaseHook(registry_, HookType.NONACCOUNTING) {
+    constructor(address registry_, address router_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (router_ == address(0)) revert ADDRESS_NOT_VALID();
         router = ISpectraRouter(router_);
     }
@@ -98,7 +99,6 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
         uint256 deadline;
         uint256[] commands;
         uint256 commandsLength;
-
         address pt;
         uint256 assets;
         address ptRecipient;
@@ -220,7 +220,6 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
 
     function _decodeTokenOut(bytes calldata data) internal pure returns (address tokenOut) {
         bytes4 selector = bytes4(data[0:4]);
-
         bytes memory commandsData;
         bytes[] memory inputs;
         if (selector == bytes4(keccak256("execute(bytes,bytes[])"))) {

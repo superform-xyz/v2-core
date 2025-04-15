@@ -54,7 +54,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook {
         bytes permit;
     }
 
-    constructor(address registry_, address deBridgeGate_) BaseHook(registry_, HookType.NONACCOUNTING) {
+    constructor(address registry_, address deBridgeGate_) BaseHook(registry_, HookType.NONACCOUNTING, "Bridge") {
         if (deBridgeGate_ == address(0)) revert ADDRESS_NOT_VALID();
         deBridgeGate = deBridgeGate_;
     }
