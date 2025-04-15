@@ -176,7 +176,7 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     function isValidUnderlyingAsset(address market, address expectedUnderlying) external view override returns (bool) {
         IStandardizedYield sY = IStandardizedYield(_sy(market));
-        (uint256 assetType, address assetAddress,) = _getAssetInfo(sY);
+        (uint256 assetType,,) = _getAssetInfo(sY);
         if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
 
         return _validateAssetFoundInSY(sY, expectedUnderlying);
