@@ -98,7 +98,7 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
         // Pendle returns the rate scaled to 1e18
         price = IPMarket(market).getPtToAssetRate(TWAP_DURATION);
     }
-    
+
     /// @inheritdoc IYieldSourceOracle
     function getTVLByOwnerOfShares(address market, address ownerOfShares) public view override returns (uint256 tvl) {
         IERC20Metadata pt = IERC20Metadata(_pt(market));
@@ -123,7 +123,6 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
         tvl = getAssetOutput(market, underlyingAsset, ptTotalSupply);
     }
 
-
     /// @inheritdoc IYieldSourceOracle
     function getBalanceOfOwner(
         address market,
@@ -137,7 +136,7 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
         IERC20Metadata pt = IERC20Metadata(_pt(market));
         balance = pt.balanceOf(ownerOfShares);
     }
-    /*
+
     /// @inheritdoc AbstractYieldSourceOracle
     /// @dev Validates if the provided base asset matches the market's underlying asset.
     function _validateBaseAsset(address market, address base) internal view override {
@@ -145,10 +144,9 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
             revert INVALID_BASE_ASSET();
         }
     }
-    
 
     function _pt(address market) internal view returns (address ptAddress) {
         (, ptAddress,) = IPMarket(market).readTokens();
     }
 }
-    */
+*/

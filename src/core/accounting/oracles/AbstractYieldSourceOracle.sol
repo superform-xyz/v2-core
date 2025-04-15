@@ -21,6 +21,10 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         oracleRegistry = IOracle(_oracleRegistry);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc IYieldSourceOracle
     function decimals(address yieldSourceAddress) external view virtual returns (uint8);
 
@@ -290,6 +294,16 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
             tvlsUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
         }
     }
+
+    /// @inheritdoc IYieldSourceOracle
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
+        external
+        view
+        virtual
+        returns (bool);
 
     /// @notice Internal function to encode provider ID with USD address
     /// @param provider The provider ID to encode

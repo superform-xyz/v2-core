@@ -95,6 +95,18 @@ interface IYieldSourceOracle {
     /// @return tvl The total TVL of the yield source
     function getTVL(address yieldSourceAddress) external view returns (uint256);
 
+    /// @notice Checks if a given address is a valid underlying asset for the yield source
+    /// @param yieldSourceAddress The yield source address
+    /// @param expectedUnderlying The address to check
+    /// @return True if the address is a valid underlying asset, false otherwise
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
+        external
+        view
+        returns (bool);
+
     /// @notice Derives the price of an action for multiple yield sources
     /// @param yieldSourceAddresses Array of yield sources to derive the price for
     /// @return pricesPerShare Array of prices for each yield source
