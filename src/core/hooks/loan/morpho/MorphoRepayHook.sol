@@ -124,7 +124,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
              });
         }
         executions[3] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
     }
 
     /// @inheritdoc ISuperHookLoans

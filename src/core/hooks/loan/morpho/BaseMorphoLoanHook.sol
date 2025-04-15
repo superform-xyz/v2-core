@@ -7,7 +7,7 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
 import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
-import { MarketParams, Market, IMorpho,Id } from "../../../../vendor/morpho/IMorpho.sol";
+import { MarketParams, Market, IMorpho, Id } from "../../../../vendor/morpho/IMorpho.sol";
 
 // superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
@@ -40,8 +40,8 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, bytes32 hookSubtype_) BaseLoanHook(registry_, hookSubtype_) { 
-      morphoInterface = IMorpho(registry_);
+    constructor(address registry_, bytes32 hookSubtype_) BaseLoanHook(registry_, hookSubtype_) {
+        morphoInterface = IMorpho(registry_);
     }
 
     /*//////////////////////////////////////////////////////////////

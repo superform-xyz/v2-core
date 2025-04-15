@@ -26,12 +26,7 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(
-        address registry_,
-        bytes32 hookSubtype_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING, hookSubtype_)
-    { }
+    constructor(address registry_, bytes32 hookSubtype_) BaseHook(registry_, HookType.NONACCOUNTING, hookSubtype_) { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
