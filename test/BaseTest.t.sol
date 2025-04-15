@@ -23,6 +23,7 @@ import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidato
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.sol";
 
+
 // hooks
 
 // token hooks
@@ -70,6 +71,10 @@ import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
 import { OdosAPIParser } from "./utils/parsers/OdosAPIParser.sol";
 import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
+
+// --- Spectra
+import { SpectraCommands } from "../src/vendor/spectra/SpectraCommands.sol";
+import { ISpectraRouter } from "../src/vendor/spectra/ISpectraRouter.sol";
 
 // Stake hooks
 // --- Gearbox
@@ -987,9 +992,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
             hooksAddresses[31] = address(A[i].ethenaUnstakeHook);
 
-            MockSpectraRouter spectraRouter = new MockSpectraRouter();
             A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(
-                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(spectraRouter)
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(CHAIN_1_SpectraRouter) //TODO: update per chain
             );
             vm.label(address(A[i].spectraExchangeHook), SPECTRA_EXCHANGE_HOOK_KEY);
             hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_HOOK_KEY] = address(A[i].spectraExchangeHook);
@@ -2432,6 +2436,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
     }
 
+    function _createSpectraExchangeSwapHookData(
+        bool usePrevHookAmount,
+        uint256 value,
+        address ptToken,
+        address tokenIn,
+        uint256 amount,
+        address account
+    ) 
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
+        return abi.encodePacked(usePrevHookAmount, value, txData);
+    }
+
+    function _createSpectraExchangeSimpleCommandTxData(address ptToken_, address tokenIn_, uint256 amount_, address account_) internal pure returns (bytes memory) {
+        bytes memory commandsData = new bytes(2);
+        commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
+        commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
+
+        /// https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_pt-command
+        // ptToken
+        // amount
+        // ptRecipient
+        // ytRecipient
+        // minShares
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(tokenIn_, amount_);
+        inputs[1] = abi.encode(ptToken_, amount_, account_, account_, 1);
+
+        return abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
+    }
+
     function _createPendleRouterSwapHookDataWithOdos(
         address market,
         address account,
@@ -2452,21 +2490,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             // note, odos swap receiver has to be pendle router
             bytes memory odosCalldata =
                 _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, PENDLE_ROUTERS[chainId]);
-            console2.log("odosCalldata");
-            console2.logBytes(odosCalldata);
 
-            console2.log("----------------decoding test");
             decodeOdosSwapCalldata(odosCalldata);
-
-            console2.log("---account", account);
-            console2.log("---tokenIn", tokenIn);
-            console2.log("---tokenMint", tokenMint);
-            console2.log("---amount", amount);
-
-            console2.log("----------------decoding test for hardcoded data - taken from an existing tx");
-            decodeOdosSwapCalldata(
-                hex"83bd37f90001a0b86991c6218b36c1d19d4a2e9eb0ce3606eb480001ad55aebc9b8c03fc43cd9f62260391c13c23e7c005012b6965500a010da7b828fa1570000000c49b0001fb2139331532e3ee59777fbbcb14af674f3fd671000190455bd11ce8a67c57d467e634dc142b8e4105aa0001888888888889758f76e7103c6cbf23abbf58f94635d39ebf03010203006701010001020100ff0000000000000000000000000000000000000090455bd11ce8a67c57d467e634dc142b8e4105aaa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48000000000000000000000000000000000000000000000000"
-            );
 
             pendleTxData = _createTokenToPtPendleTxDataWithOdos(
                 market, account, tokenIn, 1, amount, tokenMint, odosCalldata, chainId

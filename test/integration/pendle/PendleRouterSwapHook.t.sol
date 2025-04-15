@@ -46,6 +46,8 @@ contract PendleRouterSwapHook is BaseTest {
         (address sy, address pt,) = _market.readTokens();
         // note syTokenIns [1] is WETH for this SY, which should have high liquidity
         address[] memory syTokenIns = IStandardizedYield(sy).getTokensIn();
+        uint256 balance = IERC20(pt).balanceOf(account);
+        assertEq(balance, 0);
 
         address[] memory hookAddresses_ = new address[](2);
         hookAddresses_[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -66,44 +68,7 @@ contract PendleRouterSwapHook is BaseTest {
 
         executeOp(opData);
 
-        uint256 balance = IERC20(pt).balanceOf(account);
+        balance = IERC20(pt).balanceOf(account);
         assertGt(balance, 0);
     }
-
-    /**
-     * struct PendleRouterSwapHookData {
-     *     bool ptToToken;
-     *     uint256 value;
-     *     bool usePrevHookAmount;
-     *
-     *     // pendle router swap params token to PT
-     *     address receiver;
-     *     address market;
-     *     uint256 minPtOut;
-     *     ApproxParams guessPtOut;
-     *     TokenInput input;
-     *     LimitOrderData limit;
-     * }
-     *
-     * function _createExtCallDataOdos(address _account, uint256 _amount) internal view returns (bytes memory) {
-     *     (,address pt,) = IPendleMarket(pendlePufETHMarket).readTokens();
-     *     IOdosRouterV2.swapTokenInfo memory swapTokenInfo = _createOdosSwap(
-     *         CHAIN_1_USDC, //inputToken
-     *         _amount, //inputAmount
-     *         _account, //inputReceiver
-     *         pt, //outputToken
-     *         1, //outputQuote
-     *         1, //outputMin
-     *         _account //outputReceiver
-     *     );
-     *     return abi.encodeWithSelector(
-     *         IOdosRouterV2.swap.selector,
-     *         swapTokenInfo,
-     *         hex"020203000701010102423a1323c871abc9d89eb06855bf5347048fc4a5000000000000000000000496ff00000000000000000000000000000000000000000000af88d065e77c8cc2239327c5edb3a432268e5831da10009cbd5d07dd0cecc66161fc93d7c9000da1",
-     * // path definition; what?
-     *         0xfb2139331532e3ee59777FBbcB14aF674f3fd671, // executor? what ? TODO: determinet this?
-     *         0
-     *     );
-     * }
-     */
 }

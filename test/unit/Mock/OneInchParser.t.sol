@@ -26,15 +26,14 @@ contract OneInchParser is Helpers, OneInchAPIParser {
         (string memory dstAmount, string memory txData) = surlCallSwapCalldata(authKey, request);
         console2.log("dstAmount", dstAmount);
         console2.log("txData", txData);
-    }
-
-    function test_OneInchAPIParser_GetRouterCall() external {
+        
+        // note: commented out because of the API rate limit
+        /**
         string memory spender = surlCallGetRouter(authKey, 1);
         console2.log("spender", spender);
-    }   
 
-    function test_OneInchAPIParser_GetApproveCallDataCall() external {
-        string memory txData = surlCallGetApproveCallData(authKey, 1, 0x111111111117dC0aa78b770fA6A738034120C302, 10000000000000000);
+        txData = surlCallGetApproveCallData(authKey, 1, 0x111111111117dC0aa78b770fA6A738034120C302, 10000000000000000);
         console2.log("txData", txData);
+        */
     }
 }
