@@ -854,8 +854,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[18] = address(A[i].mockApproveAndSwapOdosHook);
             
             A[i].mockSwapOdosHook = new MockSwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
-            vm.label(address(A[i].mockSwapOdosHook), SWAP_ODOS_HOOK_KEY);
-            hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(A[i].mockSwapOdosHook);
+            vm.label(address(A[i].mockSwapOdosHook), MOCK_SWAP_ODOS_HOOK_KEY);
+            hookAddresses[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY] = address(A[i].mockSwapOdosHook);
             hooks[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY] = Hook(
                 MOCK_SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].mockSwapOdosHook), ""
             );
