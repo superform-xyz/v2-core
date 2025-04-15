@@ -2,7 +2,6 @@
 pragma solidity 0.8.28;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";

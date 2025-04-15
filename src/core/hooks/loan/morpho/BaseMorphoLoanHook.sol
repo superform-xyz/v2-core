@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 // external
 import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
 import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
@@ -20,6 +19,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
 
     error TOKEN_DECIMALS_NOT_SUPPORTED();
     error INVALID_TIMESTAMP();
+
     IMorpho public morphoInterface;
 
     uint256 private constant AMOUNT_POSITION = 80;

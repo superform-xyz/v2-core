@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import "forge-std/console2.sol";
-
 // external
 import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
 import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -299,7 +296,5 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = getCollateralTokenBalance(account, data) - outAmount;
-        console2.log("---collateral balance", getCollateralTokenBalance(account, data));
-        console2.log("---outAmount", outAmount);
     }
 }
