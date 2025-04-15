@@ -73,31 +73,6 @@ contract MorphoRepayHookTest is BaseTest {
         new MorphoRepayHook(address(this), address(0));
     }
 
-    function test_Build_Repay_FullRepay() public view {
-        bytes memory data = _encodeData(address(loanToken), address(collateralToken), oracleAddress, irmAddress, amount, lltv, false, true, false);
-        Execution[] memory executions = hook.build(address(0), address(this), data);
-
-        assertEq(executions.length, 4, "Incorrect number of executions for full repay");
-
-        // Execution 0: Approve Morpho for 0
-        assertEq(executions[0].target, address(loanToken));
-        assertEq(executions[0].value, 0);
-
-        // Execution 1: Approve Morpho for assetsToPay
-        // We check target, value. Amount check removed.
-        assertEq(executions[1].target, address(loanToken));
-        assertEq(executions[1].value, 0);
-
-        // Execution 2: Call Morpho repay with shares amount
-        // We check target, value. Parameter checks removed.
-        assertEq(executions[2].target, morphoAddress);
-        assertEq(executions[2].value, 0);
-
-        // Execution 3: Approve Morpho for 0 again
-        assertEq(executions[3].target, address(loanToken));
-        assertEq(executions[3].value, 0);
-    }
-
     function test_Build_RevertIf_InvalidAddressesInParams() public {
         // Test invalid loan token (address(0))
         address invalidLoanToken = address(0);

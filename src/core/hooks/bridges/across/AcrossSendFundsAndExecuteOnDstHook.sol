@@ -8,6 +8,7 @@ import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpo
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
@@ -48,7 +49,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         bytes message;
     }
 
-    constructor(address registry_, address spokePoolV3_) BaseHook(registry_, HookType.NONACCOUNTING, "Bridge") {
+    constructor(address registry_, address spokePoolV3_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
     }

@@ -7,6 +7,7 @@ import { IERC7540CancelRedeem } from "../../../../vendor/standards/ERC7540/IERC7
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title CancelRedeemRequest7540Hook
@@ -17,7 +18,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract CancelRedeemRequest7540Hook is BaseHook {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "CancelRedeemRequest") { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM_REQUEST) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

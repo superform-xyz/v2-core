@@ -10,8 +10,9 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndDeposit5115VaultHook
 /// @author Superform Labs
@@ -30,7 +31,7 @@ contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, IS
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
 
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, "5115") { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, HookSubTypes.ERC5115) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

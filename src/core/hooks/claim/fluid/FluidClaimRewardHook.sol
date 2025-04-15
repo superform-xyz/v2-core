@@ -7,13 +7,14 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 
 /// @title FluidClaimRewardHook
@@ -27,7 +28,7 @@ contract FluidClaimRewardHook is
     ISuperHookOutflow,
     ISuperHookContextAware
 {
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, "Claim") { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

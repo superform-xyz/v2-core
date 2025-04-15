@@ -6,7 +6,13 @@ pragma solidity 0.8.28;
 /// @notice Library for hook subtypes
 library HookSubTypes {
     bytes32 constant BRIDGE = keccak256(bytes("Bridge"));
+    bytes32 constant CANCEL_DEPOSIT = keccak256(bytes("CancelDeposit"));
+    bytes32 constant CANCEL_DEPOSIT_REQUEST = keccak256(bytes("CancelDepositRequest"));
+    bytes32 constant CANCEL_REDEEM = keccak256(bytes("CancelRedeem"));
+    bytes32 constant CANCEL_REDEEM_REQUEST = keccak256(bytes("CancelRedeemRequest"));
     bytes32 constant CLAIM = keccak256(bytes("Claim"));
+    bytes32 constant CLAIM_CANCEL_DEPOSIT_REQUEST = keccak256(bytes("ClaimCancelDepositRequest"));
+    bytes32 constant CLAIM_CANCEL_REDEEM_REQUEST = keccak256(bytes("ClaimCancelRedeemRequest"));
     bytes32 constant COOLDOWN = keccak256(bytes("Cooldown"));
     bytes32 constant ERC4626 = keccak256(bytes("ERC4626"));
     bytes32 constant ERC5115 = keccak256(bytes("ERC5115"));

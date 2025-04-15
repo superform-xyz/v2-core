@@ -15,6 +15,7 @@ import {
     ISuperHookOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Withdraw7540VaultHook
@@ -32,7 +33,7 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookO
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, "7540") { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.ERC7540) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

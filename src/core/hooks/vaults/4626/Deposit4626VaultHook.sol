@@ -8,8 +8,9 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Deposit4626VaultHook
 /// @author Superform Labs
@@ -25,7 +26,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, "4626") { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, HookSubTypes.ERC4626) { }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -13,6 +13,7 @@ import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol
 // Superform
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -44,7 +45,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, "Loan") {
+    constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, HookSubTypes.LOAN) {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);

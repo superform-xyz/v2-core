@@ -28,7 +28,7 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
     //////////////////////////////////////////////////////////////*/
     constructor(
         address registry_,
-        string memory hookSubtype_
+        bytes32 hookSubtype_
     )
         BaseHook(registry_, HookType.NONACCOUNTING, hookSubtype_)
     { }

@@ -8,8 +8,9 @@ import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Deposit7540VaultHook
 /// @author Superform Labs
@@ -25,7 +26,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, "7540") { }
+    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, HookSubTypes.ERC7540) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

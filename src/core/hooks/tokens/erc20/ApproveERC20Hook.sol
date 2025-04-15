@@ -9,6 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveERC20Hook
@@ -22,7 +23,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 contract ApproveERC20Hook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "Token") { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

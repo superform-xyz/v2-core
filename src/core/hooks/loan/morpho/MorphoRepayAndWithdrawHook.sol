@@ -22,6 +22,7 @@ import {
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -56,7 +57,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, "LoanRepay") {
+    constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, HookSubTypes.LOAN_REPAY) {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);

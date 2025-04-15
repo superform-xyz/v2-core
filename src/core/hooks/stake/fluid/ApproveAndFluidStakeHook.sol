@@ -9,8 +9,9 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndFluidStakeHook
 /// @author Superform Labs
@@ -27,7 +28,7 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHookContextAware {
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "Stake") { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.STAKE) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

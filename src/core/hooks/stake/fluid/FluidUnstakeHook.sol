@@ -7,10 +7,10 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookResultOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
-
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title FluidUnstakeHook
 /// @author Superform Labs
@@ -26,7 +26,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHookContextAware {
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "Unstake") { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.UNSTAKE) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

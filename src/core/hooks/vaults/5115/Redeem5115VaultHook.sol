@@ -15,6 +15,7 @@ import {
     ISuperHookOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title Redeem5115VaultHook
@@ -34,7 +35,7 @@ contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 109;
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, "5115") { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.ERC5115) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

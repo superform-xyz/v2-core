@@ -16,6 +16,7 @@ import {
     ISuperHookAsyncCancelations
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title ApproveAndRequestDeposit7540VaultHook
@@ -39,7 +40,7 @@ contract ApproveAndRequestDeposit7540VaultHook is
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "7540") { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.ERC7540) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
