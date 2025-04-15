@@ -16,7 +16,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @title SpectraExchangeHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0); // EMPTY
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4); // Spectra PT Token
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = abi.decode(data[25:57], (uint256));
