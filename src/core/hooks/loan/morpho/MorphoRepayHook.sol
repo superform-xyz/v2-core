@@ -146,8 +146,12 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
         uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
-        uint256 elapsed = block.timestamp - market.lastUpdate;
-        interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
+        if (block.timestamp > market.lastUpdate) {
+            uint256 elapsed = block.timestamp - market.lastUpdate;
+            interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
+        } else {
+            interest = 0;
+        }
     }
 
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
