@@ -54,6 +54,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -80,6 +82,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -109,6 +113,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
             uint256(0), // value
             txData
@@ -135,6 +141,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -158,6 +166,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -183,6 +193,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -207,6 +219,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -230,6 +244,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -253,6 +269,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -282,6 +300,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
             txData
@@ -311,6 +331,8 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
             uint8(0),
             uint256(0),
             txData
