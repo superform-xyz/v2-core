@@ -7,7 +7,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHook,
     ISuperHookResultOutflow,
@@ -15,7 +14,9 @@ import {
     ISuperHookOutflow,
     ISuperHookContextAware
 } from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
@@ -28,7 +29,7 @@ contract GearboxClaimRewardHook is
     ISuperHookOutflow,
     ISuperHookContextAware
 {
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.CLAIM) { }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

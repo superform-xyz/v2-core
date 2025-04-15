@@ -9,6 +9,7 @@ import { IYearnStakingRewardsMulti } from "../../../../vendor/yearn/IYearnStakin
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import {
     ISuperHook,
     ISuperHookResultOutflow,
@@ -29,7 +30,7 @@ contract YearnClaimOneRewardHook is
     ISuperHookOutflow,
     ISuperHookContextAware
 {
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW) { }
+    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

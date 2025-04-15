@@ -7,10 +7,11 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookResultOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title GearboxUnstakeHook
 /// @author Superform Labs
@@ -26,7 +27,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware {
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.UNSTAKE) { }
 
     function build(
         address prevHook,

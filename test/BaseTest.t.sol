@@ -30,6 +30,12 @@ import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.so
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
 
+// loan hooks
+import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
+
+
 // vault hooks
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
@@ -145,6 +151,9 @@ struct Addresses {
     ISuperExecutor superExecutor;
     ISuperExecutor acrossTargetExecutor;
     ApproveERC20Hook approveErc20Hook;
+    MorphoBorrowHook morphoBorrowHook;
+    MorphoRepayHook morphoRepayHook;
+    MorphoRepayAndWithdrawHook morphoRepayAndWithdrawHook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
     ApproveAndSwapOdosHook approveAndSwapOdosHook;
@@ -208,9 +217,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         VaultDeposits,
         VaultWithdrawals,
         Bridges,
-        Swaps,
         Stakes,
         Claims,
+        Loans,
+        Swaps,
         None
     }
 
@@ -517,7 +527,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](38);
+            address[] memory hooksAddresses = new address[](41);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY));
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1062,6 +1072,32 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
             hooksAddresses[37] = address(A[i].cancelRedeemHook);
 
+            A[i].morphoBorrowHook =
+                new MorphoBorrowHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
+            vm.label(address(A[i].morphoBorrowHook), MORPHO_BORROW_HOOK_KEY);
+            hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].morphoBorrowHook);
+            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] =
+                Hook(MORPHO_BORROW_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoBorrowHook), "");
+            hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
+            hooksAddresses[38] = address(A[i].morphoBorrowHook);
+
+            A[i].morphoRepayHook =
+                new MorphoRepayHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
+            vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
+            hookAddresses[chainIds[i]][MORPHO_REPAY_HOOK_KEY] = address(A[i].morphoRepayHook);
+            hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY] =
+                Hook(MORPHO_REPAY_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoRepayHook), "");
+            hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY]);
+            hooksAddresses[39] = address(A[i].morphoRepayHook);
+
+            A[i].morphoRepayAndWithdrawHook =
+                new MorphoRepayAndWithdrawHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), MORPHO);
+            vm.label(address(A[i].morphoRepayAndWithdrawHook), MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
+            hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] =
+                address(A[i].morphoRepayAndWithdrawHook);
+            hooksAddresses[40] = address(A[i].morphoRepayAndWithdrawHook);
+            
+
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
         }
@@ -1163,6 +1199,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             peripheryRegistry.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             peripheryRegistry.registerHook(address(A[i].ethenaUnstakeHook), true);
+            peripheryRegistry.registerHook(address(A[i].morphoBorrowHook), false);
+            peripheryRegistry.registerHook(address(A[i].morphoRepayHook), false);
+            peripheryRegistry.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
         }
 
         return A;
@@ -1320,6 +1359,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         existingUnderlyingTokens[ETH][WETH_KEY] = CHAIN_1_WETH;
         existingUnderlyingTokens[ETH][SUSDE_KEY] = CHAIN_1_SUSDE;
         existingUnderlyingTokens[ETH][USDE_KEY] = CHAIN_1_USDE;
+        existingUnderlyingTokens[ETH][WST_ETH_KEY] = CHAIN_1_WST_ETH;
         // Optimism tokens
         existingUnderlyingTokens[OP][DAI_KEY] = CHAIN_10_DAI;
         existingUnderlyingTokens[OP][USDC_KEY] = CHAIN_10_USDC;
@@ -2347,4 +2387,83 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _createClaimCancelHookData(address yieldSource, address receiver) internal pure returns (bytes memory) {
         return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
     }
+
+    function _createMorphoBorrowHookData(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 amount,
+        uint256 lltv,
+        bool usePrevHookAmount,
+        bool isPositiveFeed
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed, false);
+    }
+
+    function _createMorphoRepayHookData(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 amount,
+        uint256 lltv,
+        bool usePrevHookAmount,
+        bool isFullRepayment,
+        bool isPositiveFeed
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
+        );
+    }
+
+    function _createMorphoRepayAndWithdrawHookData(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 amount,
+        uint256 lltv,
+        bool usePrevHookAmount,
+        bool isFullRepayment,
+        bool isPositiveFeed
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(
+                loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
+            );
+    }
+
+    function _createApproveAndSwapOdosHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, usePrevHookAmount, pathDefinition.length, pathDefinition, executor, referralCode);
+    }
 }
+

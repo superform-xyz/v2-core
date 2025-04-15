@@ -190,7 +190,7 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(hooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](3)
             })
         );

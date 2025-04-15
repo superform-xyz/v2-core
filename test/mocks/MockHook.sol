@@ -19,6 +19,10 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         asset = _asset;
     }
 
+    function subtype() external pure returns (bytes32) {
+        return bytes32("Mock");
+    }
+
     function setOutAmount(uint256 _outAmount) external {
         outAmount = _outAmount;
     }

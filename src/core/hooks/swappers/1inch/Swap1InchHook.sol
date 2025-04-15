@@ -7,6 +7,8 @@ import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Swap1InchHook
@@ -42,7 +44,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
 
-    constructor(address registry_, address aggregationRouter_) BaseHook(registry_, HookType.NONACCOUNTING) {
+    constructor(address registry_, address aggregationRouter_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.SWAP) {
         if (aggregationRouter_ == address(0)) {
             revert ZERO_ADDRESS();
         }

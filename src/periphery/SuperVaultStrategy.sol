@@ -20,12 +20,14 @@ import {
     ISuperHookAsync,
     ISuperHookResultOutflow,
     ISuperHookContextAware,
-    ISuperHookAsyncCancelations
+    ISuperHookAsyncCancelations,
+    ISuperHookLoans
 } from "../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
+import { HookSubTypes } from "../core/libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
@@ -99,6 +101,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     mapping(address yieldSource => uint256 assetsInTransit) private asyncYieldSourceAssetsInTransitInflows;
     // Track assets in transit from two-step yield sources to vault for outflows
     mapping(address yieldSource => uint256 assetsInTransit) private asyncYieldSourceSharesInTransitOutflows;
+
+    // Track assets sent to lending protocols
+    uint256 private liabilityAmount;
 
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
@@ -219,6 +224,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             // Get hook type
             vars.hookContract = ISuperHook(hook);
             vars.hookType = ISuperHookResult(hook).hookType();
+            vars.hookSubtype = vars.hookContract.subtype();
 
             if (isFulfillHook) {
                 vars.targetedYieldSource = HookDataDecoder.extractYieldSource(args.hookCalldata[i]);
@@ -306,6 +312,22 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
                 // Call postExecute to update outAmount tracking
                 vars.hookContract.postExecute(vars.prevHook, address(this), args.hookCalldata[i]);
+
+                // Track assets sent to lending protocols
+                // @dev `getUsedAssets()` of Loan hooks returns the amount of assets used denoted in collateral token
+                // ToDo: Lock all borrow hooks to use asset_ as collateral or add a new hook subtype for borrow hooks
+                // with a different token
+                if (vars.hookType == ISuperHook.HookType.NONACCOUNTING) {
+                    if (vars.hookSubtype == HookSubTypes.LOAN) {
+                        liabilityAmount += ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
+                    } else if (vars.hookSubtype == HookSubTypes.LOAN_REPAY) {
+                        if (vars.outAmount <= liabilityAmount) {
+                            liabilityAmount -= ISuperHookLoans(hook).getUsedAssets(address(this), args.hookCalldata[i]);
+                        } else {
+                            liabilityAmount = 0;
+                        }
+                    }
+                }
 
                 // If the hook is non-accounting and the yield source is active, add the asset balance change to
                 // assetsInTransit
@@ -542,6 +564,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: tvlSum });
             }
         }
+        totalAssets_ += liabilityAmount;
 
         if (activeSourceCount < length) {
             assembly {
