@@ -19,7 +19,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     using HookDataDecoder for bytes;
 
     error TOKEN_DECIMALS_NOT_SUPPORTED();
-
+    error INVALID_TIMESTAMP();
     IMorpho public morphoInterface;
 
     uint256 private constant AMOUNT_POSITION = 80;

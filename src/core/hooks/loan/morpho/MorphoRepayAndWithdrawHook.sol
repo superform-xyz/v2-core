@@ -181,7 +181,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             uint256 elapsed = block.timestamp - market.lastUpdate;
             interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
         } else {
-            interest = 0;
+           revert INVALID_TIMESTAMP();
         }
     }
 
