@@ -45,7 +45,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account, account);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         bytes memory txData = abi.encodeWithSelector(
             bytes4(keccak256("execute(bytes,bytes[])")),
@@ -99,7 +99,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account, account);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         // Encode the full transaction data
         bytes memory txData = abi.encodeWithSelector(
@@ -126,7 +126,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(0), 1e18, account, account);
+        inputs[0] = abi.encode(address(0), 1e18, account, account, 1);
 
         bytes memory txData = abi.encodeWithSelector(
             bytes4(keccak256("execute(bytes,bytes[])")),
@@ -174,7 +174,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, otherAccount, account);
+        inputs[0] = abi.encode(address(token), 1e18, otherAccount, account, 1);
 
         bytes memory txData = abi.encodeWithSelector(
             bytes4(keccak256("execute(bytes,bytes[])")),
@@ -198,7 +198,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_IBT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account, account);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         bytes memory txData = abi.encodeWithSelector(
             bytes4(keccak256("execute(bytes,bytes[])")),
@@ -244,7 +244,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account, account);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         bytes memory txData = abi.encodeWithSelector(
             bytes4(keccak256("execute(bytes,bytes[])")),
@@ -270,7 +270,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account, account);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         uint256 deadline = block.timestamp + 1 hours;
 
@@ -299,7 +299,7 @@ contract SpectraExchangeHookTest is BaseTest {
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
         bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account, account);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         uint256 deadline = block.timestamp - 1;
 
