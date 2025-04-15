@@ -94,6 +94,8 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         executions = new Execution[](5);
         executions[0] =
             Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[3] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         if (vars.isFullRepayment) {
             uint128 borrowBalance = deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
@@ -111,8 +113,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets as
                     // we are repaying in full
              });
-            executions[3] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
@@ -147,8 +147,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares as
                     // partial repayment
              });
-            executions[3] =
-                Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
@@ -212,7 +210,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 loanDecimals = ERC20(loanToken).decimals();
         uint256 collateralDecimals = ERC20(collateralToken).decimals();
 
-        if (collateralDecimals > 36 + loanDecimals || loanDecimals > 36 + collateralDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
+        if (collateralDecimals > 36 + loanDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
 
         // Correct scaling factor as per the oracle's specification:
         // 10^(36 + loanDecimals - collateralDecimals)
