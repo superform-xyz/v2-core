@@ -156,13 +156,15 @@ abstract contract Constants {
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
+    
     // morpho
     string public constant MORPHO_KEY = "Morpho";
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+
     // Base USDC-WETH Market Constants
     address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;
     address public constant MORPHO_ORACLE = 0xD09048c8B568Dbf5f189302beA26c9edABFC4858;
-
+    
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";
     string public constant ERC5115_VAULT_KEY = "ERC5115";
@@ -201,6 +203,7 @@ abstract contract Constants {
     address public constant CHAIN_1_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_1_SpectraRouter = 0xD733e545C65d539f588d7c3793147B497403F0d2;
     address public constant CHAIN_1_SpectraPTToken = 0x3b660B2f136FddF98A081439De483D8712c16ca4; // PT-cUSDO
+    address public constant CHAIN_1_SPECTRA_PT_IPOR_USDC = 0xf2C5E30fD95A7363583BCAa932Dbe493765BF74f; // PT-IPOR-USDC
 
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
     address public constant CHAIN_10_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;

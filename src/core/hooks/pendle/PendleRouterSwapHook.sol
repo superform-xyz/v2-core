@@ -19,15 +19,20 @@ import {
 } from "../../../vendor/pendle/IPendleRouterV4.sol";
 import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
 import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 0);
-/// @notice         uint256 value = abi.decode(data[1:33], (uint256));
-/// @notice         bytes txData_ = data[33:];
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4); // Pendle Market
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
+/// @notice         uint256 value = abi.decode(data[25:57], (uint256));
+/// @notice         bytes txData_ = data[57:];
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
+    using HookDataDecoder for bytes;
+
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -70,12 +75,13 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         view
         override
         returns (Execution[] memory executions)
-    {
+    {   
+        address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[1:33], (uint256));
-        bytes memory txData_ = data[33:];
+        uint256 value = abi.decode(data[25:57], (uint256));
+        bytes memory txData_ = data[57:];
 
-        bytes memory updatedTxData = _validateTxData(data[33:], account, usePrevHookAmount, prevHook);
+        bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pendleMarket);
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -111,7 +117,8 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         bytes calldata data,
         address account,
         bool usePrevHookAmount,
-        address prevHook
+        address prevHook,
+        address pendleMarket
     )
         private
         view
@@ -130,7 +137,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
             ) = abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
             if (receiver != account) revert RECEIVER_NOT_VALID();
-            if (market == address(0)) revert MARKET_NOT_VALID();
+            if (market != pendleMarket) revert MARKET_NOT_VALID();
             if (minPtOut == 0) revert MIN_OUT_NOT_VALID();
 
             // validate approx params
@@ -165,7 +172,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
             ) = abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
 
             if (receiver != account) revert RECEIVER_NOT_VALID();
-            if (market == address(0)) revert MARKET_NOT_VALID();
+            if (market != pendleMarket) revert MARKET_NOT_VALID();
 
             if (usePrevHookAmount) {
                 exactPtIn = ISuperHookResult(prevHook).outAmount();
@@ -229,8 +236,8 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     }
 
     function _getBalance(bytes calldata data) private view returns (uint256) {
-        address tokenOut = _decodeTokenOut(data[33:]);
-        address receiver = _decodeReceiver(data[33:]);
+        address tokenOut = _decodeTokenOut(data[57:]);
+        address receiver = _decodeReceiver(data[57:]);
 
         if (tokenOut == address(0)) {
             return receiver.balance;

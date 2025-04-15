@@ -11,7 +11,6 @@ import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
 import { BaseAPIParser } from "./BaseAPIParser.sol";
 
-import "forge-std/console2.sol";
 abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
     using Strings for uint256;
@@ -93,7 +92,6 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
             revert("OdosAPIParser: surlCallQuoteV2 failed");
         }
         string memory json = string(data);
-        console2.log("json", json);
 
         // get `pathId`
         strings.slice memory jsonSlice = json.toSlice();
@@ -121,13 +119,11 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         headers[0] = "Content-Type: application/json";  
 
         string memory body = buildAssembleRequestBody(_pathId, _userAddr);
-        console2.log("body", body);
         (uint256 status, bytes memory data) = API_ASSEMBLE_URL.post(headers, body);
         if (status != 200) {
             revert("OdosAPIParser: surlCallAssemble failed");
         }
         string memory json = string(data);
-        console2.log("json assemble", json);
         strings.slice memory jsonSlice = json.toSlice();
         strings.slice memory key = '"data":"'.toSlice();
         strings.slice memory afterKey = jsonSlice.find(key).beyond(key);
@@ -146,12 +142,6 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         }
 
         bytes4 selector = bytes4(txData.slice(0, 4));
-        console2.log("selector");
-        console2.logBytes4(selector);
-        console2.log("IOdosRouterV2.swap.selector");
-        console2.logBytes4(IOdosRouterV2.swap.selector);
-        console2.log("IOdosRouterV2.swapCompact.selector");
-        console2.logBytes4(IOdosRouterV2.swapCompact.selector);
         bytes memory data = txData.slice(4, txData.length - 4);
         if (selector == IOdosRouterV2.swap.selector) {
             (decoded.tokenInfo, decoded.pathDefinition, decoded.executor, decoded.referralCode) = abi.decode(data, (IOdosRouterV2.swapTokenInfo, bytes, address, uint32));
@@ -263,17 +253,6 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
                 mstore(add(dest, i), mload(add(pathData, i)))
             }
         }
-
-        console2.log("inputToken", tokenInfo.inputToken);
-        console2.log("inputAmount", tokenInfo.inputAmount);
-        console2.log("inputReceiver", tokenInfo.inputReceiver);
-        console2.log("outputToken", tokenInfo.outputToken);
-        console2.log("outputQuote", tokenInfo.outputQuote);
-        console2.log("outputMin", tokenInfo.outputMin);
-        console2.log("outputReceiver", tokenInfo.outputReceiver);
-        console2.log("executor", executor);
-        console2.log("referralCode", referralCode);
-        console2.log("pathDefinition.length", pathDefinition.length);
     }
 
 }

@@ -23,6 +23,7 @@ import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidato
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.sol";
 
+
 // hooks
 
 // token hooks
@@ -2546,7 +2547,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory)
     {
         bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
-        return abi.encodePacked(usePrevHookAmount, value, txData);
+        return abi.encodePacked(/**yieldSourceOracleId*/bytes4(bytes("")), /**yieldSource*/ptToken, usePrevHookAmount, value, txData);
     }
 
     function _createSpectraExchangeSimpleCommandTxData(
@@ -2606,7 +2607,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             //TODO: fill with the other
             revert("Not implemented");
         }
-        return abi.encodePacked(usePrevHookAmount, value, pendleTxData);
+        return abi.encodePacked(/**yieldSourceOracleId*/bytes4(bytes("")), /**yieldSource*/market, usePrevHookAmount, value, pendleTxData);
     }
 
     function _createOdosSwapCalldataRequest(
