@@ -10,12 +10,11 @@ import { BaseHook } from "../BaseHook.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
 import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 import { ISpectraRouter } from "../../../vendor/spectra/ISpectraRouter.sol";
+import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 
 /// @title SpectraExchangeHook
 /// @author Superform Labs
 /// @dev data has the following structure
-//TODO: fill data
-
 contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
@@ -35,7 +34,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     error INVALID_DEADLINE();
     error INVALID_RECIPIENT();
 
-    constructor(address registry_, address router_) BaseHook(registry_, HookType.NONACCOUNTING) {
+    constructor(address registry_, address router_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (router_ == address(0)) revert ADDRESS_NOT_VALID();
         router = ISpectraRouter(router_);
     }
@@ -86,6 +85,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+
     struct ValidateTxDataParams {
         bytes4 selector;
         bytes[] updatedInputs;
@@ -95,7 +95,6 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
         uint256 deadline;
         uint256[] commands;
         uint256 commandsLength;
-
         address pt;
         uint256 assets;
         address ptRecipient;
@@ -166,7 +165,8 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             updatedTxData = abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs);
         } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            updatedTxData = abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs, params.deadline);
+            updatedTxData =
+                abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs, params.deadline);
         }
     }
 
@@ -216,9 +216,9 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
             uint256 command = commands[i];
             bytes memory input = inputs[i];
             if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                (tokenOut, , , ) = abi.decode(input, (address, uint256, address, address));
+                (tokenOut,,,) = abi.decode(input, (address, uint256, address, address));
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                (tokenOut, ,) = abi.decode(input, (address, uint256, address));
+                (tokenOut,,) = abi.decode(input, (address, uint256, address));
             }
         }
     }

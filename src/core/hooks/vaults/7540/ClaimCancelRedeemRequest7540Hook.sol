@@ -9,8 +9,9 @@ import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ClaimCancelRedeemRequest7540Hook
 /// @author Superform Labs
@@ -21,7 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

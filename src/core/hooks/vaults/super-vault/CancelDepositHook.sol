@@ -8,10 +8,12 @@ import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import { ISuperVault } from "../../../../periphery/interfaces/ISuperVault.sol";
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperVault } from "../../../../periphery/interfaces/ISuperVault.sol";
+import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
+
 
 /// @title CancelDepositHook
 /// @author Superform Labs
@@ -21,7 +23,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract CancelDepositHook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING) { }
+    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

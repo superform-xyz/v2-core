@@ -93,6 +93,9 @@ abstract contract Constants {
     string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
     string public constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
     string public constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+    string public constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
+    string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
+    string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
 
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
@@ -115,6 +118,7 @@ abstract contract Constants {
     string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string public constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
     string public constant SUPER_GAS_TANK_KEY = "SuperGasTank";
+
     // tokens
     string public constant DAI_KEY = "DAI";
     string public constant USDC_KEY = "USDC";
@@ -123,6 +127,7 @@ abstract contract Constants {
     string public constant USDE_KEY = "USDe";
     string public constant USDCe_KEY = "USDCe";
     string public constant GEAR_KEY = "GEAR";
+    string public constant WST_ETH_KEY = "wstETH";
 
     address public constant CHAIN_1_DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address public constant CHAIN_1_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -130,6 +135,7 @@ abstract contract Constants {
     address public constant CHAIN_1_SUSDE = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
     address public constant CHAIN_1_USDE = 0x4c9EDD5852cd905f086C759E8383e09bff1E68B3;
     address public constant CHAIN_1_GEAR = 0xBa3335588D9403515223F109EdC4eB7269a9Ab5D;
+    address public constant CHAIN_1_WST_ETH = 0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0;
 
     address public constant CHAIN_10_DAI = 0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1;
     address public constant CHAIN_10_USDC = 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85;
@@ -150,6 +156,13 @@ abstract contract Constants {
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
+    // morpho
+    string public constant MORPHO_KEY = "Morpho";
+    address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
+    // Base USDC-WETH Market Constants
+    address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;
+    address public constant MORPHO_ORACLE = 0xD09048c8B568Dbf5f189302beA26c9edABFC4858;
+
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";
     string public constant ERC5115_VAULT_KEY = "ERC5115";

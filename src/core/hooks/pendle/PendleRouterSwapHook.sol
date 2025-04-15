@@ -18,6 +18,7 @@ import {
     Order
 } from "../../../vendor/pendle/IPendleRouterV4.sol";
 import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
+import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
@@ -46,7 +47,12 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     error INVALID_GUESS_PT_OUT();
     error MAKING_AMOUNT_NOT_VALID();
 
-    constructor(address registry_, address pendleRouterV4_) BaseHook(registry_, HookType.NONACCOUNTING) {
+    constructor(
+        address registry_,
+        address pendleRouterV4_
+    )
+        BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.PTYT)
+    {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
         pendleRouterV4 = IPendleRouterV4(pendleRouterV4_);
     }

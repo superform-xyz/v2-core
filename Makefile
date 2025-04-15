@@ -23,9 +23,10 @@ ftest-vvv :; forge test -vvv
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 
-test-vvv :; forge test --match-test test_SuperVault_7540_Underlying_E2E_Flow -vv
+test-vvv :; forge test --match-test test_Borrow_Repay_Hooks_E2E -vv
 
-test-integration :; forge test --match-test test_PendleRouterSwap_Token_To_Pt -vvv
+test-integration :; forge test --match-test test_Borrow_Repay_Hooks_E2E -vvv
+
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report
@@ -39,7 +40,7 @@ generate:
 	./script/run/retrieve-abis.sh
 	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
 	abigen --abi out/AcrossSendFundsAndExecuteOnDstHook.sol/AcrossSendFundsAndExecuteOnDstHook.abi --pkg contracts --type AcrossSendFundsAndExecuteOnDstHook --out contract_bindings/AcrossSendFundsAndExecuteOnDstHook.go
-	abigen --abi out/AcrossReceiveFundsAndExecuteGateway.sol/AcrossReceiveFundsAndExecuteGateway.abi --pkg contracts --type AcrossReceiveFundsAndExecuteGateway --out contract_bindings/AcrossReceiveFundsAndExecuteGateway.go
 	abigen --abi out/IAcrossV3Receiver.sol/IAcrossV3Receiver.abi --pkg contracts --type IAcrossV3Receiver --out contract_bindings/IAcrossV3Receiver.go
 	abigen --abi out/SuperRegistry.sol/SuperRegistry.abi --pkg contracts --type SuperRegistry --out contract_bindings/SuperRegistry.go
 	abigen --abi out/PeripheryRegistry.sol/PeripheryRegistry.abi --pkg contracts --type PeripheryRegistry --out contract_bindings/PeripheryRegistry.go
+	abigen --abi out/AcrossTargetExecutor.sol/AcrossTargetExecutor.abi --pkg contracts --type AcrossTargetExecutor --out contract_bindings/AcrossTargetExecutor.go

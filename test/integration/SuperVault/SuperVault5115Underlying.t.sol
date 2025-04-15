@@ -207,7 +207,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 users: users,
                 hooks: hooks_,
                 hookCalldata: hookCalldata,
-                hookProofs: _getMerkleProofsForAddresses(hooks_),
+                hookProofs: _getMerkleProofsForAddresses(ETH, hooks_),
                 expectedAssetsOrSharesOut: minAssetsOrSharesOut
             })
         );
@@ -258,7 +258,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: hooks_,
                 hookCalldata: hookCalldata,
-                hookProofs: _getMerkleProofsForAddresses(hooks_),
+                hookProofs: _getMerkleProofsForAddresses(ETH, hooks_),
                 expectedAssetsOrSharesOut: new uint256[](2)
             })
         );
@@ -295,7 +295,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
                 users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(fulfillHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );

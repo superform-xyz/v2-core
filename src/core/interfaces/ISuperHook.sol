@@ -61,6 +61,24 @@ interface ISuperHookAsync {
     function getUsedAssetsOrShares() external view returns (uint256, bool);
 }
 
+/// @title ISuperHookLoans
+/// @author Superform Labs
+interface ISuperHookLoans is ISuperHookContextAware {
+    /// @notice The loan token address
+    function getLoanTokenAddress(bytes memory data) external view returns (address);
+
+    /// @notice The collateral token address
+    function getCollateralTokenAddress(bytes memory data) external view returns (address);
+
+    /// @notice The loan token balance
+    function getLoanTokenBalance(address account, bytes memory data) external view returns (uint256);
+
+    /// @notice The collateral token balance
+    function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
+
+    function getUsedAssets(address account, bytes memory data) external view returns (uint256);
+}
+
 /// @title ISuperHookAsyncCancelations
 /// @author Superform Labs
 interface ISuperHookAsyncCancelations {
@@ -119,4 +137,7 @@ interface ISuperHook {
     /// @param account The account to post-hook
     /// @param data The data to post-hook
     function postExecute(address prevHook, address account, bytes memory data) external;
+
+    /// @notice The subtype of the hook
+    function subtype() external view returns (bytes32);
 }

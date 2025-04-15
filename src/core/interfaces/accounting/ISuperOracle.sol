@@ -11,6 +11,9 @@ interface ISuperOracle {
     /// @notice Error when address is zero
     error ZERO_ADDRESS();
 
+    /// @notice Error when array length is zero
+    error ZERO_ARRAY_LENGTH();
+
     /// @notice Error when oracle provider index is invalid
     error INVALID_ORACLE_PROVIDER();
 
@@ -44,9 +47,14 @@ interface ISuperOracle {
     /// @notice Error when provider max staleness period is exceeded
     error MAX_STALENESS_EXCEEDED();
 
-    /// @notice Error when provider max count is exceeded
-    error MAX_PROVIDERS_EXCEEDED();
+    /// @notice Error when no prices are reported
+    error NO_PRICES();
 
+    /// @notice Error when average provider is not allowed
+    error AVERAGE_PROVIDER_NOT_ALLOWED();
+
+    /// @notice Error when provider is zero
+    error ZERO_PROVIDER();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -54,30 +62,41 @@ interface ISuperOracle {
     /// @notice Emitted when oracles are configured
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
-    event OraclesConfigured(address[] bases, uint256[] providers, address[] oracleAddresses);
+    /// @param feeds Array of oracle addresses
+    event OraclesConfigured(address[] bases, address[] quotes, bytes32[] providers, address[] feeds);
 
     /// @notice Emitted when oracle update is queued
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
+    /// @param feeds Array of oracle addresses
     /// @param timestamp Timestamp when update was queued
-    event OracleUpdateQueued(address[] bases, uint256[] providers, address[] oracleAddresses, uint256 timestamp);
+    event OracleUpdateQueued(
+        address[] bases, address[] quotes, bytes32[] providers, address[] feeds, uint256 timestamp
+    );
 
     /// @notice Emitted when oracle update is executed
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
-    event OracleUpdateExecuted(address[] bases, uint256[] providers, address[] oracleAddresses);
+    /// @param feeds Array of oracle addresses
+    event OracleUpdateExecuted(address[] bases, address[] quotes, bytes32[] providers, address[] feeds);
 
     /// @notice Emitted when provider max staleness period is updated
-    /// @param provider Provider index
+    /// @param feed Feed address
     /// @param newMaxStaleness New maximum staleness period in seconds
-    event ProviderMaxStalenessUpdated(uint256 provider, uint256 newMaxStaleness);
+    event FeedMaxStalenessUpdated(address feed, uint256 newMaxStaleness);
 
     /// @notice Emitted when max staleness period is updated
     /// @param newMaxStaleness New maximum staleness period in seconds
     event MaxStalenessUpdated(uint256 newMaxStaleness);
+
+    /// @notice Emitted when provider removal is queued
+    /// @param providers Array of provider ids to remove
+    /// @param timestamp Timestamp when removal was queued
+    event ProviderRemovalQueued(bytes32[] providers, uint256 timestamp);
+
+    /// @notice Emitted when provider removal is executed
+    /// @param providers Array of provider ids that were removed
+    event ProviderRemovalExecuted(bytes32[] providers);
 
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
@@ -86,56 +105,83 @@ interface ISuperOracle {
     /// @notice Struct for pending oracle update
     struct PendingUpdate {
         address[] bases;
-        uint256[] providers;
-        address[] oracleAddresses;
+        address[] quotes;
+        bytes32[] providers;
+        address[] feeds;
         uint256 timestamp;
     }
+
+    /// @notice Struct for pending provider removal
+    struct PendingRemoval {
+        bytes32[] providers;
+        uint256 timestamp;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Get oracle address for a base asset and provider
     /// @param base Base asset address
-    /// @param provider Provider index
+    /// @param quote Quote asset address
+    /// @param provider Provider id
     /// @return oracle Oracle address
-    function getOracleAddress(address base, uint256 provider) external view returns (address oracle);
+    function getOracleAddress(address base, address quote, bytes32 provider) external view returns (address oracle);
 
     /// @notice Get quote from specified oracle provider
     /// @param baseAmount Amount of base asset
     /// @param base Base asset address
     /// @param quote Quote asset address
-    /// @param oracleProvider Index of oracle provider to use
+    /// @param oracleProvider Id of oracle provider to use
     /// @return quoteAmount The quote amount
     function getQuoteFromProvider(
         uint256 baseAmount,
         address base,
         address quote,
-        uint256 oracleProvider
+        bytes32 oracleProvider
     )
         external
         view
-        returns (uint256 quoteAmount);
+        returns (uint256 quoteAmount, uint256 deviation, uint256 totalProviders, uint256 availableProviders);
 
     /// @notice Queue oracle update for timelock
     /// @param bases Array of base assets
-    /// @param providers Array of provider indexes
-    /// @param oracleAddresses Array of oracle addresses
+    /// @param providers Array of provider ids
+    /// @param quotes Array of quote assets
+    /// @param feeds Array of oracle addresses
     function queueOracleUpdate(
         address[] calldata bases,
-        uint256[] calldata providers,
-        address[] calldata oracleAddresses
+        address[] calldata quotes,
+        bytes32[] calldata providers,
+        address[] calldata feeds
     )
         external;
 
     /// @notice Execute queued oracle update after timelock period
     function executeOracleUpdate() external;
 
+    /// @notice Queue provider removal for timelock
+    /// @param providers Array of provider ids to remove
+    function queueProviderRemoval(bytes32[] calldata providers) external;
+
+    /// @notice Execute queued provider removal after timelock period
+    function executeProviderRemoval() external;
+
     /// @notice Set the maximum staleness period for a specific provider
-    /// @param provider Provider index
+    /// @param feed Feed address
     /// @param newMaxStaleness New maximum staleness period in seconds
-    function setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness) external;
+    function setFeedMaxStaleness(address feed, uint256 newMaxStaleness) external;
 
     /// @notice Set the maximum staleness period for all providers
     /// @param newMaxStaleness New maximum staleness period in seconds
     function setMaxStaleness(uint256 newMaxStaleness) external;
+
+    /// @notice Set the maximum staleness period for multiple providers
+    /// @param feeds Array of feed addresses
+    /// @param newMaxStalenessList Array of new maximum staleness periods in seconds
+    function setFeedMaxStalenessBatch(address[] calldata feeds, uint256[] calldata newMaxStalenessList) external;
+
+    /// @notice Get all active provider ids
+    /// @return Array of active provider ids
+    function getActiveProviders() external view returns (bytes32[] memory);
 }

@@ -5,8 +5,8 @@ pragma solidity 0.8.28;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -25,6 +25,7 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
 
     // forgefmt: disable-end
 
+    bytes32 public immutable subType;
     ISuperHook.HookType public hookType;
 
     /*//////////////////////////////////////////////////////////////
@@ -35,12 +36,13 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
     error ADDRESS_NOT_VALID();
     error DATA_LENGTH_INSUFFICIENT();
 
-    constructor(address registry_, ISuperHook.HookType hookType_) SuperRegistryImplementer(registry_) {
+    constructor(address registry_, ISuperHook.HookType hookType_, bytes32 subType_) SuperRegistryImplementer(registry_) {
         hookType = hookType_;
+        subType = subType_;
     }
 
     /*//////////////////////////////////////////////////////////////
-                                EXECUTION SECURITY
+                          EXECUTION SECURITY
     //////////////////////////////////////////////////////////////*/
 
     // built as a view function to allow test mocking
@@ -63,6 +65,13 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
         _postExecute(prevHook, account, data);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function subtype() external view returns (bytes32) {
+        return subType;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
