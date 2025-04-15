@@ -141,10 +141,9 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
 
     /// @inheritdoc ISuperOracle
     function getOracleAddress(address base, address quote, bytes32 provider) external view returns (address oracle) {
-        if (!isProviderSet[provider]) return address(0);
-
         oracle = oracles[base][quote][provider];
         if (oracle == address(0)) revert NO_ORACLES_CONFIGURED();
+        if (!isProviderSet[provider]) return address(0);
     }
 
     /// @inheritdoc ISuperOracle
