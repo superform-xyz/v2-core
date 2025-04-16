@@ -2503,15 +2503,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address irm,
         uint256 amount,
         uint256 lltv,
-        bool usePrevHookAmount,
-        bool isPositiveFeed
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isPositiveFeed, false
+            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, false
         );
     }
 
@@ -2523,15 +2522,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256 amount,
         uint256 lltv,
         bool usePrevHookAmount,
-        bool isFullRepayment,
-        bool isPositiveFeed
+        bool isFullRepayment
     )
         internal
         pure
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
+            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
         );
     }
 
@@ -2543,15 +2541,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256 amount,
         uint256 lltv,
         bool usePrevHookAmount,
-        bool isFullRepayment,
-        bool isPositiveFeed
+        bool isFullRepayment
     )
         internal
         pure
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment, isPositiveFeed
+            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
         );
     }
 

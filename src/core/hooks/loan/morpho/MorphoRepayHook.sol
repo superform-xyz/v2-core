@@ -34,8 +34,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-/// @notice         bool isFullRepayment = _decodeBool(data, 146);
+/// @notice         bool isFullRepayment = _decodeBool(data, 145);
 contract MorphoRepayHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -131,7 +130,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     function getUsedAssets(address, bytes memory data) external view returns (uint256) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
         uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(
-            vars.loanToken, vars.oracle, vars.collateralToken, vars.isPositiveFeed, outAmount
+            vars.loanToken, vars.oracle, vars.collateralToken, outAmount
         );
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
@@ -158,7 +157,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         address loanToken,
         address oracle,
         address collateralToken,
-        bool isPositiveFeed,
         uint256 loanAmount
     )
         public
@@ -176,15 +174,11 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         // 10^(36 + loanDecimals - collateralDecimals)
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-        if (isPositiveFeed) {
-            // Inverting the original calculation when isPositiveFeed is true:
-            // loanAmount = collateralAmount * price / scalingFactor
-            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
-        } else {
-            // Inverting the original calculation when isPositiveFeed is false:
-            // loanAmount = collateralAmount * scalingFactor / price
-            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
-        }
+
+        // Inverting the original calculation:
+        // loanAmount = collateralAmount * price / scalingFactor
+        collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
+
     }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {

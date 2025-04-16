@@ -34,8 +34,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-/// @notice         bool isFullRepayment = _decodeBool(data, 146);
+/// @notice         bool isFullRepayment = _decodeBool(data, 145);
 contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -129,8 +128,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 vars.collateralToken,
                 account,
                 vars.amount,
-                fullCollateral,
-                vars.isPositiveFeed
+                fullCollateral
             );
 
             executions[1] = Execution({
@@ -193,7 +191,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         address loanToken,
         address oracle,
         address collateralToken,
-        bool isPositiveFeed,
         uint256 loanAmount
     )
         public
@@ -211,13 +208,9 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         // 10^(36 + loanDecimals - collateralDecimals)
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-        if (isPositiveFeed) {
-            // loanAmount = collateralAmount * price / scalingFactor
-            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
-        } else {
-            // loanAmount = collateralAmount * scalingFactor / price
-            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
-        }
+        // loanAmount = collateralAmount * price / scalingFactor
+        collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
+
     }
 
     function deriveCollateralForPartialRepayment(
@@ -227,8 +220,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         address collateralToken,
         address account,
         uint256 amount,
-        uint256 fullCollateral,
-        bool isPositiveFeed
+        uint256 fullCollateral
     )
         public
         view
@@ -245,17 +237,11 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 price = oracleInstance.price();
 
         uint256 requiredCollateralForRemaining;
-        if (isPositiveFeed) {
-            // For a positive feed, the oracle returns the price in units of loan token per collateral token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * scalingFactor / price
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, scalingFactor, price);
-        } else {
-            // For a negative feed, the oracle returns the price in units of collateral token per loan token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * price / scalingFactor
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, price, scalingFactor);
-        }
+
+        // The collateral required is:
+        //   requiredCollateral = remainingLoan * scalingFactor / price
+        requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, scalingFactor, price);
+
         if (fullCollateral > requiredCollateralForRemaining) {
             withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
         } else {

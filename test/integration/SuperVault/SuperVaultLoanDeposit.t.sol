@@ -165,7 +165,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
 
-        collateralAmount = _deriveCollateralAmount(amount, loanToken, collateralToken, false);
+        collateralAmount = _deriveCollateralAmount(amount, loanToken, collateralToken);
 
         _getTokens(address(asset), accountBase, 1e18);
 
@@ -234,7 +234,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory repayHookDataArray = new bytes[](1);
         bytes memory repayHookData =
-            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false, true);
+            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true);
         repayHookDataArray[0] = repayHookData;
 
         uint256 assetsPaid = _deriveAssetsPaid();
@@ -266,7 +266,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         bytes[] memory repayHookDataArray = new bytes[](1);
 
         bytes memory repayHookData = _createMorphoRepayHookData(
-            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false, false
+            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false
         );
         repayHookDataArray[0] = repayHookData;
 
@@ -299,7 +299,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory repayHookDataArray = new bytes[](1);
         bytes memory repayHookData =
-            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false, true);
+            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, true);
         repayHookDataArray[0] = repayHookData;
 
         uint256 assetsPaid = _deriveAssetsPaid();
@@ -328,7 +328,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooks[0] = repayHook;
 
         bytes memory repayHookData = _createMorphoRepayHookData(
-            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false, false
+            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false
         );
         repayHookDataArray[0] = repayHookData;
 
@@ -355,7 +355,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false);
+            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false);
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
@@ -392,7 +392,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false, false);
+            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false);
 
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
@@ -546,7 +546,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory repayHookData = new bytes[](1);
         repayHookData[0] = _createMorphoRepayAndWithdrawHookData(
-            loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, false, true
+            loanToken, collateralToken, oracleAddress, irm, loanAmount, lltv, false, true
         );
 
         vm.startPrank(STRATEGIST);
@@ -571,8 +571,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     function _deriveCollateralAmount(
         uint256 loanAmount,
         address loanTokenAddress,
-        address collateralTokenAddress,
-        bool isPositiveFeed
+        address collateralTokenAddress
     )
         internal
         view
@@ -586,17 +585,11 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // 10^(36 + loanDecimals - collateralDecimals)
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-        if (isPositiveFeed) {
-            // For a positive feed, price is given as the amount of loan tokens per collateral token,
-            // so we invert the price to calculate collateral:
-            // collateralAmount = loanAmount * scalingFactor / price
-            collateral = Math.mulDiv(loanAmount, scalingFactor, price);
-        } else {
-            // For a negative feed, price is given as the amount of collateral tokens per loan token,
-            // so no inversion is necessary:
-            // collateralAmount = loanAmount * price / scalingFactor
-            collateral = Math.mulDiv(loanAmount, price, scalingFactor);
-        }
+        // For a positive feed, price is given as the amount of loan tokens per collateral token,
+        // so we invert the price to calculate collateral:
+        // collateralAmount = loanAmount * scalingFactor / price
+        collateral = Math.mulDiv(loanAmount, scalingFactor, price);
+
     }
 
     function _deriveFeeAmount() internal view returns (uint256 feeAmount) {
@@ -659,7 +652,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         // Inverting the original calculation when isPositiveFeed is false:
         // loanAmount = collateralAmount * scalingFactor / price
-        loanAmount = Math.mulDiv(collateralIn, scalingFactor, price);
+        loanAmount = Math.mulDiv(collateralIn, price, scalingFactor);
     }
 
     function _deriveCollateralForWithdraw(address account) internal view returns (uint256 collateral) {

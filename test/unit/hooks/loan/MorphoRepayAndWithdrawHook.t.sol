@@ -60,7 +60,6 @@ contract MorphoRepayHookTest is BaseTest {
             uint256(1000e18),
             uint256(860_000_000_000_000_000),
             false,
-            false,
             false
         );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
@@ -69,8 +68,7 @@ contract MorphoRepayHookTest is BaseTest {
 
     function _encodeData(
         bool usePrevHook,
-        bool isFullRepayment,
-        bool isPositiveFeed
+        bool isFullRepayment
     )
         internal
         view
@@ -84,8 +82,7 @@ contract MorphoRepayHookTest is BaseTest {
             uint256(1000e18),
             uint256(860_000_000_000_000_000),
             usePrevHook,
-            isFullRepayment,
-            isPositiveFeed
+            isFullRepayment
         );
     }
 }

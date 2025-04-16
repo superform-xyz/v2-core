@@ -28,7 +28,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 146);
+/// @notice         bool placeholder = _decodeBool(data, 145);
 contract MorphoBorrowHook is BaseMorphoLoanHook {
     using HookDataDecoder for bytes;
 
@@ -77,8 +77,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount =
-            deriveLoanAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken, vars.isPositiveFeed);
+        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken);
 
         executions = new Execution[](4);
         executions[0] =
@@ -116,8 +115,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         uint256 collateralAmount,
         address oracleAddress,
         address loanToken,
-        address collateralToken,
-        bool isPositiveFeed
+        address collateralToken
     )
         public
         view
@@ -132,15 +130,9 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         // 10^(36 + loanDecimals - collateralDecimals)
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-        if (isPositiveFeed) {
-            // Inverting the original calculation when isPositiveFeed is true:
-            // loanAmount = collateralAmount * price / scalingFactor
-            loanAmount = Math.mulDiv(collateralAmount, price, scalingFactor);
-        } else {
-            // Inverting the original calculation when isPositiveFeed is false:
-            // loanAmount = collateralAmount * scalingFactor / price
-            loanAmount = Math.mulDiv(collateralAmount, scalingFactor, price);
-        }
+        // Inverting the original calculation:
+        // loanAmount = collateralAmount * price / scalingFactor
+        loanAmount = Math.mulDiv(collateralAmount, price, scalingFactor);
     }
 
     /*//////////////////////////////////////////////////////////////
