@@ -10,6 +10,8 @@ import "@account-abstraction/interfaces/IPaymaster.sol";
 import "@account-abstraction/interfaces/IEntryPoint.sol";
 import "@account-abstraction/core/UserOperationLib.sol";
 
+import "forge-std/console2.sol";
+
 /// @dev Taken from @account-abstraction/core/BasePaymaster.sol"
 /// Removed `deposit()` method as it does not perform a refund and changed to ownable2step
 /**
@@ -48,6 +50,7 @@ abstract contract BasePaymaster is IPaymaster, Ownable2Step {
         override
         returns (bytes memory context, uint256 validationData)
     {
+        console2.log("----------validatePaymasterUserOp");
         _requireFromEntryPoint();
         return _validatePaymasterUserOp(userOp, userOpHash, maxCost);
     }
