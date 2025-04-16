@@ -5,9 +5,7 @@ pragma solidity 0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { INexusFactory } from "../../vendor/nexus/INexusFactory.sol";
-import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 import { Execution, ExecutionLib as ERC7579ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import {
     ModeCode,
@@ -20,45 +18,33 @@ import {
 
 // Superform
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
-import { IAcrossTargetExecutor } from "../interfaces/IAcrossTargetExecutor.sol";
+import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
 import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValidator.sol";
 
-/// @title AcrossTargetExecutor
+/// @title SuperDestinationExecutor
 /// @author Superform Labs
-/// @notice Executor for destination chains of Superform
-/// @notice This contract acts as a gateway for receiving funds from the Across Protocol
-/// @notice and executing associated user operations.
-/// @dev Example Scenario:
-/// @custom:example
-/// User wants to transfer 100 USDC from Ethereum to Arbitrum and execute an operation:
-/// 1. User initiates transfer on Ethereum (source chain)
-/// 2. Across Protocol processes this as two separate transactions (TX1 and TX2) on Arbitrum
-///
-/// Two possible cases can occur:
-///
-/// Case 1 (Rare) - User receives new funds between TX1 and TX2:
-/// - TX1 arrives first and attempts to execute with 100 USDC
-/// - If 100 USDC is available (from other sources), TX1 succeeds
-/// - TX2 arrives second but fails due to nonce change from TX1
-///
-/// Case 2 (Typical) - No new funds between TX1 and TX2:
-/// - TX1 arrives first but silently fails  as 100 USDC not yet available
-/// - TX2 arrives second with the 100 USDC and succeeds
-/// @dev Also in cross-chain rebalancing operations to receive funds and execute actions
-/// @custom:example
-///     Cross-chain Rebalance Flow Example:
-///     1. Chain A: User initiates withdrawal from Superform
-///     2. Chain A: Funds are bridged via Across
-///     3. Chain B: This contract receives funds + message
-///     4. Chain B: Contract transfers tokens to user's account
-///     5. Chain B: Executes deposit into new Superform
-contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTargetExecutor {
+/// @notice Generic executor for destination chains of Superform, processing bridged executions.
+/// @notice This contract acts as the core logic gateway for receiving funds (via Adapters)
+/// @notice and executing associated user operations validated by a SuperDestinationValidator.
+/// @dev Receives calls from Adapter contracts (e.g., AcrossV3Adapter) via `processBridgedExecution`.
+/// @dev Handles account creation, nonce management, signature validation, and execution forwarding.
+contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecutor {
     using SafeERC20 for IERC20;
+
+    /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    // Renamed events for clarity
+    event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account);
+    event SuperDestinationExecutorReceivedButNoHooks(address indexed account);
+    event SuperDestinationExecutorExecuted(address indexed account);
+    event SuperDestinationExecutorFailed(address indexed account, string reason);
+    event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData);
+    event AccountCreated(address indexed account, bytes32 salt);
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public immutable acrossSpokePool;
     address public immutable superDestinationValidator;
     INexusFactory public immutable nexusFactory;
     mapping(address => uint256) public nonces;
@@ -79,18 +65,21 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
 
+    /*//////////////////////////////////////////////////////////////
+                                CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
     constructor(
         address registry_,
-        address acrossSpokePool_,
         address superDestinationValidator_,
         address nexusFactory_
     )
         SuperExecutorBase(registry_)
     {
-        if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
+        // Updated constructor validation
+        if (superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        acrossSpokePool = acrossSpokePool_;
+        // acrossSpokePool = acrossSpokePool_; // Removed
         superDestinationValidator = superDestinationValidator_;
         nexusFactory = INexusFactory(nexusFactory_);
     }
@@ -99,41 +88,31 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     function name() external pure override returns (string memory) {
-        return "AcrossTargetExecutor";
+        // Updated name
+        return "SuperDestinationExecutor";
     }
 
     function version() external pure override returns (string memory) {
-        return "0.0.1";
+        return "1.0.0"; // Updated version
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                          CORE EXECUTION LOGIC
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc IAcrossV3Receiver
-    function handleV3AcrossMessage(
+
+    /// @inheritdoc ISuperDestinationExecutor
+    function processBridgedExecution(
         address tokenSent,
-        uint256 amount,
-        address, //relayer; not used
-        bytes memory message
+        address account,
+        uint256 intentAmount,
+        bytes memory initData,
+        bytes memory executorCalldata,
+        bytes memory userSignatureData
     )
         external
+        override
     {
-        if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
-
-        // @dev sigData needs the following fields:
-        //      - uint48 validUntil
-        //      - bytes32 merkleRoot
-        //      - bytes32[] proof
-        //      - bytes signature
-        // @dev executor calldata represents the ExecutorEntry object (hooksAddresses, hooksData)
-        (
-            bytes memory initData,
-            bytes memory executorCalldata,
-            bytes memory sigData,
-            address account,
-            uint256 intentAmount
-        ) = abi.decode(message, (bytes, bytes, bytes, address, uint256));
-
+        // --- Account creation or validation ---
         if (account.code.length > 0) {
             string memory accountId = IERC7579Account(account).accountId();
             if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
@@ -145,29 +124,32 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
+        // Account must exist at this point
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
 
+        // --- Nonce & Signature Validation ---
         uint256 _nonce = nonces[account];
-
-        // @dev validate execution
-
         bytes memory destinationData =
             abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this), tokenSent, intentAmount);
+
+        // The userSignatureData is passed directly from the adapter
         bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(
-            account, abi.encode(sigData, destinationData)
+            account, abi.encode(userSignatureData, destinationData)
         );
+
         if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
 
-        // @dev send tokens to the smart account
+        // --- Balance Check ---
+        // Token transfer is handled by the callee *before* this call.
+        // We just check if the target account now has sufficient balance.
         IERC20 token = IERC20(tokenSent);
-        token.safeTransfer(account, amount);
-
-        // @dev check if the account has sufficient balance before proceeding
         if (intentAmount != 0 && token.balanceOf(account) < intentAmount) {
-            emit AcrossTargetExecutorReceivedButNotEnoughBalance(account);
+            emit SuperDestinationExecutorReceivedButNotEnoughBalance(account);
+            // Nonce is NOT incremented if balance is insufficient
             return;
         }
 
+        // --- Nonce Increment ---
         /// @dev increment the nonce here to allow multiple messages to be sent using current nonce
         ///      nonce increased after the account has enough balance (`token.balanceOf(account) < intentAmount`)
         ///      Example:
@@ -176,15 +158,16 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
         ///      Nonce will be increased after both tx are finalized and `executorCalldata` is performed
         nonces[account]++;
 
-        // check if we have hooks
+        // --- Execute User Operation ---
+        // Check if there's actual execution data to process
         if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
-            emit AcrossTargetExecutorReceivedButNoHooks();
-            return;
+            emit SuperDestinationExecutorReceivedButNoHooks(account);
+            return; // Nothing to execute
         }
 
-        // @dev _execute -> executeFromExecutor -> SuperExecutorBase.execute
+        // Prepare execution parameters
         Execution[] memory execs = new Execution[](1);
-
+        // Target is address(this) because SuperExecutorBase.execute handles the actual callData forwarding
         execs[0] = Execution({ target: address(this), value: 0, callData: executorCalldata });
 
         ModeCode modeCode = ERC7579ModeLib.encode({
@@ -194,12 +177,15 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             payload: ModePayload.wrap(bytes22(0))
         });
 
+        // Execute via the target account's ERC7579 interface
         try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
-            emit AcrossTargetExecutorExecuted(account);
+            emit SuperDestinationExecutorExecuted(account);
         } catch Error(string memory reason) {
-            emit AcrossTargetExecutorFailed(reason);
+            // Log failure but do not revert the state change (nonce increment)
+            emit SuperDestinationExecutorFailed(account, reason);
         } catch (bytes memory lowLevelData) {
-            emit AcrossTargetExecutorFailedLowLevel(lowLevelData);
+            // Log low-level failure but do not revert the state change (nonce increment)
+            emit SuperDestinationExecutorFailedLowLevel(account, lowLevelData);
         }
     }
 }
