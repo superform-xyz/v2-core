@@ -93,7 +93,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function version() external pure override returns (string memory) {
-        return "1.0.0"; // Updated version
+        return "0.0.1";
     }
 
     /*//////////////////////////////////////////////////////////////
