@@ -39,7 +39,7 @@ import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValid
 /// Case 1 (Rare) - User receives new funds between TX1 and TX2:
 /// - TX1 arrives first and attempts to execute with 100 USDC
 /// - If 100 USDC is available (from other sources), TX1 succeeds
-/// - TX2 arrives second but fails due to nonce change from TX1
+/// - TX2 arrives second but fails due to merkle root already being used from TX1
 ///
 /// Case 2 (Typical) - No new funds between TX1 and TX2:
 /// - TX1 arrives first but silently fails  as 100 USDC not yet available
@@ -61,7 +61,9 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     address public immutable acrossSpokePool;
     address public immutable superDestinationValidator;
     INexusFactory public immutable nexusFactory;
-    mapping(address => uint256) public nonces;
+    
+    // Track used merkle roots per user
+    mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
 
     // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
@@ -78,6 +80,7 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
+    error MERKLE_ROOT_ALREADY_USED();
 
     constructor(
         address registry_,
@@ -104,6 +107,14 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
 
     function version() external pure override returns (string memory) {
         return "0.0.1";
+    }
+
+    /// @notice Checks if a merkle root has been used by an account
+    /// @param user The user account to check
+    /// @param merkleRoot The merkle root to check
+    /// @return Whether the merkle root has been used
+    function isMerkleRootUsed(address user, bytes32 merkleRoot) external view returns (bool) {
+        return usedMerkleRoots[user][merkleRoot];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,12 +158,16 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
 
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
 
-        uint256 _nonce = nonces[account];
+        // Decode sigData to extract merkleRoot
+        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proof, bytes memory signature) = 
+            abi.decode(sigData, (uint48, bytes32, bytes32[], bytes));
+            
+        // Check if merkleRoot has already been used
+        if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
 
-        // @dev validate execution
-
+        // @dev validate execution - use 0 as nonce since we're not using nonces anymore
         bytes memory destinationData =
-            abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this), tokenSent, intentAmount);
+            abi.encode(0, executorCalldata, uint64(block.chainid), account, address(this), tokenSent, intentAmount);
         bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(
             account, abi.encode(sigData, destinationData)
         );
@@ -168,13 +183,8 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
             return;
         }
 
-        /// @dev increment the nonce here to allow multiple messages to be sent using current nonce
-        ///      nonce increased after the account has enough balance (`token.balanceOf(account) < intentAmount`)
-        ///      Example:
-        ///       - User sends 100 USDC from chain A, intent amount is 200
-        ///       - User sends 100 USDC from chain B, intent amount is 200
-        ///      Nonce will be increased after both tx are finalized and `executorCalldata` is performed
-        nonces[account]++;
+        // Mark the merkle root as used
+        usedMerkleRoots[account][merkleRoot] = true;
 
         // check if we have hooks
         if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
