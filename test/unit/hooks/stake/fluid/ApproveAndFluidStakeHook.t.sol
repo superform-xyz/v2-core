@@ -28,7 +28,7 @@ contract ApproveAndFluidStakeHookTest is BaseTest {
         yieldSource = makeAddr("yieldSource");
         amount = 1000;
 
-        hook = new ApproveAndFluidStakeHook(address(this));
+        hook = new ApproveAndFluidStakeHook();
     }
 
     function test_Constructor() public view {

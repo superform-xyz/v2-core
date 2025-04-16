@@ -35,7 +35,7 @@ contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 109;
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.ERC5115) { }
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC5115) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

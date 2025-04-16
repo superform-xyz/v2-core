@@ -34,7 +34,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
     // if the callee is the superRegistry, the receiver must be the account
     error INVALID_RECEIVER();
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, "Ethena") { }
+    constructor() BaseHook(HookType.OUTFLOW, "Ethena") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -45,7 +45,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
         bytes memory data
     )
         external
-        view
+        pure
         override
         returns (Execution[] memory executions)
     {
@@ -56,7 +56,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
 
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
-        if (msg.sender == address(superRegistry) && receiver != account) revert INVALID_RECEIVER();
+        if (receiver != account) revert INVALID_RECEIVER();
         executions = new Execution[](1);
 
         executions[0] = Execution({

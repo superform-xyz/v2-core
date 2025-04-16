@@ -21,7 +21,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

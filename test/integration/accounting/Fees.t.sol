@@ -12,8 +12,6 @@ import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedg
 import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 
-import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
-
 import { MockAccountingVault } from "../../mocks/MockAccountingVault.sol";
 
 import { BaseTest } from "../../BaseTest.t.sol";
@@ -41,7 +39,6 @@ contract FeesTest is BaseTest {
         vm.label(address(vault), "MockAccountingVault");
         yieldSourceAddress = address(vault);
 
-        //SuperRegistry superRegistry = SuperRegistry(_getContract(chainIds[0], SUPER_REGISTRY_KEY));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({

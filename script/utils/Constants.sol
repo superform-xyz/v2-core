@@ -16,7 +16,6 @@ abstract contract Constants {
     string internal constant POLYGON_KEY = "Polygon";
 
     // keys
-    string internal constant SUPER_REGISTRY_KEY = "SuperRegistry";
     string internal constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
@@ -27,12 +26,7 @@ abstract contract Constants {
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
 
-    string internal constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
-    string internal constant SUPER_REGISTRY_ID = "SUPER_REGISTRY_ID";
-    string internal constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
-    string internal constant ACROSS_TARGET_EXECUTOR_ID = "ACROSS_TARGET_EXECUTOR_ID";
     string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
-    string internal constant SUPER_NATIVE_PAYMASTER_ID = "SUPER_NATIVE_PAYMASTER_ID";
     string internal constant TREASURY_ID = "TREASURY_ID";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
         "DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID";

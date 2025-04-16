@@ -26,7 +26,7 @@ contract ApproveERC20HookTest is BaseTest {
         spender = address(this);
         amount = 1000;
 
-        hook = new ApproveERC20Hook(address(this));
+        hook = new ApproveERC20Hook();
     }
 
     function test_Constructor() public view {

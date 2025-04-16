@@ -54,7 +54,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook {
         bytes permit;
     }
 
-    constructor(address registry_, address deBridgeGate_) BaseHook(registry_, HookType.NONACCOUNTING, "Bridge") {
+    constructor(address deBridgeGate_) BaseHook(HookType.NONACCOUNTING, "Bridge") {
         if (deBridgeGate_ == address(0)) revert ADDRESS_NOT_VALID();
         deBridgeGate = deBridgeGate_;
     }
@@ -130,11 +130,4 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook {
     function _preExecute(address, address, bytes calldata) internal override { }
 
     function _postExecute(address, address, bytes calldata) internal override { }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _getDeBridgeGatewayExecutor() private view returns (address) {
-        return superRegistry.getAddress(keccak256("DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID"));
-    }
 }

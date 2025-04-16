@@ -2,18 +2,17 @@
 pragma solidity 0.8.28;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
+import { IOdosRouterV2 } from "../../../src/vendor/odos/IOdosRouterV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { HookSubTypes } from "../../../src/core/libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../src/core/interfaces/ISuperHook.sol";
 
-/// @title ApproveAndSwapOdosHook
+/// @title MockApproveAndSwapOdosHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address inputToken = BytesLib.toAddress(data, 0);
@@ -27,7 +26,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
 /// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
-contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
+contract MockApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
     IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;

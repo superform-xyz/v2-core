@@ -11,7 +11,7 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for 4626 Vaults
 contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
+    constructor(address _oracle) AbstractYieldSourceOracle(_oracle) { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
