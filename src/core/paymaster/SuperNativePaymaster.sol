@@ -13,8 +13,6 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
 
-import "forge-std/console2.sol";
-
 /// @title SuperNativePaymaster
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
@@ -86,15 +84,12 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         override
         returns (bytes memory context, uint256 validationData)
     {
-        console2.log("--------------A");
         (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
             abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
-        console2.log("--------------B");
 
         if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
             revert INVALID_NODE_OPERATOR_PREMIUM();
         }
-        console2.log("--------------C");
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
     }
 
