@@ -187,19 +187,18 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountBase));
 
+        _executeSuperVault_Borrow();
+
+        // Repay loan
+        _repayLoan();
+
         // Deposit into underlying vaults as strategy
-        _fulfillDepositRequestsWithBorrow();
+        _fulfillDepositRequest();
         console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
 
         // Claim deposit into superVault as user1
         _claimDepositOnBase(instanceOnBase, amount);
         console2.log("\n user1 SV Share Balance After Claim Deposit", vault.balanceOf(accountBase));
-
-        // Warp forward to simulate yield
-        vm.warp(block.timestamp + 1 weeks);
-
-        // Repay loan
-        _repayLoan();
 
         console2.log("\n pps After Repay", _getSuperVaultPricePerShare());
         console2.log("----collateralBalanceAfterRepay", IERC20(collateralToken).balanceOf(address(strategy)));
@@ -412,8 +411,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         console2.log("\n pps After Borrow", _getSuperVaultPricePerShare());
     }
 
-    function _fulfillDepositRequestsWithBorrow() public {
-        _executeSuperVault_Borrow();
+    function _fulfillDepositRequest() public {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountBase;
 
