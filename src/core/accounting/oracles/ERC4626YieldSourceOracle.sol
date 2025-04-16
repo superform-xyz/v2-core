@@ -13,6 +13,10 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
     constructor(address _oracle) AbstractYieldSourceOracle(_oracle) { }
 
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address yieldSourceAddress) external view override returns (uint8) {
         return IERC4626(yieldSourceAddress).decimals();
@@ -85,6 +89,19 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         return IERC4626(yieldSourceAddress).totalAssets();
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool)
+    {
+        return IERC4626(yieldSourceAddress).asset() == expectedUnderlying;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

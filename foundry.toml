@@ -27,6 +27,7 @@ remappings = [
   "@pigeon/=lib/pigeon/src/",
   "@surl/=lib/surl/src/",
   "@stringutils/=lib/solidity-stringutils/src/",
+  "@pendle/=lib/pendle-core-v2-public/contracts/",
 ]
 dynamic_test_linking = true
 
