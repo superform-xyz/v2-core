@@ -80,12 +80,11 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
 
     constructor(
         address ledgerConfiguration_,
-        address superCollectiveVault_,
         address acrossSpokePool_,
         address superDestinationValidator_,
         address nexusFactory_
     )
-        SuperExecutorBase(ledgerConfiguration_, superCollectiveVault_)
+        SuperExecutorBase(ledgerConfiguration_)
     {
         if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
             revert ADDRESS_NOT_VALID();

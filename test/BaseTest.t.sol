@@ -120,6 +120,7 @@ import { PendleRouterSwapHook } from "../src/core/hooks/pendle/PendleRouterSwapH
 import { MockSpectraRouter } from "./mocks/MockSpectraRouter.sol";
 import { MockPendleRouter } from "./mocks/MockPendleRouter.sol";
 import { MockLockVault } from "./mocks/MockLockVault.sol";
+import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -473,37 +474,24 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A[i].superLedgerConfiguration);
 
 
-            A[i].superExecutor = ISuperExecutor(address(new SuperExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(0))));
+            A[i].superExecutor = ISuperExecutor(address(new SuperExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration))));
             vm.label(address(A[i].superExecutor), SUPER_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A[i].superExecutor);
 
             MockLockVault lockVault = new MockLockVault();
             vm.label(address(lockVault), "MockLockVault");
-            A[i].superExecutorWithSPLock = ISuperExecutor(address(new SuperExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault))));
+            A[i].superExecutorWithSPLock = ISuperExecutor(address(new MockSuperExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault))));
             vm.label(address(A[i].superExecutorWithSPLock), SUPER_EXECUTOR_WITH_SP_LOCK_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_WITH_SP_LOCK_KEY] = address(A[i].superExecutorWithSPLock);
 
-            A[i].mockTargetExecutor = new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(0));
+            A[i].mockTargetExecutor = new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor);
-
-           A[i].superNativePaymaster = new SuperNativePaymaster{ salt: SALT }(IEntryPoint(ENTRYPOINT_ADDR));
-            vm.label(address(A[i].superNativePaymaster), SUPER_NATIVE_PAYMASTER_KEY);
-            contractAddresses[chainIds[i]][SUPER_NATIVE_PAYMASTER_KEY] = address(A[i].superNativePaymaster);
-
-            A[i].superMerkleValidator = new SuperMerkleValidator();
-            vm.label(address(A[i].superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A[i].superMerkleValidator);
-
-            A[i].superDestinationValidator = new SuperDestinationValidator{ salt: SALT }();
-            vm.label(address(A[i].superDestinationValidator), SUPER_DESTINATION_VALIDATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_DESTINATION_VALIDATOR_KEY] = address(A[i].superDestinationValidator);
 
             A[i].acrossTargetExecutor = ISuperExecutor(
                 address(
                     new AcrossTargetExecutor{ salt: SALT }(
                         address(A[i].superLedgerConfiguration),
-                        address(0),
                         SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
                         address(A[i].superDestinationValidator),
                         NEXUS_FACTORY_ADDRESSES[chainIds[i]]
@@ -532,6 +520,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             vm.label(address(A[i].erc1155Ledger), ERC1155_LEDGER_KEY);
             contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A[i].erc1155Ledger);
+
+            A[i].superNativePaymaster = new SuperNativePaymaster{ salt: SALT }(IEntryPoint(ENTRYPOINT_ADDR));
+            vm.label(address(A[i].superNativePaymaster), SUPER_NATIVE_PAYMASTER_KEY);
+            contractAddresses[chainIds[i]][SUPER_NATIVE_PAYMASTER_KEY] = address(A[i].superNativePaymaster);
+
+            A[i].superMerkleValidator = new SuperMerkleValidator();
+            vm.label(address(A[i].superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A[i].superMerkleValidator);
+
+            A[i].superDestinationValidator = new SuperDestinationValidator{ salt: SALT }();
+            vm.label(address(A[i].superDestinationValidator), SUPER_DESTINATION_VALIDATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_DESTINATION_VALIDATOR_KEY] = address(A[i].superDestinationValidator);
+
 
             /// @dev action oracles
             A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A[i].oracleRegistry));

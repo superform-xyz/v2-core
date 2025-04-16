@@ -221,8 +221,29 @@ contract DeployV2 is Script, Configuration {
             SUPER_EXECUTOR_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
-            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, address(0)))
+            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
+
+         // Deploy AcrossTargetExecutor
+        deployedContracts.acrossTargetExecutor = __deployContract(
+            deployer,
+            ACROSS_TARGET_EXECUTOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
+            abi.encodePacked(
+                type(AcrossTargetExecutor).creationCode,
+                abi.encode(
+                    deployedContracts.superLedgerConfiguration,
+                    configuration.acrossSpokePoolV3s[chainId],
+                    deployedContracts.superDestinationValidator,
+                    configuration.nexusFactories[chainId]
+                )
+            )
+        );
+
+        address[] memory allowedExecutors = new address[](2);
+        allowedExecutors[0] = address(deployedContracts.superExecutor);
+        allowedExecutors[1] = address(deployedContracts.acrossTargetExecutor);
 
         // Deploy SuperLedger
         deployedContracts.superLedger = __deployContract(
@@ -232,7 +253,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
             abi.encodePacked(
                 type(SuperLedger).creationCode,
-                abi.encode(deployedContracts.superLedgerConfiguration)
+                abi.encode(deployedContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -244,7 +265,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
             abi.encodePacked(
                 type(ERC5115Ledger).creationCode,
-                abi.encode(deployedContracts.superLedgerConfiguration)
+                abi.encode(deployedContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -284,23 +305,7 @@ contract DeployV2 is Script, Configuration {
             type(SuperDestinationValidator).creationCode
         );
 
-        // Deploy AcrossTargetExecutor
-        deployedContracts.acrossTargetExecutor = __deployContract(
-            deployer,
-            ACROSS_TARGET_EXECUTOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
-            abi.encodePacked(
-                type(AcrossTargetExecutor).creationCode,
-                abi.encode(
-                    deployedContracts.superLedgerConfiguration,
-                    address(0),
-                    configuration.acrossSpokePoolV3s[chainId],
-                    deployedContracts.superDestinationValidator,
-                    configuration.nexusFactories[chainId]
-                )
-            )
-        );
+       
 
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);

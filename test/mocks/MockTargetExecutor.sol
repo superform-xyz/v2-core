@@ -24,9 +24,8 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
     ISuperLedgerConfiguration public immutable ledgerConfiguration;
     ISuperCollectiveVault public immutable superCollectiveVault;
 
-    constructor(address ledgerConfiguration_, address superCollectiveVault_) {  
+    constructor(address ledgerConfiguration_) {  
         ledgerConfiguration = ISuperLedgerConfiguration(ledgerConfiguration_);
-        superCollectiveVault = ISuperCollectiveVault(superCollectiveVault_);
     }
 
     /*//////////////////////////////////////////////////////////////

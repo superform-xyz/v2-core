@@ -45,7 +45,7 @@ contract SuperExecutorTest is BaseTest {
         ledger = new MockLedger();
         ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, account);
 
-        superExecutor = new SuperExecutor(address(ledgerConfig), address(0));
+        superExecutor = new SuperExecutor(address(ledgerConfig));
         accountInstances[ETH].installModule({
             moduleTypeId: MODULE_TYPE_EXECUTOR,
             module: address(superExecutor),
@@ -244,7 +244,7 @@ contract SuperExecutorTest is BaseTest {
 
         MockLedgerConfiguration maliciousConfig =
             new MockLedgerConfiguration(address(ledger), feeRecipient, address(maliciousToken), 100, account);
-        superExecutor = new SuperExecutor(address(maliciousConfig), address(0));
+        superExecutor = new SuperExecutor(address(maliciousConfig));
         accountInstances[ETH].installModule({
             moduleTypeId: MODULE_TYPE_EXECUTOR,
             module: address(superExecutor),

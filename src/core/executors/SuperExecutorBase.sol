@@ -31,16 +31,13 @@ abstract contract SuperExecutorBase is
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) internal _initialized;
     ISuperLedgerConfiguration public immutable ledgerConfiguration;
-    address public immutable superCollectiveVault;
 
     uint256 internal constant FEE_TOLERANCE = 10_000;
     uint256 internal constant FEE_TOLERANCE_DENOMINATOR = 100_000;
 
-    constructor(address superLedgerConfiguration_, address superCollectiveVault_) {
-        // no check for `superCollectiveVault_`
+    constructor(address superLedgerConfiguration_) {
         if (superLedgerConfiguration_ == address(0)) revert ADDRESS_NOT_VALID(); 
         ledgerConfiguration = ISuperLedgerConfiguration(superLedgerConfiguration_);
-        superCollectiveVault = superCollectiveVault_;
     }
 
     /*//////////////////////////////////////////////////////////////
