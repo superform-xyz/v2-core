@@ -9,7 +9,6 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
@@ -21,7 +20,6 @@ import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 /// @notice Base contract for Superform executors
 abstract contract SuperExecutorBase is
     ERC7579ExecutorBase,
-    SuperRegistryImplementer,
     ISuperExecutor,
     ReentrancyGuard
 {
@@ -32,11 +30,18 @@ abstract contract SuperExecutorBase is
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     mapping(address => bool) internal _initialized;
-    bytes32 internal constant SUPER_LEDGER_CONFIGURATION_ID = keccak256("SUPER_LEDGER_CONFIGURATION_ID");
+    ISuperLedgerConfiguration public immutable ledgerConfiguration;
+    address public immutable superCollectiveVault;
+
     uint256 internal constant FEE_TOLERANCE = 10_000;
     uint256 internal constant FEE_TOLERANCE_DENOMINATOR = 100_000;
 
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }
+    constructor(address superLedgerConfiguration_, address superCollectiveVault_) {
+        // no check for `superCollectiveVault_`
+        if (superLedgerConfiguration_ == address(0)) revert ADDRESS_NOT_VALID(); 
+        ledgerConfiguration = ISuperLedgerConfiguration(superLedgerConfiguration_);
+        superCollectiveVault = superCollectiveVault_;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -96,9 +101,6 @@ abstract contract SuperExecutorBase is
     function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedgerConfiguration ledgerConfiguration =
-                ISuperLedgerConfiguration(superRegistry.getAddress(SUPER_LEDGER_CONFIGURATION_ID));
-
             bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 

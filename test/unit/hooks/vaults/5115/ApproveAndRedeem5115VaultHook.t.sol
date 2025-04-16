@@ -37,7 +37,7 @@ contract ApproveAndRedeem5115VaultHookTest is BaseTest {
         usePrevHook = false;
         lockForSp = false;
 
-        hook = new ApproveAndRedeem5115VaultHook(address(this));
+        hook = new ApproveAndRedeem5115VaultHook();
     }
 
     function test_Constructor() public view {

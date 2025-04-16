@@ -27,7 +27,7 @@ contract ApproveAndDeposit4626VaultHookTest is BaseTest {
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
 
-        hook = new ApproveAndDeposit4626VaultHook(address(this));
+        hook = new ApproveAndDeposit4626VaultHook();
     }
 
     function test_Constructor() public view {

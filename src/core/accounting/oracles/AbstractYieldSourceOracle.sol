@@ -17,8 +17,8 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     /// @notice USD address constant based on ISO 4217 code
     address internal constant USD = address(840);
 
-    constructor(address _oracleRegistry) {
-        oracleRegistry = IOracle(_oracleRegistry);
+    constructor(address _oracle) {
+        oracleRegistry = IOracle(_oracle);
     }
 
     /// @inheritdoc IYieldSourceOracle

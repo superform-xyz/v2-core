@@ -11,8 +11,8 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for 5115 Vaults
 contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
-
+    constructor(address _oracle) AbstractYieldSourceOracle(_oracle) { }
+    
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
         return 18;

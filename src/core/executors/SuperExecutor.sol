@@ -7,7 +7,7 @@ import { SuperExecutorBase } from "./SuperExecutorBase.sol";
 /// @author Superform Labs
 /// @notice Executor for Superform
 contract SuperExecutor is SuperExecutorBase {
-    constructor(address registry_) SuperExecutorBase(registry_) { }
+    constructor(address ledgerConfiguration_, address superCollectiveVault_) SuperExecutorBase(ledgerConfiguration_, superCollectiveVault_) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -12,7 +12,7 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for Staking Yield Sources
 contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
+    constructor(address _oracle) AbstractYieldSourceOracle(_oracle) { }
 
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address) external pure override returns (uint8) {

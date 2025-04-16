@@ -25,7 +25,7 @@ contract FluidClaimRewardHookTest is BaseTest {
         account = makeAddr("account");
         amount = 1000;
 
-        hook = new FluidClaimRewardHook(address(this));
+        hook = new FluidClaimRewardHook();
     }
 
     function test_Constructor() public view {

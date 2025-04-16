@@ -44,7 +44,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     error INVALID_MIN_SHARES();
     error INVALID_TRANSFER_TOKEN();
 
-    constructor(address registry_, address router_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.PTYT) {
+    constructor(address router_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (router_ == address(0)) revert ADDRESS_NOT_VALID();
         router = ISpectraRouter(router_);
     }

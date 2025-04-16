@@ -30,7 +30,7 @@ contract YearnClaimOneRewardHook is
     ISuperHookOutflow,
     ISuperHookContextAware
 {
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.CLAIM) { }
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

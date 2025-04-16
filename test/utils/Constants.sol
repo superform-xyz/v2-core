@@ -100,12 +100,12 @@ abstract contract Constants {
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
-    string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
     string public constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
+    string public constant SUPER_EXECUTOR_WITH_SP_LOCK_KEY = "SuperExecutorWithSPLock";
     string public constant MOCK_TARGET_EXECUTOR_KEY = "MockTargetExecutor";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
@@ -183,11 +183,7 @@ abstract contract Constants {
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_KEY";
 
-    string public constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
-    string public constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
-    string public constant ACROSS_TARGET_EXECUTOR_ID = "ACROSS_TARGET_EXECUTOR_ID";
     string public constant SUPER_GAS_TANK_ID = "SUPER_GAS_TANK_ID";
-    string public constant SUPER_NATIVE_PAYMASTER_ID = "SUPER_NATIVE_PAYMASTER_ID";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;

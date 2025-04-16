@@ -26,7 +26,7 @@ contract TransferERC20HookTest is BaseTest {
         to = address(this);
         amount = 1000;
 
-        hook = new TransferERC20Hook(address(this));
+        hook = new TransferERC20Hook();
     }
 
     function test_Constructor() public view {

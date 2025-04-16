@@ -2,18 +2,17 @@
 pragma solidity 0.8.28;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
+import { IOdosRouterV2 } from "../../../src/vendor/odos/IOdosRouterV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { HookSubTypes } from "../../../src/core/libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../src/core/interfaces/ISuperHook.sol";
 
-/// @title ApproveAndSwapOdosHook
+/// @title MockSwapOdosHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address inputToken = BytesLib.toAddress(data, 0);
@@ -27,7 +26,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
 /// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
-contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
+contract MockSwapOdosHook is BaseHook, ISuperHookContextAware {
     IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
@@ -54,7 +53,6 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
-
         address inputToken = BytesLib.toAddress(data, 0);
         uint256 inputAmount = BytesLib.toUint256(data, 20);
 
@@ -63,28 +61,13 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
             inputAmount = ISuperHookResult(prevHook).outAmount();
         }
 
-        executions = new Execution[](4);
+        executions = new Execution[](1);
         executions[0] = Execution({
-            target: inputToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
-        });
-        executions[1] = Execution({
-            target: inputToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), inputAmount))
-        });
-        executions[2] = Execution({
             target: address(odosRouterV2),
-            value: 0,
+            value: inputToken == address(0) ? inputAmount : 0,
             callData: abi.encodeCall(
                 IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), pathDefinition, executor, referralCode)
             )
-        });
-        executions[3] = Execution({
-            target: inputToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
         });
     }
 
@@ -112,7 +95,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(data, 72);
+        address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
 
         if (outputToken == address(0)) {
             return account.balance;

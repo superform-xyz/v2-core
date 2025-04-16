@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-// external
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 // Superform
-import { ISuperRegistry } from "../interfaces/ISuperRegistry.sol";
 import { SuperLedgerConfiguration } from "./SuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
@@ -17,20 +13,21 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 /// @notice Base ledger contract for managing user ledger entries
 abstract contract BaseLedger is ISuperLedger {
     SuperLedgerConfiguration public immutable superLedgerConfiguration;
-    ISuperRegistry public immutable superRegistry;
 
     mapping(address user => mapping(address yieldSource => uint256 shares)) public usersAccumulatorShares;
     mapping(address user => mapping(address yieldSource => uint256 costBasis)) public usersAccumulatorCostBasis;
 
-    bytes32 internal constant SUPER_EXECUTOR_ID = keccak256("SUPER_EXECUTOR_ID");
-
+    mapping(address executor => bool isAllowed) public allowedExecutors;    
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    constructor(address superLedgerConfiguration_, address superRegistry_) {
-        if (superLedgerConfiguration_ == address(0) || superRegistry_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+    constructor(address superLedgerConfiguration_, address[] memory allowedExecutors_) {
+        if (superLedgerConfiguration_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         superLedgerConfiguration = SuperLedgerConfiguration(superLedgerConfiguration_);
-        superRegistry = ISuperRegistry(superRegistry_);
+        uint256 len = allowedExecutors_.length;
+        for (uint256 i; i < len; ++i) {
+            allowedExecutors[allowedExecutors_[i]] = true;
+        }
     }
 
     modifier onlyExecutor() {
@@ -220,11 +217,7 @@ abstract contract BaseLedger is ISuperLedger {
         }
     }
 
-    function _getAddress(bytes32 id_) internal view returns (address) {
-        return superRegistry.getAddress(id_);
-    }
-
     function _isExecutorAllowed(address executor) internal view returns (bool) {
-        return superRegistry.isExecutorAllowed(executor);
+        return allowedExecutors[executor];
     }
 }
