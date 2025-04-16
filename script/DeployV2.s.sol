@@ -215,6 +215,25 @@ contract DeployV2 is Script, Configuration {
             type(SuperLedgerConfiguration).creationCode
         );
 
+         // Deploy SuperMerkleValidator
+        deployedContracts.superMerkleValidator = __deployContract(
+            deployer,
+            SUPER_MERKLE_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
+            type(SuperMerkleValidator).creationCode
+        );
+
+        // Deploy SuperDestinationValidator
+        deployedContracts.superDestinationValidator = __deployContract(
+            deployer,
+            SUPER_DESTINATION_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
+            type(SuperDestinationValidator).creationCode
+        );
+
+       
         // Deploy SuperExecutor
         deployedContracts.superExecutor = __deployContract(
             deployer,
@@ -287,26 +306,7 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperVaultFactory).creationCode, abi.encode(deployedContracts.peripheryRegistry))
         );
 
-        // Deploy SuperMerkleValidator
-        deployedContracts.superMerkleValidator = __deployContract(
-            deployer,
-            SUPER_MERKLE_VALIDATOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
-            type(SuperMerkleValidator).creationCode
-        );
-
-        // Deploy SuperDestinationValidator
-        deployedContracts.superDestinationValidator = __deployContract(
-            deployer,
-            SUPER_DESTINATION_VALIDATOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
-            type(SuperDestinationValidator).creationCode
-        );
-
        
-
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
