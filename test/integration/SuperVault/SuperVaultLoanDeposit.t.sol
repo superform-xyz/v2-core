@@ -188,7 +188,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         console2.log("\n user1 pending deposit", strategy.pendingDepositRequest(accountBase));
 
         // Deposit into underlying vaults as strategy
-        _fulfillDepositRequestsWithBorrowAndSwap();
+        _fulfillDepositRequestsWithBorrow();
         console2.log("\n pps After Fulfill Deposit Requests", _getSuperVaultPricePerShare());
 
         // Claim deposit into superVault as user1
@@ -197,9 +197,6 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         // Warp forward to simulate yield
         vm.warp(block.timestamp + 1 weeks);
-
-        // Swap collateral for loan
-        _swapCollateralForLoan();
 
         // Repay loan
         _repayLoan();
@@ -388,7 +385,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         executeOp(userOpData);
     }
 
-    function _executeSuperVault_Borrow_And_Swap() internal {
+    function _executeSuperVault_Borrow() internal {
         // Execute borrow hook
         address hook = _getHookAddress(BASE, MORPHO_BORROW_HOOK_KEY);
 
@@ -413,64 +410,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         strategy.executeHooks(executeArgs);
 
         console2.log("\n pps After Borrow", _getSuperVaultPricePerShare());
-
-        // swap
-        address[] memory swapHooks = new address[](2);
-        swapHooks[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        swapHooks[1] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
-        uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
-
-        QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
-        quoteInputTokens[0] = QuoteInputToken({
-            tokenAddress: address(loanToken),
-            amount: loanAmount
-        });
-
-        QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
-        quoteOutputTokens[0] = QuoteOutputToken({
-            tokenAddress: address(asset),
-            proportion: 1
-        });
-        
-        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, address(strategy), BASE, false);
-        string memory requestBody = surlCallAssemble(path, address(strategy));
-
-        OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
-
-        bytes memory odosCalldata =
-                _createOdosSwapHookData(
-                    odosDecodedSwap.tokenInfo.inputToken,
-                    odosDecodedSwap.tokenInfo.inputAmount,
-                    odosDecodedSwap.tokenInfo.inputReceiver,
-                    odosDecodedSwap.tokenInfo.outputToken,
-                    odosDecodedSwap.tokenInfo.outputQuote,
-                    odosDecodedSwap.tokenInfo.outputMin,
-                    odosDecodedSwap.pathDefinition,
-                    odosDecodedSwap.executor,
-                    odosDecodedSwap.referralCode,
-                    false
-                );
-
-        bytes[] memory swapHookDataArray = new bytes[](2);
-        swapHookDataArray[0] = _createApproveHookData(address(loanToken), swapRouter, loanAmount, false);
-        swapHookDataArray[1] = odosCalldata;
-
-        ISuperVaultStrategy.ExecuteArgs memory executeSwapArgs = ISuperVaultStrategy.ExecuteArgs({
-            users: new address[](0),
-            hooks: swapHooks,
-            hookCalldata: swapHookDataArray,
-            hookProofs: _getMerkleProofsForAddresses(BASE, swapHooks),
-            expectedAssetsOrSharesOut: new uint256[](2)
-        });
-
-        vm.prank(STRATEGIST);
-        strategy.executeHooks(executeSwapArgs);
-
-        console2.log("\n pps After SwapLoanForCollateral", _getSuperVaultPricePerShare());
     }
 
-    function _fulfillDepositRequestsWithBorrowAndSwap() public {
-        _executeSuperVault_Borrow_And_Swap();
+    function _fulfillDepositRequestsWithBorrow() public {
+        _executeSuperVault_Borrow();
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountBase;
 
@@ -573,43 +516,6 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         console2.log("----loanToken balance after redeem", IERC20(loanToken).balanceOf(address(strategy)));
         console2.log("----collateral balance after redeem", IERC20(collateralToken).balanceOf(address(strategy)));
-    }
-
-    function _swapCollateralForLoan() internal {
-        address[] memory swapHooks = new address[](1);
-        swapHooks[0] = _getHookAddress(BASE, APPROVE_AND_SWAP_ODOS_HOOK_KEY);
-
-        uint256 collateralBalance = IERC20(collateralToken).balanceOf(address(strategy));
-        uint256 loanAmount = _deriveLoanAmount(amount);
-        uint256 amountWithoutSlippage = loanAmount + (loanAmount * 100 / 10_000);
-
-        bytes[] memory swapHookDataArray = new bytes[](1);
-        swapHookDataArray[0] = _createApproveAndSwapOdosHookData(
-            address(collateralToken),
-            collateralBalance,
-            address(this),
-            address(loanToken),
-            amountWithoutSlippage,
-            0,
-            bytes(""),
-            swapRouter,
-            0,
-            false
-        );
-
-        vm.prank(STRATEGIST);
-        strategy.executeHooks(
-            ISuperVaultStrategy.ExecuteArgs({
-                users: new address[](0),
-                hooks: swapHooks,
-                hookCalldata: swapHookDataArray,
-                hookProofs: _getMerkleProofsForAddresses(BASE, swapHooks),
-                expectedAssetsOrSharesOut: new uint256[](1)
-            })
-        );
-        console2.log("----loanToken balance after swap", IERC20(loanToken).balanceOf(address(strategy)));
-        console2.log("----collateral balance after swap", IERC20(collateralToken).balanceOf(address(strategy)));
-        console2.log("pps after swapCollateralForLoan", _getSuperVaultPricePerShare());
     }
 
     function _claimRedeemOnBase() internal {
