@@ -67,10 +67,7 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
         (uint256 assetType, address assetAddress, uint8 assetDecimals) = _getAssetInfo(sY);
         if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
 
-        // warning: if the SY token upgrades and asset stops being part of token in or out array this could start
-        // reverting
-        // this can have repercurssions in periphery code!
-        // todo: decide to keep or remove this check
+        // ! if the SY token upgrades and asset stops being part of token in or out array this could revert
         if (!_validateAssetFoundInSY(sY, assetAddress)) revert INVALID_ASSET();
 
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
@@ -110,10 +107,7 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
         (uint256 assetType, address assetAddress, uint8 assetDecimals) = _getAssetInfo(sY);
         if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
 
-        // warning: if the SY token upgrades and asset stops being part of token in or out array this could start
-        // reverting
-        // this can have repercurssions in periphery code!
-        // todo: decide to keep or remove this check
+        // ! if the SY token upgrades and asset stops being part of token in or out array this could revert
         if (!_validateAssetFoundInSY(sY, assetAddress)) revert INVALID_ASSET();
 
         // Calculate asset value in 1e18 terms first
