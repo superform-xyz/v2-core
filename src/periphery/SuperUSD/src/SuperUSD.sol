@@ -26,6 +26,8 @@ contract SuperUSD is AccessControl {
     address public settlementTokenOut;
     ISuperOracle public superOracle;
 
+    uint256 public swapFeePercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
+
     // --- Events ---
     event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut);
     event Redeem(address receiver, uint256 amountSharesToRedeem, address tokenOut, uint256 amountTokenOut);
@@ -53,20 +55,27 @@ contract SuperUSD is AccessControl {
     constructor(
         address _incentiveCalculationContract,
         address _incentiveFundContract,
-        address _swapFeeFundContract
+        address _swapFeeFundContract,
+        uint256 _swapFeePercentage
     ) {
         require(_incentiveCalculationContract != address(0), "SuperUSD: ICC address cannot be zero");
         require(_incentiveFundContract != address(0), "SuperUSD: Incentive Fund address cannot be zero");
         require(_swapFeeFundContract != address(0), "SuperUSD: Swap Fee Fund address cannot be zero");
-
+        require(_swapFeePercentage <= 1000, "SuperUSD: Swap fee percentage too high"); // Max 10%
         incentiveCalculationContract = _incentiveCalculationContract;
         incentiveFundContract = _incentiveFundContract;
         swapFeeFundContract = _swapFeeFundContract;
+        swapFeePercentage = _swapFeePercentage;
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(VAULT_MANAGER_ROLE, msg.sender);
         _setupRole(SWAP_FEE_MANAGER_ROLE, msg.sender);
         _setupRole(INCENTIVE_FUND_MANAGER, msg.sender);
+    }
+
+    function setSwapFeePercentage(uint256 _swapFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_swapFeePercentage <= 1000, "SuperUSD: Swap fee percentage too high"); // Max 10%
+        swapFeePercentage = _swapFeePercentage;
     }
 
     // --- Token Movement Functions ---
@@ -88,8 +97,16 @@ contract SuperUSD is AccessControl {
         require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
         require(receiver != address(0), "SuperUSD: Receiver cannot be zero address");
 
+        // TODO: Transfer the tokenIn from the sender to this contract
+        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountTokenToDeposit);
+
         // Calculate swap fees (example: 0.1% fee)
-        uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
+        // TODO: Make it a governance params
+        // TODO: Use mulDiv() for better precision
+        //  Example: 0.1% fee
+        //  uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
+        //  uint256 amountAfterFees = amountTokenToDeposit - swapFee;
+        uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeePercentage, 10000); // Swap fee based on percentage
         uint256 amountAfterFees = amountTokenToDeposit - swapFee;
 
         // Transfer swap fees to Swap Fee Fund
@@ -105,6 +122,7 @@ contract SuperUSD is AccessControl {
             underlyingShares = amountAfterFees; // Example: 1:1 conversion.  Adjust as needed.
         }
 
+        // TODO: Replace this with calling SuperOracle to get the conversion price
         // Get price of underlying vault shares in USD
         (uint256 pricePerShare,) = getPrice(tokenIn);
 
