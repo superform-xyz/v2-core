@@ -129,9 +129,8 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     /// @inheritdoc ISuperHookLoans
     function getUsedAssets(address, bytes memory data) external view returns (uint256) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-        uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(
-            vars.loanToken, vars.oracle, vars.collateralToken, outAmount
-        );
+        uint256 amountInCollateral =
+            deriveCollateralAmountFromLoanAmount(vars.loanToken, vars.oracle, vars.collateralToken, outAmount);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         return amountInCollateral + deriveFeeAmount(marketParams);
@@ -174,11 +173,9 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
         // 10^(36 + loanDecimals - collateralDecimals)
         uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-
         // Inverting the original calculation:
         // loanAmount = collateralAmount * price / scalingFactor
         collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
-
     }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {

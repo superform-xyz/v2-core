@@ -843,21 +843,33 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             MockOdosRouterV2 odosRouter = new MockOdosRouterV2{ salt: SALT }();
             mockOdosRouters[chainIds[i]] = address(odosRouter);
             vm.label(address(odosRouter), "MockOdosRouterV2");
-            A[i].mockApproveAndSwapOdosHook =
-                new MockApproveAndSwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
+            A[i].mockApproveAndSwapOdosHook = new MockApproveAndSwapOdosHook{ salt: SALT }(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter)
+            );
             vm.label(address(A[i].mockApproveAndSwapOdosHook), MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(A[i].mockApproveAndSwapOdosHook);
             hooks[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY] = Hook(
-                MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].mockApproveAndSwapOdosHook), ""
+                MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(A[i].mockApproveAndSwapOdosHook),
+                ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(
+                hooks[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY]
+            );
             hooksAddresses[18] = address(A[i].mockApproveAndSwapOdosHook);
-            
-            A[i].mockSwapOdosHook = new MockSwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
+
+            A[i].mockSwapOdosHook =
+                new MockSwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
             vm.label(address(A[i].mockSwapOdosHook), MOCK_SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY] = address(A[i].mockSwapOdosHook);
             hooks[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY] = Hook(
-                MOCK_SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].mockSwapOdosHook), ""
+                MOCK_SWAP_ODOS_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(A[i].mockSwapOdosHook),
+                ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[19] = address(A[i].mockSwapOdosHook);
@@ -877,7 +889,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[20] = address(A[i].approveAndSwapOdosHook);
 
-            A[i].swapOdosHook = new SwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ODOS_ROUTER[chainIds[i]]);
+            A[i].swapOdosHook =
+                new SwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ODOS_ROUTER[chainIds[i]]);
             vm.label(address(A[i].swapOdosHook), SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(A[i].swapOdosHook);
             hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
@@ -885,7 +898,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[21] = address(A[i].swapOdosHook);
-            
 
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
@@ -2501,9 +2513,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false
-        );
+        return
+            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false);
     }
 
     function _createMorphoRepayHookData(
@@ -2520,9 +2531,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
-        );
+        return
+            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
     }
 
     function _createMorphoRepayAndWithdrawHookData(
@@ -2539,9 +2549,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(
-            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment
-        );
+        return
+            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
     }
 
     function _createSpectraExchangeSwapHookData(
@@ -2700,6 +2709,37 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     function _createApproveAndSwapOdosHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            inputToken,
+            inputAmount,
+            inputReceiver,
+            outputToken,
+            outputQuote,
+            outputMin,
+            usePrevHookAmount,
+            pathDefinition.length,
+            pathDefinition,
+            executor,
+            referralCode
+        );
+    }
+
+    function _createMockOdosSwapHookData(
         address inputToken,
         uint256 inputAmount,
         address inputReceiver,

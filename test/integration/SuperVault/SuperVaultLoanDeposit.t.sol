@@ -269,13 +269,11 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory repayHookDataArray = new bytes[](1);
 
-        bytes memory repayHookData = _createMorphoRepayHookData(
-            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false
-        );
+        bytes memory repayHookData =
+            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false);
         repayHookDataArray[0] = repayHookData;
 
-        uint256 expectedCollateralBalanceAfterRepay =
-            _deriveCollateralForPartialWithdraw(amount / 2, amount);
+        uint256 expectedCollateralBalanceAfterRepay = _deriveCollateralForPartialWithdraw(amount / 2, amount);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
@@ -335,9 +333,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_HOOK_KEY);
         hooks[0] = repayHook;
 
-        bytes memory repayHookData = _createMorphoRepayHookData(
-            loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false
-        );
+        bytes memory repayHookData =
+            _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false);
         repayHookDataArray[0] = repayHookData;
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
@@ -582,20 +579,13 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _deriveCollateralAmount(
-        uint256 loanAmount
-    )
-        internal
-        view
-        returns (uint256 collateral)
-    {
+    function _deriveCollateralAmount(uint256 loanAmount) internal view returns (uint256 collateral) {
         uint256 price = oracle.price();
 
         // For a positive feed, price is given as the amount of loan tokens per collateral token,
         // so we invert the price to calculate collateral:
         // collateralAmount = loanAmount * scalingFactor / price
         collateral = Math.mulDiv(loanAmount, 1e36, price);
-
     }
 
     function _deriveFeeAmount() internal view returns (uint256 feeAmount) {
@@ -647,14 +637,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         assetsPaid = shareBalance.toAssetsUp(totalBorrowAssets, totalBorrowShares);
     }
 
-    function _deriveLoanAmount(
-        uint256 amountCollateral,
-        uint256 ltvRatio
-    )
-        internal
-        view
-        returns (uint256 loanAmount)
-    {
+    function _deriveLoanAmount(uint256 amountCollateral, uint256 ltvRatio) internal view returns (uint256 loanAmount) {
         IOracle oracleInstance = IOracle(oracleAddress);
         uint256 price = oracleInstance.price();
 
@@ -684,7 +667,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         internal
         view
         returns (uint256 withdrawableCollateral)
-    {   
+    {
         uint256 ltvRatio = 0.75e18;
         uint256 fullLoanAmount = _deriveLoanAmount(amount, ltvRatio);
 

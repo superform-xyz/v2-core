@@ -156,17 +156,18 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         bool usePrevHookAmount = _decodeBool(data, 144);
         uint256 lltv = BytesLib.toUint256(data, 145);
 
-        return BorrowHookLocalVars({ 
-            loanToken: loanToken, 
-            collateralToken: collateralToken, 
-            oracle: oracle, 
-            irm: irm, 
-            amount: amount, 
-            ltvRatio: ltvRatio, 
+        return BorrowHookLocalVars({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: oracle,
+            irm: irm,
+            amount: amount,
+            ltvRatio: ltvRatio,
             usePrevHookAmount: usePrevHookAmount,
             lltv: lltv
         });
     }
+
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);

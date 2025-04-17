@@ -121,12 +121,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
             uint256 fullCollateral = deriveCollateralForFullRepayment(id, account);
-            collateralForWithdraw = deriveCollateralForPartialRepayment(
-                id,
-                account,
-                vars.amount,
-                fullCollateral
-            );
+            collateralForWithdraw = deriveCollateralForPartialRepayment(id, account, vars.amount, fullCollateral);
 
             executions[1] = Execution({
                 target: vars.loanToken,
