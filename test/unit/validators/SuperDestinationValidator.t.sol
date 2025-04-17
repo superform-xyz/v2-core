@@ -36,6 +36,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         uint64 chainId;
         address sender;
         address executor;
+        address adapter;
         address tokenSent;
         uint256 intentAmount;
     }
@@ -123,6 +124,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             approveDestinationData.sender,
             approveDestinationData.nonce,
             approveDestinationData.executor,
+            approveDestinationData.adapter,
             approveDestinationData.tokenSent,
             approveDestinationData.intentAmount,
             validUntil
@@ -133,6 +135,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             transferDestinationData.sender,
             transferDestinationData.nonce,
             transferDestinationData.executor,
+            transferDestinationData.adapter,
             transferDestinationData.tokenSent,
             transferDestinationData.intentAmount,
             validUntil
@@ -143,6 +146,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             depositDestinationData.sender,
             depositDestinationData.nonce,
             depositDestinationData.executor,
+            depositDestinationData.adapter,
             depositDestinationData.tokenSent,
             depositDestinationData.intentAmount,
             validUntil
@@ -153,6 +157,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             withdrawDestinationData.sender,
             withdrawDestinationData.nonce,  
             withdrawDestinationData.executor,
+            withdrawDestinationData.adapter,
             withdrawDestinationData.tokenSent,
             withdrawDestinationData.intentAmount,
             validUntil
@@ -176,6 +181,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             approveDestinationData.sender,
             approveDestinationData.nonce,
             approveDestinationData.executor,
+            approveDestinationData.adapter,
             approveDestinationData.tokenSent,
             approveDestinationData.intentAmount,
             validUntil
@@ -186,6 +192,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             transferDestinationData.sender,
             transferDestinationData.nonce,
             transferDestinationData.executor,
+            transferDestinationData.adapter,
             transferDestinationData.tokenSent,
             transferDestinationData.intentAmount,
             validUntil
@@ -196,6 +203,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             depositDestinationData.sender,
             depositDestinationData.nonce,
             depositDestinationData.executor,
+            depositDestinationData.adapter,
             depositDestinationData.tokenSent,
             depositDestinationData.intentAmount,
             validUntil
@@ -206,6 +214,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             withdrawDestinationData.sender,
             withdrawDestinationData.nonce,
             withdrawDestinationData.executor,   
+            withdrawDestinationData.adapter,
             withdrawDestinationData.tokenSent,
             withdrawDestinationData.intentAmount,
             validUntil
@@ -244,6 +253,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             approveDestinationData.sender,
             approveDestinationData.nonce,
             approveDestinationData.executor,
+            approveDestinationData.adapter,
             approveDestinationData.tokenSent,
             approveDestinationData.intentAmount,
             validUntil
@@ -254,6 +264,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             transferDestinationData.sender,
             transferDestinationData.nonce,
             transferDestinationData.executor,
+            transferDestinationData.adapter,
             transferDestinationData.tokenSent,
             transferDestinationData.intentAmount,
             validUntil
@@ -264,6 +275,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             depositDestinationData.sender,
             depositDestinationData.nonce,
             depositDestinationData.executor,
+            depositDestinationData.adapter,
             depositDestinationData.tokenSent,
             depositDestinationData.intentAmount,
             validUntil
@@ -274,6 +286,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             withdrawDestinationData.sender,
             withdrawDestinationData.nonce,
             withdrawDestinationData.executor,
+            withdrawDestinationData.adapter,
             withdrawDestinationData.tokenSent,
             withdrawDestinationData.intentAmount,
             validUntil
@@ -291,6 +304,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
+            approveDestinationData.adapter,
             approveDestinationData.tokenSent,
             approveDestinationData.intentAmount
         );
@@ -334,6 +348,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             destinationData.chainId,
             destinationData.sender,
             destinationData.executor,
+            destinationData.adapter,
             destinationData.tokenSent,
             destinationData.intentAmount
         );
@@ -409,6 +424,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             signerAddr,
             address(this),
             address(this),
+            address(this),
             1e18
         );
     }
@@ -419,6 +435,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
             uint64(block.chainid),
             signerAddr,
+            address(this),
             address(this),
             address(this),
             1e18
@@ -433,6 +450,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             signerAddr,
             address(this),
             address(this),
+            address(this),
             1e18
         );
     }
@@ -443,6 +461,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             abi.encodeWithSelector(IERC4626.withdraw.selector, 1e18, address(this)),
             uint64(block.chainid),
             signerAddr,
+            address(this),
             address(this),
             address(this),
             1e18

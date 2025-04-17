@@ -10,14 +10,14 @@ import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { IAcrossTargetExecutor } from "../src/core/interfaces/IAcrossTargetExecutor.sol";
+import { ISuperDestinationExecutor } from "../src/core/interfaces/ISuperDestinationExecutor.sol";
 
 // Superform contracts
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
-import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
-import { AcrossTargetExecutor } from "../src/core/executors/AcrossTargetExecutor.sol";
+import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";    
+import { SuperDestinationExecutor } from "../src/core/executors/SuperDestinationExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.sol";
@@ -140,6 +140,7 @@ import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
+import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
@@ -169,7 +170,8 @@ struct Addresses {
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISuperExecutor superExecutorWithSPLock;
-    ISuperExecutor acrossTargetExecutor;
+    ISuperExecutor superDestinationExecutor;
+    AcrossV3Adapter acrossV3Adapter;
     ApproveERC20Hook approveErc20Hook;
     MorphoBorrowHook morphoBorrowHook;
     MorphoRepayHook morphoRepayHook;
@@ -496,29 +498,32 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].superExecutorWithSPLock), SUPER_EXECUTOR_WITH_SP_LOCK_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_WITH_SP_LOCK_KEY] = address(A[i].superExecutorWithSPLock);
 
-            console2.log("--------A");
             A[i].mockTargetExecutor = new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault));
             vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor);
-            console2.log("--------B");
-
-            A[i].acrossTargetExecutor = ISuperExecutor(
+            
+            A[i].superDestinationExecutor = ISuperExecutor(
                 address(
-                    new AcrossTargetExecutor{ salt: SALT }(
+                    new SuperDestinationExecutor{ salt: SALT }(
                         address(A[i].superLedgerConfiguration),
-                        SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
                         address(A[i].superDestinationValidator),
                         NEXUS_FACTORY_ADDRESSES[chainIds[i]]
                     )
                 )
             );
-            console2.log("--------C");
-            vm.label(address(A[i].acrossTargetExecutor), ACROSS_TARGET_EXECUTOR_KEY);
-            contractAddresses[chainIds[i]][ACROSS_TARGET_EXECUTOR_KEY] = address(A[i].acrossTargetExecutor);
+            vm.label(address(A[i].superDestinationExecutor), SUPER_DESTINATION_EXECUTOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_DESTINATION_EXECUTOR_KEY] = address(A[i].superDestinationExecutor);
+
+            A[i].acrossV3Adapter = new AcrossV3Adapter{ salt: SALT }(
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
+                address(A[i].superDestinationExecutor)
+            );
+            vm.label(address(A[i].acrossV3Adapter), ACROSS_V3_ADAPTER_KEY);
+            contractAddresses[chainIds[i]][ACROSS_V3_ADAPTER_KEY] = address(A[i].acrossV3Adapter);
 
             address[] memory allowedExecutors = new address[](3);
             allowedExecutors[0] = address(A[i].superExecutor);
-            allowedExecutors[1] = address(A[i].acrossTargetExecutor);
+            allowedExecutors[1] = address(A[i].superDestinationExecutor);
             allowedExecutors[2] = address(A[i].superExecutorWithSPLock);
             A[i].superLedger = ISuperLedger(
                 address(
@@ -1323,7 +1328,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             });
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
-                module: _getContract(chainIds[i], ACROSS_TARGET_EXECUTOR_KEY),
+                module: _getContract(chainIds[i], SUPER_DESTINATION_EXECUTOR_KEY),
                 data: ""
             });
             instance.installModule({
@@ -1654,16 +1659,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
         if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
-            emit IAcrossTargetExecutor.AcrossTargetExecutorReceivedButNotEnoughBalance(account);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(account);
         } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
-            emit IAcrossTargetExecutor.AcrossTargetExecutorExecuted(account);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
         } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
-            emit IAcrossTargetExecutor.AcrossTargetExecutorReceivedButNoHooks();
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(account);
         } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
             vm.expectEmit(true, false, false, false);
-            emit IAcrossTargetExecutor.AcrossTargetExecutorFailedLowLevel("");
+            emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
@@ -1745,6 +1750,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address validator;
         address signer;
         uint256 signerPrivateKey;
+        address targetAdapter;
         address targetExecutor;
         address nexusFactory;
         address nexusBootstrap;
@@ -1758,15 +1764,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _precomputeTargetExecutorAccount(
         address validator,
         address signer,
-        address targetExecutor,
         address nexusFactory,
-        address nexusBootstrap
+        address nexusBootstrap,
+        uint64 chainId
     )
         internal
         returns (address)
     {
         (, address account) = _createAccountCreationData_AcrossTargetExecutor(
-            validator, signer, targetExecutor, nexusFactory, nexusBootstrap
+            validator, signer, _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY), nexusFactory, nexusBootstrap
         );
         return account;
     }
@@ -1785,7 +1791,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             (accountCreationData, accountToUse) = _createAccountCreationData_AcrossTargetExecutor(
                 messageData.validator,
                 messageData.signer,
-                messageData.targetExecutor,
+                _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
                 messageData.nexusFactory,
                 messageData.nexusBootstrap
             );
@@ -1802,13 +1808,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             accountToUse,
             messageData.nonce,
             messageData.targetExecutor,
+            messageData.targetAdapter,
             messageData.tokenSent,
             messageData.amount,
             validUntil
         );
 
-        console2.log("---------- messageData.tokenSent", messageData.tokenSent);
-        console2.log("---------- messageData.amount", messageData.amount);
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 
@@ -2077,7 +2082,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
         hookData = abi.encodePacked(
             uint256(0),
-            _getContract(destinationChainId, ACROSS_TARGET_EXECUTOR_KEY),
+            _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY),
             inputToken,
             outputToken,
             inputAmount,

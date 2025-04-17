@@ -100,13 +100,14 @@ abstract contract Constants {
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
-    string public constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
+    string public constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string public constant SUPER_EXECUTOR_WITH_SP_LOCK_KEY = "SuperExecutorWithSPLock";
     string public constant MOCK_TARGET_EXECUTOR_KEY = "MockTargetExecutor";
+    string public constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string public constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";

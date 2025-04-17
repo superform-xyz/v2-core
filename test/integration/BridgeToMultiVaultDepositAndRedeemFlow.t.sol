@@ -9,6 +9,7 @@ import { console2 } from "forge-std/console2.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { AcrossV3Adapter } from "../../src/core/adapters/AcrossV3Adapter.sol";
 
 // Vault Interfaces
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
@@ -24,7 +25,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 
-import { IAcrossTargetExecutor } from "../../src/core/interfaces/IAcrossTargetExecutor.sol";
+import { ISuperDestinationExecutor } from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
 
 contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IERC7540 public vaultInstance7540ETH;
@@ -57,9 +58,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     ISuperExecutor public superExecutorOnETH;
     ISuperExecutor public superExecutorOnOP;
 
-    IAcrossTargetExecutor public superTargetExecutorOnBase;
-    IAcrossTargetExecutor public superTargetExecutorOnETH;
-    IAcrossTargetExecutor public superTargetExecutorOnOP;
+    AcrossV3Adapter public acrossV3AdapterOnBase;
+    AcrossV3Adapter public acrossV3AdapterOnETH;
+    AcrossV3Adapter public acrossV3AdapterOnOP;
+
+    ISuperDestinationExecutor public superTargetExecutorOnBase;
+    ISuperDestinationExecutor public superTargetExecutorOnETH;
+    ISuperDestinationExecutor public superTargetExecutorOnOP;
 
     IValidator public validatorOnBase;
     IValidator public validatorOnETH;
@@ -145,9 +150,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         superExecutorOnOP = ISuperExecutor(_getContract(OP, SUPER_EXECUTOR_KEY));
 
         // Set up the super target executors
-        superTargetExecutorOnBase = IAcrossTargetExecutor(_getContract(BASE, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnETH = IAcrossTargetExecutor(_getContract(ETH, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnOP = IAcrossTargetExecutor(_getContract(OP, ACROSS_TARGET_EXECUTOR_KEY));
+        superTargetExecutorOnBase = ISuperDestinationExecutor(_getContract(BASE, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnETH = ISuperDestinationExecutor(_getContract(ETH, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnOP = ISuperDestinationExecutor(_getContract(OP, SUPER_DESTINATION_EXECUTOR_KEY));
+
+        acrossV3AdapterOnBase = AcrossV3Adapter(_getContract(BASE, ACROSS_V3_ADAPTER_KEY));
+        acrossV3AdapterOnETH = AcrossV3Adapter(_getContract(ETH, ACROSS_V3_ADAPTER_KEY));
+        acrossV3AdapterOnOP = AcrossV3Adapter(_getContract(OP, ACROSS_V3_ADAPTER_KEY));
 
         // Set up the destination validators
         validatorOnBase = IValidator(_getContract(BASE, SUPER_DESTINATION_VALIDATOR_KEY));
@@ -260,6 +269,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 validator: address(validatorOnETH),
                 signer: validatorSigner,
                 signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
                 targetExecutor: address(superTargetExecutorOnETH),
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
@@ -344,6 +354,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 validator: address(validatorOnETH),
                 signer: validatorSigner,
                 signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
                 targetExecutor: address(superTargetExecutorOnETH),
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
@@ -426,13 +437,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnETH).nonces(accountETH);
+            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnETH).nonces(accountETH);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
                 validator: address(validatorOnETH),
                 signer: validatorSigners[ETH],
                 signerPrivateKey: validatorSignerPrivateKeys[ETH],
+                targetAdapter: address(acrossV3AdapterOnETH),
                 targetExecutor: address(superTargetExecutorOnETH),
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
@@ -488,13 +500,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
-        uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
+        uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnBase).nonces(accountBase);
         TargetExecutorMessage memory messageData = TargetExecutorMessage({
             hooksAddresses: new address[](0),
             hooksData: new bytes[](0),
             validator: address(validatorOnBase),
             signer: validatorSigners[BASE],
             signerPrivateKey: validatorSignerPrivateKeys[BASE],
+            targetAdapter: address(acrossV3AdapterOnBase),
             targetExecutor: address(superTargetExecutorOnBase),
             nexusFactory: CHAIN_8453_NEXUS_FACTORY,
             nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
@@ -599,13 +612,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 false
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnOP).nonces(accountOP);
+            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnOP).nonces(accountOP);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: opHooksAddresses,
                 hooksData: opHooksData,
                 validator: address(validatorOnOP),
                 signer: validatorSigners[OP],
                 signerPrivateKey: validatorSignerPrivateKeys[OP],
+                targetAdapter: address(acrossV3AdapterOnOP),
                 targetExecutor: address(superTargetExecutorOnOP),
                 nexusFactory: CHAIN_10_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_10_NEXUS_BOOTSTRAP,
@@ -703,13 +717,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             address[] memory baseHooksAddresses = new address[](0);
             bytes[] memory baseHooksData = new bytes[](0);
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
+            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: baseHooksAddresses,
                 hooksData: baseHooksData,
                 validator: address(validatorOnBase),
                 signer: validatorSigners[BASE],
                 signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
