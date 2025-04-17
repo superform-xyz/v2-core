@@ -187,6 +187,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         _executeSuperVault_Borrow();
 
+        deal(loanToken, address(strategy), 1e18);
+
         // Repay loan
         _repayLoan();
 
