@@ -23,7 +23,7 @@ import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol"
 contract CancelDepositHook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

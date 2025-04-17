@@ -30,7 +30,7 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor(address registry_) BaseHook(registry_, HookType.INFLOW, "Stake") { }
+    constructor() BaseHook(HookType.INFLOW, "Stake") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -12,7 +12,11 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for Staking Yield Sources
 contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
+    constructor(address _oracle) AbstractYieldSourceOracle(_oracle) { }
+
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address) external pure override returns (uint8) {
@@ -63,6 +67,19 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     /// @inheritdoc AbstractYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view override returns (uint256) {
         return IERC20(yieldSourceAddress).totalSupply();
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool)
+    {
+        return IStakingVault(yieldSourceAddress).stakingToken() == expectedUnderlying;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

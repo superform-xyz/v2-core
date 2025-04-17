@@ -51,7 +51,7 @@ contract MorphoBorrowHookTest is BaseTest {
         morphoBase = IMorphoBase(morpho);
 
         // Initialize hook
-        hook = new MorphoBorrowHook(address(this), morpho);
+        hook = new MorphoBorrowHook(morpho);
 
         // Set test values
         amount = 1000e18;
@@ -66,7 +66,7 @@ contract MorphoBorrowHookTest is BaseTest {
 
     function test_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new MorphoBorrowHook(address(this), address(0));
+        new MorphoBorrowHook(address(0));
     }
 
     function test_Build() public view {

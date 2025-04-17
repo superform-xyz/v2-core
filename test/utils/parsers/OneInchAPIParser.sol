@@ -11,7 +11,6 @@ import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
 import { BaseAPIParser } from "./BaseAPIParser.sol";
 
-import "forge-std/console2.sol";
 abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
     using Strings for uint256;
@@ -57,7 +56,6 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
     
     function surlCallSwapCalldata(string memory authKey, OneInchSwapCalldataRequest memory request) internal returns (string memory dstAmount, string memory txData) {
         string memory url = buildSwapCallDataRequestUrl(request);
-        console2.log("url", url);
 
         string[] memory headers = _getHeaders(authKey);
 
@@ -66,7 +64,6 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
             revert("OneInchAPIParser: surlCallSwapCalldata failed");
         }
         string memory json = string(data);
-        console2.log("json", json);
 
         strings.slice memory jsonSlice = json.toSlice();
 
@@ -95,7 +92,6 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
 
     function surlCallGetRouter(string memory authKey, uint256 chainId) internal returns (string memory spender) {
         string memory url = buildGetRouterUrl(chainId);
-        console2.log("url", url);
 
         string[] memory headers = _getHeaders(authKey);
 
@@ -105,7 +101,6 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
         }
 
         string memory json = string(data);
-        console2.log("json", json);
 
         strings.slice memory jsonSlice = json.toSlice();
         strings.slice memory spenderKey = '"address":"'.toSlice();
@@ -129,7 +124,6 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
 
     function surlCallGetApproveCallData(string memory authKey, uint256 chainId, address tokenAddress, uint256 amount) internal returns (string memory txData) {
         string memory url = buildGetApproveCallDataUrl(chainId, tokenAddress, amount);
-        console2.log("url", url);
         
         string[] memory headers = _getHeaders(authKey);
 
@@ -139,7 +133,6 @@ abstract contract OneInchAPIParser is StdUtils, BaseAPIParser {
         }
 
         string memory json = string(data);  
-        console2.log("json", json);
         
         strings.slice memory jsonSlice = json.toSlice();
         strings.slice memory txDataKey = '"data":"'.toSlice();

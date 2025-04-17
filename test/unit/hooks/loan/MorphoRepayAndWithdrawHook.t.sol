@@ -35,7 +35,7 @@ contract MorphoRepayHookTest is BaseTest {
         super.setUp();
 
         // Initialize hook
-        hook = new MorphoRepayAndWithdrawHook(address(this), MORPHO);
+        hook = new MorphoRepayAndWithdrawHook(MORPHO);
 
         loanToken = existingUnderlyingTokens[BASE][WETH_KEY];
         collateralToken = existingUnderlyingTokens[BASE][USDC_KEY];
@@ -48,7 +48,7 @@ contract MorphoRepayHookTest is BaseTest {
 
     function test_RepayHook_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new MorphoRepayAndWithdrawHook(address(this), address(0));
+        new MorphoRepayAndWithdrawHook(address(0));
     }
 
     function test_RepayHook_Build_RevertIf_InvalidAddresses() public {

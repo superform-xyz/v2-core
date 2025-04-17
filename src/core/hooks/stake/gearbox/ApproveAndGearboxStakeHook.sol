@@ -28,7 +28,7 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.STAKE) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.STAKE) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -16,13 +16,13 @@ import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol"
 /// @title ClaimCancelRedeemRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = BytesLib.toAddress(data, 0);
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         address receiver = BytesLib.toAddress(data, 24);
 contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

@@ -28,7 +28,7 @@ contract Redeem4626VaultHookTest is BaseTest {
         amount = 1000;
         owner = address(this);
 
-        hook = new Redeem4626VaultHook(address(this));
+        hook = new Redeem4626VaultHook();
     }
 
     function test_Constructor() public view {

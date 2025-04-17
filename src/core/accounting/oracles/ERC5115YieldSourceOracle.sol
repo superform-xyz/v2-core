@@ -11,8 +11,11 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for 5115 Vaults
 contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
-
+    constructor(address _oracle) AbstractYieldSourceOracle(_oracle) { }
+    
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
         return 18;
@@ -86,6 +89,42 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         uint256 totalShares = yieldSource.totalSupply();
         if (totalShares == 0) return 0;
         return (totalShares * yieldSource.exchangeRate()) / 1e18;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool)
+    {
+        IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
+        address[] memory tokensIn = yieldSource.getTokensIn();
+        address[] memory tokensOut = yieldSource.getTokensOut();
+        uint256 tokensInLength = tokensIn.length;
+        uint256 tokensOutLength = tokensOut.length;
+        bool foundInTokensIn = false;
+        for (uint256 i; i < tokensInLength; ++i) {
+            if (tokensIn[i] == expectedUnderlying) {
+                foundInTokensIn = true;
+                break;
+            }
+        }
+
+        if (!foundInTokensIn) return false;
+
+        bool foundInTokensOut = false;
+        for (uint256 i; i < tokensOutLength; ++i) {
+            if (tokensOut[i] == expectedUnderlying) {
+                foundInTokensOut = true;
+                break;
+            }
+        }
+
+        return foundInTokensOut;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

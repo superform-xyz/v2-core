@@ -4,14 +4,8 @@ pragma solidity >=0.8.28;
 // Superform
 import { ISentinel } from "./ISentinel.sol";
 
-import { SuperRegistryImplementer } from "../../../src/core/utils/SuperRegistryImplementer.sol";
 
-contract SuperPositionSentinel is ISentinel, SuperRegistryImplementer {
-    /*//////////////////////////////////////////////////////////////
-                                 STORAGE
-    //////////////////////////////////////////////////////////////*/
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }
-
+contract SuperPositionSentinel is ISentinel {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/

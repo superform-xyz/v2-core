@@ -7,10 +7,5 @@ import { BaseLedger } from "./BaseLedger.sol";
 /// @author Superform Labs
 /// @notice Default ISuperLedger implementation
 contract SuperLedger is BaseLedger {
-    constructor(
-        address ledgerConfiguration_,
-        address superRegistry_
-    )
-        BaseLedger(ledgerConfiguration_, superRegistry_)
-    { }
+    constructor(address ledgerConfiguration_, address[] memory allowedExecutors_) BaseLedger(ledgerConfiguration_, allowedExecutors_) { }
 }
