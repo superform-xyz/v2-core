@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 // external
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -152,10 +153,10 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         address collateralToken = BytesLib.toAddress(data, 20);
         address oracle = BytesLib.toAddress(data, 40);
         address irm = BytesLib.toAddress(data, 60);
-        uint256 amount = BytesLib.toUint256(data, 80);
-        uint256 ltvRatio = BytesLib.toUint256(data, 112);
-        bool usePrevHookAmount = BytesLib.toBool(data, 144);
-        uint256 lltv = BytesLib.toUint256(data, 145);
+        uint256 amount = _decodeAmount(data, 80);
+        uint256 ltvRatio = _decodeAmount(data, 112);
+        bool usePrevHookAmount = BytesLib.decodeBool(data, 144);
+        uint256 lltv = BytesLib.decodeAmount(data, 145);
 
         return BorrowHookLocalVars({ 
             loanToken: loanToken, 

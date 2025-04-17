@@ -225,6 +225,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         // borrow
         _implementBorrowFlow();
 
+        uint256 ltvRatio = 0.75e18;
+
         // repay
         address[] memory hooks = new address[](1);
         address repayHook = _getHookAddress(BASE, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
@@ -245,7 +247,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
         uint256 collateralBalanceAfterRepay = IERC20(collateralToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - assetsPaid);
+        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount, ltvRatio)) - assetsPaid);
         assertEq(collateralBalanceAfterRepay, collateralBalanceBefore);
     }
 
@@ -255,6 +257,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         // borrow
         _implementBorrowFlow();
+
+        uint256 ltvRatio = 0.75e18;
 
         // repay
         address[] memory hooks = new address[](1);
@@ -279,7 +283,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
         uint256 collateralBalanceAfterRepay = IERC20(collateralToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - amount / 2);
+        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount, ltvRatio)) - amount / 2);
 
         assertEq(collateralBalanceAfterRepay, collateralBalanceBefore - amount + expectedCollateralBalanceAfterRepay);
     }
@@ -289,6 +293,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         // borrow
         _implementBorrowFlow();
+
+        uint256 ltvRatio = 0.75e18;
 
         // repay
         address[] memory hooks = new address[](1);
@@ -309,7 +315,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - assetsPaid);
+        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount, ltvRatio)) - assetsPaid);
     }
 
     function test_RepayHook_PartialRepayment() public {
@@ -317,6 +323,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         // borrow
         _implementBorrowFlow();
+
+        uint256 ltvRatio = 0.75e18;
 
         bytes[] memory repayHookDataArray = new bytes[](1);
 
@@ -337,7 +345,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount)) - amount / 2);
+        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + _deriveLoanAmount(amount, ltvRatio)) - amount / 2);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -352,8 +360,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
 
+        uint256 ltvRatio = 0.75e18;
+
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false);
+            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
@@ -365,7 +375,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 loanBalanceAfter = IERC20(loanToken).balanceOf(accountBase);
         uint256 collateralBalanceAfter = IERC20(collateralToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfter, loanBalanceBefore + _deriveLoanAmount(amount));
+        assertEq(loanBalanceAfter, loanBalanceBefore + _deriveLoanAmount(amount, ltvRatio));
         assertEq(collateralBalanceAfter, collateralBalanceBefore - amount);
     }
 
@@ -389,8 +399,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory hooks = new address[](1);
         hooks[0] = hook;
 
+        uint256 ltvRatio = 0.75e18;
+
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, lltv, false);
+            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
 
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
@@ -538,8 +550,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory repayHooks = new address[](1);
         repayHooks[0] = repayHook;
 
+        uint256 ltvRatio = 0.75e18;
+
         //uint256 loanAmount = IERC20(loanToken).balanceOf(address(strategy));
-        uint256 loanAmount = _deriveLoanAmount(amount);
+        uint256 loanAmount = _deriveLoanAmount(amount, ltvRatio);
         console2.log("----loanAmount", loanAmount);
 
         bytes[] memory repayHookData = new bytes[](1);
@@ -637,11 +651,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
     function _deriveLoanAmount(
         uint256 collateralAmount,
-        uint256 ltvRatio,
-        uint256 lltv,
-        address oracleAddress,
-        address loanToken,
-        address collateralToken
+        uint256 ltvRatio
     )
         internal
         view
