@@ -110,7 +110,7 @@ contract MorphoBorrowHookTest is BaseTest {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(collateralToken), address(oracle), irm, uint256(0), ltvRatio, false, ltv, false
+                address(loanToken), address(collateralToken), address(oracle), irm, uint256(0), ltvRatio, false, lltv, false
             )
         );
     }
@@ -129,7 +129,7 @@ contract MorphoBorrowHookTest is BaseTest {
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
-            address(loanToken), address(collateralToken), address(oracle), irm, amount, ltvRatio, usePrevHook, ltv, false
+            address(loanToken), address(collateralToken), address(oracle), irm, amount, ltvRatio, usePrevHook, lltv, false
         );
     }
 }
