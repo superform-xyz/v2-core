@@ -154,7 +154,8 @@ abstract contract SuperExecutorBase is
 
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) internal virtual {
         uint256 balanceBefore = feeRecipient.balance;
-        _execute(account, feeRecipient, feeAmount, abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount)));
+
+        _execute(account, feeRecipient, feeAmount, "");
         uint256 balanceAfter = feeRecipient.balance;
         if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
     }
