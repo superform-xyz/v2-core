@@ -1515,15 +1515,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY] = CHAIN_1_PendleEthena;
         vm.label(existingVaults[ETH][ERC5115_VAULT_KEY][PENDLE_ETHENA_KEY][SUSDE_KEY], "PendleEthena");
 
-        /// wstETH
-        /// @dev pendle wrapped st ETH from LDO - market:  SY wstETH
-        // erc5115Vaults[10][0] = 0x96A528f4414aC3CcD21342996c93f2EcdEc24286;
-        // erc5115VaultsNames[10][0] = "wstETH";
-        // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetIn =
-        //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
-        // erc5115ChosenAssets[10][0x96A528f4414aC3CcD21342996c93f2EcdEc24286].assetOut =
-        //     0x1F32b1c2345538c0c6f582fCB022739c4A194Ebb;
-
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
@@ -2502,15 +2493,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address oracle,
         address irm,
         uint256 amount,
-        uint256 lltv,
-        bool usePrevHookAmount
+        uint256 ltvRatio,
+        bool usePrevHookAmount,
+        uint256 lltv
     )
         internal
         pure
         returns (bytes memory)
     {
         return abi.encodePacked(
-            loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, false
+            loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false
         );
     }
 
