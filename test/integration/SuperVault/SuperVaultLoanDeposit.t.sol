@@ -689,8 +689,9 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         internal
         view
         returns (uint256 withdrawableCollateral)
-    {
-        uint256 fullLoanAmount = _deriveLoanAmount(amount);
+    {   
+        uint256 ltvRatio = 0.75e18;
+        uint256 fullLoanAmount = _deriveLoanAmount(amount, ltvRatio);
         uint256 remainingLoan = fullLoanAmount - repaymentAmount;
 
         uint256 price = oracle.price();

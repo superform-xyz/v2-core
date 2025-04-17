@@ -165,7 +165,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
             irm: irm, 
             amount: amount, 
             ltvRatio: ltvRatio, 
-            usePrevHookAmount: usePrevHookAmount 
+            usePrevHookAmount: usePrevHookAmount,
+            lltv: lltv
         });
     }
     function _preExecute(address, address account, bytes calldata data) internal override {
