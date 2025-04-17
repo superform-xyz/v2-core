@@ -163,7 +163,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
 
-        collateralAmount = _deriveCollateralAmount(amount, loanToken, collateralToken);
+        collateralAmount = _deriveCollateralAmount(amount);
 
         _getTokens(address(asset), accountBase, 1e18);
 
@@ -273,7 +273,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         repayHookDataArray[0] = repayHookData;
 
         uint256 expectedCollateralBalanceAfterRepay =
-            _deriveCollateralForPartialWithdraw(loanToken, collateralToken, amount / 2, amount, false);
+            _deriveCollateralForPartialWithdraw(amount / 2, amount);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
@@ -581,17 +581,13 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     //////////////////////////////////////////////////////////////*/
 
     function _deriveCollateralAmount(
-        uint256 loanAmount,
-        address loanTokenAddress,
-        address collateralTokenAddress
+        uint256 loanAmount
     )
         internal
         view
         returns (uint256 collateral)
     {
         uint256 price = oracle.price();
-        uint256 loanDecimals = ERC20(loanTokenAddress).decimals();
-        uint256 collateralDecimals = ERC20(collateralTokenAddress).decimals();
 
         // For a positive feed, price is given as the amount of loan tokens per collateral token,
         // so we invert the price to calculate collateral:
@@ -650,7 +646,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     }
 
     function _deriveLoanAmount(
-        uint256 collateralAmount,
+        uint256 amountCollateral,
         uint256 ltvRatio
     )
         internal
@@ -661,7 +657,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 price = oracleInstance.price();
 
         // loanAmount = collateralAmount * price / scalingFactor
-        uint256 fullAmount = Math.mulDiv(collateralAmount, price, 1e36);
+        uint256 fullAmount = Math.mulDiv(amountCollateral, price, 1e36);
         uint256 availableLoanAmount = Math.mulDiv(fullAmount, lltv, 1e18);
         loanAmount = Math.mulDiv(availableLoanAmount, ltvRatio, 1e18);
     }
@@ -680,11 +676,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     }
 
     function _deriveCollateralForPartialWithdraw(
-        address loanTokenAddress,
-        address collateralTokenAddress,
         uint256 repaymentAmount,
-        uint256 fullCollateral,
-        bool isPositiveFeed
+        uint256 fullCollateral
     )
         internal
         view
@@ -692,13 +685,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     {   
         uint256 ltvRatio = 0.75e18;
         uint256 fullLoanAmount = _deriveLoanAmount(amount, ltvRatio);
-        uint256 remainingLoan = fullLoanAmount - repaymentAmount;
 
-        uint256 price = oracle.price();
-
-        // Compute the collateral still required to back the remaining debt.
-        uint256 requiredCollateralForRemaining = Math.mulDiv(remainingLoan, 1e36, price);
-
-        withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
+        withdrawableCollateral = Math.mulDiv(fullCollateral, repaymentAmount, fullLoanAmount);
     }
 }
