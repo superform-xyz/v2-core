@@ -153,7 +153,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         address collateralToken = BytesLib.toAddress(data, 20);
         address oracle = BytesLib.toAddress(data, 40);
         address irm = BytesLib.toAddress(data, 60);
-        uint256 amount = _decodeAmount(data, 80);
+        uint256 amount = _decodeAmount(data);
         uint256 ltvRatio = BytesLib.toUint256(data, 112);
         bool usePrevHookAmount = _decodeBool(data, 144);
         uint256 lltv = BytesLib.toUint256(data, 145);
