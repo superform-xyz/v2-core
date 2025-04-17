@@ -3,12 +3,12 @@ pragma solidity 0.8.28;
 
 // Superform
 import { SuperOracleBase } from "./SuperOracleBase.sol";
-import { ISuperOracleL2 } from "../../interfaces/accounting/ISuperOracleL2.sol";
+import { ISuperOracleL2 } from "../interfaces/ISuperOracleL2.sol";
 
 // external
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { BoringERC20 } from "../../../vendor/BoringSolidity/BoringERC20.sol";
-import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Interface.sol";
+import { BoringERC20 } from "../../vendor/BoringSolidity/BoringERC20.sol";
+import { AggregatorV3Interface } from "../../vendor/chainlink/AggregatorV3Interface.sol";
 
 /// @title SuperOracleL2
 /// @author Superform Labs

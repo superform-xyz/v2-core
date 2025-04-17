@@ -4,8 +4,8 @@ pragma solidity 0.8.28;
 // Superform
 import { BaseTest } from "../../BaseTest.t.sol";
 
-import { SuperOracle } from "../../../src/core/accounting/oracles/SuperOracle.sol";
-import { ISuperOracle } from "../../../src/core/interfaces/accounting/ISuperOracle.sol";
+import { SuperOracle } from "../../../src/periphery/oracles/SuperOracle.sol";
+import { ISuperOracle } from "../../../src/periphery/interfaces/ISuperOracle.sol";
 import { AggregatorV3Interface } from "../../../src/vendor/chainlink/AggregatorV3Interface.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";

@@ -36,7 +36,7 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address _oracleRegistry) AbstractYieldSourceOracle(_oracleRegistry) {
+    constructor() AbstractYieldSourceOracle() {
         TWAP_DURATION = DEFAULT_TWAP_DURATION; // Set default duration
         emit TwapDurationSet(DEFAULT_TWAP_DURATION);
     }
@@ -168,12 +168,31 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(address market, address expectedUnderlying) external view override returns (bool) {
+    function isValidUnderlyingAsset(address market, address expectedUnderlying) public view override returns (bool) {
         IStandardizedYield sY = IStandardizedYield(_sy(market));
         (uint256 assetType,,) = _getAssetInfo(sY);
         if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
 
         return _validateAssetFoundInSY(sY, expectedUnderlying);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
+
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
+        }
     }
 
     function _validateAssetFoundInSY(IStandardizedYield sY, address expectedUnderlying) internal view returns (bool) {
@@ -205,17 +224,6 @@ contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
         (IStandardizedYield.AssetType assetType, address assetAddress, uint8 assetDecimals) = sY.assetInfo();
 
         return (uint256(assetType), assetAddress, assetDecimals);
-    }
-
-    /// @inheritdoc AbstractYieldSourceOracle
-    /// @dev Validates if the provided base asset matches the market's underlying asset.
-    function _validateBaseAsset(address market, address base) internal view override {
-        (uint256 assetType, address assetAddress,) = _getAssetInfo(IStandardizedYield(market));
-        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
-
-        if (base != assetAddress) {
-            revert INVALID_BASE_ASSET();
-        }
     }
 
     function _pt(address market) internal view returns (address ptAddress) {
