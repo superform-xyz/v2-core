@@ -25,9 +25,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
 /// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-//                  The amount of collateral to supply to the morpho contract
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
-//                  The amount of loan tokens to borrow from the ltv available
 /// @notice         uint256 ltvRatio = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
