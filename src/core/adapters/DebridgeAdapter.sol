@@ -65,6 +65,7 @@ contract DebridgeAdapter {
             uint256 intentAmount
         ) = abi.decode(message[4:], (address, uint256, bytes, bytes, bytes, address, uint256));
 
+      
         if (amount > intentAmount) {
             revert AMOUNT_NOT_VALID();
         }

@@ -128,6 +128,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
 
         // Check if merkleRoot has already been used
+        // Don't keep a nonce system anymore since roots are unique anyway
+        // Without a nonce, bundler doesn't need to query each chain for the latest nonce
+        // Also without a nonce, execution won't be blocked by a previous parallel execution which increased the nonce
         if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
         usedMerkleRoots[account][merkleRoot] = true;
 
