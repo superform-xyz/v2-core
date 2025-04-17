@@ -19,7 +19,7 @@ contract IncentiveCalculationContract {
     function energy(
         uint256[] memory allocationPreOperation,
         uint256[] memory allocationTarget,
-        uint256[]memory weights
+        uint256[] memory weights
     ) public pure returns (uint256 energy) {
         require(allocationPreOperation.length == allocationTarget.length &&
         allocationPreOperation.length == weights.length,
@@ -38,6 +38,15 @@ contract IncentiveCalculationContract {
     }
 
     /**
+     * @notice Calculates the energy given the SuperUSD Contract, without the need to pass a bunch of parameters that could also change over time as we experiment with the energy function
+     * @param SuperUSD The address of the SuperUSD contract.
+     * @return energy The calculated energy.
+     */
+    function energy(address SuperUSD) {
+
+    }
+
+    /**
      * @notice Calculates the incentive.
      * @param allocationPreOperation The allocation before the operation.
      * @param allocationPostOperation The allocation after the operation.
@@ -47,22 +56,23 @@ contract IncentiveCalculationContract {
     function calculateIncentive(
         uint256[] memory allocationPreOperation,
         uint256[] memory allocationPostOperation,
-        uint256[] memory allocationTarget
-    ) public view returns (uint256 incentive) {
+        uint256[] memory allocationTarget,
+        uint256[] memory weights
+    ) public view returns (int256 incentive) {
         require(allocationPreOperation.length == allocationPostOperation.length &&
         allocationPreOperation.length == allocationTarget.length,
             "ICC: Input arrays must have the same length");
-        // Example weights (replace with actual weights)
-        uint256[] memory weights = new uint256[](allocationPreOperation.length);
-        for(uint i = 0; i < weights.length; i++){
-            weights[i] = 1; // default weight
-        }
+//        // Example weights (replace with actual weights)
+//        uint256[] memory weights = new uint256[](allocationPreOperation.length);
+//        for(uint i = 0; i < weights.length; i++){
+//            weights[i] = 1; // default weight
+//        }
 
         uint256 energyBefore = energy(allocationPreOperation, allocationTarget, weights);
         uint256 energyAfter = energy(allocationPostOperation, allocationTarget, weights);
-        //  Simplified incentive calculation (replace with actual calculation)
-        incentive = (energyBefore > energyAfter) ? (energyBefore - energyAfter) : 0;
-        incentive = (incentive * 10) / 100; // Example: 10% of the energy difference
+        //  Positive incentive means the user earns the incentive
+        incentive = (int256(energyBefore) - int256(energyAfter));
+//        incentive = (incentive * 10) / 100; // Example: 10% of the energy difference
     }
 }
 
