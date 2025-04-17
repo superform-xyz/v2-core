@@ -40,6 +40,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     IMorphoBase public morphoBase;
 
     uint256 private constant AMOUNT_POSITION = 80;
+    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
+    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     struct BorrowHookLocalVars {
@@ -136,9 +138,9 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         uint256 price = oracleInstance.price();
 
         // loanAmount = collateralAmount * price / scalingFactor
-        uint256 fullAmount = Math.mulDiv(collateralAmount, price, 1e36);
-        uint256 availableLoanAmount = Math.mulDiv(fullAmount, lltv, 1e18);
-        loanAmount = Math.mulDiv(availableLoanAmount, ltvRatio, 1e18);
+        uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
+        uint256 availableLoanAmount = Math.mulDiv(fullAmount, lltv, PERCENTAGE_SCALING_FACTOR);
+        loanAmount = Math.mulDiv(availableLoanAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);
     }
 
     /*//////////////////////////////////////////////////////////////
