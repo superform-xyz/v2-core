@@ -10,10 +10,14 @@
 #   2. ABIs categorized according to their location in src/core and src/periphery
 #
 # Usage:
-#   ./export_abis_s3.sh <branch_name>
+#   ./export_abis_s3.sh <branch_name> [options]
 #   
 #   Parameters:
 #     branch_name: Name of the branch (required)
+#
+#   Options:
+#     -v, --verbose: Show all log messages (default: only INFO and above)
+#     -q, --quiet: Show only ERROR messages
 #
 # Requirements:
 #   - aws: For S3 operations
@@ -28,11 +32,48 @@
 
 set -euo pipefail  # Exit on error, undefined var, pipe failure
 
+# Default log level
+# 0 = ERROR only, 1 = WARN and above, 2 = INFO and above, 3 = DEBUG and above
+LOG_LEVEL=2
+
+# Parse command line options
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        -v|--verbose)
+            LOG_LEVEL=3
+            shift
+            ;;
+        -q|--quiet)
+            LOG_LEVEL=0
+            shift
+            ;;
+        *)
+            POSITIONAL+=("$1")
+            shift
+            ;;
+    esac
+done
+set -- "${POSITIONAL[@]}"  # Restore positional parameters
+
 # Logging function for consistent output
 log() {
     local level=$1
+    local level_num=2  # Default to INFO level
     shift
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
+    
+    case $level in
+        "ERROR") level_num=0 ;;
+        "WARN")  level_num=1 ;;
+        "INFO")  level_num=2 ;;
+        "DEBUG") level_num=3 ;;
+    esac
+    
+    # Only log if the message level is less than or equal to the current log level
+    if [ $level_num -le $LOG_LEVEL ]; then
+        echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
+    fi
 }
 
 # Script Arguments
@@ -40,7 +81,10 @@ BRANCH_NAME=${1:-${GITHUB_REF_NAME:-}}
 
 if [ -z "$BRANCH_NAME" ]; then
     log "ERROR" "Branch name is required"
-    echo "Usage: $0 <branch_name>"
+    echo "Usage: $0 <branch_name> [options]"
+    echo "Options:"
+    echo "  -v, --verbose: Show all log messages"
+    echo "  -q, --quiet: Show only ERROR messages"
     exit 1
 fi
 
@@ -162,7 +206,7 @@ for contract_file in $CONTRACT_FILES; do
             mkdir -p "$TEMP_DIR/core/$rel_path"
             # Copy the ABI to the appropriate directory
             cp "$contract_file" "$TEMP_DIR/core/$rel_path/${contract_name}.json"
-            log "INFO" "Organized $contract_name in core/$rel_path"
+            log "DEBUG" "Organized $contract_name in core/$rel_path"
         elif [ "$src_dir" == "periphery" ]; then
             # Extract the relative path from src/periphery
             rel_path=$(dirname "${src_file#src/periphery/}")
@@ -170,20 +214,20 @@ for contract_file in $CONTRACT_FILES; do
             mkdir -p "$TEMP_DIR/periphery/$rel_path"
             # Copy the ABI to the appropriate directory
             cp "$contract_file" "$TEMP_DIR/periphery/$rel_path/${contract_name}.json"
-            log "INFO" "Organized $contract_name in periphery/$rel_path"
+            log "DEBUG" "Organized $contract_name in periphery/$rel_path"
         elif [ "$src_dir" == "interfaces" ]; then
             # Create interfaces directory
             mkdir -p "$TEMP_DIR/interfaces"
             # Copy the ABI to the interfaces directory
             cp "$contract_file" "$TEMP_DIR/interfaces/${contract_name}.json"
-            log "INFO" "Organized $contract_name in interfaces"
+            log "DEBUG" "Organized $contract_name in interfaces"
         fi
     elif [ "$src_dir" == "interfaces" ]; then
         # Create interfaces directory for interface contracts without source files
         mkdir -p "$TEMP_DIR/interfaces"
         # Copy the ABI to the interfaces directory
         cp "$contract_file" "$TEMP_DIR/interfaces/${contract_name}.json"
-        log "INFO" "Organized $contract_name in interfaces (by naming convention)"
+        log "DEBUG" "Organized $contract_name in interfaces (by naming convention)"
     else
         log "WARN" "Could not find source location for $contract_name, only in latest folder"
     fi
