@@ -124,8 +124,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             collateralForWithdraw = deriveCollateralForPartialRepayment(
                 id,
                 vars.oracle,
-                vars.loanToken,
-                vars.collateralToken,
                 account,
                 vars.amount,
                 fullCollateral
@@ -188,9 +186,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     }
 
     function deriveCollateralAmountFromLoanAmount(
-        address loanToken,
         address oracle,
-        address collateralToken,
         uint256 loanAmount
     )
         public
@@ -199,25 +195,14 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
-
-        if (collateralDecimals > 36 + loanDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
-
-        // Correct scaling factor as per the oracle's specification:
-        // 10^(36 + loanDecimals - collateralDecimals)
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
         // loanAmount = collateralAmount * price / scalingFactor
-        collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
-
+        collateralAmount = Math.mulDiv(loanAmount, 1e36, price);
     }
 
     function deriveCollateralForPartialRepayment(
         Id id,
         address oracle,
-        address loanToken,
-        address collateralToken,
         address account,
         uint256 amount,
         uint256 fullCollateral
@@ -229,24 +214,8 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 fullLoanAmount = deriveLoanAmount(id, account);
         if (fullLoanAmount < amount) revert AMOUNT_NOT_VALID();
         uint256 remainingLoanAmount = fullLoanAmount - amount;
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        uint256 requiredCollateralForRemaining;
-
-        // The collateral required is:
-        //   requiredCollateral = remainingLoan * scalingFactor / price
-        requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, scalingFactor, price);
-
-        if (fullCollateral > requiredCollateralForRemaining) {
-            withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
-        } else {
-            revert AMOUNT_NOT_VALID();
-        }
+        withdrawableCollateral = Math.mulDiv(fullCollateral, amount, fullLoanAmount);
     }
 
     function deriveLoanAmount(Id id, address account) public view returns (uint256 loanAmount) {
