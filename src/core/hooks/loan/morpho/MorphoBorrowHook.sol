@@ -90,7 +90,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.lltv, vars.oracle, vars.loanToken, vars.collateralToken);
+        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.lltv, vars.oracle);
 
         executions = new Execution[](4);
         executions[0] =
@@ -128,15 +128,13 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         uint256 collateralAmount,
         uint256 ltvRatio,
         uint256 lltv,
-        address oracleAddress,
-        address loanToken,
-        address collateralToken
+        address oracle
     )
         public
         view
         returns (uint256 loanAmount)
     {
-        IOracle oracleInstance = IOracle(oracleAddress);
+        IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
 
         // loanAmount = collateralAmount * price / scalingFactor
@@ -148,7 +146,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeBorrowHookData(bytes memory data) internal view returns (BorrowHookLocalVars memory vars) {
+    function _decodeBorrowHookData(bytes memory data) internal pure returns (BorrowHookLocalVars memory vars) {
         address loanToken = BytesLib.toAddress(data, 0);
         address collateralToken = BytesLib.toAddress(data, 20);
         address oracle = BytesLib.toAddress(data, 40);
