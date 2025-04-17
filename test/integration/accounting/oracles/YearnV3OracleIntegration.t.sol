@@ -16,7 +16,7 @@ contract YearnYieldSourceOracleIntegration is BaseE2ETest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        oracle = new ERC4626YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
+        oracle = new ERC4626YieldSourceOracle();
         yieldSource = IERC4626(CHAIN_1_YearnVault);
         underlying = yieldSource.asset();
     }
