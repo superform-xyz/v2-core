@@ -92,8 +92,6 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         asset = IERC20Metadata(collateralToken);
 
-        // TODO: Swap this for Fluid vault and try find market where loan token is one that can be staked
-
         // Set up underlying vault
         morphoVault = realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
         morphoVaultInstance = IERC4626(morphoVault);
@@ -581,14 +579,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 loanDecimals = ERC20(loanTokenAddress).decimals();
         uint256 collateralDecimals = ERC20(collateralTokenAddress).decimals();
 
-        // Correct scaling factor as per the oracle's specification:
-        // 10^(36 + loanDecimals - collateralDecimals)
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
         // For a positive feed, price is given as the amount of loan tokens per collateral token,
         // so we invert the price to calculate collateral:
         // collateralAmount = loanAmount * scalingFactor / price
-        collateral = Math.mulDiv(loanAmount, scalingFactor, price);
+        collateral = Math.mulDiv(loanAmount, 1e36, price);
 
     }
 
@@ -641,18 +635,25 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         assetsPaid = shareBalance.toAssetsUp(totalBorrowAssets, totalBorrowShares);
     }
 
-    function _deriveLoanAmount(uint256 collateralIn) internal view returns (uint256 loanAmount) {
-        uint256 price = oracle.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
+    function _deriveLoanAmount(
+        uint256 collateralAmount,
+        uint256 ltvRatio,
+        uint256 lltv,
+        address oracleAddress,
+        address loanToken,
+        address collateralToken
+    )
+        internal
+        view
+        returns (uint256 loanAmount)
+    {
+        IOracle oracleInstance = IOracle(oracleAddress);
+        uint256 price = oracleInstance.price();
 
-        // Correct scaling factor as per the oracle's specification:
-        // 10^(36 + loanDecimals - collateralDecimals)
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
-        // Inverting the original calculation when isPositiveFeed is false:
-        // loanAmount = collateralAmount * scalingFactor / price
-        loanAmount = Math.mulDiv(collateralIn, price, scalingFactor);
+        // loanAmount = collateralAmount * price / scalingFactor
+        uint256 fullAmount = Math.mulDiv(collateralAmount, price, 1e36);
+        uint256 availableLoanAmount = Math.mulDiv(fullAmount, lltv, 1e18);
+        loanAmount = Math.mulDiv(availableLoanAmount, ltvRatio, 1e18);
     }
 
     function _deriveCollateralForWithdraw(address account) internal view returns (uint256 collateral) {
@@ -682,25 +683,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 fullLoanAmount = _deriveLoanAmount(amount);
         uint256 remainingLoan = fullLoanAmount - repaymentAmount;
 
-        uint256 loanDecimals = ERC20(loanTokenAddress).decimals();
-        uint256 collateralDecimals = ERC20(collateralTokenAddress).decimals();
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
         uint256 price = oracle.price();
 
         // Compute the collateral still required to back the remaining debt.
-        uint256 requiredCollateralForRemaining;
-        if (isPositiveFeed) {
-            // For a positive feed, the oracle returns the price in units of loan token per collateral token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * scalingFactor / price
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, scalingFactor, price);
-        } else {
-            // For a negative feed, the oracle returns the price in units of collateral token per loan token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * price / scalingFactor
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoan, price, scalingFactor);
-        }
+        uint256 requiredCollateralForRemaining = Math.mulDiv(remainingLoan, 1e36, price);
 
         withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
     }

@@ -26,9 +26,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
 //                  The amount of collateral to supply to the morpho contract
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
-/// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+//                  The amount of loan tokens to borrow from the ltv available
+/// @notice         uint256 ltvRatio = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool placeholder = _decodeBool(data, 145);
+/// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
+/// @notice         bool placeholder = _decodeBool(data, 177);
 contract MorphoBorrowHook is BaseMorphoLoanHook {
     using HookDataDecoder for bytes;
 
@@ -40,6 +42,17 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
 
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
+
+    struct BorrowHookLocalVars {
+        address loanToken;
+        address collateralToken;
+        address oracle;
+        address irm;
+        uint256 amount;
+        uint256 ltvRatio;
+        bool usePrevHookAmount;
+        uint256 lltv;
+    }
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -53,7 +66,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
@@ -65,7 +77,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         override
         returns (Execution[] memory executions)
     {
-        BuildHookLocalVars memory vars = _decodeHookData(data);
+        BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
 
         if (vars.usePrevHookAmount) {
             vars.amount = ISuperHookResult(prevHook).outAmount();
@@ -77,7 +89,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.oracle, vars.loanToken, vars.collateralToken);
+        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.lltv, vars.oracle, vars.loanToken, vars.collateralToken);
 
         executions = new Execution[](4);
         executions[0] =
@@ -113,6 +125,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     /// decimals of precision.
     function deriveLoanAmount(
         uint256 collateralAmount,
+        uint256 ltvRatio,
+        uint256 lltv,
         address oracleAddress,
         address loanToken,
         address collateralToken
@@ -123,21 +137,36 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     {
         IOracle oracleInstance = IOracle(oracleAddress);
         uint256 price = oracleInstance.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
 
-        // Correct scaling factor as per the oracle's specification:
-        // 10^(36 + loanDecimals - collateralDecimals)
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
-        // Inverting the original calculation:
         // loanAmount = collateralAmount * price / scalingFactor
-        loanAmount = Math.mulDiv(collateralAmount, price, scalingFactor);
+        uint256 fullAmount = Math.mulDiv(collateralAmount, price, 1e36);
+        uint256 availableLoanAmount = Math.mulDiv(fullAmount, lltv, 1e18);
+        loanAmount = Math.mulDiv(availableLoanAmount, ltvRatio, 1e18);
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    function _decodeBorrowHookData(bytes memory data) internal view returns (BorrowHookLocalVars memory vars) {
+        address loanToken = BytesLib.toAddress(data, 0);
+        address collateralToken = BytesLib.toAddress(data, 20);
+        address oracle = BytesLib.toAddress(data, 40);
+        address irm = BytesLib.toAddress(data, 60);
+        uint256 amount = BytesLib.toUint256(data, 80);
+        uint256 ltvRatio = BytesLib.toUint256(data, 112);
+        bool usePrevHookAmount = BytesLib.toBool(data, 144);
+        uint256 lltv = BytesLib.toUint256(data, 145);
+
+        return BorrowHookLocalVars({ 
+            loanToken: loanToken, 
+            collateralToken: collateralToken, 
+            oracle: oracle, 
+            irm: irm, 
+            amount: amount, 
+            ltvRatio: ltvRatio, 
+            usePrevHookAmount: usePrevHookAmount 
+        });
+    }
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);
