@@ -71,6 +71,7 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         // 3. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
         //    Requires this adapter contract to hold the funds temporarily from Across.
+        //    Account is encoded in the merkle tree and validated by the destination executor
         IERC20(tokenSent).safeTransfer(account, amount);
 
         // 4. Call the core executor's standardized function
