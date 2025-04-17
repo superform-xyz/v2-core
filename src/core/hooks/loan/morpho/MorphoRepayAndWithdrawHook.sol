@@ -123,7 +123,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
             uint256 fullCollateral = deriveCollateralForFullRepayment(id, account);
             collateralForWithdraw = deriveCollateralForPartialRepayment(
                 id,
-                vars.oracle,
                 account,
                 vars.amount,
                 fullCollateral
@@ -202,7 +201,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
 
     function deriveCollateralForPartialRepayment(
         Id id,
-        address oracle,
         address account,
         uint256 amount,
         uint256 fullCollateral
@@ -213,7 +211,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     {
         uint256 fullLoanAmount = deriveLoanAmount(id, account);
         if (fullLoanAmount < amount) revert AMOUNT_NOT_VALID();
-        uint256 remainingLoanAmount = fullLoanAmount - amount;
 
         withdrawableCollateral = Math.mulDiv(fullCollateral, amount, fullLoanAmount);
     }
