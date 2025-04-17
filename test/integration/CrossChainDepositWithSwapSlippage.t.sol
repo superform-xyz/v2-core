@@ -186,7 +186,6 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
@@ -197,7 +196,6 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(BASE),
                 amount: amount,
                 account: accountBase,
@@ -276,7 +274,6 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
@@ -287,7 +284,6 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(BASE),
                 amount: intentAmount,
                 account: accountBase,
@@ -367,7 +363,6 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
@@ -378,7 +373,6 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(BASE),
                 amount: intentAmount,
                 account: accountBase,

@@ -18,7 +18,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     struct DestinationData {
-        uint256 nonce;
         bytes callData;
         uint64 chainId;
         address sender;
@@ -92,7 +91,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
                         destinationData.callData,
                         destinationData.chainId,
                         destinationData.sender,
-                        destinationData.nonce,
                         destinationData.executor,
                         destinationData.adapter,
                         destinationData.tokenSent,
@@ -147,7 +145,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
         returns (DestinationData memory)
     {
         (
-            uint256 nonce,
             bytes memory callData,
             uint64 chainId,
             address decodedSender,
@@ -155,10 +152,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
             address adapter,
             address tokenSent,
             uint256 intentAmount
-        ) = abi.decode(destinationDataRaw, (uint256, bytes, uint64, address, address, address, address, uint256));
+        ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, address, address, uint256));
         if (sender_ != decodedSender) revert INVALID_SENDER();
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();
-        return DestinationData(nonce, callData, chainId, decodedSender, executor, adapter, tokenSent, intentAmount);
+        return DestinationData(callData, chainId, decodedSender, executor, adapter, tokenSent, intentAmount);
     }
 
     function _decodeSignatureAndDestinationData(

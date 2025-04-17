@@ -262,7 +262,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(0), 0, false
             );
 
-            uint256 nonce = 0; // new account
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
@@ -273,7 +272,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 targetExecutor: address(superTargetExecutorOnETH),
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault / 2,
                 account: address(0),
@@ -347,7 +345,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
             );
 
-            uint256 nonce = 0; // new account
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
@@ -358,7 +355,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 targetExecutor: address(superTargetExecutorOnETH),
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault / 2,
                 account: address(0),
@@ -437,7 +433,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
             );
 
-            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnETH).nonces(accountETH);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
@@ -448,7 +443,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 targetExecutor: address(superTargetExecutorOnETH),
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(ETH),
                 amount: amountPerVault,
                 account: accountETH,
@@ -500,7 +494,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
-        uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnBase).nonces(accountBase);
         TargetExecutorMessage memory messageData = TargetExecutorMessage({
             hooksAddresses: new address[](0),
             hooksData: new bytes[](0),
@@ -511,7 +504,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             targetExecutor: address(superTargetExecutorOnBase),
             nexusFactory: CHAIN_8453_NEXUS_FACTORY,
             nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-            nonce: nonce,
             chainId: uint64(BASE),
             amount: 0,
             account: accountBase,
@@ -612,7 +604,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 false
             );
 
-            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnOP).nonces(accountOP);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: opHooksAddresses,
                 hooksData: opHooksData,
@@ -623,7 +614,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 targetExecutor: address(superTargetExecutorOnOP),
                 nexusFactory: CHAIN_10_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_10_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(OP),
                 amount: amountPerVault,
                 account: accountOP,
@@ -717,7 +707,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             address[] memory baseHooksAddresses = new address[](0);
             bytes[] memory baseHooksData = new bytes[](0);
 
-            uint256 nonce = ISuperDestinationExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: baseHooksAddresses,
                 hooksData: baseHooksData,
@@ -728,7 +717,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(BASE),
                 amount: assetOutAmount,
                 account: accountBase,

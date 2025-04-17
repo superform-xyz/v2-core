@@ -36,7 +36,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     //////////////////////////////////////////////////////////////*/
     address public immutable superDestinationValidator;
     INexusFactory public immutable nexusFactory;
-    mapping(address => uint256) public nonces;
+
+    // Track used merkle roots per user
+    mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
 
     // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
@@ -53,6 +55,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
+    error MERKLE_ROOT_ALREADY_USED();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -82,6 +85,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
     function version() external pure override returns (string memory) {
         return "0.0.1";
+    }
+
+    /// @inheritdoc ISuperDestinationExecutor
+    function isMerkleRootUsed(address user, bytes32 merkleRoot) external view returns (bool) {
+        return usedMerkleRoots[user][merkleRoot];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -115,10 +123,20 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         // Account must exist at this point
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
 
-        // --- Nonce & Signature Validation ---
-        uint256 _nonce = nonces[account];
+        // Decode sigData to extract merkleRoot
+        (, bytes32 merkleRoot,,) = 
+            abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
+
+        // Check if merkleRoot has already been used
+        if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
+        usedMerkleRoots[account][merkleRoot] = true;
+
+        // --- Signature Validation ---
+        // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
+        //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
+        // Note: the msgs.sender doesn't necessarily match an adapter address 
         bytes memory destinationData =
-            abi.encode(_nonce, executorCalldata, uint64(block.chainid), account, address(this), msg.sender /** adapter */, tokenSent, intentAmount);
+            abi.encode(executorCalldata, uint64(block.chainid), account, address(this), msg.sender, tokenSent, intentAmount);
 
         // The userSignatureData is passed directly from the adapter
         bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(
@@ -137,14 +155,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             return;
         }
 
-        // --- Nonce Increment ---
-        /// @dev increment the nonce here to allow multiple messages to be sent using current nonce
-        ///      nonce increased after the account has enough balance (`token.balanceOf(account) < intentAmount`)
-        ///      Example:
-        ///       - User sends 100 USDC from chain A, intent amount is 200
-        ///       - User sends 100 USDC from chain B, intent amount is 200
-        ///      Nonce will be increased after both tx are finalized and `executorCalldata` is performed
-        nonces[account]++;
 
         // --- Execute User Operation ---
         // Check if there's actual execution data to process

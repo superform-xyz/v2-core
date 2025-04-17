@@ -1754,7 +1754,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address targetExecutor;
         address nexusFactory;
         address nexusBootstrap;
-        uint256 nonce;
         uint64 chainId;
         uint256 amount;
         address account;
@@ -1806,7 +1805,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             executionData,
             messageData.chainId,
             accountToUse,
-            messageData.nonce,
             messageData.targetExecutor,
             messageData.targetAdapter,
             messageData.tokenSent,

@@ -17,10 +17,10 @@ interface ISuperDestinationExecutor {
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Returns the nonce for an account
-    /// @param account The account to get the nonce for
-    /// @return The nonce for the account
-    function nonces(address account) external view returns (uint256);
+     /// @notice Checks if a merkle root has been used by an account
+    /// @param user The user account to check
+    /// @param merkleRoot The merkle root to check
+    function isMerkleRootUsed(address user, bytes32 merkleRoot) external view returns (bool);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL FUNCTIONS

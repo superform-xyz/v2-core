@@ -3,12 +3,13 @@ pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-import { IDeBridgeGate } from "../../../src/vendor/bridges/debridge/IDeBridgeGate.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IDeBridgeGate } from "../../../../vendor/bridges/debridge/IDeBridgeGate.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title DeBridgeSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -54,7 +55,7 @@ contract DeBridgeSendFundsAndExecuteOnDstHook is BaseHook {
         bytes permit;
     }
 
-    constructor(address deBridgeGate_) BaseHook(HookType.NONACCOUNTING, "Bridge") {
+    constructor(address deBridgeGate_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (deBridgeGate_ == address(0)) revert ADDRESS_NOT_VALID();
         deBridgeGate = deBridgeGate_;
     }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity 0.8.28;
 
 // External Dependencies
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -21,7 +21,6 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-
     address public immutable acrossSpokePool;
     ISuperDestinationExecutor public immutable superDestinationExecutor;
 
@@ -30,10 +29,6 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
     //////////////////////////////////////////////////////////////*/
 
     error ADDRESS_NOT_VALID();
-
-    /*//////////////////////////////////////////////////////////////
-                                CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
 
     constructor(address acrossSpokePool_, address superDestinationExecutor_) {
         if (acrossSpokePool_ == address(0) || superDestinationExecutor_ == address(0)) {
@@ -79,7 +74,6 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         IERC20(tokenSent).safeTransfer(account, amount);
 
         // 4. Call the core executor's standardized function
-        // @dev idea: does it make sense to pass `amount` here to use as part of signature?
         superDestinationExecutor.processBridgedExecution(
             tokenSent,
             account,
@@ -89,12 +83,5 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
             sigData // User signature + validation payload
         );
 
-        // Note: Events related to execution success/failure should be emitted by SuperDestinationExecutor
     }
-
-    // If Across V3 can send native currency, implement receive() or fallback()
-    // receive() external payable {
-    //     // Handle native currency transfer, decode message differently?
-    //     // Requires careful thought on how native currency fits into the flow.
-    // }
 }
