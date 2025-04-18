@@ -49,7 +49,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         bytes message;
     }
 
-    constructor(address registry_, address spokePoolV3_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+    constructor(address spokePoolV3_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
     }

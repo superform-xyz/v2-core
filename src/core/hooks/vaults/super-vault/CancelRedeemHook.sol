@@ -22,7 +22,7 @@ import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol"
 contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

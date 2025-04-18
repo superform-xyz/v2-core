@@ -49,7 +49,7 @@ contract SuperMerkleValidator is SuperValidatorBase {
 
     /// @notice Validate a signature with sender
     function isValidSignatureWithSender(
-        address sender,
+        address,
         bytes32 dataHash,
         bytes calldata data
     )
@@ -68,7 +68,7 @@ contract SuperMerkleValidator is SuperValidatorBase {
         (address signer,) = _processSignatureAndVerifyLeaf(sigData, dataHash);
 
         // Validate
-        bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
+        bool isValid = _isSignatureValid(signer, msg.sender, sigData.validUntil);
 
         return isValid ? VALID_SIGNATURE : bytes4("");
     }

@@ -90,7 +90,7 @@ contract SwapOdosHookTest is BaseTest {
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
-        hook = new SwapOdosHook(address(this), address(odosRouter));
+        hook = new SwapOdosHook(address(odosRouter));
     }
 
     function test_Constructor() public view {
@@ -100,7 +100,7 @@ contract SwapOdosHookTest is BaseTest {
 
     function test_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SwapOdosHook(address(this), address(0));
+        new SwapOdosHook(address(0));
     }
 
     function _buildData(bool usePrevious) internal view returns (bytes memory) {

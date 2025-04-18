@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-// external
-import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
-
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -11,15 +8,9 @@ import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOrac
 /// @author Superform Labs
 /// @notice Abstract contract for yield source oracles with common functionality
 abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
-    /// @inheritdoc IYieldSourceOracle
-    IOracle public immutable oracleRegistry;
-
-    /// @notice USD address constant based on ISO 4217 code
-    address internal constant USD = address(840);
-
-    constructor(address _oracleRegistry) {
-        oracleRegistry = IOracle(_oracleRegistry);
-    }
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc IYieldSourceOracle
     function decimals(address yieldSourceAddress) external view virtual returns (uint8);
@@ -125,183 +116,22 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function getPricePerShareUSD(
+    function isValidUnderlyingAsset(
         address yieldSourceAddress,
-        address base,
-        uint256 provider
+        address expectedUnderlying
     )
         external
         view
-        returns (uint256 pricePerShareUSD)
-    {
-        // Validate base asset
-        _validateBaseAsset(yieldSourceAddress, base);
-
-        // Get price per share in base asset terms
-        uint256 baseAmount = getPricePerShare(yieldSourceAddress);
-
-        // Convert to USD using oracle registry with specified provider
-        pricePerShareUSD = oracleRegistry.getQuote(baseAmount, base, _encodeProvider(provider));
-    }
+        virtual
+        returns (bool);
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVLByOwnerOfSharesUSD(
-        address yieldSourceAddress,
-        address ownerOfShares,
-        address base,
-        uint256 provider
-    )
-        external
-        view
-        returns (uint256 tvlUSD)
-    {
-        // Validate base asset
-        _validateBaseAsset(yieldSourceAddress, base);
-
-        // Get TVL in base asset terms
-        uint256 baseAmount = getTVLByOwnerOfShares(yieldSourceAddress, ownerOfShares);
-
-        // Convert to USD using oracle registry with specified provider
-        tvlUSD = oracleRegistry.getQuote(baseAmount, base, _encodeProvider(provider));
-    }
-
-    /// @inheritdoc IYieldSourceOracle
-    function getTVLUSD(
-        address yieldSourceAddress,
-        address base,
-        uint256 provider
-    )
-        external
-        view
-        returns (uint256 tvlUSD)
-    {
-        // Validate base asset
-        _validateBaseAsset(yieldSourceAddress, base);
-
-        // Get TVL in base asset terms
-        uint256 baseAmount = getTVL(yieldSourceAddress);
-
-        // Convert to USD using oracle registry with specified provider
-        tvlUSD = oracleRegistry.getQuote(baseAmount, base, _encodeProvider(provider));
-    }
-
-    /// @inheritdoc IYieldSourceOracle
-    function getPricePerShareMultipleUSD(
+    function isValidUnderlyingAssets(
         address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses,
-        uint256[] memory providers
+        address[] memory expectedUnderlying
     )
         external
         view
-        returns (uint256[] memory pricesPerShareUSD)
-    {
-        uint256 length = yieldSourceAddresses.length;
-        if (length != baseAddresses.length || length != providers.length) revert ARRAY_LENGTH_MISMATCH();
-
-        pricesPerShareUSD = new uint256[](length);
-        IOracle registry = oracleRegistry;
-
-        for (uint256 i = 0; i < length; ++i) {
-            // Validate base asset - this is implemented by child contracts
-            _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
-
-            // Get price per share in base asset terms
-            uint256 baseAmount = getPricePerShare(yieldSourceAddresses[i]);
-
-            // Convert to USD using oracle registry with specified provider
-            pricesPerShareUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
-        }
-    }
-
-    /// @inheritdoc IYieldSourceOracle
-    function getTVLByOwnerOfSharesMultipleUSD(
-        address[] memory yieldSourceAddresses,
-        address[][] memory ownersOfShares,
-        address[] memory baseAddresses,
-        uint256[] memory providers
-    )
-        external
-        view
-        returns (uint256[][] memory userTvlsUSD, uint256[] memory totalTvlsUSD)
-    {
-        TVLMultipleUSDVars memory vars;
-        vars.length = yieldSourceAddresses.length;
-        if (
-            vars.length != ownersOfShares.length || vars.length != baseAddresses.length
-                || vars.length != providers.length
-        ) {
-            revert ARRAY_LENGTH_MISMATCH();
-        }
-
-        userTvlsUSD = new uint256[][](vars.length);
-        totalTvlsUSD = new uint256[](vars.length);
-        vars.registry = oracleRegistry;
-
-        for (uint256 i = 0; i < vars.length; ++i) {
-            // Validate base asset - this is implemented by child contracts
-            _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
-
-            vars.yieldSource = yieldSourceAddresses[i];
-            vars.owners = ownersOfShares[i];
-            vars.ownersLength = vars.owners.length;
-            vars.totalTvlUSD = 0;
-
-            userTvlsUSD[i] = new uint256[](vars.ownersLength);
-
-            for (uint256 j = 0; j < vars.ownersLength; ++j) {
-                // Get TVL in base asset terms
-                vars.baseAmount = getTVLByOwnerOfShares(vars.yieldSource, vars.owners[j]);
-
-                // Convert to USD using oracle registry with specified provider
-                vars.userTvlUSD =
-                    vars.registry.getQuote(vars.baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
-                userTvlsUSD[i][j] = vars.userTvlUSD;
-                vars.totalTvlUSD += vars.userTvlUSD;
-            }
-
-            totalTvlsUSD[i] = vars.totalTvlUSD;
-        }
-    }
-
-    /// @inheritdoc IYieldSourceOracle
-    function getTVLMultipleUSD(
-        address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses,
-        uint256[] memory providers
-    )
-        external
-        view
-        returns (uint256[] memory tvlsUSD)
-    {
-        uint256 length = yieldSourceAddresses.length;
-        if (length != baseAddresses.length || length != providers.length) revert ARRAY_LENGTH_MISMATCH();
-
-        tvlsUSD = new uint256[](length);
-        IOracle registry = oracleRegistry;
-
-        for (uint256 i = 0; i < length; ++i) {
-            // Validate base asset
-            _validateBaseAsset(yieldSourceAddresses[i], baseAddresses[i]);
-
-            // Get TVL in base asset terms
-            uint256 baseAmount = getTVL(yieldSourceAddresses[i]);
-
-            // Convert to USD using oracle registry with specified provider
-            tvlsUSD[i] = registry.getQuote(baseAmount, baseAddresses[i], _encodeProvider(providers[i]));
-        }
-    }
-
-    /// @notice Internal function to encode provider ID with USD address
-    /// @param provider The provider ID to encode
-    /// @return quote The encoded quote address
-    function _encodeProvider(uint256 provider) internal pure returns (address) {
-        // Encode provider in upper bits and USD in lower bits
-        // Note: USD is address(840) which is already in the lower 20 bits format
-        return address(uint160((provider << 20) | uint160(USD)));
-    }
-
-    /// @notice Validates if a base token is the underlying asset of the yield source
-    /// @param yieldSourceAddress The yield source to check
-    /// @param base The token to validate
-    function _validateBaseAsset(address yieldSourceAddress, address base) internal view virtual;
+        virtual
+        returns (bool[] memory);
 }
