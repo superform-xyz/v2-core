@@ -18,7 +18,9 @@ abstract contract Constants {
     // keys
     string internal constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
-    string internal constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
+    string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
+    string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
+    string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
@@ -104,7 +106,6 @@ abstract contract Constants {
 
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
-    string internal constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
     string internal constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
     string internal constant SOMELIER_CLAIM_ALL_REWARDS_HOOK_KEY = "SomelierClaimAllRewardsHook";
