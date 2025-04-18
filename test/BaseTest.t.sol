@@ -338,16 +338,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     address public mockBaseHook;
 
     bool public useLatestFork = false;
-    bool public useRealOdosRouter;
+    bool public useRealOdosRouter = true;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
-        // set useRealOdosRouter based on environment variable
-        useRealOdosRouter = keccak256(bytes(vm.envString("ENVIRONMENT"))) == keccak256(bytes("local"));
-
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
         TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");

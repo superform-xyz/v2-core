@@ -262,11 +262,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         MockERC20 outputToken = new MockERC20("B", "B", 18);
 
         address swapHook;
-        if (useRealOdosRouter) {
-            swapHook = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
-        } else {
-            swapHook = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
-        }
+        swapHook = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -283,22 +279,18 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         }
 
         bytes memory odosCallData;
-        if (useRealOdosRouter) {
-            odosCallData = _createOdosCallData(address(inputToken), amount, address(outputToken), account);
-        } else {
-            odosCallData = _createMockOdosSwapHookData(
-                address(inputToken),
-                amount,
-                account,
-                address(outputToken),
-                amount,
-                amount,
-                "",
-                address(this),
-                uint32(0),
-                false
-            );
-        }
+        odosCallData = _createMockOdosSwapHookData(
+            address(inputToken),
+            amount,
+            account,
+            address(outputToken),
+            amount,
+            amount,
+            "",
+            address(this),
+            uint32(0),
+            false
+        );
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = approveData;
