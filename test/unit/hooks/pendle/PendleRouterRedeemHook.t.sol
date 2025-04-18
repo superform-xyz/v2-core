@@ -2,8 +2,8 @@
 pragma solidity 0.8.28;
 
 import { BaseTest } from "../../../BaseTest.t.sol";
-import { PendleRouterRedeemHook } from "../../../../src/core/hooks/pendle/PendleRouterRedeemHook.sol";
-import { IPendleRouterV4 } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
+import { PendleRouterRedeemHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
+import { IPendleRouterV4, TokenOutput, SwapData, SwapType } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
@@ -56,39 +56,52 @@ contract PendleRouterRedeemHookTest is BaseTest {
         assertEq(executions[0].target, address(pendleRouter));
         assertEq(executions[0].value, 0);
 
+        SwapData memory swapData =
+            SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
+
         // Verify the calldata is correctly constructed
         bytes memory expectedCallData = abi.encodeWithSelector(
             IPendleRouterV4.redeemPyToToken.selector,
             account,
             address(ytToken),
             amount,
-            IPendleRouterV4(pendleRouter).createTokenOutputSimple(address(tokenOut), minTokenOut)
+            TokenOutput({
+                tokenOut: address(tokenOut),
+                minTokenOut: minTokenOut,
+                tokenRedeemSy: address(0),
+                pendleSwap: address(0),
+                swapData: swapData
+            })
         );
         assertEq(executions[0].callData, expectedCallData);
     }
 
     function test_Build_WithPrevHookAmount() public {
-        bytes memory data = _createRedeemData(
-            amount,
-            address(ytToken),
-            address(tokenOut),
-            minTokenOut,
-            true // Use previous hook amount
-        );
+        bytes memory data = _createRedeemData(amount, address(ytToken), address(tokenOut), minTokenOut, true);
 
         prevHook.setOutAmount(2500); // Set a different amount in the previous hook
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 1);
 
-        // Verify the calldata uses the previous hook amount
+        SwapData memory swapData =
+            SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
+
+        // Verify the calldata is correctly constructed
         bytes memory expectedCallData = abi.encodeWithSelector(
             IPendleRouterV4.redeemPyToToken.selector,
             account,
             address(ytToken),
-            2500, // Should use this amount instead of the original amount
-            IPendleRouterV4(pendleRouter).createTokenOutputSimple(address(tokenOut), minTokenOut)
+            2500,
+            TokenOutput({
+                tokenOut: address(tokenOut),
+                minTokenOut: minTokenOut,
+                tokenRedeemSy: address(0),
+                pendleSwap: address(0),
+                swapData: swapData
+            })
         );
+
         assertEq(executions[0].callData, expectedCallData);
     }
 
@@ -186,6 +199,18 @@ contract PendleRouterRedeemHookTest is BaseTest {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(amount_, yt_, tokenOut_, minTokenOut_, usePrevHookAmount_);
+        // mocking purposes
+        SwapData memory swapData =
+            SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
+        bytes memory tokenOutput = abi.encode(
+            TokenOutput({
+                tokenOut: tokenOut_,
+                minTokenOut: minTokenOut_,
+                tokenRedeemSy: address(0),
+                pendleSwap: address(0),
+                swapData: swapData
+            })
+        );
+        return abi.encodePacked(amount_, yt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
     }
 }

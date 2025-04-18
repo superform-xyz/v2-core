@@ -58,6 +58,7 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_OP_SEPOLIA = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
 
     // DeBridge Gate addresses per chain
+    address internal constant DEBRIDGE_DLN_SRC = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
     address internal constant DEBRIDGE_DLN_DST = 0xE7351Fd770A37282b91D153Ee690B63579D6dd7f;
 
     // 1inch Aggregation Router addresses per chain
@@ -91,6 +92,16 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_BASE_SEPOLIA = address(0);
     address internal constant ODOS_ROUTER_OP_SEPOLIA = address(0);
 
+    // Spectra Router addresses per chain
+    address internal constant SPECTRA_ROUTER_MAINNET = 0xD733e545C65d539f588d7c3793147B497403F0d2;
+    address internal constant SPECTRA_ROUTER_BASE = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
+    address internal constant SPECTRA_ROUTER_OPTIMISM = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
+
+    // Pendle Router addresses per chain
+    address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+
     // Nexus Factory addresses per chain
     address internal constant NEXUS_FACTORY_MAINNET = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_BASE = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
@@ -98,6 +109,8 @@ abstract contract Constants {
     address internal constant NEXUS_FACTORY_ARB_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+
+    address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
@@ -130,6 +143,19 @@ abstract contract Constants {
     string internal constant GEARBOX_APPROVE_AND_STAKE_HOOK_KEY = "GearboxApproveAndStakeHook";
     string internal constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
+    string internal constant APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY = "ApproveAndRedeem4626VaultHook";
+    string internal constant APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY = "ApproveAndRedeem5115VaultHook";
+    string internal constant APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY = "ApproveAndWithdraw7540VaultHook";
+    string internal constant APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRedeem7540VaultHook";
+    string internal constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
+    string internal constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
+    string internal constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
+    string internal constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
+    string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+    string internal constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
+    string internal constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
+    string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
+    string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";

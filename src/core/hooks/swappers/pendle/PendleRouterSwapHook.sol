@@ -4,11 +4,10 @@ pragma solidity 0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform
-import { BaseHook } from "../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -17,10 +16,10 @@ import {
     TokenOutput,
     FillOrderParams,
     Order
-} from "../../../vendor/pendle/IPendleRouterV4.sol";
-import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
-import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
+} from "../../../../vendor/pendle/IPendleRouterV4.sol";
+import { IPendleMarket } from "../../../../vendor/pendle/IPendleMarket.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
@@ -29,12 +28,12 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 57);
-/// @notice         bytes txData_ = data[57:];
+/// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
-    uint256 private constant AMOUNT_POSITION = 57;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -74,11 +73,10 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     {
         address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = _decodeAmount(data);
-        bytes memory txData_ = data[AMOUNT_POSITION:];
+        uint256 value = abi.decode(data[25:57], (uint256));
+        bytes memory txData_ = data[57:];
 
-        bytes memory updatedTxData =
-            _validateTxData(data[AMOUNT_POSITION:], account, usePrevHookAmount, prevHook, pendleMarket);
+        bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pendleMarket);
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -121,6 +119,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         view
         returns (bytes memory updatedTxData)
     {
+        // todo: this requires optimization so we don't do abi.encodeWithSelector but rather abi.encodePacked
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector
@@ -232,22 +231,14 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         receiver = abi.decode(data[4:36], (address));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-
     function _getBalance(bytes calldata data) private view returns (uint256) {
-        address tokenOut = _decodeTokenOut(data[AMOUNT_POSITION:]);
-        address receiver = _decodeReceiver(data[AMOUNT_POSITION:]);
+        address tokenOut = _decodeTokenOut(data[57:]);
+        address receiver = _decodeReceiver(data[57:]);
 
         if (tokenOut == address(0)) {
             return receiver.balance;
         }
 
         return IERC20(tokenOut).balanceOf(receiver);
-    }
-
-    function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 }

@@ -94,6 +94,7 @@ abstract contract Constants {
     string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
     string public constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
     string public constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+    string public constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string public constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
     string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
@@ -207,11 +208,13 @@ abstract contract Constants {
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
     address public constant CHAIN_10_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_10_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_10_SpectraRouter = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
     address public constant CHAIN_8453_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_8453_SpectraRouter = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
 
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";

@@ -4,15 +4,15 @@ pragma solidity 0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
-import { BaseHook } from "../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
-import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
-import { ISpectraRouter } from "../../../vendor/spectra/ISpectraRouter.sol";
-import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
+import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title SpectraExchangeHook
 /// @author Superform Labs
@@ -21,7 +21,7 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 57);
-/// @notice         bytes txData_ = data[57:];
+/// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
 contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -131,6 +131,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     {
         ValidateTxDataParams memory params;
         params.selector = bytes4(data[0:4]);
+        // todo: this requires optimization so we don't do abi.encodeWithSelector but rather abi.encodePacked
 
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             (params.commandsData, params.inputs) = abi.decode(data[4:], (bytes, bytes[]));

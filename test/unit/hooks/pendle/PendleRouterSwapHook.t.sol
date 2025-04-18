@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { BaseTest } from "../../../BaseTest.t.sol";
-import { PendleRouterSwapHook } from "../../../../src/core/hooks/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterSwapHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -15,7 +15,6 @@ import {
     SwapType,
     OrderType
 } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
-import { IPendleMarket } from "../../../../src/vendor/pendle/IPendleMarket.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { MockPendleRouter } from "../../../mocks/MockPendleRouter.sol";
