@@ -687,6 +687,41 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         return expectedAssetOutAmount;
     }
 
+    function _createOdosSwapData(uint256 assetOutAmount) internal returns (bytes memory) {
+        QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
+        quoteInputTokens[0] = QuoteInputToken({
+            tokenAddress: underlyingOP_USDCe,
+            amount: assetOutAmount
+        });
+
+        QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
+        quoteOutputTokens[0] = QuoteOutputToken({
+            tokenAddress: underlyingOP_USDC,
+            proportion: 1
+        });
+        
+        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, accountOP, BASE, false);
+        string memory requestBody = surlCallAssemble(path, accountOP);
+
+        OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
+
+        bytes memory odosCalldata =
+                _createOdosSwapHookData(
+                    odosDecodedSwap.tokenInfo.inputToken,
+                    odosDecodedSwap.tokenInfo.inputAmount,
+                    odosDecodedSwap.tokenInfo.inputReceiver,
+                    odosDecodedSwap.tokenInfo.outputToken,
+                    odosDecodedSwap.tokenInfo.outputQuote,
+                    odosDecodedSwap.tokenInfo.outputMin,
+                    odosDecodedSwap.pathDefinition,
+                    odosDecodedSwap.executor,
+                    odosDecodedSwap.referralCode,
+                    false
+                );
+        return odosCalldata;
+    }
+    
+
     function _redeem_From_OP_And_Bridge_Back_To_Base() internal {
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
@@ -728,27 +763,48 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // OP IS SRC
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
+        bytes memory odosCallData;
+        if (useRealOdosRouter) {
+            odosCallData = _createOdosSwapData(assetOutAmount);
+        } else {
+            odosCallData = _createMockOdosSwapHookData(
+                underlyingOP_USDCe,
+                assetOutAmount,
+                address(this),
+                underlyingOP_USDC,
+                assetOutAmount,
+                0,
+                bytes(""),
+                mockOdosRouters[OP],
+                0,
+                true
+            );
+        }
+
+        bytes memory approveOdosData;
+        if (useRealOdosRouter) {
+            approveOdosData = _createApproveHookData(underlyingOP_USDCe, ODOS_ROUTER[OP], assetOutAmount, false);
+        } else {
+            approveOdosData = _createApproveHookData(underlyingOP_USDCe, mockOdosRouters[OP], assetOutAmount, false);
+        }
+
         // PREPARE OP DATA
         address[] memory opHooksAddresses = new address[](4);
-        opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-        opHooksAddresses[1] = _getHookAddress(OP, MOCK_SWAP_ODOS_HOOK_KEY);
-        opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-        opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        if (useRealOdosRouter) {
+            opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+            opHooksAddresses[1] = _getHookAddress(OP, SWAP_ODOS_HOOK_KEY);
+            opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+            opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        } else {
+            opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+            opHooksAddresses[1] = _getHookAddress(OP, MOCK_SWAP_ODOS_HOOK_KEY);
+            opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+            opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        }
 
         bytes[] memory opHooksData = new bytes[](4);
-        opHooksData[0] = _createApproveHookData(underlyingOP_USDCe, mockOdosRouters[OP], assetOutAmount, false);
-        opHooksData[1] = _createMockOdosSwapHookData(
-            underlyingOP_USDCe,
-            assetOutAmount,
-            address(this),
-            underlyingOP_USDC,
-            assetOutAmount,
-            0,
-            bytes(""),
-            mockOdosRouters[OP],
-            0,
-            true
-        );
+        opHooksData[0] = approveOdosData;
+        opHooksData[1] = odosCallData;
         opHooksData[2] = _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], assetOutAmount, true);
         opHooksData[3] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingOP_USDC,
