@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
@@ -25,15 +26,15 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4); // Pendle Market
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = abi.decode(data[25:57], (uint256));
+/// @notice         uint256 value = BytesLib.toUint256(data, 57);
 /// @notice         bytes txData_ = data[57:];
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
-
+    uint256 private constant AMOUNT_POSITION = 57;
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -52,11 +53,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     error INVALID_GUESS_PT_OUT();
     error MAKING_AMOUNT_NOT_VALID();
 
-    constructor(
-        address pendleRouterV4_
-    )
-        BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT)
-    {
+    constructor(address pendleRouterV4_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
         pendleRouterV4 = IPendleRouterV4(pendleRouterV4_);
     }
@@ -74,13 +71,14 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         view
         override
         returns (Execution[] memory executions)
-    {   
+    {
         address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[25:57], (uint256));
-        bytes memory txData_ = data[57:];
+        uint256 value = _decodeAmount(data);
+        bytes memory txData_ = data[AMOUNT_POSITION:];
 
-        bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pendleMarket);
+        bytes memory updatedTxData =
+            _validateTxData(data[AMOUNT_POSITION:], account, usePrevHookAmount, prevHook, pendleMarket);
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -234,14 +232,22 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         receiver = abi.decode(data[4:36], (address));
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+
     function _getBalance(bytes calldata data) private view returns (uint256) {
-        address tokenOut = _decodeTokenOut(data[57:]);
-        address receiver = _decodeReceiver(data[57:]);
+        address tokenOut = _decodeTokenOut(data[AMOUNT_POSITION:]);
+        address receiver = _decodeReceiver(data[AMOUNT_POSITION:]);
 
         if (tokenOut == address(0)) {
             return receiver.balance;
         }
 
         return IERC20(tokenOut).balanceOf(receiver);
+    }
+
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 }

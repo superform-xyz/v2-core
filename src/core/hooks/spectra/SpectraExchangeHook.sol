@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../BaseHook.sol";
@@ -17,14 +18,15 @@ import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4); // Spectra PT Token
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = abi.decode(data[25:57], (uint256));
+/// @notice         uint256 value = BytesLib.toUint256(data, 57);
 /// @notice         bytes txData_ = data[57:];
 contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
+    uint256 private constant AMOUNT_POSITION = 57;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -65,10 +67,10 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     {
         address pt = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[25:57], (uint256));
-        bytes memory txData_ = data[57:];
+        uint256 value = abi.decode(data[25:AMOUNT_POSITION], (uint256));
+        bytes memory txData_ = data[AMOUNT_POSITION:];
 
-        bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pt);
+        bytes memory updatedTxData = _validateTxData(data[AMOUNT_POSITION:], account, usePrevHookAmount, prevHook, pt);
 
         executions = new Execution[](1);
         executions[0] =
@@ -96,6 +98,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+
     struct ValidateTxDataParams {
         bytes4 selector;
         bytes[] updatedInputs;
@@ -194,7 +197,8 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             updatedTxData = abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs);
         } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            updatedTxData = abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs, params.deadline);
+            updatedTxData =
+                abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs, params.deadline);
         }
     }
 
@@ -216,7 +220,10 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
             bytes1 commandType = _commands[i];
 
             uint256 command = uint8(commandType & SpectraCommands.COMMAND_TYPE_MASK);
-            if (command != SpectraCommands.DEPOSIT_ASSET_IN_PT && command != SpectraCommands.DEPOSIT_ASSET_IN_IBT && command != SpectraCommands.TRANSFER_FROM) {
+            if (
+                command != SpectraCommands.DEPOSIT_ASSET_IN_PT && command != SpectraCommands.DEPOSIT_ASSET_IN_IBT
+                    && command != SpectraCommands.TRANSFER_FROM
+            ) {
                 revert INVALID_COMMAND();
             }
             commands[i] = command;
@@ -244,21 +251,29 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
             uint256 command = commands[i];
             bytes memory input = inputs[i];
             if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                (tokenOut, , , ) = abi.decode(input, (address, uint256, address, address));
+                (tokenOut,,,) = abi.decode(input, (address, uint256, address, address));
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                (tokenOut, ,) = abi.decode(input, (address, uint256, address));
+                (tokenOut,,) = abi.decode(input, (address, uint256, address));
             }
         }
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
         // TODO: check if this is correct; Get's the latest token out from the commands list
-        address tokenOut = _decodeTokenOut(data[57:]);
+        address tokenOut = _decodeTokenOut(data[AMOUNT_POSITION:]);
 
         if (tokenOut == address(0)) {
             return account.balance;
         }
 
         return IERC20(tokenOut).balanceOf(account);
+    }
+
+    function _decodeAmount(bytes memory data) private pure returns (uint256) {
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 }
