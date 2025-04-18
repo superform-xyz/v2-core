@@ -43,4 +43,18 @@ contract MockPendleRouter {
     ) {
         return (0, 0, 0);
     }
+
+    /// @dev Creates a TokenOutput struct without using any swap aggregator
+/// @param tokenOut must be one of the SY's tokens out (obtain via `IStandardizedYield#getTokensOut`)
+/// @param minTokenOut minimum amount of token out
+function createTokenOutputSimple(address tokenOut, uint256 minTokenOut) external pure returns (TokenOutput memory) {
+    return
+        TokenOutput({
+            tokenOut: tokenOut,
+            minTokenOut: minTokenOut,
+            tokenRedeemSy: tokenOut,
+            pendleSwap: address(0),
+            swapData: createSwapTypeNoAggregator()
+        });
+}
 }
