@@ -192,7 +192,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
 
-        // loanAmount = collateralAmount * price / scalingFactor
         collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
     }
 
