@@ -141,7 +141,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
 
         if (ltvRatio >= lltv) revert LTV_RATIO_NOT_VALID();
 
-        // loanAmount = collateralAmount * price / scalingFactor
         uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
         loanAmount = Math.mulDiv(fullAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);
     }
