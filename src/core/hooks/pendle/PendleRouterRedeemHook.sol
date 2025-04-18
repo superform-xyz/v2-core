@@ -113,7 +113,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeData(bytes calldata data) internal view returns (RedeemData memory redeemData) {
+    function _decodeData(bytes calldata data) internal pure returns (RedeemData memory redeemData) {
         uint256 amount = BytesLib.toUint256(data, 0);
         address receiver = BytesLib.toAddress(data, 32);
         address YT = BytesLib.toAddress(data, 52);
@@ -131,7 +131,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         });
     }
 
-    function _validateRedeemData(RedeemData memory redeemData) internal view {
+    function _validateRedeemData(RedeemData memory redeemData) internal pure {
         if (redeemData.YT == address(0)) revert YT_NOT_VALID();
         if (redeemData.amount == 0) revert AMOUNT_NOT_VALID();
         if (redeemData.tokenOut == address(0)) revert TOKEN_OUT_NOT_VALID();
