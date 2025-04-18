@@ -55,6 +55,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         uint256 lltv;
     }
 
+    error LTV_RATIO_NOT_VALID();
+
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
@@ -90,7 +92,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.oracle);
+        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.lltv, vars.oracle);
 
         executions = new Execution[](4);
         executions[0] =
@@ -127,6 +129,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     function deriveLoanAmount(
         uint256 collateralAmount,
         uint256 ltvRatio,
+        uint256 lltv,
         address oracle
     )
         public
@@ -135,6 +138,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
+
+        if (ltvRatio >= lltv) revert LTV_RATIO_NOT_VALID();
 
         // loanAmount = collateralAmount * price / scalingFactor
         uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
