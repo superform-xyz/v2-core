@@ -9,8 +9,8 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
-    mapping(address => Bundler) public bundlers;
-    mapping(uint256 => address) public bundlerIds;
+    mapping(address bundlerAddress => Bundler bundlerData) public bundlers;
+    mapping(uint256 bundlerId => address bundlerAddress) public bundlerIds;
 
     constructor(address owner_) Ownable(owner_) { }
 
@@ -62,7 +62,13 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     function updateBundlerAddress(uint256 _bundlerId, address _newAddress) external onlyOwner {
         address bundlerAddress = bundlerIds[_bundlerId];
 
-        bundlers[bundlerAddress].bundlerAddress = _newAddress;
+        // Copy the bundler data to the new address
+        IBundlerRegistry.Bundler memory bundler = bundlers[bundlerAddress];
+        bundler.bundlerAddress = _newAddress;
+        
+        // Update mappings
+        delete bundlers[bundlerAddress];
+        bundlers[_newAddress] = bundler;
         bundlerIds[_bundlerId] = _newAddress;
 
         emit BundlerAddressUpdated(_bundlerId, bundlerAddress, _newAddress);
