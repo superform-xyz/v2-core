@@ -643,7 +643,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         // loanAmount = collateralAmount * price / scalingFactor
         uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
-        loanAmount = Math.mulDiv(fullAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);;
+        loanAmount = Math.mulDiv(fullAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);
     }
 
     function _deriveCollateralForWithdraw(address account) internal view returns (uint256 collateral) {
