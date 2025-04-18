@@ -296,7 +296,9 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
             _createMorphoRepayHookData(loanToken, collateralToken, oracleAddress, irm, amount / 2, lltv, false, false);
         repayHookDataArray[0] = repayHookData;
 
-        uint256 expectedCollateralBalanceAfterRepay = withdrawHook.sharesToAssets(marketParams, accountBase);
+        uint256 fullCollateral = withdrawHook.deriveCollateralForFullRepayment(marketParams.id(), accountBase);
+
+        uint256 expectedCollateralBalanceAfterRepay = withdrawHook.deriveCollateralForPartialRepayment(marketParams.id(), accountBase, amount / 2, fullCollateral);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
