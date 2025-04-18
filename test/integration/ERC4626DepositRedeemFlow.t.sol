@@ -12,7 +12,7 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 
-import { IAcrossTargetExecutor } from "../../src/core/interfaces/IAcrossTargetExecutor.sol";
+import { ISuperDestinationExecutor } from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
 
 import { BaseTest } from "../BaseTest.t.sol";
 
@@ -42,9 +42,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
     ISuperExecutor public superExecutorOnBase;
     ISuperExecutor public superExecutorOnOP;
 
-    IAcrossTargetExecutor public superTargetExecutorOnBase;
-    IAcrossTargetExecutor public superTargetExecutorOnETH;
-    IAcrossTargetExecutor public superTargetExecutorOnOP;
+    ISuperDestinationExecutor public superTargetExecutorOnBase;
+    ISuperDestinationExecutor public superTargetExecutorOnETH;
+    ISuperDestinationExecutor public superTargetExecutorOnOP;
 
     IValidator public validatorOnBase;
     IValidator public validatorOnETH;
@@ -106,9 +106,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
         superExecutorOnOP = ISuperExecutor(_getContract(OP, SUPER_EXECUTOR_KEY));
-        superTargetExecutorOnBase = IAcrossTargetExecutor(_getContract(BASE, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnETH = IAcrossTargetExecutor(_getContract(ETH, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnOP = IAcrossTargetExecutor(_getContract(OP, ACROSS_TARGET_EXECUTOR_KEY));
+        superTargetExecutorOnBase = ISuperDestinationExecutor(_getContract(BASE, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnETH = ISuperDestinationExecutor(_getContract(ETH, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnOP = ISuperDestinationExecutor(_getContract(OP, SUPER_DESTINATION_EXECUTOR_KEY));
         validatorOnBase = IValidator(_getContract(BASE, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnETH = IValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnOP = IValidator(_getContract(OP, SUPER_DESTINATION_VALIDATOR_KEY));
