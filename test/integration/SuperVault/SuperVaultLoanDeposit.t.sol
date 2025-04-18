@@ -642,9 +642,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 price = oracleInstance.price();
 
         // loanAmount = collateralAmount * price / scalingFactor
-        uint256 fullAmount = Math.mulDiv(amountCollateral, price, 1e36);
-        uint256 availableLoanAmount = Math.mulDiv(fullAmount, lltv, 1e18);
-        loanAmount = Math.mulDiv(availableLoanAmount, ltvRatio, 1e18);
+        uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
+        loanAmount = Math.mulDiv(fullAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);;
     }
 
     function _deriveCollateralForWithdraw(address account) internal view returns (uint256 collateral) {
