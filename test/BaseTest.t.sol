@@ -323,6 +323,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     address public mockBaseHook;
 
     bool public useLatestFork = false;
+    bool public useRealOdosRouter = false;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -441,6 +442,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     function _getHooksByCategory(uint64 chainId, HookCategory category) internal view returns (Hook[] memory) {
         return hooksByCategory[chainId][category];
+    }
+
+    function _setUseRealOdosRouter(bool useRealOdosRouter_) internal {
+        useRealOdosRouter = useRealOdosRouter_;
     }
 
     function _deployContracts(Addresses[] memory A) internal returns (Addresses[] memory) {
