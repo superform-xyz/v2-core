@@ -48,6 +48,8 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     IMorphoStaticTyping public morphoStaticTyping;
 
     uint256 private constant AMOUNT_POSITION = 80;
+    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
+    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     /*//////////////////////////////////////////////////////////////
@@ -191,7 +193,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         uint256 price = oracleInstance.price();
 
         // loanAmount = collateralAmount * price / scalingFactor
-        collateralAmount = Math.mulDiv(loanAmount, 1e36, price);
+        collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
     }
 
     function deriveCollateralForPartialRepayment(

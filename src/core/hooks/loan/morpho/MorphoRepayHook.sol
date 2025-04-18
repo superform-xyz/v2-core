@@ -48,6 +48,8 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     IMorphoStaticTyping public morphoStaticTyping;
 
     uint256 private constant AMOUNT_POSITION = 80;
+    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
+    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     /*//////////////////////////////////////////////////////////////
@@ -130,7 +132,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     function getUsedAssets(address, bytes memory data) external view returns (uint256) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
         uint256 amountInCollateral =
-            deriveCollateralAmountFromLoanAmount(vars.loanToken, vars.oracle, vars.collateralToken, outAmount);
+            deriveCollateralAmountFromLoanAmount(vars.oracle, outAmount);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         return amountInCollateral + deriveFeeAmount(marketParams);
@@ -153,9 +155,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     }
 
     function deriveCollateralAmountFromLoanAmount(
-        address loanToken,
         address oracle,
-        address collateralToken,
         uint256 loanAmount
     )
         public
@@ -164,18 +164,10 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
-
-        if (collateralDecimals > 36 + loanDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
-
-        // Correct scaling factor as per the oracle's specification:
-        // 10^(36 + loanDecimals - collateralDecimals)
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
         // Inverting the original calculation:
         // loanAmount = collateralAmount * price / scalingFactor
-        collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
+        collateralAmount = Math.mulDiv(loanAmount, price, PRICE_SCALING_FACTOR);
     }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
