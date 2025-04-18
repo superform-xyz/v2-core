@@ -4,14 +4,12 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { IDeBridgeGate } from "../../../../vendor/bridges/debridge/IDeBridgeGate.sol";
 import { IDlnSource } from "../../../../vendor/bridges/debridge/IDlnSource.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
-import "forge-std/console2.sol";
 
 /// @title DeBridgeSendOrderAndExecuteOnDstHook
 /// @author Superform Labs
@@ -230,13 +228,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             externalCall: vars.externalCall,
             allowedCancelBeneficiarySrc: vars.allowedCancelBeneficiarySrc
         });
-
-        console2.log("orderCreation.giveTokenAddress", orderCreation.giveTokenAddress);
-        console2.log("orderCreation.giveAmount", orderCreation.giveAmount);
-        console2.log("orderCreation.takeAmount", orderCreation.takeAmount);
-        console2.log("orderCreation.takeChainId", orderCreation.takeChainId);
-        console2.log("affiliateFeeLength", affiliateFeeLength);
-        console2.logBytes(affiliateFee);
     }
 
     function _preExecute(address, address, bytes calldata) internal override { }
