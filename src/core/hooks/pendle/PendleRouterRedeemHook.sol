@@ -85,7 +85,9 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         executions[0] = Execution({
             target: address(pendleRouterV4),
             value: 0,
-            callData: abi.encodeWithSelector(IPendleRouterV4.redeemPyToToken.selector, redeemVars.receiver, redeemVars.YT, redeemVars.amount, output)
+            callData: abi.encodeWithSelector(
+                IPendleRouterV4.redeemPyToToken.selector, redeemVars.receiver, redeemVars.YT, redeemVars.amount, output
+            )
         });
     }
 
@@ -111,11 +113,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeData(bytes calldata data)
-        internal
-        view
-        returns (RedeemData memory redeemData)
-    {   
+    function _decodeData(bytes calldata data) internal view returns (RedeemData memory redeemData) {
         uint256 amount = BytesLib.toUint256(data, 0);
         address receiver = BytesLib.toAddress(data, 32);
         address YT = BytesLib.toAddress(data, 52);
