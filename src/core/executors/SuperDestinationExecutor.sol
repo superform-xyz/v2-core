@@ -151,13 +151,18 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         // --- Balance Check ---
         // Token transfer is handled by the callee *before* this call.
         // We just check if the target account now has sufficient balance.
-        IERC20 token = IERC20(tokenSent);
-        if (intentAmount != 0 && token.balanceOf(account) < intentAmount) {
-            emit SuperDestinationExecutorReceivedButNotEnoughBalance(account);
-            // Nonce is NOT incremented if balance is insufficient
-            return;
+        if (tokenSent == address(0)) {
+            if (intentAmount != 0 && account.balance < intentAmount) {
+                emit SuperDestinationExecutorReceivedButNotEnoughBalance(account);
+                return;
+            }
+        } else {
+            IERC20 token = IERC20(tokenSent);
+            if (intentAmount != 0 && token.balanceOf(account) < intentAmount) {
+                emit SuperDestinationExecutorReceivedButNotEnoughBalance(account);
+                return;
+            }
         }
-
 
         // --- Execute User Operation ---
         // Check if there's actual execution data to process

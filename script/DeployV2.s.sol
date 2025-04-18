@@ -13,6 +13,8 @@ import { Configuration } from "./utils/Configuration.sol";
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../src/core/executors/SuperDestinationExecutor.sol";
 import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
+
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
@@ -96,6 +98,7 @@ contract DeployV2 is Script, Configuration {
     struct DeployedContracts {
         address superExecutor;
         address acrossV3Adapter;
+        address debridgeAdapter;
         address superDestinationExecutor;
         address superLedger;
         address pendleLedger;
@@ -268,6 +271,15 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, ACROSS_V3_ADAPTER_KEY),
             abi.encodePacked(type(AcrossV3Adapter).creationCode, abi.encode(configuration.acrossSpokePoolV3s[chainId]))
+        );
+
+        // Deploy DebridgeAdapter
+        deployedContracts.debridgeAdapter = __deployContract(
+            deployer,
+            DEBRIDGE_ADAPTER_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
+            abi.encodePacked(type(DebridgeAdapter).creationCode, abi.encode(deployedContracts.superDestinationExecutor))
         );
 
         address[] memory allowedExecutors = new address[](2);
