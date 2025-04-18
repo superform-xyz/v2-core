@@ -57,4 +57,12 @@ function createTokenOutputSimple(address tokenOut, uint256 minTokenOut) external
             swapData: createSwapTypeNoAggregator()
         });
 }
+
+function createSwapTypeNoAggregator() external pure returns (SwapData memory) {
+    return SwapData({
+        swapType: SwapType.NO_AGGREGATOR,
+        aggregator: address(0),
+        aggregatorData: bytes("")
+    });
+}
 }
