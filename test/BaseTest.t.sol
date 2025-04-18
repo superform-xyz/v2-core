@@ -80,7 +80,6 @@ import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveA
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
 // --- Spectra
 import { SpectraCommands } from "../src/vendor/spectra/SpectraCommands.sol";
-import { ISpectraRouter } from "../src/vendor/spectra/ISpectraRouter.sol";
 
 // Stake hooks
 // --- Gearbox
@@ -115,12 +114,11 @@ import {
 } from "../src/vendor/pendle/IPendleRouterV4.sol";
 
 // --- Ethena
-import { EthenaCooldownSharesHook } from "./mocks/unused-hooks/EthenaCooldownSharesHook.sol";
-import { EthenaUnstakeHook } from "./mocks/unused-hooks/EthenaUnstakeHook.sol";
-import { SpectraExchangeHook } from "../src/core/hooks/spectra/SpectraExchangeHook.sol";
-import { PendleRouterSwapHook } from "../src/core/hooks/pendle/PendleRouterSwapHook.sol";
-import { MockSpectraRouter } from "./mocks/MockSpectraRouter.sol";
-import { MockPendleRouter } from "./mocks/MockPendleRouter.sol";
+import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+import { SpectraExchangeHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
+import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { MockLockVault } from "./mocks/MockLockVault.sol";
 import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 
@@ -219,6 +217,7 @@ struct Addresses {
     FluidUnstakeHook fluidUnstakeHook;
     SpectraExchangeHook spectraExchangeHook;
     PendleRouterSwapHook pendleRouterSwapHook;
+    PendleRouterRedeemHook pendleRouterRedeemHook;
     FluidClaimRewardHook fluidClaimRewardHook;
     GearboxClaimRewardHook gearboxClaimRewardHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
@@ -304,7 +303,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     mapping(uint64 chainId => address pendleRouter) public PENDLE_ROUTERS;
     mapping(uint64 chainId => address pendleSwap) public PENDLE_SWAP;
     mapping(uint64 chainId => address odosRouter) public ODOS_ROUTER;
-
+    mapping(uint64 chainId => address spectraRouter) public SPECTRA_ROUTERS;
     // chainID => FORK
     mapping(uint64 chainId => uint256 fork) public FORKS;
 
@@ -581,7 +580,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](46);
+            address[] memory hooksAddresses = new address[](47);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1052,17 +1051,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
             hooksAddresses[34] = address(A[i].ethenaUnstakeHook);
 
-            A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(address(CHAIN_1_SpectraRouter)); //TODO:
-                // update per chain
+            A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(SPECTRA_ROUTERS[chainIds[i]]);
             vm.label(address(A[i].spectraExchangeHook), SPECTRA_EXCHANGE_HOOK_KEY);
             hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_HOOK_KEY] = address(A[i].spectraExchangeHook);
             hooksAddresses[35] = address(A[i].spectraExchangeHook);
 
-            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(CHAIN_1_PendleRouter); //TODO: update per
-                // chain
+            A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(PENDLE_ROUTERS[chainIds[i]]);
             vm.label(address(A[i].pendleRouterSwapHook), PENDLE_ROUTER_SWAP_HOOK_KEY);
             hookAddresses[chainIds[i]][PENDLE_ROUTER_SWAP_HOOK_KEY] = address(A[i].pendleRouterSwapHook);
             hooksAddresses[36] = address(A[i].pendleRouterSwapHook);
+
+            A[i].pendleRouterRedeemHook = new PendleRouterRedeemHook{ salt: SALT }(PENDLE_ROUTERS[chainIds[i]]);
+            vm.label(address(A[i].pendleRouterRedeemHook), PENDLE_ROUTER_REDEEM_HOOK_KEY);
+            hookAddresses[chainIds[i]][PENDLE_ROUTER_REDEEM_HOOK_KEY] = address(A[i].pendleRouterRedeemHook);
+            hooks[chainIds[i]][PENDLE_ROUTER_REDEEM_HOOK_KEY] = Hook(
+                PENDLE_ROUTER_REDEEM_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.None,
+                address(A[i].pendleRouterRedeemHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][PENDLE_ROUTER_REDEEM_HOOK_KEY]);
+            hooksAddresses[37] = address(A[i].pendleRouterRedeemHook);
 
             A[i].cancelDepositRequest7540Hook = new CancelDepositRequest7540Hook{ salt: SALT }();
             vm.label(address(A[i].cancelDepositRequest7540Hook), CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
@@ -1078,7 +1088,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[37] = address(A[i].cancelDepositRequest7540Hook);
+            hooksAddresses[38] = address(A[i].cancelDepositRequest7540Hook);
 
             A[i].cancelRedeemRequest7540Hook = new CancelRedeemRequest7540Hook{ salt: SALT }();
             vm.label(address(A[i].cancelRedeemRequest7540Hook), CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
@@ -1093,7 +1103,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CANCEL_REDEEM_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[38] = address(A[i].cancelRedeemRequest7540Hook);
+            hooksAddresses[39] = address(A[i].cancelRedeemRequest7540Hook);
 
             A[i].claimCancelDepositRequest7540Hook = new ClaimCancelDepositRequest7540Hook{ salt: SALT }();
             vm.label(address(A[i].claimCancelDepositRequest7540Hook), CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
@@ -1109,7 +1119,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[39] = address(A[i].claimCancelDepositRequest7540Hook);
+            hooksAddresses[40] = address(A[i].claimCancelDepositRequest7540Hook);
 
             A[i].claimCancelRedeemRequest7540Hook = new ClaimCancelRedeemRequest7540Hook{ salt: SALT }();
             vm.label(address(A[i].claimCancelRedeemRequest7540Hook), CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
@@ -1125,7 +1135,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY]
             );
-            hooksAddresses[40] = address(A[i].claimCancelRedeemRequest7540Hook);
+            hooksAddresses[41] = address(A[i].claimCancelRedeemRequest7540Hook);
 
             A[i].cancelDepositHook = new CancelDepositHook{ salt: SALT }();
             vm.label(address(A[i].cancelDepositHook), CANCEL_DEPOSIT_HOOK_KEY);
@@ -1140,7 +1150,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY]
             );
-            hooksAddresses[41] = address(A[i].cancelDepositHook);
+            hooksAddresses[42] = address(A[i].cancelDepositHook);
 
             A[i].cancelRedeemHook = new CancelRedeemHook{ salt: SALT }();
             vm.label(address(A[i].cancelRedeemHook), CANCEL_REDEEM_HOOK_KEY);
@@ -1153,7 +1163,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
-            hooksAddresses[42] = address(A[i].cancelRedeemHook);
+            hooksAddresses[43] = address(A[i].cancelRedeemHook);
 
             A[i].morphoBorrowHook = new MorphoBorrowHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoBorrowHook), MORPHO_BORROW_HOOK_KEY);
@@ -1161,7 +1171,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] =
                 Hook(MORPHO_BORROW_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoBorrowHook), "");
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
-            hooksAddresses[43] = address(A[i].morphoBorrowHook);
+            hooksAddresses[44] = address(A[i].morphoBorrowHook);
 
             A[i].morphoRepayHook = new MorphoRepayHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
@@ -1169,12 +1179,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY] =
                 Hook(MORPHO_REPAY_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoRepayHook), "");
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY]);
-            hooksAddresses[44] = address(A[i].morphoRepayHook);
+            hooksAddresses[45] = address(A[i].morphoRepayHook);
 
             A[i].morphoRepayAndWithdrawHook = new MorphoRepayAndWithdrawHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayAndWithdrawHook), MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
             hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] = address(A[i].morphoRepayAndWithdrawHook);
-            hooksAddresses[45] = address(A[i].morphoRepayAndWithdrawHook);
+            hooksAddresses[46] = address(A[i].morphoRepayAndWithdrawHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
@@ -1280,6 +1290,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             peripheryRegistry.registerHook(address(A[i].morphoBorrowHook), false);
             peripheryRegistry.registerHook(address(A[i].morphoRepayHook), false);
             peripheryRegistry.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
+            peripheryRegistry.registerHook(address(A[i].pendleRouterRedeemHook), false);
         }
 
         return A;
@@ -1441,6 +1452,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.label(pendleRouters[OP], "PendleRouterOP");
         pendleRouters[BASE] = CHAIN_8453_PendleRouter;
         vm.label(pendleRouters[BASE], "PendleRouterBASE");
+
+        mapping(uint64 => address) storage spectraRouters = SPECTRA_ROUTERS;
+        spectraRouters[ETH] = CHAIN_1_SpectraRouter;
+        vm.label(spectraRouters[ETH], "SpectraRouterETH");
+        spectraRouters[OP] = CHAIN_10_SpectraRouter;
+        vm.label(spectraRouters[OP], "SpectraRouterOP");
+        spectraRouters[BASE] = CHAIN_8453_SpectraRouter;
+        vm.label(spectraRouters[BASE], "SpectraRouterBASE");
 
         mapping(uint64 => address) storage pendleSwaps = PENDLE_SWAP;
         pendleSwaps[ETH] = CHAIN_1_PendleSwap;

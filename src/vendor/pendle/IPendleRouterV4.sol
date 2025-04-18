@@ -105,4 +105,24 @@ interface IPendleRouterV4 {
     )
         external
         returns (uint256 netTokenOut, uint256 netSyFee, uint256 netSyInterm);
+
+    function redeemPyToToken(
+        address receiver,
+        address YT,
+        uint256 netPyIn,
+        TokenOutput calldata output
+    )
+        external
+        returns (uint256 netTokenOut, uint256 netSyInterm);
+
+    /// @dev Creates a TokenOutput struct without using any swap aggregator
+    /// @param tokenOut must be one of the SY's tokens out (obtain via `IStandardizedYield#getTokensOut`)
+    /// @param minTokenOut minimum amount of token out
+    function createTokenOutputSimple(
+        address tokenOut,
+        uint256 minTokenOut
+    )
+        external
+        pure
+        returns (TokenOutput memory);
 }

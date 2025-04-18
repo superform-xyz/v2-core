@@ -297,6 +297,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
                 // Call preExecute to initialize outAmount tracking
                 vars.hookContract.preExecute(vars.prevHook, address(this), args.hookCalldata[i]);
 
+                // TODO: note this can fail
                 // Extract targeted yield source from hook calldata
                 vars.targetedYieldSource = HookDataDecoder.extractYieldSource(args.hookCalldata[i]);
 

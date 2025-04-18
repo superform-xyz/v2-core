@@ -2,7 +2,7 @@
 pragma solidity 0.8.28;
 
 import { BaseTest } from "../../../BaseTest.t.sol";
-import { SpectraExchangeHook } from "../../../../src/core/hooks/spectra/SpectraExchangeHook.sol";
+import { SpectraExchangeHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
 import { SpectraCommands } from "../../../../src/vendor/spectra/SpectraCommands.sol";
 import { ISpectraRouter } from "../../../../src/vendor/spectra/ISpectraRouter.sol";
 
