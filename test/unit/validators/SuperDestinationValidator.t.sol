@@ -233,7 +233,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
         vm.stopPrank();
     }
 
-    function test_ExpiredSignature() public view {
+    function test_ExpiredSignatureX() public {
         uint48 validUntil = uint48(block.timestamp - 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
@@ -296,6 +296,9 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             approveDestinationData.intentAmount
         );
 
+        vm.startPrank(signerAddr);
+        validator.onInstall(abi.encode(signerAddr));
+        vm.stopPrank();
         bytes4 validationResult =
             validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
 

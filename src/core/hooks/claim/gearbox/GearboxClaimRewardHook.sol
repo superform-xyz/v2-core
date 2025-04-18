@@ -69,6 +69,9 @@ contract GearboxClaimRewardHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address, bytes calldata data) internal override {
+        asset = BytesLib.toAddress(data, 20);
+        if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
+        
         outAmount = _getBalance(data);
     }
 

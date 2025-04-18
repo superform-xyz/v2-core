@@ -44,7 +44,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         attesters[0] = address(MANAGER);
         threshold = 1;
 
-        oracle = new ERC5115YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
+        oracle = new ERC5115YieldSourceOracle();
 
         superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superLedgerConfiguration = SuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
