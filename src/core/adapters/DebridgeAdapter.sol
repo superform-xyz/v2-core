@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 // External Dependencies
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IDlnDestination } from "../../vendor/debridge/IDlnDestination.sol";
 
 // Superform Interfaces
 import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
@@ -20,18 +21,25 @@ contract DebridgeAdapter is IExternalCallExecutor {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     ISuperDestinationExecutor public immutable superDestinationExecutor;
-
+    address public immutable externalCallAdapter;
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+
     error ADDRESS_NOT_VALID();
     error ON_ETHER_RECEIVED_FAILED();
+    error ONLY_EXTERNAL_CALL_ADAPTER();
 
-    constructor(address superDestinationExecutor_) {
-        if (superDestinationExecutor_ == address(0)) {
+    constructor(address dlnDestination, address superDestinationExecutor_) {
+        if (superDestinationExecutor_ == address(0) || dlnDestination == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
         superDestinationExecutor = ISuperDestinationExecutor(superDestinationExecutor_);
+        address _externalCallAdapter = IDlnDestination(dlnDestination).externalCallAdapter();
+        if (_externalCallAdapter == address(0)) {
+            revert ADDRESS_NOT_VALID();
+        }
+        externalCallAdapter = _externalCallAdapter;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -46,14 +54,15 @@ contract DebridgeAdapter is IExternalCallExecutor {
         external
         payable
         returns (bool callSucceeded, bytes memory callResult)
-    { 
+    {
+        _onlyExternalCallAdapter();
         (,,, address account,) = _decodeMessage(_payload);
 
-         // 1. Transfer received funds to the target account *before* calling the executor.
+        // 1. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
         //    Requires this adapter contract to hold the funds temporarily from Across.
         //    Account is encoded in the merkle tree and validated by the destination executor
-        (bool success, ) = account.call{value: address(this).balance}("");
+        (bool success,) = account.call{ value: address(this).balance }("");
         if (!success) revert ON_ETHER_RECEIVED_FAILED();
 
         // 2. Call the core executor's standardized function
@@ -73,6 +82,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         external
         returns (bool callSucceeded, bytes memory callResult)
     {
+        _onlyExternalCallAdapter();
         (,,, address account,) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
@@ -90,6 +100,11 @@ contract DebridgeAdapter is IExternalCallExecutor {
     /*//////////////////////////////////////////////////////////////
                                 PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+
+    function _onlyExternalCallAdapter() private view {
+        if (msg.sender != externalCallAdapter) revert ONLY_EXTERNAL_CALL_ADAPTER();
+    }
+
     function _handleMessageReceived(address tokenSent, bytes memory message) private {
         // 1. Decode Debridge-specific message payload
         //      sigData contains: uint48 validUntil, bytes32 merkleRoot, bytes32[] proof, bytes signature

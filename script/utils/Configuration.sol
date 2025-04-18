@@ -27,7 +27,7 @@ abstract contract Configuration is Constants {
         address bundler;
         address treasury;
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
-        mapping(uint64 chainId => address debridgeGate) debridgeGates;
+        mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
         mapping(uint64 chainId => address okxRouter) okxRouters;
@@ -78,12 +78,12 @@ abstract contract Configuration is Constants {
         configuration.acrossSpokePoolV3s[BASE_SEPOLIA_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE_SEPOLIA;
         configuration.acrossSpokePoolV3s[OP_SEPOLIA_CHAIN_ID] = ACROSS_SPOKE_POOL_OP_SEPOLIA;
 
-        configuration.debridgeGates[MAINNET_CHAIN_ID] = DEBRIDGE_GATE_MAINNET;
-        configuration.debridgeGates[BASE_CHAIN_ID] = DEBRIDGE_GATE_BASE;
-        configuration.debridgeGates[OPTIMISM_CHAIN_ID] = DEBRIDGE_GATE_OPTIMISM;
-        configuration.debridgeGates[ARB_SEPOLIA_CHAIN_ID] = DEBRIDGE_GATE_ARB_SEPOLIA;
-        configuration.debridgeGates[BASE_SEPOLIA_CHAIN_ID] = DEBRIDGE_GATE_BASE_SEPOLIA;
-        configuration.debridgeGates[OP_SEPOLIA_CHAIN_ID] = DEBRIDGE_GATE_OP_SEPOLIA;
+        configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[OPTIMISM_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[ARB_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[BASE_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[OP_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
 
         configuration.aggregationRouters[MAINNET_CHAIN_ID] = AGGREGATION_ROUTER_MAINNET;
         configuration.aggregationRouters[BASE_CHAIN_ID] = AGGREGATION_ROUTER_BASE;

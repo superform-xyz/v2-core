@@ -166,6 +166,7 @@ import { BaseHook } from "../src/core/hooks/BaseHook.sol";
 import { MockBaseHook } from "./mocks/MockBaseHook.sol";
 
 import "forge-std/console2.sol";
+import { DlnExternalCallLib } from "../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
 struct Addresses {
     ISuperLedger superLedger;
@@ -272,23 +273,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     address[] public spokePoolV3Addresses =
         [CHAIN_1_SPOKE_POOL_V3_ADDRESS, CHAIN_10_SPOKE_POOL_V3_ADDRESS, CHAIN_8453_SPOKE_POOL_V3_ADDRESS];
-    address[] public deBridgeGateAddresses =
-        [CHAIN_1_DEBRIDGE_GATE_ADDRESS, CHAIN_10_DEBRIDGE_GATE_ADDRESS, CHAIN_8453_DEBRIDGE_GATE_ADDRESS];
-    address[] public deBridgeGateAdminAddresses = [
-        CHAIN_1_DEBRIDGE_GATE_ADMIN_ADDRESS,
-        CHAIN_10_DEBRIDGE_GATE_ADMIN_ADDRESS,
-        CHAIN_8453_DEBRIDGE_GATE_ADMIN_ADDRESS
-    ];
-    address[] public debridgeDlnSourceAddresses = [
-        CHAIN_1_DEBRIDGE_DLN_SOURCE_ADDRESS,
-        CHAIN_10_DEBRIDGE_DLN_SOURCE_ADDRESS,
-        CHAIN_8453_DEBRIDGE_DLN_SOURCE_ADDRESS
-    ];
 
     mapping(uint64 chainId => address) public SPOKE_POOL_V3_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_DLN_ADDRESSES;
-    mapping(uint64 chainId => address) public DEBRIDGE_GATE_ADDRESSES;
-    mapping(uint64 chainId => address) public DEBRIDGE_ADMIN_ADDRESSES;
+    mapping(uint64 chainId => address) public DEBRIDGE_DLN_ADDRESSES_DST;
     mapping(uint64 chainId => address) public NEXUS_FACTORY_ADDRESSES;
 
     /// @dev mappings
@@ -338,16 +326,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     address public mockBaseHook;
 
     bool public useLatestFork = false;
-    bool public useRealOdosRouter;
+    bool public useRealOdosRouter = true;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
-        // set useRealOdosRouter based on environment variable
-        useRealOdosRouter = keccak256(bytes(vm.envString("ENVIRONMENT"))) == keccak256(bytes("local"));
-
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
         TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
@@ -550,7 +535,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].acrossV3Adapter), ACROSS_V3_ADAPTER_KEY);
             contractAddresses[chainIds[i]][ACROSS_V3_ADAPTER_KEY] = address(A[i].acrossV3Adapter);
 
-            A[i].debridgeAdapter = new DebridgeAdapter{ salt: SALT }(address(A[i].superDestinationExecutor));
+            A[i].debridgeAdapter =
+                new DebridgeAdapter{ salt: SALT }(DEBRIDGE_DLN_DST, address(A[i].superDestinationExecutor));
             vm.label(address(A[i].debridgeAdapter), DEBRIDGE_ADAPTER_KEY);
             contractAddresses[chainIds[i]][DEBRIDGE_ADAPTER_KEY] = address(A[i].debridgeAdapter);
 
@@ -1433,28 +1419,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.label(spokePoolV3AddressesMap[BASE], "SpokePoolV3BASE");
 
         mapping(uint64 => address) storage debridgeDlnSourceAddressesMap = DEBRIDGE_DLN_ADDRESSES;
-        debridgeDlnSourceAddressesMap[ETH] = debridgeDlnSourceAddresses[0];
+        debridgeDlnSourceAddressesMap[ETH] = DEBRIDGE_DLN_SOURCE_ADDRESS;
         vm.label(debridgeDlnSourceAddressesMap[ETH], "DebridgeDlnSourceETH");
-        debridgeDlnSourceAddressesMap[OP] = debridgeDlnSourceAddresses[1];
+        debridgeDlnSourceAddressesMap[OP] = DEBRIDGE_DLN_SOURCE_ADDRESS;
         vm.label(debridgeDlnSourceAddressesMap[OP], "DebridgeDlnSourceOP");
-        debridgeDlnSourceAddressesMap[BASE] = debridgeDlnSourceAddresses[2];
+        debridgeDlnSourceAddressesMap[BASE] = DEBRIDGE_DLN_SOURCE_ADDRESS;
         vm.label(debridgeDlnSourceAddressesMap[BASE], "DebridgeDlnSourceBASE");
 
-        mapping(uint64 => address) storage deBridgeGateAddressesMap = DEBRIDGE_GATE_ADDRESSES;
-        deBridgeGateAddressesMap[ETH] = deBridgeGateAddresses[0];
-        vm.label(deBridgeGateAddressesMap[ETH], "DeBridgeGateETH");
-        deBridgeGateAddressesMap[OP] = deBridgeGateAddresses[1];
-        vm.label(deBridgeGateAddressesMap[OP], "DeBridgeGateOP");
-        deBridgeGateAddressesMap[BASE] = deBridgeGateAddresses[2];
-        vm.label(deBridgeGateAddressesMap[BASE], "DeBridgeGateBASE");
-
-        mapping(uint64 => address) storage deBridgeGateAdminAddressesMap = DEBRIDGE_ADMIN_ADDRESSES;
-        deBridgeGateAdminAddressesMap[ETH] = deBridgeGateAdminAddresses[0];
-        vm.label(deBridgeGateAdminAddressesMap[ETH], "DeBridgeGateAdminETH");
-        deBridgeGateAdminAddressesMap[OP] = deBridgeGateAdminAddresses[1];
-        vm.label(deBridgeGateAdminAddressesMap[OP], "DeBridgeGateAdminOP");
-        deBridgeGateAdminAddressesMap[BASE] = deBridgeGateAdminAddresses[2];
-        vm.label(deBridgeGateAdminAddressesMap[BASE], "DeBridgeGateAdminBASE");
+        mapping(uint64 => address) storage debridgeDlnSourceAddressesDstMap = DEBRIDGE_DLN_ADDRESSES_DST;
+        debridgeDlnSourceAddressesDstMap[ETH] = DEBRIDGE_DLN_DST;
+        vm.label(debridgeDlnSourceAddressesDstMap[ETH], "DebridgeDlnDstETH");
+        debridgeDlnSourceAddressesDstMap[OP] = DEBRIDGE_DLN_DST;
+        vm.label(debridgeDlnSourceAddressesDstMap[OP], "DebridgeDlnDstOP");
+        debridgeDlnSourceAddressesDstMap[BASE] = DEBRIDGE_DLN_DST;
+        vm.label(debridgeDlnSourceAddressesDstMap[BASE], "DebridgeDlnDstBASE");
 
         mapping(uint64 => address) storage pendleRouters = PENDLE_ROUTERS;
         pendleRouters[ETH] = CHAIN_1_PendleRouter;
@@ -1759,24 +1737,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
         DebridgeDlnHelper(_getContract(srcChainId, DEBRIDGE_DLN_HELPER_KEY)).help(
             DEBRIDGE_DLN_ADDRESSES[srcChainId],
-            DEBRIDGE_DLN_ADDRESSES[dstChainId],
-            FORKS[dstChainId],
-            dstChainId,
-            executionData.logs
-        );
-    }
-
-    function _processDebridgeMessage(
-        uint64 srcChainId,
-        uint64 dstChainId,
-        ExecutionReturnData memory executionData
-    )
-        internal
-    {
-        DebridgeHelper(_getContract(srcChainId, DEBRIDGE_HELPER_KEY)).help(
-            DEBRIDGE_ADMIN_ADDRESSES[dstChainId],
-            DEBRIDGE_GATE_ADDRESSES[srcChainId],
-            DEBRIDGE_GATE_ADDRESSES[dstChainId],
+            DEBRIDGE_DLN_ADDRESSES_DST[dstChainId],
             FORKS[dstChainId],
             dstChainId,
             executionData.logs
@@ -2888,5 +2849,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
 
         return odosCallData;
+    }
+
+    /**
+     * @notice Creates the external call envelope for Debridge DLN V1.
+     * @param executorAddress The address of the contract to execute the payload on the destination chain.
+     * @param executionFee Fee for the executor.
+     * @param fallbackAddress Address to receive funds if execution fails.
+     * @param payload The actual data to be executed by the executorAddress.
+     * @param allowDelayedExecution Whether delayed execution is allowed.
+     * @param requireSuccessfulExecution Whether the external call must succeed.
+     * @return The encoded external call envelope V1, prefixed with version byte.
+     */
+    function _createDebridgeExternalCallEnvelope(
+        address executorAddress,
+        uint160 executionFee,
+        address fallbackAddress,
+        bytes memory payload,
+        bool allowDelayedExecution,
+        bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
+            executorAddress: executorAddress,
+            executionFee: executionFee,
+            fallbackAddress: fallbackAddress,
+            payload: payload,
+            allowDelayedExecution: allowDelayedExecution,
+            requireSuccessfullExecution: requireSuccessfulExecution
+        });
+
+        // Prepend version byte (1) to the encoded envelope
+        return abi.encodePacked(uint8(1), abi.encode(dataEnvelope));
     }
 }

@@ -247,7 +247,7 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
-         // Deploy SuperDestinationExecutor
+        // Deploy SuperDestinationExecutor
         deployedContracts.superDestinationExecutor = __deployContract(
             deployer,
             SUPER_DESTINATION_EXECUTOR_KEY,
@@ -269,7 +269,10 @@ contract DeployV2 is Script, Configuration {
             ACROSS_V3_ADAPTER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, ACROSS_V3_ADAPTER_KEY),
-            abi.encodePacked(type(AcrossV3Adapter).creationCode, abi.encode(configuration.acrossSpokePoolV3s[chainId]))
+            abi.encodePacked(
+                type(AcrossV3Adapter).creationCode,
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationExecutor)
+            )
         );
 
         // Deploy DebridgeAdapter
@@ -278,7 +281,10 @@ contract DeployV2 is Script, Configuration {
             DEBRIDGE_ADAPTER_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
-            abi.encodePacked(type(DebridgeAdapter).creationCode, abi.encode(deployedContracts.superDestinationExecutor))
+            abi.encodePacked(
+                type(DebridgeAdapter).creationCode,
+                abi.encode(configuration.debridgeDstDln[chainId], deployedContracts.superDestinationExecutor)
+            )
         );
 
         address[] memory allowedExecutors = new address[](2);
