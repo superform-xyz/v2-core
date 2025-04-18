@@ -255,33 +255,83 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         assertEq(Mock1InchRouter(executor).swappedAmount(), amount);
     }
 
-    function test_SwapThroughMockOdosRouter(uint256 amount) external {
+    function test_SwapThroughOdosRouter(uint256 amount) external {
         amount = _bound(amount);
 
         MockERC20 inputToken = new MockERC20("A", "A", 18);
         MockERC20 outputToken = new MockERC20("B", "B", 18);
 
+        address swapHook;
+        if (useRealOdosRouter) {
+            swapHook = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        } else {
+            swapHook = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
+        }
+
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[1] = swapHook;
 
         _getTokens(address(inputToken), account, amount);
         _getTokens(address(outputToken), mockOdosRouters[ETH], amount);
 
+        bytes memory approveData;
+        if (useRealOdosRouter) {
+            approveData = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
+        } else {
+            approveData = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
+        }
+
+        bytes memory odosCallData;
+        if (useRealOdosRouter) {
+           QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
+            quoteInputTokens[0] = QuoteInputToken({
+                tokenAddress: address(inputToken),
+                amount: amount
+            });
+
+            QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
+            quoteOutputTokens[0] = QuoteOutputToken({
+                tokenAddress: address(outputToken),
+                proportion: 1
+            });
+        
+            string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, account, ETH, false);
+            string memory requestBody = surlCallAssemble(path, account);
+
+            OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
+
+            odosCallData =
+                _createOdosSwapHookData(
+                    odosDecodedSwap.tokenInfo.inputToken,
+                    odosDecodedSwap.tokenInfo.inputAmount,
+                    odosDecodedSwap.tokenInfo.inputReceiver,
+                    odosDecodedSwap.tokenInfo.outputToken,
+                    odosDecodedSwap.tokenInfo.outputQuote,
+                    odosDecodedSwap.tokenInfo.outputMin,
+                    odosDecodedSwap.pathDefinition,
+                    odosDecodedSwap.executor,
+                    odosDecodedSwap.referralCode,
+                    false
+                );
+        } else {
+            odosCallData = _createMockOdosSwapHookData(
+                address(inputToken),
+                amount,
+                account,
+                address(outputToken),
+                amount,
+                amount,
+                "",
+                address(this),
+                uint32(0),
+                false
+            );
+        }
+
         bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
-        hooksData[1] = _createOdosSwapHookData(
-            address(inputToken),
-            amount,
-            account,
-            address(outputToken),
-            amount,
-            amount,
-            "",
-            address(this),
-            uint32(0),
-            false
-        );
+        hooksData[0] = approveData;
+        hooksData[1] = odosCallData;
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
