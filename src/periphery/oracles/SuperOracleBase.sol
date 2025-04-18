@@ -3,13 +3,13 @@ pragma solidity 0.8.28;
 
 // external
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
-import { AggregatorV3Interface } from "../../../vendor/chainlink/AggregatorV3Interface.sol";
+import { IOracle } from "../../vendor/awesome-oracles/IOracle.sol";
+import { AggregatorV3Interface } from "../../vendor/chainlink/AggregatorV3Interface.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { BoringERC20 } from "../../../vendor/BoringSolidity/BoringERC20.sol";
+import { BoringERC20 } from "../../vendor/BoringSolidity/BoringERC20.sol";
 
 // Superform
-import { ISuperOracle } from "../../interfaces/accounting/ISuperOracle.sol";
+import { ISuperOracle } from "../interfaces/ISuperOracle.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs
@@ -21,7 +21,7 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     mapping(address feed => uint256 maxStaleness) public feedMaxStaleness;
 
     uint256 public maxDefaultStaleness;
-    
+
     /// @notice Pending oracle update
     PendingUpdate public pendingUpdate;
 
@@ -33,12 +33,11 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
 
     /// @notice Array of active provider ids
     bytes32[] public activeProviders;
-    mapping (bytes32 provider => bool isSet) public isProviderSet;
+    mapping(bytes32 provider => bool isSet) public isProviderSet;
 
     /// @notice Timelock period for oracle updates
     uint256 internal constant TIMELOCK_PERIOD = 1 weeks;
     bytes32 internal constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
-
 
     constructor(
         address owner_,

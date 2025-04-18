@@ -12,7 +12,7 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for Staking Yield Sources
 contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _oracle) AbstractYieldSourceOracle(_oracle) { }
+    constructor() AbstractYieldSourceOracle() { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -74,7 +74,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
         address yieldSourceAddress,
         address expectedUnderlying
     )
-        external
+        public
         view
         override
         returns (bool)
@@ -83,7 +83,21 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function _validateBaseAsset(address yieldSourceAddress, address base) internal view override {
-        if (base != IStakingVault(yieldSourceAddress).stakingToken()) revert INVALID_BASE_ASSET();
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
+
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
+        }
     }
 }
