@@ -284,12 +284,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         bytes memory odosCallData;
         if (useRealOdosRouter) {
-           odosCallData = _createOdosCallData(
-                address(inputToken),
-                amount,
-                address(outputToken),
-                account
-            );
+            odosCallData = _createOdosCallData(address(inputToken), amount, address(outputToken), account);
         } else {
             odosCallData = _createMockOdosSwapHookData(
                 address(inputToken),

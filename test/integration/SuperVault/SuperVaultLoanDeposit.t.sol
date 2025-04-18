@@ -251,7 +251,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     function test_RepayAndWithdrawHook_FullRepayment() public {
         uint256 loanBalanceBefore = IERC20(loanToken).balanceOf(accountBase);
         uint256 collateralBalanceBefore = IERC20(collateralToken).balanceOf(accountBase);
-        
+
         _implementBorrowFlow();
 
         // repay
@@ -298,7 +298,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         uint256 fullCollateral = withdrawHook.deriveCollateralForFullRepayment(marketParams.id(), accountBase);
 
-        uint256 expectedCollateralBalanceAfterRepay = withdrawHook.deriveCollateralForPartialRepayment(marketParams.id(), accountBase, amount / 2, fullCollateral);
+        uint256 expectedCollateralBalanceAfterRepay =
+            withdrawHook.deriveCollateralForPartialRepayment(marketParams.id(), accountBase, amount / 2, fullCollateral);
 
         ISuperExecutor.ExecutorEntry memory repayEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: repayHookDataArray });
@@ -365,7 +366,10 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         uint256 loanBalanceAfterRepay = IERC20(loanToken).balanceOf(accountBase);
 
-        assertEq(loanBalanceAfterRepay, (loanBalanceBefore + borrowHook.deriveLoanAmount(amount, ltvRatio, lltv, oracleAddress)) - amount / 2);
+        assertEq(
+            loanBalanceAfterRepay,
+            (loanBalanceBefore + borrowHook.deriveLoanAmount(amount, ltvRatio, lltv, oracleAddress)) - amount / 2
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
