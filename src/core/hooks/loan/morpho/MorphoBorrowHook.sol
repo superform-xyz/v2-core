@@ -139,8 +139,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
 
         // loanAmount = collateralAmount * price / scalingFactor
         uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
-        uint256 availableLoanAmount = Math.mulDiv(fullAmount, lltv, PERCENTAGE_SCALING_FACTOR);
-        loanAmount = Math.mulDiv(availableLoanAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);
+        loanAmount = Math.mulDiv(fullAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);
     }
 
     /*//////////////////////////////////////////////////////////////
