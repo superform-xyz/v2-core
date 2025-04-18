@@ -96,6 +96,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+
     struct ValidateTxDataParams {
         bytes4 selector;
         bytes[] updatedInputs;
@@ -194,7 +195,8 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             updatedTxData = abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs);
         } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            updatedTxData = abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs, params.deadline);
+            updatedTxData =
+                abi.encodeWithSelector(params.selector, params.commandsData, params.updatedInputs, params.deadline);
         }
     }
 
@@ -216,7 +218,10 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
             bytes1 commandType = _commands[i];
 
             uint256 command = uint8(commandType & SpectraCommands.COMMAND_TYPE_MASK);
-            if (command != SpectraCommands.DEPOSIT_ASSET_IN_PT && command != SpectraCommands.DEPOSIT_ASSET_IN_IBT && command != SpectraCommands.TRANSFER_FROM) {
+            if (
+                command != SpectraCommands.DEPOSIT_ASSET_IN_PT && command != SpectraCommands.DEPOSIT_ASSET_IN_IBT
+                    && command != SpectraCommands.TRANSFER_FROM
+            ) {
                 revert INVALID_COMMAND();
             }
             commands[i] = command;
@@ -244,9 +249,9 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
             uint256 command = commands[i];
             bytes memory input = inputs[i];
             if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                (tokenOut, , , ) = abi.decode(input, (address, uint256, address, address));
+                (tokenOut,,,) = abi.decode(input, (address, uint256, address, address));
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                (tokenOut, ,) = abi.decode(input, (address, uint256, address));
+                (tokenOut,,) = abi.decode(input, (address, uint256, address));
             }
         }
     }

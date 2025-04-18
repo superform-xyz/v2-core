@@ -4,7 +4,6 @@ pragma solidity >=0.8.28;
 // Superform
 import { ISentinel } from "./ISentinel.sol";
 
-
 contract SuperPositionSentinel is ISentinel {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS

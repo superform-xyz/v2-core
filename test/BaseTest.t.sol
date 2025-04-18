@@ -16,7 +16,7 @@ import { ISuperDestinationExecutor } from "../src/core/interfaces/ISuperDestinat
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
-import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";    
+import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../src/core/executors/SuperDestinationExecutor.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
@@ -64,8 +64,8 @@ import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/App
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { DeBridgeSendOrderAndExecuteOnDstHook } from "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-
+import { DeBridgeSendOrderAndExecuteOnDstHook } from
+    "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
 
 // Swap hooks
 // --- 1inch
@@ -338,13 +338,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     address public mockBaseHook;
 
     bool public useLatestFork = false;
-    bool public useRealOdosRouter = false;
+    bool public useRealOdosRouter;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
+        // set useRealOdosRouter based on environment variable
+        useRealOdosRouter = keccak256(bytes(vm.envString("ENVIRONMENT"))) == keccak256(bytes("local"));
+
         // deploy accounts
         MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
         TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
@@ -528,7 +531,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault));
             vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor);
-            
+
             A[i].superDestinationExecutor = ISuperExecutor(
                 address(
                     new SuperDestinationExecutor{ salt: SALT }(
@@ -542,8 +545,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][SUPER_DESTINATION_EXECUTOR_KEY] = address(A[i].superDestinationExecutor);
 
             A[i].acrossV3Adapter = new AcrossV3Adapter{ salt: SALT }(
-                SPOKE_POOL_V3_ADDRESSES[chainIds[i]],
-                address(A[i].superDestinationExecutor)
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], address(A[i].superDestinationExecutor)
             );
             vm.label(address(A[i].acrossV3Adapter), ACROSS_V3_ADAPTER_KEY);
             contractAddresses[chainIds[i]][ACROSS_V3_ADAPTER_KEY] = address(A[i].acrossV3Adapter);
@@ -934,10 +936,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[22] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
 
-
-            A[i].deBridgeSendOrderAndExecuteOnDstHook = new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES[chainIds[i]]);
-            vm.label(address(A[i].deBridgeSendOrderAndExecuteOnDstHook), DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
-            hookAddresses[chainIds[i]][DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY] = address(A[i].deBridgeSendOrderAndExecuteOnDstHook);
+            A[i].deBridgeSendOrderAndExecuteOnDstHook =
+                new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES[chainIds[i]]);
+            vm.label(
+                address(A[i].deBridgeSendOrderAndExecuteOnDstHook), DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY
+            );
+            hookAddresses[chainIds[i]][DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY] =
+                address(A[i].deBridgeSendOrderAndExecuteOnDstHook);
             hooks[chainIds[i]][DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY] = Hook(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 HookCategory.Bridges,
@@ -950,7 +955,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[23] = address(A[i].deBridgeSendOrderAndExecuteOnDstHook);
 
-
             A[i].fluidClaimRewardHook = new FluidClaimRewardHook{ salt: SALT }();
             vm.label(address(A[i].fluidClaimRewardHook), FLUID_CLAIM_REWARD_HOOK_KEY);
             hookAddresses[chainIds[i]][FLUID_CLAIM_REWARD_HOOK_KEY] = address(A[i].fluidClaimRewardHook);
@@ -962,7 +966,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksAddresses[24] = address(A[i].fluidClaimRewardHook);
-
 
             A[i].fluidStakeHook = new FluidStakeHook{ salt: SALT }();
             vm.label(address(A[i].fluidStakeHook), FLUID_STAKE_HOOK_KEY);
@@ -1751,13 +1754,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint64 srcChainId,
         uint64 dstChainId,
         ExecutionReturnData memory executionData
-    ) internal {
+    )
+        internal
+    {
         DebridgeDlnHelper(_getContract(srcChainId, DEBRIDGE_DLN_HELPER_KEY)).help(
-          DEBRIDGE_DLN_ADDRESSES[srcChainId],
-          DEBRIDGE_DLN_ADDRESSES[dstChainId],
-          FORKS[dstChainId],
-          dstChainId,
-          executionData.logs
+            DEBRIDGE_DLN_ADDRESSES[srcChainId],
+            DEBRIDGE_DLN_ADDRESSES[dstChainId],
+            FORKS[dstChainId],
+            dstChainId,
+            executionData.logs
         );
     }
 
@@ -1870,7 +1875,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.amount,
             validUntil
         );
-
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 
@@ -2110,17 +2114,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint32 referralCode;
         bytes permitEnvelope;
     }
-    function _createDebridgeSendFundsAndExecuteHookData(
-        DebridgeOrderData memory d
-    ) internal pure returns (bytes memory hookData) {
+
+    function _createDebridgeSendFundsAndExecuteHookData(DebridgeOrderData memory d)
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         bytes memory part1 = _encodeDebridgePart1(d);
         bytes memory part2 = _encodeDebridgePart2(d);
         hookData = bytes.concat(part1, part2);
     }
 
-    function _encodeDebridgePart1(
-        DebridgeOrderData memory d
-    ) internal pure returns (bytes memory) {
+    function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         bytes memory takeTokenAddressBytes = abi.encodePacked(d.takeTokenAddress);
         bytes memory receiverDstBytes = abi.encodePacked(d.receiverDst);
 
@@ -2141,9 +2146,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-    function _encodeDebridgePart2(
-        DebridgeOrderData memory d
-    ) internal pure returns (bytes memory) {
+    function _encodeDebridgePart2(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
             d.allowedTakerDst.length,
             d.allowedTakerDst,
@@ -2158,9 +2161,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             d.permitEnvelope
         );
     }
-
-
-
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData(
         address inputToken,

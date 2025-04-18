@@ -17,7 +17,7 @@ interface ISuperDestinationExecutor {
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-     /// @notice Checks if a merkle root has been used by an account
+    /// @notice Checks if a merkle root has been used by an account
     /// @param user The user account to check
     /// @param merkleRoot The merkle root to check
     function isMerkleRootUsed(address user, bytes32 merkleRoot) external view returns (bool);
