@@ -37,9 +37,6 @@ interface IYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Returns the oracle registry contract
-    /// @return oracleRegistry The oracle registry contract
-    function oracleRegistry() external view returns (IOracle);
 
     /// @notice Returns the number of decimals of the yield source shares
     /// @return decimals The number of decimals of the yield source shares
@@ -107,6 +104,18 @@ interface IYieldSourceOracle {
         view
         returns (bool);
 
+    /// @notice Checks if a given address is a valid underlying asset for multiple yield sources
+    /// @param yieldSourceAddresses Array of yield sources to check
+    /// @param expectedUnderlying Array of expected underlying addresses
+    /// @return isValid Array of booleans indicating if each yield source has the expected underlying asset
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
+        external
+        view
+        returns (bool[] memory isValid);
+
     /// @notice Derives the price of an action for multiple yield sources
     /// @param yieldSourceAddresses Array of yield sources to derive the price for
     /// @return pricesPerShare Array of prices for each yield source
@@ -131,75 +140,4 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddresses Array of yield sources to derive TVL for
     /// @return tvls Array containing total TVL for each yield source
     function getTVLMultiple(address[] memory yieldSourceAddresses) external view returns (uint256[] memory tvls);
-
-    /// @notice Returns the price per share in USD terms
-    /// @param yieldSourceAddress The yield source to derive the price for
-    /// @param base The underlying asset of the yield source
-    /// @return pricePerShareUSD The price per share in USD terms
-    function getPricePerShareUSD(
-        address yieldSourceAddress,
-        address base
-    )
-        external
-        view
-        returns (uint256 pricePerShareUSD);
-
-    /// @notice Returns the TVL in USD terms
-    /// @param yieldSourceAddress The yield source to derive TVL for
-    /// @param ownerOfShares The owner of the shares
-    /// @param base The underlying asset of the yield source
-    /// @return tvlUSD The TVL in USD terms
-    function getTVLByOwnerOfSharesUSD(
-        address yieldSourceAddress,
-        address ownerOfShares,
-        address base
-    )
-        external
-        view
-        returns (uint256 tvlUSD);
-
-    /// @notice Returns the total TVL in USD terms
-    /// @param yieldSourceAddress The yield source to derive TVL for
-    /// @param base The underlying asset of the yield source
-    /// @return tvlUSD The TVL in USD terms
-    function getTVLUSD(address yieldSourceAddress, address base) external view returns (uint256 tvlUSD);
-
-    /// @notice Returns the price per share in USD terms for multiple yield sources
-    /// @param yieldSourceAddresses Array of yield sources to derive the price for
-    /// @param baseAddresses Array of underlying assets for each yield source
-    /// @return pricesPerShareUSD Array of prices in USD terms for each yield source
-    function getPricePerShareMultipleUSD(
-        address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses
-    )
-        external
-        view
-        returns (uint256[] memory pricesPerShareUSD);
-
-    /// @notice Returns the TVL in USD terms for multiple yield sources and owners
-    /// @param yieldSourceAddresses Array of yield sources to derive TVL for
-    /// @param ownersOfShares Array of arrays containing owner addresses for each yield source
-    /// @param baseAddresses Array of underlying assets for each yield source
-    /// @return userTvlsUSD Array of arrays containing TVLs in USD terms for each owner in each yield source
-    /// @return totalTvlsUSD Array containing total TVL in USD terms for each yield source for the selected owners
-    function getTVLByOwnerOfSharesMultipleUSD(
-        address[] memory yieldSourceAddresses,
-        address[][] memory ownersOfShares,
-        address[] memory baseAddresses
-    )
-        external
-        view
-        returns (uint256[][] memory userTvlsUSD, uint256[] memory totalTvlsUSD);
-
-    /// @notice Returns the total TVL in USD terms for multiple yield sources
-    /// @param yieldSourceAddresses Array of yield sources to derive TVL for
-    /// @param baseAddresses Array of underlying assets for each yield source
-    /// @return tvlsUSD Array containing total TVL in USD terms for each yield source
-    function getTVLMultipleUSD(
-        address[] memory yieldSourceAddresses,
-        address[] memory baseAddresses
-    )
-        external
-        view
-        returns (uint256[] memory tvlsUSD);
 }

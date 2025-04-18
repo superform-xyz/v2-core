@@ -5,13 +5,12 @@ pragma solidity 0.8.28;
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 /// @title SuperLedgerConfiguration
 /// @author Superform Labs
 /// @notice Configuration for SuperLedger
-contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfiguration {
+contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -28,8 +27,6 @@ contract SuperLedgerConfiguration is SuperRegistryImplementer, ISuperLedgerConfi
     uint256 internal constant MAX_FEE_PERCENT = 5000;
     uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000; //50% of current fee percent
     uint256 internal constant PROPOSAL_EXPIRATION_TIME = 1 weeks;
-
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS

@@ -28,7 +28,7 @@ contract ApproveWithPermit2Hook is BaseHook {
     //////////////////////////////////////////////////////////////*/
     address public permit2;
 
-    constructor(address registry_, address permit2_) BaseHook(registry_, HookType.NONACCOUNTING, "Token") {
+    constructor(address permit2_) BaseHook(HookType.NONACCOUNTING, "Token") {
         if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
         permit2 = permit2_;
     }

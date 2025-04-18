@@ -12,7 +12,7 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for Spectra Principal Tokens (PTs)
 contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
+    constructor() AbstractYieldSourceOracle() { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -78,7 +78,7 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         address yieldSourceAddress,
         address expectedUnderlying
     )
-        external
+        public
         view
         override
         returns (bool)
@@ -87,9 +87,23 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function _validateBaseAsset(address ptAddress, address base) internal view override {
-        // Use underlying() to get the PT's base asset
-        if (base != IPrincipalToken(ptAddress).underlying()) revert INVALID_BASE_ASSET();
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
+
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            // Reuse the public logic directly
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
+        }
     }
 
     function _decimals(address ptAddress) internal view returns (uint8) {

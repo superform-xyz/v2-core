@@ -9,7 +9,6 @@ struct ApproxParams {
     uint256 eps;
 }
 
-
 struct TokenInput {
     address tokenIn;
     uint256 netTokenIn;
@@ -61,6 +60,7 @@ struct TokenOutput {
     address pendleSwap;
     SwapData swapData;
 }
+
 enum OrderType {
     SY_FOR_PT,
     PT_FOR_SY,
@@ -82,6 +82,7 @@ enum SwapType {
     RESERVE_4,
     RESERVE_5
 }
+
 interface IPendleRouterV4 {
     function swapExactTokenForPt(
         address receiver,
@@ -90,7 +91,10 @@ interface IPendleRouterV4 {
         ApproxParams calldata guessPtOut,
         TokenInput calldata input,
         LimitOrderData calldata limit
-    ) external payable returns (uint256 netPtOut, uint256 netSyFee, uint256 netSyInterm);
+    )
+        external
+        payable
+        returns (uint256 netPtOut, uint256 netSyFee, uint256 netSyInterm);
 
     function swapExactPtForToken(
         address receiver,
@@ -98,7 +102,7 @@ interface IPendleRouterV4 {
         uint256 exactPtIn,
         TokenOutput calldata output,
         LimitOrderData calldata limit
-    ) external returns (uint256 netTokenOut, uint256 netSyFee, uint256 netSyInterm);
+    )
+        external
+        returns (uint256 netTokenOut, uint256 netSyFee, uint256 netSyInterm);
 }
-
-

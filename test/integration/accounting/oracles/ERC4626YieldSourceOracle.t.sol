@@ -16,7 +16,7 @@ contract ERC4626YieldSourceOracleTest is BaseE2ETest {
     function setUp() public virtual override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
-        oracle = new ERC4626YieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
+        oracle = new ERC4626YieldSourceOracle();
         underlying = new MockERC20("Underlying", "UND", 18);
         vault = new Mock4626Vault(IERC20(address(underlying)), "Vault", "VAULT");
     }

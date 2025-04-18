@@ -15,7 +15,7 @@ contract StakingYieldSourceOracleIntegration is BaseE2ETest {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
-        oracle = new StakingYieldSourceOracle(_getContract(ETH, SUPER_ORACLE_KEY));
+        oracle = new StakingYieldSourceOracle();
         yieldSource = IStakingVault(CHAIN_1_FluidVault);
         underlying = yieldSource.stakingToken();
     }

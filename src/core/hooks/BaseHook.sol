@@ -6,12 +6,11 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { ISuperHook } from "../interfaces/ISuperHook.sol";
-import { SuperRegistryImplementer } from "../utils/SuperRegistryImplementer.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
 /// @notice Base hook for all hooks
-abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
+abstract contract BaseHook is ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -36,7 +35,7 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
     error ADDRESS_NOT_VALID();
     error DATA_LENGTH_INSUFFICIENT();
 
-    constructor(address registry_, ISuperHook.HookType hookType_, bytes32 subType_) SuperRegistryImplementer(registry_) {
+    constructor(ISuperHook.HookType hookType_, bytes32 subType_) {
         hookType = hookType_;
         subType = subType_;
     }
@@ -115,8 +114,4 @@ abstract contract BaseHook is SuperRegistryImplementer, ISuperHook {
         }
         return data;
     }   
-
-    function _getAddress(bytes32 id_) internal view returns (address) {
-        return superRegistry.getAddress(id_);
-    }
 }

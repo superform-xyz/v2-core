@@ -34,15 +34,14 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         uint256 amount;
         uint256 lltv;
         bool usePrevHookAmount;
-        bool isPositiveFeed;
         bool isFullRepayment;
     }
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, bytes32 hookSubtype_) BaseLoanHook(registry_, hookSubtype_) {
-        morphoInterface = IMorpho(registry_);
+    constructor(address morpho_, bytes32 hookSubtype_) BaseLoanHook(hookSubtype_) {
+        morphoInterface = IMorpho(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -72,8 +71,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         uint256 amount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(data, 112);
         bool usePrevHookAmount = _decodeBool(data, 144);
-        bool isPositiveFeed = _decodeBool(data, 145);
-        bool isFullRepayment = _decodeBool(data, 146);
+        bool isFullRepayment = _decodeBool(data, 145);
 
         vars = BuildHookLocalVars({
             loanToken: loanToken,
@@ -83,7 +81,6 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
             amount: amount,
             lltv: lltv,
             usePrevHookAmount: usePrevHookAmount,
-            isPositiveFeed: isPositiveFeed,
             isFullRepayment: isFullRepayment
         });
     }

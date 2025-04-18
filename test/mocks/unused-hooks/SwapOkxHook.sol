@@ -26,6 +26,7 @@ contract SwapOkxHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
     error INVALID_TOKEN();
     error INVALID_VALUE();
     error INVALID_BATCH();
@@ -34,7 +35,7 @@ contract SwapOkxHook is BaseHook {
     error INVALID_ORDER_ID();
     error INVALID_BATCH_LENGTH();
 
-    constructor(address registry_, address router_) BaseHook(registry_, HookType.NONACCOUNTING, "Swap") {
+    constructor(address router_) BaseHook(HookType.NONACCOUNTING, "Swap") {
         if (router_ == address(0)) {
             revert ZERO_ADDRESS();
         }

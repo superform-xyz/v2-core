@@ -26,7 +26,7 @@ contract GearboxClaimRewardHookTest is BaseTest {
         mockAccount = makeAddr("account");
         mockAmount = 1000;
 
-        hook = new GearboxClaimRewardHook(address(this));
+        hook = new GearboxClaimRewardHook();
     }
 
     function test_Constructor() public view {

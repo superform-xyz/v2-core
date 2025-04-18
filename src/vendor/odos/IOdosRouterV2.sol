@@ -51,8 +51,5 @@ interface IOdosRouterV2 {
         returns (uint256 amountOut);
 
     /// @notice Custom decoder to swap with compact calldata for efficient execution on L2s
-    function swapCompact() 
-        external
-        payable
-        returns (uint256);
+    function swapCompact() external payable returns (uint256);
 }

@@ -16,10 +16,11 @@ abstract contract Constants {
     string internal constant POLYGON_KEY = "Polygon";
 
     // keys
-    string internal constant SUPER_REGISTRY_KEY = "SuperRegistry";
     string internal constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
-    string internal constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
+    string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
+    string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
+    string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
@@ -27,12 +28,7 @@ abstract contract Constants {
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string internal constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
 
-    string internal constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
-    string internal constant SUPER_REGISTRY_ID = "SUPER_REGISTRY_ID";
-    string internal constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
-    string internal constant ACROSS_TARGET_EXECUTOR_ID = "ACROSS_TARGET_EXECUTOR_ID";
     string internal constant SUPER_BUNDLER_ID = "SUPER_BUNDLER_ID";
-    string internal constant SUPER_NATIVE_PAYMASTER_ID = "SUPER_NATIVE_PAYMASTER_ID";
     string internal constant TREASURY_ID = "TREASURY_ID";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID =
         "DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_ID";
@@ -110,7 +106,6 @@ abstract contract Constants {
 
     // Hook Keys
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
-    string internal constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
     string internal constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
     string internal constant SOMELIER_CLAIM_ALL_REWARDS_HOOK_KEY = "SomelierClaimAllRewardsHook";

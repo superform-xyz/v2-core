@@ -4,7 +4,6 @@ pragma solidity >=0.8.28;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Swap1InchHook } from "../../../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import { BaseTest } from "../../../../BaseTest.t.sol";
-import { SuperRegistryImplementer } from "../../../../../src/core/utils/SuperRegistryImplementer.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
@@ -53,7 +52,7 @@ contract Swap1InchHookTest is BaseTest {
         // Create a mock router for testing
         mockRouter = makeAddr("mockRouter");
 
-        hook = new Swap1InchHook(address(this), mockRouter);
+        hook = new Swap1InchHook(mockRouter);
     }
 
     function test_Constructor() public view {
@@ -62,8 +61,8 @@ contract Swap1InchHookTest is BaseTest {
     }
 
     function test_Constructor_RevertIf_AddressZero() public {
-        vm.expectRevert(SuperRegistryImplementer.ZERO_ADDRESS.selector);
-        new Swap1InchHook(address(this), address(0));
+        vm.expectRevert(Swap1InchHook.ZERO_ADDRESS.selector);
+        new Swap1InchHook(address(0));
     }
 
     function test_Build_RevertIf_CalldataIsNotValid() public {

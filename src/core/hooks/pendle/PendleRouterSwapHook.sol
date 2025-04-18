@@ -52,12 +52,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     error INVALID_GUESS_PT_OUT();
     error MAKING_AMOUNT_NOT_VALID();
 
-    constructor(
-        address registry_,
-        address pendleRouterV4_
-    )
-        BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.PTYT)
-    {
+    constructor(address pendleRouterV4_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
         pendleRouterV4 = IPendleRouterV4(pendleRouterV4_);
     }
@@ -75,7 +70,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         view
         override
         returns (Execution[] memory executions)
-    {   
+    {
         address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         uint256 value = abi.decode(data[25:57], (uint256));

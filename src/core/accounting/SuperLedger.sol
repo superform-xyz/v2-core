@@ -9,8 +9,8 @@ import { BaseLedger } from "./BaseLedger.sol";
 contract SuperLedger is BaseLedger {
     constructor(
         address ledgerConfiguration_,
-        address superRegistry_
+        address[] memory allowedExecutors_
     )
-        BaseLedger(ledgerConfiguration_, superRegistry_)
+        BaseLedger(ledgerConfiguration_, allowedExecutors_)
     { }
 }

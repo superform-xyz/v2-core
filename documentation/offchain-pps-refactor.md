@@ -25,14 +25,17 @@ Below are the **new or modified functionalities** needed to implement the off-ch
 ### 1. Off-Chain PPS Storage and Updates
 - **New PPS Variable**  
   Each SuperVault (or its strategy) will store a **single pps value** (e.g., `uint256 storedPPS`), plus metadata such as the block timestamp of last update and the strategist’s address that posted it.
-- **Function: `updatePPS(uint256 newPPS)`**  
+- **Function: `updatePPS(uint256 newPPS, uint256 calculationBlock)`**  
   - **Callable by**: Authorized strategist (i.e., address that has staked and is recognized as the manager).  
   - **Logic**:  
-    1. Checks that the new PPS is within an allowed rate-limited deviation from the old PPS (if applicable).  
-    2. Stores `storedPPS = newPPS`.  
-    3. Emits event `PPSUpdated(strategist, newPPS)`.  
-    4. Opens a **dispute window** during which anyone can challenge this PPS (until a further update). Disputes are
-    settled with an off-chain mechanism automatically
+    1. Checks that the new PPS is within an allowed rate-limited deviation from the old PPS (if applicable), otherwise pause the contract
+    2. Checks that the PPS is within reasonable bounds of change from the last stored PPS, otherwise pause the contract
+    3. Checks if `block.number - calculationBlock < threshold`, where threshold is a number of blocks allowed since calculation block and block.number
+    this is to avoid the strategist always providing the same PPS over time by pointing to the same block.number regardless of being very far in the past. Otherwise 
+    revert.
+    4. Stores `storedPPS = newPPS`.  
+    5. New dispute window for this update kicks in during which anyone can challenge this PPS (until a further update). 
+    6. Emits event `PPSUpdated(oldPPs, newPPS, calculationBlock)`.  
 
 - **PPS Usage**
   - Replace the old on-chain calls to `totalAssets()` or yield-source TVLs with a simple fetch of `storedPPS`.  
@@ -44,11 +47,12 @@ Below are the **new or modified functionalities** needed to implement the off-ch
   - Must be flexible enough to handle different yield sources. Possibly integrated with existing `IYieldSourceOracle` calls or the aggregator approach to ensure it can reflect the same final number the off-chain strategist script would have used.
 
 ### 3. Dispute and Slashing Mechanism
-  - **Callable by**: Any user (the “challenger”) who suspects the current `storedPPS` is incorrect.
-  - Disputes are handled off-chain by providing a valid block number and simulation  
+  - **Callable by**: Any user (the "disputer") who suspects the current `storedPPS` is incorrect.
+  - Disputes are handled off-chain by providing a valid block number and simulation (not to be implemented in solidity)
   - Requires the challenger to deposit a stake (e.g., `challengeStake` in \$UP tokens) into a Dispute contract.  
-  - If the contract is within the dispute window, it triggers:  
-       - If `abs(simulatedPPS - storedPPS) / storedPPS > disputeTolerance`, the strategist is slashed (the off-chain **Adjudicator** calls the Dispute contract).  
+  - The following happens in a combination of off-chain and on-chain behaviour
+       1. [Off-chain] If `abs(simulatedPPS - storedPPS) / storedPPS > disputeTolerance`, the strategist is going to be queued up to be slashed
+       2. [On-chain] The off-chain **Adjudicator** calls the Dispute contract).  
          - **Slash**: The strategist’s stake in the staking contract is *partially or fully* slashed and the challenger is rewarded from that slashed stake.  
          - No changes are made to the stored pps
          - Emit event `StrategistSlashed(...)`.  

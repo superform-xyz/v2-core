@@ -46,7 +46,7 @@ contract MorphoRepayHookTest is BaseTest {
         super.setUp();
 
         // Initialize hook
-        hook = new MorphoRepayHook(address(this), MORPHO);
+        hook = new MorphoRepayHook(MORPHO);
 
         loanToken = ERC20(existingUnderlyingTokens[BASE][WETH_KEY]);
         collateralToken = ERC20(existingUnderlyingTokens[BASE][USDC_KEY]);
@@ -70,19 +70,19 @@ contract MorphoRepayHookTest is BaseTest {
 
     function test_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new MorphoRepayHook(address(this), address(0));
+        new MorphoRepayHook(address(0));
     }
 
     function test_Build_RevertIf_InvalidAddressesInParams() public {
         // Test invalid loan token (address(0))
         address invalidLoanToken = address(0);
-        bytes memory dataInvalidLoan = _encodeData(invalidLoanToken, address(collateralToken), oracleAddress, irmAddress, amount, lltv, false, false, false);
+        bytes memory dataInvalidLoan = _encodeData(invalidLoanToken, address(collateralToken), oracleAddress, irmAddress, amount, lltv, false, false);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), dataInvalidLoan);
 
         // Test invalid collateral token (address(0))
         address invalidCollateralToken = address(0);
-        bytes memory dataInvalidCollateral = _encodeData(address(loanToken), invalidCollateralToken, oracleAddress, irmAddress, amount, lltv, false, false, false);
+        bytes memory dataInvalidCollateral = _encodeData(address(loanToken), invalidCollateralToken, oracleAddress, irmAddress, amount, lltv, false, false);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), dataInvalidCollateral);
     }
@@ -98,14 +98,13 @@ contract MorphoRepayHookTest is BaseTest {
         uint256 _amount,
         uint256 _lltv,
         bool usePrevHook,
-        bool isFullRepayment,
-        bool isPositiveFeed
+        bool isFullRepayment
     )
         internal
         pure
         returns (bytes memory)
     {
-        return _encodeDataWithParams(_loanToken, _collateralToken, _oracle, _irm, _amount, _lltv, usePrevHook, isFullRepayment, isPositiveFeed);
+        return _encodeDataWithParams(_loanToken, _collateralToken, _oracle, _irm, _amount, _lltv, usePrevHook, isFullRepayment);
     }
 
     /// @dev Encodes data for the MorphoRepayHook using specific MarketParams.
@@ -117,8 +116,7 @@ contract MorphoRepayHookTest is BaseTest {
         uint256 _amount,
         uint256 _lltv,
         bool usePrevHook,
-        bool isFullRepayment,
-        bool isPositiveFeed
+        bool isFullRepayment
     )
         internal
         pure
@@ -132,8 +130,7 @@ contract MorphoRepayHookTest is BaseTest {
             _amount, // uint256 amount (80-111)
             _lltv, // uint256 lltv (112-143)
             usePrevHook, // bool usePrevHookAmount (144)
-            isPositiveFeed, // bool isPositiveFeed (145)
-            isFullRepayment // bool isFullRepayment (146)
+            isFullRepayment // bool isFullRepayment (145)
         );
     }
 }

@@ -28,7 +28,7 @@ contract ApproveAndGearboxStakeHookTest is BaseTest {
         yieldSource = makeAddr("yieldSource");
         amount = 1000;
 
-        hook = new ApproveAndGearboxStakeHook(address(this));
+        hook = new ApproveAndGearboxStakeHook();
     }
 
     function test_Constructor() public view {

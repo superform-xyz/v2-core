@@ -21,23 +21,21 @@ contract SpectraExchangeHookTest is BaseTest {
     MockHook public prevHook;
     address public account;
 
-    
     function setUp() public override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
 
         router = new MockSpectraRouter();
-        hook = new SpectraExchangeHook(address(this), address(router));
+        hook = new SpectraExchangeHook(address(router));
         token = new MockERC20("Test Token", "TEST", 18);
         account = address(this);
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(token));
-
     }
 
     function test_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SpectraExchangeHook(address(this), address(0));
+        new SpectraExchangeHook(address(0));
     }
 
     function test_Build_DepositAssetInPT() public view {
@@ -47,11 +45,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -62,7 +56,7 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
-        
+
         assertEq(executions.length, 1);
         assertEq(executions[0].target, address(router));
         assertEq(executions[0].value, 0);
@@ -75,11 +69,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(token), 1e18, account);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -90,7 +80,7 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
-        
+
         assertEq(executions.length, 1);
         assertEq(executions[0].target, address(router));
         assertEq(executions[0].value, 0);
@@ -106,11 +96,7 @@ contract SpectraExchangeHookTest is BaseTest {
         inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
         // Encode the full transaction data
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -121,7 +107,7 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        
+
         assertEq(executions.length, 1);
         assertEq(executions[0].target, address(router));
         assertEq(executions[0].value, 0);
@@ -134,11 +120,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(0), 1e18, account, account, 1);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -159,11 +141,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(0), 1e18, account);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -186,11 +164,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(token), 1e18, otherAccount, account, 1);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -212,11 +186,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -237,11 +207,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(token), 1e18, account, account);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -262,11 +228,7 @@ contract SpectraExchangeHookTest is BaseTest {
         bytes[] memory inputs = new bytes[](1);
         inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")),
-            commandsData,
-            inputs
-        );
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -277,9 +239,9 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         hook.preExecute(address(0), account, data);
-        
+
         token.mint(account, 2e18);
-        
+
         hook.postExecute(address(0), account, data);
     }
 
@@ -292,12 +254,8 @@ contract SpectraExchangeHookTest is BaseTest {
 
         uint256 deadline = block.timestamp + 1 hours;
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[],uint256)")),
-            commandsData,
-            inputs,
-            deadline
-        );
+        bytes memory txData =
+            abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[],uint256)")), commandsData, inputs, deadline);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
@@ -308,7 +266,7 @@ contract SpectraExchangeHookTest is BaseTest {
         );
 
         Execution[] memory executions = hook.build(address(0), account, data);
-        
+
         assertEq(executions.length, 1);
         assertEq(executions[0].target, address(router));
         assertEq(executions[0].value, 0);
@@ -323,12 +281,8 @@ contract SpectraExchangeHookTest is BaseTest {
 
         uint256 deadline = block.timestamp - 1;
 
-        bytes memory txData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[],uint256)")),
-            commandsData,
-            inputs,
-            deadline
-        );
+        bytes memory txData =
+            abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[],uint256)")), commandsData, inputs, deadline);
 
         bytes memory data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId

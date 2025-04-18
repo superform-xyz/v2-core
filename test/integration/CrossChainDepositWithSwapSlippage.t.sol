@@ -7,8 +7,9 @@ import { console2 } from "forge-std/console2.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { IAcrossTargetExecutor } from "../../src/core/interfaces/IAcrossTargetExecutor.sol";
+import { ISuperDestinationExecutor } from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { AcrossV3Adapter } from "../../src/core/adapters/AcrossV3Adapter.sol";
 
 // External
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
@@ -57,9 +58,13 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
     ISuperExecutor public superExecutorOnETH;
     ISuperExecutor public superExecutorOnBase;
 
-    IAcrossTargetExecutor public superTargetExecutorOnBase;
-    IAcrossTargetExecutor public superTargetExecutorOnETH;
-    IAcrossTargetExecutor public superTargetExecutorOnOP;
+    ISuperDestinationExecutor public superTargetExecutorOnBase;
+    ISuperDestinationExecutor public superTargetExecutorOnETH;
+    ISuperDestinationExecutor public superTargetExecutorOnOP;
+
+    AcrossV3Adapter public acrossV3AdapterOnBase;
+    AcrossV3Adapter public acrossV3AdapterOnETH;
+    AcrossV3Adapter public acrossV3AdapterOnOP;
 
     IValidator public validatorOnBase;
     IValidator public validatorOnETH;
@@ -125,9 +130,13 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, "SuperExecutor"));
 
         // Set up the super target executors
-        superTargetExecutorOnBase = IAcrossTargetExecutor(_getContract(BASE, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnETH = IAcrossTargetExecutor(_getContract(ETH, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnOP = IAcrossTargetExecutor(_getContract(OP, ACROSS_TARGET_EXECUTOR_KEY));
+        superTargetExecutorOnBase = ISuperDestinationExecutor(_getContract(BASE, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnETH = ISuperDestinationExecutor(_getContract(ETH, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnOP = ISuperDestinationExecutor(_getContract(OP, SUPER_DESTINATION_EXECUTOR_KEY));
+
+        acrossV3AdapterOnBase = AcrossV3Adapter(_getContract(BASE, ACROSS_V3_ADAPTER_KEY));
+        acrossV3AdapterOnETH = AcrossV3Adapter(_getContract(ETH, ACROSS_V3_ADAPTER_KEY));
+        acrossV3AdapterOnOP = AcrossV3Adapter(_getContract(OP, ACROSS_V3_ADAPTER_KEY));
 
         // Set up the destination validators
         validatorOnBase = IValidator(_getContract(BASE, SUPER_DESTINATION_VALIDATOR_KEY));
@@ -177,17 +186,16 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
                 validator: address(validatorOnBase),
                 signer: validatorSigners[BASE],
                 signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(BASE),
                 amount: amount,
                 account: accountBase,
@@ -266,17 +274,16 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
                 validator: address(validatorOnBase),
                 signer: validatorSigners[BASE],
                 signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(BASE),
                 amount: intentAmount,
                 account: accountBase,
@@ -327,7 +334,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         {
             address[] memory dstHooksAddresses = new address[](4);
             dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-            dstHooksAddresses[1] = _getHookAddress(BASE, SWAP_ODOS_HOOK_KEY);
+            dstHooksAddresses[1] = _getHookAddress(BASE, MOCK_SWAP_ODOS_HOOK_KEY);
             dstHooksAddresses[2] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
             dstHooksAddresses[3] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
@@ -356,17 +363,16 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 false
             );
 
-            uint256 nonce = IAcrossTargetExecutor(superTargetExecutorOnBase).nonces(accountBase);
             TargetExecutorMessage memory messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
                 validator: address(validatorOnBase),
                 signer: validatorSigners[BASE],
                 signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
                 targetExecutor: address(superTargetExecutorOnBase),
                 nexusFactory: CHAIN_8453_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
-                nonce: nonce,
                 chainId: uint64(BASE),
                 amount: intentAmount,
                 account: accountBase,

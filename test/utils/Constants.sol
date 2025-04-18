@@ -45,6 +45,8 @@ abstract contract Constants {
 
     // hooks
     string public constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
+    string public constant MOCK_SWAP_ODOS_HOOK_KEY = "MockSwapOdosHook";
+    string public constant MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY = "MockApproveAndSwapOdosHook";
     string public constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string public constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string public constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
@@ -71,7 +73,6 @@ abstract contract Constants {
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
-    string public constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
@@ -100,13 +101,17 @@ abstract contract Constants {
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
-    string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
-    string public constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
+    string public constant DEBRIDGE_DLN_HELPER_KEY = "DebridgeDlnHelper";
+    string public constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
+    string public constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
+    string public constant SUPER_EXECUTOR_WITH_SP_LOCK_KEY = "SuperExecutorWithSPLock";
     string public constant MOCK_TARGET_EXECUTOR_KEY = "MockTargetExecutor";
+    string public constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
+    string public constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string public constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
@@ -183,11 +188,7 @@ abstract contract Constants {
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_KEY";
 
-    string public constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
-    string public constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
-    string public constant ACROSS_TARGET_EXECUTOR_ID = "ACROSS_TARGET_EXECUTOR_ID";
     string public constant SUPER_GAS_TANK_ID = "SUPER_GAS_TANK_ID";
-    string public constant SUPER_NATIVE_PAYMASTER_ID = "SUPER_NATIVE_PAYMASTER_ID";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;
@@ -204,15 +205,19 @@ abstract contract Constants {
     address public constant CHAIN_1_SpectraRouter = 0xD733e545C65d539f588d7c3793147B497403F0d2;
     address public constant CHAIN_1_SpectraPTToken = 0x3b660B2f136FddF98A081439De483D8712c16ca4; // PT-cUSDO
     address public constant CHAIN_1_SPECTRA_PT_IPOR_USDC = 0xf2C5E30fD95A7363583BCAa932Dbe493765BF74f; // PT-IPOR-USDC
+    address public constant CHAIN_1_DEBRIDGE_DLN_SOURCE_ADDRESS = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
 
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
     address public constant CHAIN_10_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_10_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_10_DEBRIDGE_DLN_SOURCE_ADDRESS = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
     address public constant CHAIN_8453_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_8453_DEBRIDGE_DLN_SOURCE_ADDRESS = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
+
 
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
