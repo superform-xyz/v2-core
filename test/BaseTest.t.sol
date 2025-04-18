@@ -2749,4 +2749,44 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             referralCode
         );
     }
+
+    function _createOdosCallData(
+        address inputToken,
+        uint256 amount,
+        address outputToken,
+        address account
+    ) internal returns (bytes memory) {
+        QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
+        quoteInputTokens[0] = QuoteInputToken({
+            tokenAddress: inputToken,
+            amount: amount
+        });
+
+        QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
+        quoteOutputTokens[0] = QuoteOutputToken({
+            tokenAddress: outputToken,
+            proportion: 1
+        });
+        
+        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, account, ETH, false);
+        string memory requestBody = surlCallAssemble(path, account);
+
+        OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
+
+        odosCallData =
+                _createOdosSwapHookData(
+                    odosDecodedSwap.tokenInfo.inputToken,
+                    odosDecodedSwap.tokenInfo.inputAmount,
+                    odosDecodedSwap.tokenInfo.inputReceiver,
+                    odosDecodedSwap.tokenInfo.outputToken,
+                    odosDecodedSwap.tokenInfo.outputQuote,
+                    odosDecodedSwap.tokenInfo.outputMin,
+                    odosDecodedSwap.pathDefinition,
+                    odosDecodedSwap.executor,
+                    odosDecodedSwap.referralCode,
+                    false
+        );
+
+        return odosCallData;
+    }
 }

@@ -687,41 +687,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         return expectedAssetOutAmount;
     }
 
-    function _createOdosSwapData(uint256 assetOutAmount) internal returns (bytes memory) {
-        QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
-        quoteInputTokens[0] = QuoteInputToken({
-            tokenAddress: underlyingOP_USDCe,
-            amount: assetOutAmount
-        });
-
-        QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
-        quoteOutputTokens[0] = QuoteOutputToken({
-            tokenAddress: underlyingOP_USDC,
-            proportion: 1
-        });
-        
-        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, accountOP, BASE, false);
-        string memory requestBody = surlCallAssemble(path, accountOP);
-
-        OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
-
-        bytes memory odosCalldata =
-                _createOdosSwapHookData(
-                    odosDecodedSwap.tokenInfo.inputToken,
-                    odosDecodedSwap.tokenInfo.inputAmount,
-                    odosDecodedSwap.tokenInfo.inputReceiver,
-                    odosDecodedSwap.tokenInfo.outputToken,
-                    odosDecodedSwap.tokenInfo.outputQuote,
-                    odosDecodedSwap.tokenInfo.outputMin,
-                    odosDecodedSwap.pathDefinition,
-                    odosDecodedSwap.executor,
-                    odosDecodedSwap.referralCode,
-                    false
-                );
-        return odosCalldata;
-    }
-    
-
     function _redeem_From_OP_And_Bridge_Back_To_Base() internal {
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
@@ -765,7 +730,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes memory odosCallData;
         if (useRealOdosRouter) {
-            odosCallData = _createOdosSwapData(assetOutAmount);
+            odosCallData = _createOdosCallData(underlyingOP_USDCe, assetOutAmount, underlyingBase_USDC, accountOP);
         } else {
             odosCallData = _createMockOdosSwapHookData(
                 underlyingOP_USDCe,
@@ -790,17 +755,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // PREPARE OP DATA
         address[] memory opHooksAddresses = new address[](4);
-        if (useRealOdosRouter) {
-            opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-            opHooksAddresses[1] = _getHookAddress(OP, SWAP_ODOS_HOOK_KEY);
-            opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-            opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-        } else {
-            opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-            opHooksAddresses[1] = _getHookAddress(OP, MOCK_SWAP_ODOS_HOOK_KEY);
-            opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-            opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-        }
+        opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        opHooksAddresses[1] = useRealOdosRouter ? _getHookAddress(OP, SWAP_ODOS_HOOK_KEY) : _getHookAddress(OP, MOCK_SWAP_ODOS_HOOK_KEY);
+        opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory opHooksData = new bytes[](4);
         opHooksData[0] = approveOdosData;
