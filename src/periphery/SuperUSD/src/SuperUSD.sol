@@ -10,6 +10,7 @@ pragma solidity ^0.8.24;
 contract SuperUSD is AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
 
+
     // --- Roles ---
     bytes32 public constant VAULT_MANAGER_ROLE = keccak256("VAULT_MANAGER_ROLE");
     bytes32 public constant SWAP_FEE_MANAGER_ROLE = keccak256("SWAP_FEE_MANAGER_ROLE");
@@ -25,6 +26,8 @@ contract SuperUSD is AccessControl {
     address public settlementTokenIn;
     address public settlementTokenOut;
     ISuperOracle public superOracle;
+
+    mapping(address => uint256) public targetAllocations;
 
     uint256 public swapFeePercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
 
@@ -71,6 +74,24 @@ contract SuperUSD is AccessControl {
         _setupRole(VAULT_MANAGER_ROLE, msg.sender);
         _setupRole(SWAP_FEE_MANAGER_ROLE, msg.sender);
         _setupRole(INCENTIVE_FUND_MANAGER, msg.sender);
+    }
+
+    // NOTE:
+    // This is equivalent to also returning the normalized amount since it can be obtained just by doing absoluteAllocation[i] / totalAllocation
+    function getAllocations() public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
+        // Placeholder for the current allocation normalized
+        // This function should return the current allocation of assets in the SuperUSD contract
+        // For now, we return an empty array
+        uint256 length = _supportedVaults.length();
+        absoluteCurrentAllocation = new uint256[](length);
+        absoluteTargetAllocation = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
+            address vault = _supportedVaults.at(i);
+            absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
+            totalCurrentAllocation += absoluteCurrentAllocation[i];
+            absoluteTargetAllocation[i] = targetAllocations[vault];
+            totalTargetAllocation += absoluteTargetAllocation[i];
+        }
     }
 
     function setSwapFeePercentage(uint256 _swapFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
