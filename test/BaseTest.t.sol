@@ -2773,7 +2773,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
 
-        odosCallData =
+        bytes memory odosCallData =
                 _createOdosSwapHookData(
                     odosDecodedSwap.tokenInfo.inputToken,
                     odosDecodedSwap.tokenInfo.inputAmount,
