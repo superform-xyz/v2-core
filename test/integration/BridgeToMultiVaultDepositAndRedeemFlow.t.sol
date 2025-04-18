@@ -10,9 +10,12 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { AcrossV3Adapter } from "../../src/core/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../../src/core/adapters/DebridgeAdapter.sol";
 
 // Vault Interfaces
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
+import { IDlnSource } from "../../src/vendor/bridges/debridge/IDlnSource.sol";
+
 import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
 import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
 import { IPoolManager } from "../mocks/centrifuge/IPoolManager.sol";
@@ -61,6 +64,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     AcrossV3Adapter public acrossV3AdapterOnBase;
     AcrossV3Adapter public acrossV3AdapterOnETH;
     AcrossV3Adapter public acrossV3AdapterOnOP;
+
+    DebridgeAdapter public debridgeAdapterOnBase;
+    DebridgeAdapter public debridgeAdapterOnETH;
+    DebridgeAdapter public debridgeAdapterOnOP;
 
     ISuperDestinationExecutor public superTargetExecutorOnBase;
     ISuperDestinationExecutor public superTargetExecutorOnETH;
@@ -158,6 +165,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         acrossV3AdapterOnETH = AcrossV3Adapter(_getContract(ETH, ACROSS_V3_ADAPTER_KEY));
         acrossV3AdapterOnOP = AcrossV3Adapter(_getContract(OP, ACROSS_V3_ADAPTER_KEY));
 
+        debridgeAdapterOnBase = DebridgeAdapter(_getContract(BASE, DEBRIDGE_ADAPTER_KEY));
+        debridgeAdapterOnETH = DebridgeAdapter(_getContract(ETH, DEBRIDGE_ADAPTER_KEY));
+        debridgeAdapterOnOP = DebridgeAdapter(_getContract(OP, DEBRIDGE_ADAPTER_KEY));
+
         // Set up the destination validators
         validatorOnBase = IValidator(_getContract(BASE, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnETH = IValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
@@ -207,6 +218,97 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           FULL FLOW TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_ETH_Bridge_With_Debridge_And_Deposit() public executeWithoutHookRestrictions {
+        uint256 amountPerVault = 1e8;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        {
+            address[] memory eth7540HooksAddresses = new address[](2);
+            eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+            eth7540HooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+
+            bytes[] memory eth7540HooksData = new bytes[](2);
+            eth7540HooksData[0] =
+                _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
+            eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
+                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+            );
+
+            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+                hooksAddresses: eth7540HooksAddresses,
+                hooksData: eth7540HooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigners[ETH],
+                signerPrivateKey: validatorSignerPrivateKeys[ETH],
+                targetAdapter: address(debridgeAdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: accountETH,
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+        }
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData( 
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: msgValue, //value
+                giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
+                giveAmount: amountPerVault, //giveAmount
+                takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
+                takeAmount: amountPerVault - amountPerVault*1e4/1e5, //takeAmount
+                takeChainId: ETH, //takeChainId
+                receiverDst: address(debridgeAdapterOnETH), //receiverDst
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                externalCall: targetExecutorMessage, //externalCall
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0, //referralCode
+                permitEnvelope: "" //permitEnvelope
+            })
+        );
+        srcHooksData[1] = debridgeData;
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
+
+        // EXECUTE BASE
+        _processDebridgeDlnMessage(BASE, ETH, executeOp(srcUserOpData));
+
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
+
+        // DEPOSIT
+        _execute7540DepositFlow(amountPerVault);
+
+        vm.selectFork(FORKS[ETH]);
+
+        // CHECK ACCOUNTING
+        uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
+        assertNotEq(pricePerShare, 1);
+    }
 
     function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public executeWithoutHookRestrictions {
         test_Bridge_To_ETH_And_Deposit();

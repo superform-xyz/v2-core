@@ -61,8 +61,7 @@ contract CrossChainNexusAccountCreation is BaseTest {
         instanceOnBase = accountInstances[BASE];
         accountBase = accountInstances[BASE].account;
     }
-
-
+    
     function test_Bridge_To_ETH_And_Create_Nexus_Account() public {
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
