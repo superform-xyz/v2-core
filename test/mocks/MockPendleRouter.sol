@@ -2,6 +2,7 @@
 pragma solidity >=0.8.28;
 
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -80,6 +81,11 @@ contract MockPendleRouter {
 
         netSyInterm = _redeemPyToSy(SY, YT, netPyIn, 1);
         netTokenOut = _redeemSyToToken(receiver, SY, netSyInterm, output, false);
+    }
+
+    function _wrap_unwrap_ETH(address tokenIn, address tokenOut, uint256 netTokenIn) internal {
+        if (tokenIn == NATIVE) IWETH(tokenOut).deposit{value: netTokenIn}();
+        else IWETH(tokenIn).withdraw(netTokenIn);
     }
 
     function _redeemPyToSy(
@@ -176,4 +182,106 @@ contract MockPendleRouter {
     function _selfBalance(IERC20 token) internal view returns (uint256) {
         return token.balanceOf(address(this));
     }
+}
+
+
+interface IPYieldToken is IERC20Metadata {
+    event NewInterestIndex(uint256 indexed newIndex);
+
+    event Mint(
+        address indexed caller,
+        address indexed receiverPT,
+        address indexed receiverYT,
+        uint256 amountSyToMint,
+        uint256 amountPYOut
+    );
+
+    event Burn(address indexed caller, address indexed receiver, uint256 amountPYToRedeem, uint256 amountSyOut);
+
+    event RedeemRewards(address indexed user, uint256[] amountRewardsOut);
+
+    event RedeemInterest(address indexed user, uint256 interestOut);
+
+    event CollectRewardFee(address indexed rewardToken, uint256 amountRewardFee);
+
+    function mintPY(address receiverPT, address receiverYT) external returns (uint256 amountPYOut);
+
+    function redeemPY(address receiver) external returns (uint256 amountSyOut);
+
+    function redeemPYMulti(
+        address[] calldata receivers,
+        uint256[] calldata amountPYToRedeems
+    ) external returns (uint256[] memory amountSyOuts);
+
+    function redeemDueInterestAndRewards(
+        address user,
+        bool redeemInterest,
+        bool redeemRewards
+    ) external returns (uint256 interestOut, uint256[] memory rewardsOut);
+
+    function rewardIndexesCurrent() external returns (uint256[] memory);
+
+    function pyIndexCurrent() external returns (uint256);
+
+    function pyIndexStored() external view returns (uint256);
+
+    function getRewardTokens() external view returns (address[] memory);
+
+    function SY() external view returns (address);
+
+    function PT() external view returns (address);
+
+    function factory() external view returns (address);
+
+    function expiry() external view returns (uint256);
+
+    function isExpired() external view returns (bool);
+
+    function doCacheIndexSameBlock() external view returns (bool);
+
+    function pyIndexLastUpdatedBlock() external view returns (uint128);
+}
+
+interface IWETH is IERC20 {
+    event Deposit(address indexed dst, uint256 wad);
+    event Withdrawal(address indexed src, uint256 wad);
+
+    function deposit() external payable;
+
+    function withdraw(uint256 wad) external;
+}
+
+struct SwapData {
+    SwapType swapType;
+    address extRouter;
+    bytes extCalldata;
+    bool needScale;
+}
+
+struct SwapDataExtra {
+    address tokenIn;
+    address tokenOut;
+    uint256 minOut;
+    SwapData swapData;
+}
+
+enum SwapType {
+    NONE,
+    KYBERSWAP,
+    ODOS,
+    // ETH_WETH not used in Aggregator
+    ETH_WETH,
+    OKX,
+    ONE_INCH,
+    RESERVE_1,
+    RESERVE_2,
+    RESERVE_3,
+    RESERVE_4,
+    RESERVE_5
+}
+
+interface IPSwapAggregator {
+    event SwapSingle(SwapType indexed swapType, address indexed tokenIn, uint256 amountIn);
+
+    function swap(address tokenIn, uint256 amountIn, SwapData calldata swapData) external payable;
 }
