@@ -205,7 +205,7 @@ contract SuperDestinationValidatorTest is BaseTest, MerkleReader {
             withdrawDestinationData.callData,
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
-            withdrawDestinationData.executor,   
+            withdrawDestinationData.executor,
             withdrawDestinationData.adapter,
             withdrawDestinationData.tokenSent,
             withdrawDestinationData.intentAmount,

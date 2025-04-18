@@ -14,7 +14,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperVault } from "../../../../periphery/interfaces/ISuperVault.sol";
 import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
 
-
 /// @title CancelDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure

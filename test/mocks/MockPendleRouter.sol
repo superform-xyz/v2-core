@@ -21,12 +21,12 @@ contract MockPendleRouter {
         uint256,
         ApproxParams calldata,
         TokenInput calldata,
-        LimitOrderData calldata 
-    ) external payable returns (
-        uint256 netPtOut,
-        uint256 netSyFee,
-        uint256 netSyInterm
-    ) {
+        LimitOrderData calldata
+    )
+        external
+        payable
+        returns (uint256 netPtOut, uint256 netSyFee, uint256 netSyInterm)
+    {
         return (0, 0, 0);
     }
 
@@ -36,11 +36,11 @@ contract MockPendleRouter {
         uint256,
         TokenOutput calldata,
         LimitOrderData calldata
-    ) external pure returns (
-        uint256 netTokenOut,
-        uint256 netSyFee,
-        uint256 netSyInterm
-    ) {
+    )
+        external
+        pure
+        returns (uint256 netTokenOut, uint256 netSyFee, uint256 netSyInterm)
+    {
         return (0, 0, 0);
     }
 }

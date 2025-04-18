@@ -10,7 +10,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
-
 /// @title DeBridgeSendOrderAndExecuteOnDstHook
 /// @author Superform Labs
 /// @dev data has the following structure

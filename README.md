@@ -39,14 +39,12 @@ At a high level, Superform v2 is organized into two major parts:
 src/
 ├── core/               # Core protocol contracts
 │   ├── accounting/     # Accounting logic
-│   ├── bridges/        # Bridge implementations
+│   ├── adapters/       # Bridge implementations
 │   ├── executors/      # Execution logic contracts
 │   ├── hooks/          # Protocol hooks
 │   ├── interfaces/     # Contract interfaces
 │   ├── libraries/      # Shared libraries
 │   ├── paymaster/      # Native paymaster and gas tank contracts
-│   ├── settings/       # Protocol settings
-│   ├── utils/          # Utility contracts
 │   └── validators/     # Validation contract
 └── periphery/         # Peripheral contracts such as SuperVaults (NOT IN SCOPE)
 ```
@@ -120,7 +118,7 @@ Bundler Operation
 - Allows fee charging in ERC20 tokens with a fee payment hook (a transfer hook), which transfers fees to the
   SuperBundler so that it can orchestrate the entire operation.
 - Allows for a single signature experience flow, where the SuperBundler builds a merkle tree of all userOps that are
-  going to be executed in all chains for a given user intent. This siganture is validated in SuperMerkle Validator.
+  going to be executed in all chains for a given user intent. This signature is validated in SuperMerkle Validator.
 - Allows for delayed execution of userOps (async userOps) with a single user signature. UserOps are processed when and
   where required rather than immediately upon receipt. Reasonable deadlines apply here. Typical desired flow of usage is
   for example with asynchronous vaults like those following ERC7540 standard.
@@ -133,15 +131,12 @@ Bundler Operation
 
 ### Module Installation & Account Bootstrapping
 
-Smart accounts that interact with Superform must install two essential ERC7579 modules:
+Smart accounts that interact with Superform must install four essential ERC7579 modules:
 
-- SuperExecutor:
+- SuperExecutor / SuperDestinationExecutor:
   - Installs hooks and executes operations.
-- SuperMerkleValidator:
+- SuperMerkleValidator / SuperDestinationValidator:
   - Validates userOps against a Merkle root.
-- Additional Modules:
-  - Rhinestone Resource Lock Module: Used for cross-chain resource locking (not included at the moment).
-  - Rhinestone Target Executor: Executes userOps on destination chains, bypassing the entry point flow.
 
 ### Core Contracts
 
@@ -170,13 +165,8 @@ Key Points for Auditors:
 Untested Areas:
 
 - Partial unit tests for hooks (coverage additions in progress)
-- The only swap hook that is tested is SwapOdosHook.sol
-  - `SwapOdosHook.sol` has only been tested using a simple mock `MockOdosRouterV2.sol` which transfers amount with
-    slippage. This still needs to be tested with actual router implementations.
-  - No tests for other hooks that do swaps yet due to api requirements, these will be tested using `surl` in the future.
-- No tests for any of the hooks for staking and claiming staked tokens yet.
 
-#### SuperExecutor
+#### SuperExecutor and SuperDestinationExecutor
 
 The SuperExecutor is responsible for executing the provided hooks, invoking pre- and post-execute functions to handle
 transient state updates and ensuring that the operation's logic is correctly sequenced.
@@ -184,6 +174,11 @@ transient state updates and ensuring that the operation's logic is correctly seq
 Key Points for Auditors:
 
 - Inheritance: Inherits from ERC7579ExecutorBase to facilitate deployment on ERC7579 smart accounts.
+- SuperDestinationExecutor:
+  - Bypasses 4337 UserOp flow with some gas savings for the user
+  - Allows account creation on destination
+  - Note for auditors: important to check the ability to not replay transactions on destination and that all the elements
+  included in the signature are enough for that.
 - Accounting Integration: After hook execution, it checks hook types and calls updateAccounting on the SuperLedger when
   required.
 
@@ -229,42 +224,16 @@ Key Points for Auditors:
     yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through
     the offchain SuperBundler and acknowledged by the team.
 
-#### SuperOracle
+#### Adapters
 
-Definition & Role: SuperOracle is a specialized on-chain oracle system that provides USD price information for various
-assets (bases) using https://eips.ethereum.org/EIPS/eip-7726
-
-Key Points for Auditors:
-
-- Allows for a provider to be passed encoded in the quote to the oracle.
-- Only USD as a quote is accepted (using ISO convention)
-- Callees can provide provider 0 to get the average of all providers
-- Important for the get functions of YieldSourceOracles that translate metadata, such as PPS and TVL, to USD terms. Can
-  be used on-chain in future contracts.
-- Risk Considerations (typical oracle risks):
-  - Oracle manipulation risks must be considered
-  - Price staleness checks should be implemented
-  - Failure modes should gracefully handle oracle unavailability
-
-#### Bridges
-
-Definition & Role: This is a set of gateway contracts that handle the acceptance of relayed messages and trigger userOp
-execution on destination chains.
+Definition & Role: This is a set of gateway contracts that handle the acceptance of relayed messages and trigger
+execution on destination chains via 7579 SuperDestinationExecutor.
 
 Key Points for Auditors:
 
-- Only AcrossV3 is used at the moment, but other bridging solutions may be added in the future following a similar
-  pattern.
 - Relayed message handling:
   - Both bridges expect the full intent amount to be available to continue execution on destinaton
   - The last relay to happen continues the operation
-- Known issues and yet to be solved cases:
-  - Gas tank grievance by users who get a valid signature of the merkle root but override data sent via the Across Hook
-    causing the gas tank to be overly charged and draining of all of its funds
-  - We are studying a potential fix (un-applied yet), where there is a validation at the SuperExecutor level which has
-    access to hook calldata that allows to compare the amount of fees that the bundler signed into the Across hook is
-    less or equal than the actual amount the user is paying in fee with the initial transfer hook (see SuperBundler
-    section for initial transfer hook).
 - Known and accepted cases:
   - Failure of a relay:
     - It is entirely possible for a relay to fail due to a lack of a fill by a solver. In these types of cases, the
@@ -285,7 +254,7 @@ Key Points for Auditors:
 
 Definition & Role: SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint,
 enabling users to pay for operations using erc20 tokens from any chain, on demand. It's primarily used by SuperBundler
-for gas abstraction and one balance experience. This is necessary because of the Superbundler's unique fee collection
+for gas sponsoring. This is necessary because of the Superbundler's unique fee collection
 mechanism where userOps are executed on user behalf and when required.
 
 Key Points for Auditors:
@@ -302,45 +271,48 @@ Key Points for Auditors:
   - Gas price manipulation protection
   - Fund safety during conversions
 
-#### SuperMerkleValidator
+#### SuperMerkleValidator and SuperDestinationValidator
 
-Definition & Role: SuperMerkleValidator is used by SuperBundler to validate operations through Merkle proof
-verification. It ensures that only authorized operations are executed within the system.
+Definition & Role: SuperMerkleValidator and SuperDestinationValidator are ERC7579-compliant modules used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
 
-Key Points for Auditors:
+SuperMerkleValidator:
+- Usage: Designed for standard ERC-4337 `EntryPoint` interactions. Validates `UserOperation` hashes (`userOpHash`) provided within a Merkle proof, typically constructed by the SuperBundler. Implements `validateUserOp` and EIP-1271 `isValidSignatureWithSender`.
 
-- Validation Process:
-  - Merkle proof verification methodology deviates purposefully from ERC-4337, because the userOpHash is not included as
-    part of the signature. In Superform's case (opinionated) the merkle root is treated as "userOpHash". This is done to
-    give the one signature experience. We acknowledge this will make the validator incompatible with other integrations.
-  - Validation failure handling
-- Security Considerations:
-  - Proof verification robustness
-  - Replay attack prevention
-- Good to know:
-  - Rhinestone's mock validator is used widely across tests for easiness of testing. We plan to increase level of usage
-    of our validator more widely through the tests and remove the usage of the mock eventually.
-  - The logic for using SuperMerkleValidator with SuperNativePaymaster in cross chain execution with Across hook and
-    gateway is untested. It has been verified to work with the Mock validator provided by Rhinestone's modulekit.
+SuperDestinationValidator:
+- Usage: Specifically designed for validating operations executed *directly* on a destination chain via `SuperDestinationExecutor`, bypassing the ERC-4337 `EntryPoint`. Implements a custom `isValidDestinationSignature` method; `validateUserOp` and `isValidSignatureWithSender` are explicitly **not** implemented and will revert.
+- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, adapter, tokenSent, intentAmount, validUntil)))`. The leaf commits to the full context of the destination execution parameters.
+- Replay Protection:
+    - Includes `block.chainid` in the leaf and verifies it during signature validation to prevent cross-chain replay.
+    - Incorporates a `validUntil` timestamp in the leaf, checked against `block.timestamp`.
+    - Includes the `executor` address in the leaf to prevent replay across different executor modules installed on the same account.
+    - Uses a unique namespace (`SuperDestinationValidator-v0.0.1`) in the final signed message hash.
 
-#### SuperRegistry
-
-SuperRegistry Definition & Role: The SuperRegistry centralizes the management of contract addresses. By using unique
-identifiers, it avoids hardcoding and facilitates upgrades and modularity across the protocol.
 
 Key Points for Auditors:
 
-- Modularity & Upgradeability:
-  - Stores relevant addresses for:
-    - SUPER_LEDGER_CONFIGURATION
-    - SUPER_EXECUTOR
-    - SUPER_GAS_TANK
-    - SUPER_NATIVE_PAYMASTER
-- Risks:
-  - Misconfiguration or unauthorized modifications could lead to vulnerabilities. Proper governance around the registry
-    is critical.
+- Proof Verification Robustness: Examine the specific data included in each validator's Merkle leaf (detailed above) to confirm the scope of user authorization.
+- Replay Attack Prevention: Assess the combination of mechanisms used by each validator (Merkle root commitment, `validUntil`, `nonce`/`userOpHash`, `chainId`, `executor` address, distinct namespaces) to prevent various replay scenarios.
+- Signature Scheme: Ensure the EIP-191 compliant signature verification against the Merkle root and namespace is sound.
+- Access Control: Verify that the signer check correctly uses the `_accountOwners` mapping initialized via `onInstall`.
+
+---
 
 ### Periphery Components (NOT IN SCOPE FOR AUDIT)
+
+#### SuperOracle
+
+Definition & Role: SuperOracle is a specialized on-chain oracle system that provides USD price information for various
+assets (bases) using https://eips.ethereum.org/EIPS/eip-7726
+
+Key Points for Auditors:
+
+- Allows any supported quote to be used
+- Callees can provide provider 0 to get the average of all providers and dispersion metrics of the price
+- Important for the get functions of SuperYieldSourceOracle that translate metadata, such as PPS and TVL, to USD terms. Can be used on-chain in future contracts.
+- Risk Considerations (typical oracle risks):
+  - Oracle manipulation risks must be considered
+  - Price staleness checks should be implemented
+  - Failure modes should gracefully handle oracle unavailability
 
 #### SuperVaults
 
@@ -447,116 +419,63 @@ SuperExecutor module:
 
 ---
 
-# **Role-Gated Functions in Superform V2 Contracts**
-
-## **Core Contracts**
-
-### **SuperRegistry.sol**
-
-**Function**: setAddress(bytes32 id*, address address*)
-
-**Role**: onlyOwner
-
-**Purpose**: Updates contract addresses in the registry
-
-**Justification**: Owner control is needed to manage the system's core contract addresses, ensuring only authorized
-changes to critical infrastructure components
-
----
+# **Role-Gated Functions in Superform V2 Periphery**
 
 ### **SuperOracle.sol**
 
-**Function**: setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness)
+**Function**: setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness)
 
-**Role**: onlyOwner
+**Role**: onlyOwner
 
 **Purpose**: Sets the maximum staleness period for a price provider
 
-**Justification**: Owner control ensures price feed reliability by allowing only authorized updates to staleness
+**Justification**: Owner control ensures price feed reliability by allowing only authorized updates to staleness
 parameters, preventing manipulation of price validity windows
 
 <br>
 
-**Function**: queueOracleUpdate(address[] calldata bases, uint256[] calldata providers, address[] calldata
-oracleAddresses)
-
-**Role**: onlyOwner
-
-**Purpose**: Queues an update to oracle addresses with a timelock
-
-**Justification**: Owner control with timelock protection prevents immediate changes to price oracles, reducing risk
-of malicious oracle manipulation while allowing for necessary updates
-
----
-
-### **SuperGasTank.sol**
-
-**Function**: addToAllowlist(address contractAddress)
-
-**Role**: onlyOwner
-
-**Purpose**: Sets the maximum staleness period for a price provider
-
-**Justification**: Owner control ensures only authorized contracts can withdraw ETH from the gas tank, preventing
-unauthorized access to funds used for cross-chain operations
-
-<br>
-
-**Function**: removeFromAllowlist(address contractAddress)
-
-**Role**: onlyOwner
-
-**Purpose**: Queues an update to oracle addresses with a timelock
-
-**Justification**: Owner control ensures the ability to revoke access from compromised or deprecated addresses,
-maintaining security of the gas tank's ETH reserves used for cross-chain operations
-
----
-
-## **Periphery Contracts (NOT IN SCOPE)**
-
 ### **PeripheryRegistry.sol**
 
-**Function**: registerHook(address hook\_)
+**Function**: registerHook(address hook_)
 
-**Role**: onlyOwner
+**Role**: onlyOwner
 
-**Purpose**: Registers a new hook in the system
+**Purpose**: Registers a new hook in the system
 
-**Justification**: Owner control ensures only core verified and audited hooks can be added to the system, preventing
-malicious hooks from being registered
+**Justification**: Owner control ensures only core verified and audited hooks can be added to the system, preventing
+malicious hooks from being registered
 
 <br>
 
-**Function**: unregisterHook(address hook\_)
+**Function**: unregisterHook(address hook_)
 
-**Role**: onlyOwner
+**Role**: onlyOwner
 
-**Purpose**: Removes a hook from the system
+**Purpose**: Removes a hook from the system
 
-**Justification**: Owner control allows disabling compromised or deprecated hooks, protecting users from potential
+**Justification**: Owner control allows disabling compromised or deprecated hooks, protecting users from potential
 vulnerabilities
 
 <br>
 
-**Function**: proposeFeeSplit(uint256 feeSplit\_)
+**Function**: proposeFeeSplit(uint256 feeSplit_)
 
-**Role**: onlyOwner
+**Role**: onlyOwner
 
-**Purpose**: Proposes a new fee split with a timelock
+**Purpose**: Proposes a new fee split with a timelock
 
-**Justification**: Owner control with timelock ensures transparent and gradual changes to fee structures, preventing
+**Justification**: Owner control with timelock ensures transparent and gradual changes to fee structures, preventing
 sudden changes that could harm users
 
 <br>
 
-**Function**: setTreasury(address treasury\_)
+**Function**: setTreasury(address treasury_)
 
-**Role**: onlyOwner
+**Role**: onlyOwner
 
-**Purpose**: Updates the treasury address
+**Purpose**: Updates the treasury address
 
-**Justification**: Owner control protects the destination of collected fees, ensuring they go to the legitimate project
+**Justification**: Owner control protects the destination of collected fees, ensuring they go to the legitimate project
 treasury
 
 ---
@@ -565,7 +484,7 @@ treasury
 
 **Function**: Various strategy management functions
 
-**Role**: STRATEGIST_ROLE
+**Role**: STRATEGIST_ROLE
 
 **Purpose**: Manages yield sources and strategy execution
 
@@ -576,20 +495,20 @@ market conditions
 
 **Function**: Various configuration functions
 
-**Role**: MANAGER_ROLE
+**Role**: MANAGER_ROLE
 
 **Purpose**: Manages global configuration and fee settings
 
-**Justification**: Administrative role for overall vault management, separate from strategy execution for better
-separation of concerns
+**Justification**: Administrative role for overall vault management, separate from strategy execution for better
+separation of concerns
 
 <br>
 
-**Function**: Emergency functions
+**Function**: Emergency functions
 
-**Role**: EMERGENCY_ADMIN_ROLE
+**Role**: EMERGENCY_ADMIN_ROLE
 
 **Purpose**: Handles emergency situations
 
-**Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during
-critical situations without full admin privileges
+**Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during
+critical situations without full admin privileges

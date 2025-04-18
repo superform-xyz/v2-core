@@ -271,14 +271,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
 
-        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData( 
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
             DebridgeOrderData({
                 usePrevHookAmount: false, //usePrevHookAmount
                 value: msgValue, //value
                 giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
                 giveAmount: amountPerVault, //giveAmount
                 takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
-                takeAmount: amountPerVault - amountPerVault*1e4/1e5, //takeAmount
+                takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
                 takeChainId: ETH, //takeChainId
                 receiverDst: address(debridgeAdapterOnETH), //receiverDst
                 givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
@@ -289,7 +289,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 affiliateFee: "", //affiliateFee
                 referralCode: 0, //referralCode
                 permitEnvelope: "" //permitEnvelope
-            })
+             })
         );
         srcHooksData[1] = debridgeData;
 
@@ -345,7 +345,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     //////////////////////////////////////////////////////////////*/
     function test_CreateNexusAccount_Through_SuperDestinationExecutor() public {
         uint256 amountPerVault = 1e8 / 2;
-        
+
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
@@ -377,7 +377,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
-        
+
         // PREPARE BASE DATA
         address[] memory srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
@@ -387,13 +387,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         srcHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault / 2, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC,
-            underlyingETH_USDC,
-            amountPerVault,
-            amountPerVault,
-            ETH,
-            true,
-            targetExecutorMessage
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
         );
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);

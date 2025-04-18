@@ -124,8 +124,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
 
         // Decode sigData to extract merkleRoot
-        (, bytes32 merkleRoot,,) = 
-            abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
+        (, bytes32 merkleRoot,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
 
         // Check if merkleRoot has already been used
         // Don't keep a nonce system anymore since roots are unique anyway
@@ -137,9 +136,10 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         // --- Signature Validation ---
         // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
         //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
-        // Note: the msgs.sender doesn't necessarily match an adapter address 
-        bytes memory destinationData =
-            abi.encode(executorCalldata, uint64(block.chainid), account, address(this), msg.sender, tokenSent, intentAmount);
+        // Note: the msgs.sender doesn't necessarily match an adapter address
+        bytes memory destinationData = abi.encode(
+            executorCalldata, uint64(block.chainid), account, address(this), msg.sender, tokenSent, intentAmount
+        );
 
         // The userSignatureData is passed directly from the adapter
         bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(

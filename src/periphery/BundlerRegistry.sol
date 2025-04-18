@@ -65,7 +65,7 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
         // Copy the bundler data to the new address
         IBundlerRegistry.Bundler memory bundler = bundlers[bundlerAddress];
         bundler.bundlerAddress = _newAddress;
-        
+
         // Update mappings
         delete bundlers[bundlerAddress];
         bundlers[_newAddress] = bundler;

@@ -49,7 +49,6 @@ contract SpectraExchangeSwapHook is BaseTest {
         hookData[0] = _createApproveHookData(tokenIn, spectraRouter, amount, false);
         hookData[1] = _createSpectraExchangeSwapHookData(false, 0, ptToken, tokenIn, amount, account);
 
-        
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
         UserOpData memory opData = _getExecOps(
