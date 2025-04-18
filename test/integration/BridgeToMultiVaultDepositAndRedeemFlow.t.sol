@@ -343,6 +343,67 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           INDIVIDUAL TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_CreateNexusAccount_Through_SuperDestinationExecutor() public {
+        uint256 amountPerVault = 1e8 / 2;
+        
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        {
+            address[] memory dstHookAddresses = new address[](0);
+            bytes[] memory dstHookData = new bytes[](0);
+
+            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+                hooksAddresses: dstHookAddresses,
+                hooksData: dstHookData,
+                validator: address(validatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+        
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault / 2, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            amountPerVault,
+            amountPerVault,
+            ETH,
+            true,
+            targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
+
+        // EXECUTE BASE
+        _processAcrossV3Message(
+            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.NO_HOOKS, accountToUse
+        );
+    }
+
     function test_RevertFrom_AcrossTargetExecutor() public {
         uint256 amountPerVault = 1e8 / 2;
 

@@ -213,7 +213,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         uint256 permitEnvelopeLength = BytesLib.toUint256(data, vars.offset);
         vars.offset += 32;
         permitEnvelope = BytesLib.slice(data, vars.offset, permitEnvelopeLength);
-        // usePrevHookAmount = BytesLib.toUint8(data, 0) == 1;
 
         orderCreation = IDlnSource.OrderCreation({
             giveTokenAddress: vars.giveTokenAddress,

@@ -524,8 +524,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].superExecutorWithSPLock), SUPER_EXECUTOR_WITH_SP_LOCK_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_WITH_SP_LOCK_KEY] = address(A[i].superExecutorWithSPLock);
 
-            A[i].mockTargetExecutor = new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault));
-            console2.log("--------A");
             A[i].mockTargetExecutor =
                 new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault));
             vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
@@ -953,8 +951,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[23] = address(A[i].deBridgeSendOrderAndExecuteOnDstHook);
 
 
-            A[i].fluidClaimRewardHook =
-                new FluidClaimRewardHook{ salt: SALT }();
             A[i].fluidClaimRewardHook = new FluidClaimRewardHook{ salt: SALT }();
             vm.label(address(A[i].fluidClaimRewardHook), FLUID_CLAIM_REWARD_HOOK_KEY);
             hookAddresses[chainIds[i]][FLUID_CLAIM_REWARD_HOOK_KEY] = address(A[i].fluidClaimRewardHook);
