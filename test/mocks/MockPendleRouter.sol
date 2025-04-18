@@ -11,8 +11,6 @@ import {
     TokenOutput,
     FillOrderParams,
     Order,
-    SwapData,
-    SwapType,
     OrderType
 } from "../../src/vendor/pendle/IPendleRouterV4.sol";
 import { IStandardizedYield } from "../../src/vendor/pendle/IStandardizedYield.sol";
@@ -65,9 +63,10 @@ contract MockPendleRouter {
 
     function createSwapTypeNoAggregator() public pure returns (SwapData memory) {
         return SwapData({
-            swapType: SwapType.NO_AGGREGATOR,
-            aggregator: address(0),
-            aggregatorData: bytes("")
+            swapType: SwapType.NONE,
+            extRouter: address(0),
+            extCalldata: bytes(""),
+            needScale: false
         });
     }
 
