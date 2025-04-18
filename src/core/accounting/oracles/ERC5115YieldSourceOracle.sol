@@ -11,12 +11,11 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for 5115 Vaults
 contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
+    constructor() AbstractYieldSourceOracle() { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
         return 18;
@@ -97,7 +96,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         address yieldSourceAddress,
         address expectedUnderlying
     )
-        external
+        public
         view
         override
         returns (bool)
@@ -129,17 +128,21 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function _validateBaseAsset(address yieldSourceAddress, address base) internal view override {
-        address[] memory tokensIn = IStandardizedYield(yieldSourceAddress).getTokensOut();
-        bool isValid = false;
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
 
-        for (uint256 i = 0; i < tokensIn.length; ++i) {
-            if (tokensIn[i] == base) {
-                isValid = true;
-                break;
-            }
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
         }
-
-        if (!isValid) revert INVALID_BASE_ASSET();
     }
 }

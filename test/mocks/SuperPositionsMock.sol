@@ -5,15 +5,14 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // superform
 import { ISuperPositions } from "./ISuperPositions.sol";
-import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
 
-contract SuperPositionsMock is ISuperPositions, ERC20, SuperRegistryImplementer {
+contract SuperPositionsMock is ISuperPositions, ERC20 {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     uint8 private _decimals;
 
-    constructor(address registry_, uint8 decimals_) ERC20("SuperPosition", "SP") SuperRegistryImplementer(registry_) {
+    constructor(uint8 decimals_) ERC20("SuperPosition", "SP") {
         _decimals = decimals_;
     }
 

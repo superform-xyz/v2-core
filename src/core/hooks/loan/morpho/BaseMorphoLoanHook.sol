@@ -41,8 +41,8 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, bytes32 hookSubtype_) BaseLoanHook(registry_, hookSubtype_) {
-        morphoInterface = IMorpho(registry_);
+    constructor(address morpho_, bytes32 hookSubtype_) BaseLoanHook(hookSubtype_) {
+        morphoInterface = IMorpho(morpho_);
     }
 
     /*//////////////////////////////////////////////////////////////

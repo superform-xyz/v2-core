@@ -68,7 +68,7 @@ contract PendleRouterSwapHookTest is BaseTest {
         vm.label(market, "Market");
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(inputToken));
-        hook = new PendleRouterSwapHook(address(this), address(pendleRouter));
+        hook = new PendleRouterSwapHook(address(pendleRouter));
     }
 
     function test_Constructor() public view {
@@ -78,7 +78,7 @@ contract PendleRouterSwapHookTest is BaseTest {
 
     function test_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new PendleRouterSwapHook(address(this), address(0));
+        new PendleRouterSwapHook(address(0));
     }
 
     function test_Build_SwapExactTokenForPt() public view {

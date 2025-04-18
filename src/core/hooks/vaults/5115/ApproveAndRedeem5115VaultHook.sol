@@ -43,7 +43,7 @@ contract ApproveAndRedeem5115VaultHook is
     uint256 private constant AMOUNT_POSITION = 64;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 129;
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, HookSubTypes.ERC5115) { }
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC5115) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

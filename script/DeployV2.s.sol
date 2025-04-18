@@ -12,7 +12,6 @@ import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
 import { AcrossTargetExecutor } from "../src/core/executors/AcrossTargetExecutor.sol";
-import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
@@ -70,7 +69,7 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
+import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
@@ -96,7 +95,6 @@ contract DeployV2 is Script, Configuration {
     struct DeployedContracts {
         address superExecutor;
         address acrossTargetExecutor;
-        address superRegistry;
         address superLedger;
         address pendleLedger;
         address superLedgerConfiguration;
@@ -168,9 +166,6 @@ contract DeployV2 is Script, Configuration {
         // deploy contracts
         _deploy(chainId);
 
-        // Configure contracts
-        _configure(chainId);
-
         // Setup SuperLedger
         _setupSuperLedgerConfiguration(chainId);
     }
@@ -188,15 +183,6 @@ contract DeployV2 is Script, Configuration {
 
         // retrieve deployer
         ISuperDeployer deployer = ISuperDeployer(configuration.deployer);
-
-        // Deploy SuperRegistry
-        deployedContracts.superRegistry = __deployContract(
-            deployer,
-            SUPER_REGISTRY_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_REGISTRY_KEY),
-            abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
-        );
 
         deployedContracts.peripheryRegistry = __deployContract(
             deployer,
@@ -220,23 +206,62 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        // Deploy SuperExecutor
-        deployedContracts.superExecutor = __deployContract(
-            deployer,
-            SUPER_EXECUTOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
-            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
-        );
-
         // Deploy SuperLedgerConfiguration
         deployedContracts.superLedgerConfiguration = __deployContract(
             deployer,
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_CONFIGURATION_KEY),
-            abi.encodePacked(type(SuperLedgerConfiguration).creationCode, abi.encode(deployedContracts.superRegistry))
+            type(SuperLedgerConfiguration).creationCode
         );
+
+        // Deploy SuperMerkleValidator
+        deployedContracts.superMerkleValidator = __deployContract(
+            deployer,
+            SUPER_MERKLE_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
+            type(SuperMerkleValidator).creationCode
+        );
+
+        // Deploy SuperDestinationValidator
+        deployedContracts.superDestinationValidator = __deployContract(
+            deployer,
+            SUPER_DESTINATION_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
+            type(SuperDestinationValidator).creationCode
+        );
+
+        // Deploy SuperExecutor
+        deployedContracts.superExecutor = __deployContract(
+            deployer,
+            SUPER_EXECUTOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
+            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+        );
+
+        // Deploy AcrossTargetExecutor
+        deployedContracts.acrossTargetExecutor = __deployContract(
+            deployer,
+            ACROSS_TARGET_EXECUTOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
+            abi.encodePacked(
+                type(AcrossTargetExecutor).creationCode,
+                abi.encode(
+                    deployedContracts.superLedgerConfiguration,
+                    configuration.acrossSpokePoolV3s[chainId],
+                    deployedContracts.superDestinationValidator,
+                    configuration.nexusFactories[chainId]
+                )
+            )
+        );
+
+        address[] memory allowedExecutors = new address[](2);
+        allowedExecutors[0] = address(deployedContracts.superExecutor);
+        allowedExecutors[1] = address(deployedContracts.acrossTargetExecutor);
 
         // Deploy SuperLedger
         deployedContracts.superLedger = __deployContract(
@@ -245,8 +270,7 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
             abi.encodePacked(
-                type(SuperLedger).creationCode,
-                abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry)
+                type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -258,7 +282,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
             abi.encodePacked(
                 type(ERC5115Ledger).creationCode,
-                abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry)
+                abi.encode(deployedContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -280,63 +304,13 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperVaultFactory).creationCode, abi.encode(deployedContracts.peripheryRegistry))
         );
 
-        // Deploy SuperMerkleValidator
-        deployedContracts.superMerkleValidator = __deployContract(
-            deployer,
-            SUPER_MERKLE_VALIDATOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
-            type(SuperMerkleValidator).creationCode
-        );
-
-        // Deploy SuperDestinationValidator
-        deployedContracts.superDestinationValidator = __deployContract(
-            deployer,
-            SUPER_DESTINATION_VALIDATOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
-            type(SuperDestinationValidator).creationCode
-        );
-
-        // Deploy AcrossTargetExecutor
-        deployedContracts.acrossTargetExecutor = __deployContract(
-            deployer,
-            ACROSS_TARGET_EXECUTOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
-            abi.encodePacked(
-                type(AcrossTargetExecutor).creationCode,
-                abi.encode(
-                    deployedContracts.superRegistry,
-                    configuration.acrossSpokePoolV3s[chainId],
-                    deployedContracts.superDestinationValidator,
-                    configuration.nexusFactories[chainId]
-                )
-            )
-        );
-
         // Deploy Hooks
-        HookAddresses memory hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);
+        HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
         _registerHooks(hookAddresses, PeripheryRegistry(deployedContracts.peripheryRegistry));
 
         // Deploy Oracles
-        _deployOracles(deployer, deployedContracts.oracleRegistry, chainId);
-    }
-
-    function _configure(uint64 chainId) internal {
-        SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
-
-        superRegistry.setAddress(
-            keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
-        );
-        superRegistry.setExecutor(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setExecutor(
-            keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainId, ACROSS_TARGET_EXECUTOR_KEY)
-        );
-        superRegistry.setAddress(
-            keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainId, SUPER_NATIVE_PAYMASTER_KEY)
-        );
+        _deployOracles(deployer, chainId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -377,7 +351,6 @@ contract DeployV2 is Script, Configuration {
 
     function _deployHooks(
         ISuperDeployer deployer,
-        address registry,
         uint64 chainId
     )
         private
@@ -387,130 +360,65 @@ contract DeployV2 is Script, Configuration {
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
-        hooks[0] = HookDeployment(
-            APPROVE_ERC20_HOOK_KEY, abi.encodePacked(type(ApproveERC20Hook).creationCode, abi.encode(registry))
-        );
-        hooks[1] = HookDeployment(
-            TRANSFER_ERC20_HOOK_KEY, abi.encodePacked(type(TransferERC20Hook).creationCode, abi.encode(registry))
-        );
-        hooks[2] = HookDeployment(
-            DEPOSIT_4626_VAULT_HOOK_KEY, abi.encodePacked(type(Deposit4626VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[3] = HookDeployment(
-            APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndDeposit4626VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[4] = HookDeployment(
-            REDEEM_4626_VAULT_HOOK_KEY, abi.encodePacked(type(Redeem4626VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[5] = HookDeployment(
-            DEPOSIT_5115_VAULT_HOOK_KEY, abi.encodePacked(type(Deposit5115VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[6] = HookDeployment(
-            APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndDeposit5115VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[7] = HookDeployment(
-            REDEEM_5115_VAULT_HOOK_KEY, abi.encodePacked(type(Redeem5115VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[8] = HookDeployment(
-            REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(RequestDeposit7540VaultHook).creationCode, abi.encode(registry))
-        );
+        hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, type(ApproveERC20Hook).creationCode);
+        hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, type(TransferERC20Hook).creationCode);
+        hooks[2] = HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, type(Deposit4626VaultHook).creationCode);
+        hooks[3] =
+            HookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, type(ApproveAndDeposit4626VaultHook).creationCode);
+        hooks[4] = HookDeployment(REDEEM_4626_VAULT_HOOK_KEY, type(Redeem4626VaultHook).creationCode);
+        hooks[5] = HookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, type(Deposit5115VaultHook).creationCode);
+        hooks[6] =
+            HookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, type(ApproveAndDeposit5115VaultHook).creationCode);
+        hooks[7] = HookDeployment(REDEEM_5115_VAULT_HOOK_KEY, type(Redeem5115VaultHook).creationCode);
+        hooks[8] = HookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(RequestDeposit7540VaultHook).creationCode);
         hooks[9] = HookDeployment(
-            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndRequestDeposit7540VaultHook).creationCode, abi.encode(registry))
+            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(ApproveAndRequestDeposit7540VaultHook).creationCode
         );
-        hooks[10] = HookDeployment(
-            REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(RequestRedeem7540VaultHook).creationCode, abi.encode(registry))
-        );
+        hooks[10] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
 
-        hooks[11] = HookDeployment(
-            DEPOSIT_7540_VAULT_HOOK_KEY, abi.encodePacked(type(Deposit7540VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[12] = HookDeployment(
-            WITHDRAW_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Withdraw7540VaultHook).creationCode, abi.encode(registry))
-        );
+        hooks[11] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
+        hooks[12] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
         hooks[13] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
-            abi.encodePacked(
-                type(Swap1InchHook).creationCode, abi.encode(registry, configuration.aggregationRouters[chainId])
-            )
+            abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(configuration.aggregationRouters[chainId]))
         );
         hooks[14] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(registry, configuration.odosRouters[chainId]))
+            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
         hooks[15] = HookDeployment(
             APPROVE_AND_SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(
-                type(ApproveAndSwapOdosHook).creationCode, abi.encode(registry, configuration.odosRouters[chainId])
-            )
+            abi.encodePacked(type(ApproveAndSwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
 
         hooks[16] = HookDeployment(
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(registry, configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(configuration.acrossSpokePoolV3s[chainId])
             )
         );
-        hooks[17] = HookDeployment(
-            FLUID_CLAIM_REWARD_HOOK_KEY, abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry))
-        );
-        hooks[18] = HookDeployment(
-            FLUID_STAKE_HOOK_KEY, abi.encodePacked(type(FluidStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[19] = HookDeployment(
-            APPROVE_AND_FLUID_STAKE_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndFluidStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[20] = HookDeployment(
-            FLUID_UNSTAKE_HOOK_KEY, abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[21] = HookDeployment(
-            GEARBOX_CLAIM_REWARD_HOOK_KEY,
-            abi.encodePacked(type(GearboxClaimRewardHook).creationCode, abi.encode(registry))
-        );
-        hooks[22] = HookDeployment(
-            GEARBOX_STAKE_HOOK_KEY, abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[23] = HookDeployment(
-            GEARBOX_APPROVE_AND_STAKE_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndGearboxStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[24] = HookDeployment(
-            GEARBOX_UNSTAKE_HOOK_KEY, abi.encodePacked(type(GearboxUnstakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[25] = HookDeployment(
-            YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
-            abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry))
-        );
+        hooks[17] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);
+        hooks[18] = HookDeployment(FLUID_STAKE_HOOK_KEY, type(FluidStakeHook).creationCode);
+        hooks[19] = HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, type(ApproveAndFluidStakeHook).creationCode);
+        hooks[20] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, type(FluidUnstakeHook).creationCode);
+        hooks[21] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, type(GearboxClaimRewardHook).creationCode);
+        hooks[22] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, type(GearboxStakeHook).creationCode);
+        hooks[23] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, type(ApproveAndGearboxStakeHook).creationCode);
+        hooks[24] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, type(GearboxUnstakeHook).creationCode);
+        hooks[25] = HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, type(YearnClaimOneRewardHook).creationCode);
 
-        hooks[26] = HookDeployment(
-            CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(CancelDepositRequest7540Hook).creationCode, abi.encode(registry))
-        );
-        hooks[27] = HookDeployment(
-            CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(CancelRedeemRequest7540Hook).creationCode, abi.encode(registry))
-        );
+        hooks[26] =
+            HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
+        hooks[27] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
         hooks[28] = HookDeployment(
-            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(ClaimCancelDepositRequest7540Hook).creationCode, abi.encode(registry))
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(ClaimCancelDepositRequest7540Hook).creationCode
         );
         hooks[29] = HookDeployment(
-            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(ClaimCancelRedeemRequest7540Hook).creationCode, abi.encode(registry))
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(ClaimCancelRedeemRequest7540Hook).creationCode
         );
-        hooks[30] = HookDeployment(
-            CANCEL_DEPOSIT_HOOK_KEY, abi.encodePacked(type(CancelDepositHook).creationCode, abi.encode(registry))
-        );
-        hooks[31] = HookDeployment(
-            CANCEL_REDEEM_HOOK_KEY, abi.encodePacked(type(CancelRedeemHook).creationCode, abi.encode(registry))
-        );
+        hooks[30] = HookDeployment(CANCEL_DEPOSIT_HOOK_KEY, type(CancelDepositHook).creationCode);
+        hooks[31] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -672,7 +580,6 @@ contract DeployV2 is Script, Configuration {
 
     function _deployOracles(
         ISuperDeployer deployer,
-        address registry,
         uint64 chainId
     )
         private
@@ -683,20 +590,16 @@ contract DeployV2 is Script, Configuration {
         oracleAddresses = new address[](len);
 
         oracles[0] = OracleDeployment(
-            ERC4626_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode, abi.encode(registry))
+            ERC4626_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode)
         );
         oracles[1] = OracleDeployment(
-            ERC5115_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode, abi.encode(registry))
+            ERC5115_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode)
         );
         oracles[2] = OracleDeployment(
-            ERC7540_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(registry))
+            ERC7540_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode)
         );
         oracles[3] = OracleDeployment(
-            STAKING_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(registry))
+            STAKING_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(StakingYieldSourceOracle).creationCode)
         );
 
         for (uint256 i = 0; i < len; ++i) {

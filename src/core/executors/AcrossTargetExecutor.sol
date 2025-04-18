@@ -7,7 +7,6 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { INexusFactory } from "../../vendor/nexus/INexusFactory.sol";
 import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 import { Execution, ExecutionLib as ERC7579ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import {
     ModeCode,
@@ -80,12 +79,12 @@ contract AcrossTargetExecutor is SuperExecutorBase, IAcrossV3Receiver, IAcrossTa
     error ACCOUNT_NOT_CREATED();
 
     constructor(
-        address registry_,
+        address ledgerConfiguration_,
         address acrossSpokePool_,
         address superDestinationValidator_,
         address nexusFactory_
     )
-        SuperExecutorBase(registry_)
+        SuperExecutorBase(ledgerConfiguration_)
     {
         if (acrossSpokePool_ == address(0) || superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
             revert ADDRESS_NOT_VALID();

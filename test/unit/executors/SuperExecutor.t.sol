@@ -4,11 +4,12 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseTest } from "../../BaseTest.t.sol";
 import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
-import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockHook } from "../../mocks/MockHook.sol";
@@ -18,8 +19,10 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 
 contract SuperExecutorTest is BaseTest {
+    using ModuleKitHelpers for *;
+    using ExecutionLib for *;
+
     SuperExecutor public superExecutor;
-    SuperRegistry public superRegistry;
     address public account;
     MockERC20 public token;
     MockHook public inflowHook;
@@ -27,13 +30,10 @@ contract SuperExecutorTest is BaseTest {
     MockLedger public ledger;
     MockLedgerConfiguration public ledgerConfig;
     address public feeRecipient;
-    bytes32 public constant LEDGER_CONFIG_ID = keccak256("SUPER_LEDGER_CONFIGURATION_ID");
 
     function setUp() public override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
-        superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
 
         account = makeAddr("account");
         token = new MockERC20("Mock Token", "MTK", 18);
@@ -45,9 +45,12 @@ contract SuperExecutorTest is BaseTest {
         ledger = new MockLedger();
         ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, account);
 
-        vm.startPrank(superRegistry.owner());
-        superRegistry.setAddress(LEDGER_CONFIG_ID, address(ledgerConfig));
-        vm.stopPrank();
+        superExecutor = new SuperExecutor(address(ledgerConfig));
+        accountInstances[ETH].installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superExecutor),
+            data: ""
+        });
     }
 
     function test_Name() public view {
@@ -241,10 +244,12 @@ contract SuperExecutorTest is BaseTest {
 
         MockLedgerConfiguration maliciousConfig =
             new MockLedgerConfiguration(address(ledger), feeRecipient, address(maliciousToken), 100, account);
-
-        vm.startPrank(superRegistry.owner());
-        superRegistry.setAddress(LEDGER_CONFIG_ID, address(maliciousConfig));
-        vm.stopPrank();
+        superExecutor = new SuperExecutor(address(maliciousConfig));
+        accountInstances[ETH].installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superExecutor),
+            data: ""
+        });
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(maliciousHook);

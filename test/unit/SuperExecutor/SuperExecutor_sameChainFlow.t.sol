@@ -10,6 +10,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
+import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { ISuperHookOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
 
@@ -17,7 +18,6 @@ import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockLockVault } from "../../mocks/MockLockVault.sol";
 import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
-import { SuperRegistry } from "../../../src/core/settings/SuperRegistry.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
@@ -41,6 +41,8 @@ import { Vm } from "forge-std/Test.sol";
 contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     using BytesLib for bytes;
     using AddressLib for Address;
+    using ModuleKitHelpers for *;
+    using ExecutionLib for *;
 
     IERC4626 public vaultInstance;
     address public yieldSourceAddress;
@@ -49,7 +51,6 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     address public account;
     AccountInstance public instance;
     ISuperExecutor public superExecutor;
-    SuperRegistry public superRegistry;
     MockSuperPositionFactory public mockSuperPositionFactory;
 
     uint256 eoaKey;
@@ -57,6 +58,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     ERC7579Factory erc7579factory;
     IERC7579Account erc7579account;
     IERC7579Bootstrap bootstrapDefault;
+    address ledgerConfig;
 
     function setUp() public override {
         super.setUp();
@@ -69,7 +71,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         account = accountInstances[ETH].account;
         instance = accountInstances[ETH];
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        superRegistry = SuperRegistry(_getContract(ETH, SUPER_REGISTRY_KEY));
+        ledgerConfig = _getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY);
         mockSuperPositionFactory = new MockSuperPositionFactory(address(this));
         vm.label(address(mockSuperPositionFactory), "MockSuperPositionFactory");
 
@@ -161,7 +163,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
+        Swap1InchHook hook = new Swap1InchHook(executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -195,7 +197,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
+        Swap1InchHook hook = new Swap1InchHook(executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -232,7 +234,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         address executor = address(new Mock1InchRouter());
         vm.label(executor, "Mock1InchRouter");
 
-        Swap1InchHook hook = new Swap1InchHook(_getContract(ETH, SUPER_REGISTRY_KEY), executor);
+        Swap1InchHook hook = new Swap1InchHook(executor);
         vm.label(address(hook), SWAP_1INCH_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](1);
@@ -390,10 +392,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         _getTokens(underlying, account, amount);
 
-        // create MockVault and set it as SuperCollectiveVault
-        MockLockVault lockVault = new MockLockVault();
-        vm.label(address(lockVault), "MockLockVault");
-        superRegistry.setAddress(keccak256(bytes(SUPER_COLLECTIVE_VAULT_KEY)), address(lockVault));
+        superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_WITH_SP_LOCK_KEY));
 
         // hooks list
         address[] memory hooksAddresses = new address[](2);

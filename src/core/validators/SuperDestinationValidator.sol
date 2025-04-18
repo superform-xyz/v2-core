@@ -61,6 +61,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
+        if (!_initialized[sender]) revert NOT_INITIALIZED();
+        
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =
             _decodeSignatureAndDestinationData(data, sender);

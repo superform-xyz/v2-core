@@ -26,7 +26,7 @@ contract Deposit4626VaultHookTest is BaseTest {
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
 
-        hook = new Deposit4626VaultHook(address(this));
+        hook = new Deposit4626VaultHook();
     }
 
     function test_Constructor() public view {

@@ -27,7 +27,7 @@ contract SpectraExchangeHookTest is BaseTest {
         vm.selectFork(FORKS[ETH]);
 
         router = new MockSpectraRouter();
-        hook = new SpectraExchangeHook(address(this), address(router));
+        hook = new SpectraExchangeHook(address(router));
         token = new MockERC20("Test Token", "TEST", 18);
         account = address(this);
 
@@ -37,7 +37,7 @@ contract SpectraExchangeHookTest is BaseTest {
 
     function test_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SpectraExchangeHook(address(this), address(0));
+        new SpectraExchangeHook(address(0));
     }
 
     function test_Build_DepositAssetInPT() public view {

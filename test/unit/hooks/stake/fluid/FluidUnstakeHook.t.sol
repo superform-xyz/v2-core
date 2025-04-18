@@ -28,7 +28,7 @@ contract FluidUnstakeHookTest is BaseTest {
         yieldSource = makeAddr("yieldSource");
         amount = 1000;
 
-        hook = new FluidUnstakeHook(address(this));
+        hook = new FluidUnstakeHook();
     }
 
     function test_Constructor() public view {
