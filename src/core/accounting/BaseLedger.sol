@@ -17,10 +17,11 @@ abstract contract BaseLedger is ISuperLedger {
     mapping(address user => mapping(address yieldSource => uint256 shares)) public usersAccumulatorShares;
     mapping(address user => mapping(address yieldSource => uint256 costBasis)) public usersAccumulatorCostBasis;
 
-    mapping(address executor => bool isAllowed) public allowedExecutors;    
+    mapping(address executor => bool isAllowed) public allowedExecutors;
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     constructor(address superLedgerConfiguration_, address[] memory allowedExecutors_) {
         if (superLedgerConfiguration_ == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         superLedgerConfiguration = SuperLedgerConfiguration(superLedgerConfiguration_);

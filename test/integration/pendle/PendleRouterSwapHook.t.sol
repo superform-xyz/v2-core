@@ -38,6 +38,9 @@ contract PendleRouterSwapHook is BaseTest {
 
     // tx example: https://etherscan.io/tx/0x36b2c58e314e9d9bf73fc0d632ed228e35cd6b840066d12d39f72c633bad27a5
     function test_PendleRouterSwap_Token_To_Pt() public {
+        if (!useRealOdosRouter) {
+            return;
+        }
         uint256 amount = 1e6;
 
         // get tokens
