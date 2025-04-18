@@ -58,12 +58,7 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_OP_SEPOLIA = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
 
     // DeBridge Gate addresses per chain
-    address internal constant DEBRIDGE_GATE_MAINNET = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-    address internal constant DEBRIDGE_GATE_BASE = 0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF;
-    address internal constant DEBRIDGE_GATE_OPTIMISM = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-    address internal constant DEBRIDGE_GATE_ARB_SEPOLIA = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-    address internal constant DEBRIDGE_GATE_BASE_SEPOLIA = address(0);
-    address internal constant DEBRIDGE_GATE_OP_SEPOLIA = address(0);
+    address internal constant DEBRIDGE_DLN_DST = 0xE7351Fd770A37282b91D153Ee690B63579D6dd7f;
 
     // 1inch Aggregation Router addresses per chain
     address internal constant AGGREGATION_ROUTER_MAINNET = 0x111111125434b319222CdBf8C261674aDB56F3ae;

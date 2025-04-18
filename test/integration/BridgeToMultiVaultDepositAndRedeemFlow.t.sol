@@ -224,8 +224,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
-        // PREPARE ETH DATA
-        bytes memory targetExecutorMessage;
+        // PREPARE ETH DATA (This becomes the *payload* for the Debridge external call)
+        bytes memory innerExecutorPayload;
         {
             address[] memory eth7540HooksAddresses = new address[](2);
             eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -254,8 +254,20 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+            (innerExecutorPayload,) = _createTargetExecutorMessage(messageData);
         }
+
+        // Create the Debridge External Call Envelope V1 using the helper
+        // The executor for the *Debridge envelope* is the SuperTargetExecutor on ETH.
+        // The payload for the *Debridge envelope* is the message we prepared above.
+        bytes memory debridgeExternalCall = _createDebridgeExternalCallEnvelope(
+            address(debridgeAdapterOnETH), // Executor for the *envelope's payload*
+            0, // executionFee
+            accountETH, // fallbackAddress (send funds here if superTargetExecutor fails)
+            innerExecutorPayload, // payload for the superTargetExecutor
+            false, // allowDelayedExecution
+            true // requireSuccessfulExecution
+        );
 
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
@@ -280,11 +292,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
                 takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
                 takeChainId: ETH, //takeChainId
-                receiverDst: address(debridgeAdapterOnETH), //receiverDst
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(debridgeAdapterOnETH),
                 givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
                 orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
                 allowedTakerDst: "", //allowedTakerDst
-                externalCall: targetExecutorMessage, //externalCall
+                externalCall: debridgeExternalCall, // Use the created envelope
                 allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
                 affiliateFee: "", //affiliateFee
                 referralCode: 0, //referralCode
@@ -889,35 +902,26 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
         bytes memory odosCallData;
-        if (useRealOdosRouter) {
-            odosCallData = _createOdosCallData(underlyingOP_USDCe, assetOutAmount, underlyingBase_USDC, accountOP);
-        } else {
-            odosCallData = _createMockOdosSwapHookData(
-                underlyingOP_USDCe,
-                assetOutAmount,
-                address(this),
-                underlyingOP_USDC,
-                assetOutAmount,
-                0,
-                bytes(""),
-                mockOdosRouters[OP],
-                0,
-                true
-            );
-        }
+        odosCallData = _createMockOdosSwapHookData(
+            underlyingOP_USDCe,
+            assetOutAmount,
+            address(this),
+            underlyingOP_USDC,
+            assetOutAmount,
+            0,
+            bytes(""),
+            mockOdosRouters[OP],
+            0,
+            true
+        );
 
         bytes memory approveOdosData;
-        if (useRealOdosRouter) {
-            approveOdosData = _createApproveHookData(underlyingOP_USDCe, ODOS_ROUTER[OP], assetOutAmount, false);
-        } else {
-            approveOdosData = _createApproveHookData(underlyingOP_USDCe, mockOdosRouters[OP], assetOutAmount, false);
-        }
+        approveOdosData = _createApproveHookData(underlyingOP_USDCe, mockOdosRouters[OP], assetOutAmount, false);
 
         // PREPARE OP DATA
         address[] memory opHooksAddresses = new address[](4);
         opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
-        opHooksAddresses[1] =
-            useRealOdosRouter ? _getHookAddress(OP, SWAP_ODOS_HOOK_KEY) : _getHookAddress(OP, MOCK_SWAP_ODOS_HOOK_KEY);
+        opHooksAddresses[1] = _getHookAddress(OP, MOCK_SWAP_ODOS_HOOK_KEY);
         opHooksAddresses[2] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
         opHooksAddresses[3] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
