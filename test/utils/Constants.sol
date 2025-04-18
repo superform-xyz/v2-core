@@ -45,6 +45,8 @@ abstract contract Constants {
 
     // hooks
     string public constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
+    string public constant MOCK_SWAP_ODOS_HOOK_KEY = "MockSwapOdosHook";
+    string public constant MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY = "MockApproveAndSwapOdosHook";
     string public constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string public constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string public constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";

@@ -23,7 +23,7 @@ ftest-vvv :; forge test -vvv
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
 
-test-vvv :; forge test --match-test test_Borrow_Repay_Hooks_E2E -vv
+test-vvv :; forge test --match-test test_Borrow_Repay_Hooks_E2E -vvvv
 
 test-integration :; forge test --match-test test_Borrow_Repay_Hooks_E2E -vvv
 
