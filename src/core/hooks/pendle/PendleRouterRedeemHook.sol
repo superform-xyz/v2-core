@@ -96,18 +96,20 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        address pendleMarket = data.extractYieldSource();
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[25:57], (uint256));
-        bytes memory txData_ = data[57:];
+        RedeemData memory redeemData = _decodeData(data);
+        _validateRedeemData(redeemData);
 
-        bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pendleMarket);
+        if (redeemData.usePrevHookAmount) {
+            vars.amount = ISuperHookResult(prevHook).outAmount();
+        }
+
+        TokenOutput memory output = pendleV4Router.createTokenOutputSimple(redeemData.tokenOut, redeemData.minTokenOut);
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(pendleRouterV4),
-            value: value,
-            callData: usePrevHookAmount ? updatedTxData : txData_
+            value: 0,
+            callData: abi.encodeWithSelector(IPendleRouterV4.redeemPyToToken.selector, redeemData.receiver, redeemData.YT, redeemData.amount, output)
         });
     }
 
@@ -136,141 +138,34 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     function _decodeData(bytes calldata data)
         internal
         view
-        returns (address receiver, address YT, uint256 netPyIn, TokenOutput memory output)
+        returns (RedeemData memory redeemData)
     {
         address pendleMarket = data.extractYieldSource();
         address receiver = data.extractReceiver();
         address YT = data.extractYT();
-        uint256 netPyIn = data.extractNetPyIn();
-        TokenOutput memory output = data.extractTokenOutput();
+        uint256 amount = data.extractAmount();
+        address tokenOut = data.extractTokenOut();
+        uint256 minTokenOut = data.extractMinTokenOut();
+
+        RedeemData memory redeemData = RedeemData({
+            yieldSource: pendleMarket,
+            usePrevHookAmount: usePrevHookAmount,
+            amount: amount,
+            receiver: receiver,
+            YT: YT,
+        });
     }
 
-    function _validateTxData(
-        bytes calldata data,
-        address account,
-        bool usePrevHookAmount,
-        address prevHook,
-        address pendleMarket
-    )
-        private
-        view
-        returns (bytes memory updatedTxData)
-    {
-        bytes4 selector = bytes4(data[0:4]);
-        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            // skip selector
-            (
-                address receiver,
-                address market,
-                uint256 minPtOut,
-                ApproxParams memory guessPtOut,
-                TokenInput memory input,
-                LimitOrderData memory limit
-            ) = abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
-
-            if (receiver != account) revert RECEIVER_NOT_VALID();
-            if (market != pendleMarket) revert MARKET_NOT_VALID();
-            if (minPtOut == 0) revert MIN_OUT_NOT_VALID();
-
-            // validate approx params
-            if (guessPtOut.guessMin > guessPtOut.guessMax) revert INVALID_GUESS_PT_OUT();
-            if (guessPtOut.eps > 1e18) revert EPS_NOT_VALID();
-
-            // validate token input
-            if (input.tokenMintSy == address(0) || input.pendleSwap == address(0)) revert ADDRESS_NOT_VALID();
-
-            if (usePrevHookAmount) {
-                input.netTokenIn = ISuperHookResult(prevHook).outAmount();
-            }
-            if (input.netTokenIn == 0) revert AMOUNT_IN_NOT_VALID();
-
-            // validate limit order
-            if (limit.normalFills.length > 0) {
-                _validateFillOrders(limit.normalFills);
-            }
-            if (limit.flashFills.length > 0) {
-                _validateFillOrders(limit.flashFills);
-            }
-
-            updatedTxData = abi.encodeWithSelector(selector, receiver, market, minPtOut, guessPtOut, input, limit);
-        } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            // skip selector
-            (
-                address receiver,
-                address market,
-                uint256 exactPtIn,
-                TokenOutput memory output,
-                LimitOrderData memory limit
-            ) = abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
-
-            if (receiver != account) revert RECEIVER_NOT_VALID();
-            if (market != pendleMarket) revert MARKET_NOT_VALID();
-
-            if (usePrevHookAmount) {
-                exactPtIn = ISuperHookResult(prevHook).outAmount();
-            }
-            if (exactPtIn == 0) revert AMOUNT_IN_NOT_VALID();
-
-            // validate token output
-            if (output.pendleSwap == address(0)) revert ADDRESS_NOT_VALID();
-            if (output.minTokenOut == 0) revert MIN_OUT_NOT_VALID();
-
-            // validate limit order
-            if (limit.normalFills.length > 0) {
-                _validateFillOrders(limit.normalFills);
-            }
-            if (limit.flashFills.length > 0) {
-                _validateFillOrders(limit.flashFills);
-            }
-
-            updatedTxData = abi.encodeWithSelector(selector, receiver, market, exactPtIn, output, limit);
-        } else {
-            revert INVALID_SWAP_TYPE();
-        }
-    }
-
-    function _validateFillOrders(FillOrderParams[] memory fills) internal view {
-        for (uint256 i; i < fills.length; ++i) {
-            if (fills[i].makingAmount == 0) revert MAKING_AMOUNT_NOT_VALID();
-            _validateOrder(fills[i].order);
-        }
-    }
-
-    function _validateOrder(Order memory order) internal view {
-        if (block.timestamp < order.maker.maturity) revert ORDER_NOT_MATURE();
-        if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
-    }
-
-    function _decodeTokenOut(bytes calldata data) internal view returns (address tokenOut) {
-        bytes4 selector = bytes4(data[0:4]);
-        if (selector == IPendleRouterV4.redeemPyToToken.selector) {
-            // 0-4 selector
-            // 4-36 receiver
-            // 36-68 netPyIn
-            // 68-100 output
-
-            address market = abi.decode(data[36:68], (address));
-            (, tokenOut,) = IPendleMarket(market).readTokens();
-        } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            // 0-4 selector
-            // 4-36 receiver
-            // 36-68 market
-            // 68-100 exactPtIn
-            // 100-250 output
-            tokenOut = abi.decode(data[100:132], (address));
-        } else {
-            revert INVALID_SWAP_TYPE();
-        }
-    }
-
-    function _decodeReceiver(bytes calldata data) internal pure returns (address receiver) {
-        // same offset for both selectors
-        receiver = abi.decode(data[4:36], (address));
+    function _validateRedeemData(RedeemData memory redeemData) internal view {
+        if (redeemData.YT == address(0)) revert YT_NOT_VALID();
+        if (redeemData.amount == 0) revert AMOUNT_NOT_VALID();
+        if (redeemData.tokenOut == address(0)) revert TOKEN_OUT_NOT_VALID();
+        if (redeemData.minTokenOut == 0) revert MIN_TOKEN_OUT_NOT_VALID();
     }
 
     function _getBalance(bytes calldata data) private view returns (uint256) {
-        address tokenOut = _decodeTokenOut(data[57:]);
-        address receiver = _decodeReceiver(data[57:]);
+        address tokenOut = BytesLib.toAddress(data, 121);
+        address receiver = BytesLib.toAddress(data, 57);
 
         if (tokenOut == address(0)) {
             return receiver.balance;
