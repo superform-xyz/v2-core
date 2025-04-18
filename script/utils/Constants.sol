@@ -20,6 +20,7 @@ abstract contract Constants {
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
+    string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
