@@ -2,15 +2,15 @@
 
 ## Goal and Overview
 
-We want to **refactor** the existing on-chain price-per-share (PPS) logic in SuperVaults so that **all PPS calculations happen off-chain**. A **strategist** (vault manager) periodically **reports** a new PPS on-chain, which we use in deposit/withdraw flows. This PPS is accepted *optimistically* unless someone disputes it. If there is a dispute, the system can run a **reference calculation** (similar to the old Approach 1 logic) *only* once needed (rather than on every block). 
+We want to **refactor** the existing on-chain price-per-share (PPS) logic in SuperVaults so that **all PPS calculations happen optimistically off-chain**. A **strategist** (vault manager) periodically **reports** a new PPS in the contract, which we use in deposit/withdraw flows. This PPS is accepted *optimistically* unless someone disputes it. If there is a dispute, the system can run a **reference calculation** (similar to the old Approach 1 logic) *only* once needed (rather than on every block).
 
-Strategists must **stake** protocol tokens (e.g., \$UP) to be allowed to post PPS. A **challenger** who suspects fraud can raise a dispute by also staking. If the on-chain reference check proves the strategist’s PPS was wrong beyond a tolerance, the strategist is **slashed**. Otherwise, the challenger loses their stake (discouraging spam). Through this mechanism, we preserve trust and correctness over time while **lowering on-chain gas** for routine operations.
+Strategists must **stake** protocol tokens (e.g., \$UP) to be allowed to post PPS. A **challenger** who suspects fraud can raise a dispute by also staking. If the dispute adjudication system off-chain check proves the strategist’s PPS was wrong beyond a tolerance, the strategist is **slashed**. Otherwise, the challenger loses their stake (discouraging spam). Through this mechanism, we preserve trust and correctness over time while **lowering on-chain gas** for routine operations.
 
 ### Key Differences from the Original On-Chain PPS
 1. **Off-Chain PPS Calculation**  
-   - Previously, we calculated `totalAssets()` or price-per-share on-chain every time. Now the strategist just publishes a number, and user deposits/withdrawals consume that number in O(1) operations.
+   - Previously, we calculated `totalAssets()` or price-per-share on-chain every time. Now the strategist just publishes the updated PPS, and user deposits/withdrawals consume that number in O(1) operations.
 2. **New “Dispute” Mechanism**  
-   - If the posted PPS is suspected to be wrong, a dispute can trigger a reference calculation (the original multi-yield-source logic) on-chain. If the strategist’s posted PPS is indeed incorrect beyond a threshold, the system slashes the strategist’s stake and corrects the on-chain PPS.
+   - If the posted PPS is suspected to be wrong, a dispute can trigger the PPS python reference calculation. If the strategist’s posted PPS is indeed incorrect beyond a threshold, the system slashes the strategist’s stake
 3. **Strategist Staking and Reputation**  
    - Only addresses meeting KYC/Reputation criteria (off-chain or governed by some identity contract) will be allowed to become strategists. They must deposit a certain stake of \$UP tokens into a staking contract. This stake is subject to slashing in the event of fraud.
 4. **Circuit Breakers / Rate Limits**  
@@ -30,22 +30,14 @@ Below are the **new or modified functionalities** needed to implement the off-ch
   - **Logic**:  
     1. Checks that the new PPS is being inscribed after a minimum time gap, otherwise revert (rate limit)
     2. Checks that the PPS is within reasonable bounds of change from the last stored PPS, otherwise pause the contract. This check is made with a few bips of deviation to up or down.
-    3. Checks if `block.number - calculationBlock < threshold`, where threshold is a number of blocks allowed since calculation block and block.number (this threhsold is configurable)
-    this is to avoid the strategist always providing the same PPS over time by pointing to the same block.number regardless of being very far in the past. Otherwise 
-    revert.
+    3. Checks if `block.number - calculationBlock < threshold`, where threshold is a number of blocks allowed since calculation block and block.number (this threhsold is configurable) this is to avoid the strategist always providing the same PPS over time by pointing to the same block.number regardless of being very far in the past. Otherwise revert.
     4. Stores `storedPPS = newPPS`.  
     5. Emits event `PPSUpdated(oldPPs, newPPS, calculationBlock)`.  
 
 - **PPS Usage**
   - Replace the old on-chain calls to `totalAssets()` or yield-source TVLs with a simple fetch of `storedPPS`.  
 
-### 2. Reference Implementation for Disputes
-- **`SuperVaultPPSOracle.sol` (Reference Implementation)**  
-  - This contract includes a **pure/virtual** function `calculateReferencePPS(address vault)` that reproduces the *old Approach 1 logic* of summing all yield sources, evaluating oracles, etc.  
-  - We do **not** call this function on-chain
-  - Must be flexible enough to handle adding different mechanisms to account for total assets. Could be a system of multiple contracts
-
-### 3. Dispute, Slashing Mechanism and Reputation system
+### 2. Dispute, Slashing Mechanism and Reputation system
   - **Callable by**: Any user (the "disputer") who suspects a given update of a pps is incorrect (or it's update didn't meet the hearbeat requirement), submits the block.number of its update
   in a dispute function (which gets emited in an event)
   - Disputes are handled off-chain by looking at the disputed block number
@@ -64,14 +56,14 @@ Below are the **new or modified functionalities** needed to implement the off-ch
   - We want only **“approved” strategists** with a known identity or good track record (a registerStrategist function is called by an admin before a strategist can stake)
   - All stakers (strategists/disputers) have a 7 day unstake queue before getting their stake back. Additionally, any user with an on-going dispute cannot unstake.
 
-### 4. Code Refactors & New Contracts
+### 3. Code Refactors & New Contracts
 Below are the main additions:
 
 1. Adapt existing `SuperVault` / `SuperVaultStrategy`
    - Remove direct on-chain `totalAssets()` computations.  
-   - Add `uint256 storedPPS` and `updatePPS(...)`, plus a reference to SuperVaultReputationSystem to check the strategist’s stake.  
+   - Add `uint256 storedPPS` and `updatePPS(...)`, plus a reference to SuperAdjudicator to check the strategist’s stake.  
 
-2. **`SuperVaultReputationSystem.sol`** 
+2. **`SuperAdjudicator.sol`** 
    - A place for “KYCed” strategists to put their stake
    - Disputers do not need KYC to register, just need to put a stake.
    - Manages the staking (strategist stakes, disputer stakes).  
@@ -87,12 +79,7 @@ Below are the main additions:
    - Therefore request deposit ceases to exist, as well as cancelation of deposit requests
    - matchRequests ceases to exist as there are no requests to match
 
-4. **`SuperVaultPPSOracle.sol`** (Reference Implementation)  
-   - Exposes `calculateReferencePPS(address vault) returns (uint256)`, doing the heavy yield‐source logic.  
-   - Uses modular logic to plug different totalAssets accounting mechanisms (extensible)
-    - The first module comprises of the logic currently used in totalAssets() of SuperVaultStrategy
-
-5. **Updated Test Suites**  
+4. **Updated Test Suites**  
    - We must thoroughly test:  
      - Normal deposits/withdraw with off-chain PPS updates.  
      - PPS updates on various intervals.  
@@ -101,10 +88,28 @@ Below are the main additions:
      - Re-entrancy checks for dispute flows.  
      - Pause states if the PPS leaps too far or is not updated in time.
 
-### 5. Gas and Performance Considerations
-- By removing the on-chain summation of all yield sources from routine operations, *most user calls* become *vastly cheaper*.  
-- The only heavy calls are `disputePPS()`, which triggers the reference logic. But those are expected to be rare, triggered only if suspicious changes are posted.  
-- The cost of on-chain yield‐source enumeration is now one-off in disputes, improving scale for large strategies.
+### 4. Decentralized Adjudication System (Node‑Runner View)
+
+**Adjudicator off-chain role**
+
+Data ingestionn
+ - Self hosted in the node (anyone can run)
+   - Ingest Events via Superform Data Pipeline
+   - Subscribe to vault events (e.g. PPSUpdated) streamed into ClickHouse.
+   - Apply the same ETL transforms (hooks, asset‑in‑transit proofs) that Superform use.
+
+Run the Python Reference Impl
+- Pull the exact Git tag or commit hash embedded in each PPSUpdated event.
+- Execute the off‑chain PPS calculation against the block snapshot (via an archive‑node RPC).
+
+Produce & Sign Verdicts:
+- Compare computed PPS to the on‑chain value.
+- If discrepancy > tolerance, sign a dispute verdict; else a “validate” verdict.
+
+Ensure Consensus & On‑Chain Settlement:
+- Gossip signed verdicts to peers (via any off‑chain relay).
+- A designated aggregator collects ≥ N signatures and submits the final proof to SuperAdjudicator.sol.
+
 
 ---
 

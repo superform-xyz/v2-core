@@ -51,7 +51,7 @@ interface ISuperVaultStrategy {
     error INVALID_PPS();
     error INVALID_REDEEM_FILL();
     error INVALID_VAULT();
-
+    error STAKE_TOO_LOW();
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/

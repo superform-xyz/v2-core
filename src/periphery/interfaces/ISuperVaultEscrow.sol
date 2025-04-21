@@ -34,17 +34,4 @@ interface ISuperVaultEscrow {
     /// @param to The address to return shares to
     /// @param amount The amount of shares to return
     function returnShares(address to, uint256 amount) external;
-
-    /// @notice Transfer shares from escrow to user during deposit claim
-    /// @param to The address to transfer shares to
-    /// @param amount The amount of shares to transfer
-    function transferShares(address to, uint256 amount) external;
-
-    /*//////////////////////////////////////////////////////////////
-                            STRATEGY FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Receive newly minted shares from strategy during deposit fulfillment
-    /// @param amount The amount of shares to receive
-    function receiveShares(uint256 amount) external;
 }

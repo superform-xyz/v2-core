@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity ^0.8.28;
 
 // external
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
@@ -20,8 +20,10 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
     address[] public registeredFulfillRequestsHooks;
 
     address private treasury;
-
-    address private reputationSystem;
+    address private superAdjudicator;
+    address private superOracle;
+    address private stakingToken;
+    address private rewardToken;
 
     uint256 private feeSplit;
     uint256 private proposedFeeSplit;
@@ -140,10 +142,31 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
     }
 
     /// @inheritdoc IPeripheryRegistry
-    function setReputationSystem(address reputationSystem_) external onlyOwner {
-        if (reputationSystem_ == address(0)) revert INVALID_ADDRESS();
-        reputationSystem = reputationSystem_;
-        emit ReputationSystemUpdated(reputationSystem_);
+    function setSuperAdjudicator(address superAdjudicator_) external onlyOwner {
+        if (superAdjudicator_ == address(0)) revert INVALID_ADDRESS();
+        superAdjudicator = superAdjudicator_;
+        emit SuperAdjudicatorUpdated(superAdjudicator_);
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function setSuperOracle(address superOracle_) external onlyOwner {
+        if (superOracle_ == address(0)) revert INVALID_ADDRESS();
+        superOracle = superOracle_;
+        emit SuperOracleUpdated(superOracle_);
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function setRewardToken(address rewardToken_) external onlyOwner {
+        if (rewardToken_ == address(0)) revert INVALID_ADDRESS();
+        rewardToken = rewardToken_;
+        emit RewardTokenUpdated(rewardToken_);
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function setStakingToken(address stakingToken_) external onlyOwner {
+        if (stakingToken_ == address(0)) revert INVALID_ADDRESS();
+        stakingToken = stakingToken_;
+        emit StakingTokenUpdated(stakingToken_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -166,6 +189,26 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
 
     /// @inheritdoc IPeripheryRegistry
     function getReputationSystem() external view returns (address) {
-        return reputationSystem;
+        return superAdjudicator;
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function getSuperAdjudicator() external view returns (address) {
+        return superAdjudicator;
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function getSuperOracle() external view returns (address) {
+        return superOracle;
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function getRewardToken() external view returns (address) {
+        return rewardToken;
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function getStakingToken() external view returns (address) {
+        return stakingToken;
     }
 }

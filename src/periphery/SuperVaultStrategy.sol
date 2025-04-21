@@ -24,7 +24,7 @@ import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
-import { ISuperVaultReputationSystem } from "./interfaces/ISuperVaultReputationSystem.sol";
+import { ISuperAdjudicator } from "./interfaces/ISuperAdjudicator.sol";
 
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
@@ -132,7 +132,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         superVaultCap = superVaultCap_;
         peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
 
-        _initializeRoles(manager_, strategist_, emergencyAdmin_);
+        _initializeRoles(peripheryRegistry_, manager_, strategist_, emergencyAdmin_);
         _initializePPSState();
         _initializePPSConfigDefaults();
 
@@ -147,7 +147,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     /// @inheritdoc ISuperVaultStrategy
     function handleOperation(address controller, uint256 assets, uint256 shares, Operation operation) external {
         _requireVault();
+
         if (operation == Operation.Deposit) {
+            // note: all deposits are blocked if strategist doesn't have a minimum stake
+            _checkStrategistMinStake(addresses[STRATEGIST_ROLE]);
+
             _handleDeposit(controller, assets, shares);
         } else if (operation == Operation.RedeemRequest) {
             _handleRequestRedeem(controller, shares);
@@ -161,13 +165,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function updatePPS(uint256 newPPS, uint256 calculationBlock_) external whenNotPaused {
-        _checkStrategistAuthorization();
+    function updatePPS(uint256 newPPS, uint256 calculationBlock_) external onlyRole(STRATEGIST_ROLE) whenNotPaused {
+        _checkStrategistMinStake(msg.sender);
         _checkPPSRateLimit();
         _checkPPSDeviation(newPPS);
         _checkCalculationBlockAge(calculationBlock_);
 
         storedPPS = newPPS;
+        // todo we need this for rate limitation, otherwise can remove lastUpdateTimestamp
         lastUpdateTimestamp = block.timestamp;
 
         emit PPSUpdated(newPPS, calculationBlock_);
@@ -179,6 +184,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     /// @inheritdoc ISuperVaultStrategy
     function executeHooks(ExecuteArgs calldata args) external nonReentrant onlyRole(STRATEGIST_ROLE) {
+        _checkStrategistMinStake(msg.sender);
+
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (args.hookProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
@@ -197,6 +204,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     /// @inheritdoc ISuperVaultStrategy
     function fulfillRedeemRequests(FulfillArgs calldata args) external nonReentrant onlyRole(STRATEGIST_ROLE) {
+        // note: this prevents users from exiting till strategist has a minimum stake
+        // todo: implement emergency procedure could allow an adjudicator to take over strategist and allow exit here?
+        _checkStrategistMinStake(msg.sender);
+
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         uint256 controllersLength = args.controllers.length;
@@ -297,6 +308,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     function setAddress(bytes32 role, address account) external onlyRole(MANAGER_ROLE) {
         if (account == address(0)) revert ZERO_ADDRESS();
         if (role == MANAGER_ROLE && account != msg.sender) revert ACCESS_DENIED();
+        if (role == STRATEGIST_ROLE) {
+            // Check if the sender is a registered strategist
+            address adjudicator = peripheryRegistry.getSuperAdjudicator();
+            if (adjudicator == address(0)) revert ZERO_ADDRESS();
+            if (!ISuperAdjudicator(adjudicator).isStrategist(account)) {
+                revert STRATEGIST_NOT_AUTHORIZED();
+            }
+        }
         addresses[role] = account;
     }
 
@@ -413,8 +432,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     // --- Internal Initialization Helpers ---
-    function _initializeRoles(address manager_, address strategist_, address emergencyAdmin_) internal {
+    function _initializeRoles(
+        address peripheryRegistry_,
+        address manager_,
+        address strategist_,
+        address emergencyAdmin_
+    )
+        internal
+    {
         addresses[MANAGER_ROLE] = manager_;
+
+        address adjudicator = IPeripheryRegistry(peripheryRegistry_).getSuperAdjudicator();
+        if (adjudicator == address(0)) revert ZERO_ADDRESS();
+        if (!ISuperAdjudicator(adjudicator).isStrategist(strategist_)) {
+            revert STRATEGIST_NOT_AUTHORIZED();
+        }
         addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
     }
@@ -425,7 +457,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     }
 
     function _initializePPSConfigDefaults() internal {
-        minTimeBetweenUpdates = 1 hours;
+        minTimeBetweenUpdates = 1 minutes;
         maxPPSDeviationBps = 100;
         maxCalculationBlockAge = 100;
     }
@@ -687,11 +719,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     // --- End Hook Execution ---
 
     // --- Internal PPS Update Helpers ---
-    function _checkStrategistAuthorization() internal view {
-        if (!ISuperVaultReputationSystem(peripheryRegistry.getReputationSystem()).isStrategistRegistered(msg.sender)) {
-            revert STRATEGIST_NOT_AUTHORIZED();
+    function _checkStrategistMinStake(address strategist) internal view {
+        address adjudicator = peripheryRegistry.getSuperAdjudicator();
+        if (adjudicator == address(0)) revert ZERO_ADDRESS();
+
+        // Check if the strategist has the minimum required stake
+        ISuperAdjudicator.StakeInfo memory stakeInfo = ISuperAdjudicator(adjudicator).getStakeInfo(strategist);
+        if (stakeInfo.totalStake < ISuperAdjudicator(adjudicator).minStrategistStake()) {
+            revert STAKE_TOO_LOW();
         }
-        // todo check stake
     }
 
     function _checkPPSRateLimit() internal view {

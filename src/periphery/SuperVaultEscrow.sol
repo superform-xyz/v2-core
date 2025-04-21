@@ -72,21 +72,4 @@ contract SuperVaultEscrow {
     function returnShares(address to, uint256 amount) external onlyVault {
         shares.safeTransfer(to, amount);
     }
-
-    /// @notice Transfer shares from escrow to user during deposit claim
-    /// @param to The address to transfer shares to
-    /// @param amount The amount of shares to transfer
-    function transferShares(address to, uint256 amount) external onlyVault {
-        shares.safeTransfer(to, amount);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            STRATEGY FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Receive newly minted shares from strategy during deposit fulfillment
-    /// @param amount The amount of shares to receive
-    function receiveShares(uint256 amount) external onlyStrategy {
-        shares.safeTransferFrom(strategy, address(this), amount);
-    }
 }

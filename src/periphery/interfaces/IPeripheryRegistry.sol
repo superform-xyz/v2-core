@@ -28,7 +28,10 @@ interface IPeripheryRegistry {
     event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime);
     event TreasuryUpdated(address indexed treasury);
     event SvSlippageToleranceUpdated(uint256 svSlippageTolerance);
-    event ReputationSystemUpdated(address indexed reputationSystem);
+    event SuperAdjudicatorUpdated(address indexed superAdjudicator);
+    event StakingTokenUpdated(address indexed stakingToken);
+    event SuperOracleUpdated(address indexed superOracle);
+    event RewardTokenUpdated(address indexed rewardToken);
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -88,11 +91,39 @@ interface IPeripheryRegistry {
     /// @param treasury_ The new treasury address.
     function setTreasury(address treasury_) external;
 
-    /// @dev Set the reputation system address.
-    /// @param reputationSystem_ The new reputation system address.
-    function setReputationSystem(address reputationSystem_) external;
+    /// @dev Set the super adjudicator address.
+    /// @param superAdjudicator_ The new super adjudicator address.
+    function setSuperAdjudicator(address superAdjudicator_) external;
 
     /// @dev Get the reputation system address.
     /// @return The reputation system address.
     function getReputationSystem() external view returns (address);
+
+    /// @dev Get the super adjudicator address.
+    /// @return The super adjudicator address.
+    function getSuperAdjudicator() external view returns (address);
+
+    /// @dev Get the staking token address.
+    /// @return The staking token address used by the reputation system.
+    function getStakingToken() external view returns (address);
+
+    /// @dev Set the staking token address.
+    /// @param stakingToken_ The new staking token address.
+    function setStakingToken(address stakingToken_) external;
+
+    /// @dev Get the Super Oracle address.
+    /// @return The Super Oracle address.
+    function getSuperOracle() external view returns (address);
+
+    /// @dev Set the Super Oracle address.
+    /// @param superOracle_ The new Super Oracle address.
+    function setSuperOracle(address superOracle_) external;
+
+    /// @dev Get the reward token address.
+    /// @return The reward token address.
+    function getRewardToken() external view returns (address);
+
+    /// @dev Set the reward token address.
+    /// @param rewardToken_ The new reward token address.
+    function setRewardToken(address rewardToken_) external;
 }
