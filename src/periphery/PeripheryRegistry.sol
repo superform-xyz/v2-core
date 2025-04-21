@@ -21,6 +21,8 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
 
     address private treasury;
 
+    address private reputationSystem;
+
     uint256 private feeSplit;
     uint256 private proposedFeeSplit;
     uint256 private feeSplitEffectiveTime;
@@ -130,10 +132,18 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
         emit FeeSplitUpdated(feeSplit);
     }
 
+    /// @inheritdoc IPeripheryRegistry
     function setTreasury(address treasury_) external onlyOwner {
         if (treasury_ == address(0)) revert INVALID_ADDRESS();
         treasury = treasury_;
         emit TreasuryUpdated(treasury_);
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function setReputationSystem(address reputationSystem_) external onlyOwner {
+        if (reputationSystem_ == address(0)) revert INVALID_ADDRESS();
+        reputationSystem = reputationSystem_;
+        emit ReputationSystemUpdated(reputationSystem_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -152,5 +162,10 @@ contract PeripheryRegistry is Ownable2Step, IPeripheryRegistry {
     /// @inheritdoc IPeripheryRegistry
     function getTreasury() external view returns (address) {
         return treasury;
+    }
+
+    /// @inheritdoc IPeripheryRegistry
+    function getReputationSystem() external view returns (address) {
+        return reputationSystem;
     }
 }

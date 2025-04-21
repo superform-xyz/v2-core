@@ -55,7 +55,6 @@ import { CancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/Canc
 import { CancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
 import { ClaimCancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
-import { CancelDepositHook } from "../src/core/hooks/vaults/super-vault/CancelDepositHook.sol";
 import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 
 // ---- | stake
@@ -157,23 +156,17 @@ contract DeployV2 is Script, Configuration {
         address cancelRedeemRequest7540Hook;
         address claimCancelDepositRequest7540Hook;
         address claimCancelRedeemRequest7540Hook;
-        address cancelDepositHook;
         address cancelRedeemHook;
-        // --- New Hook Addresses Start ---
         address approveAndRedeem4626VaultHook;
         address approveAndRedeem5115VaultHook;
         address approveAndWithdraw7540VaultHook;
         address approveAndRedeem7540VaultHook;
         address deBridgeSendOrderAndExecuteOnDstHook;
-        // address ethenaCooldownSharesHook; // Placeholder
-        // address ethenaUnstakeHook; // Placeholder
-        // address spectraExchangeHook; // Placeholder
-        // address pendleRouterSwapHook; // Placeholder
-        address ethenaCooldownSharesHook; // Experimental Placeholder
-        address ethenaUnstakeHook; // Experimental Placeholder
-        address spectraExchangeHook; // Experimental Placeholder
-        address pendleRouterSwapHook; // Experimental Placeholder
-        address pendleRouterRedeemHook; // New Address Field
+        address ethenaCooldownSharesHook;
+        address ethenaUnstakeHook;
+        address spectraExchangeHook;
+        address pendleRouterSwapHook;
+        address pendleRouterRedeemHook;
         address morphoBorrowHook;
         address morphoRepayHook;
         address morphoRepayAndWithdrawHook;
@@ -416,7 +409,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (HookAddresses memory hookAddresses)
     {
-        uint256 len = 47; // Updated length including new Pendle hook
+        uint256 len = 44; // Updated length including new Pendle hook
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -505,48 +498,28 @@ contract DeployV2 is Script, Configuration {
         hooks[39] = HookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(ClaimCancelRedeemRequest7540Hook).creationCode
         );
-        hooks[40] = HookDeployment(CANCEL_DEPOSIT_HOOK_KEY, type(CancelDepositHook).creationCode);
-        hooks[41] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
+        hooks[40] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
 
-        hooks[42] = HookDeployment(
+        hooks[41] = HookDeployment(
             MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
         );
-        hooks[43] = HookDeployment(
+        hooks[42] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY, abi.encodePacked(type(MorphoRepayHook).creationCode, abi.encode(MORPHO))
         );
-        hooks[44] = HookDeployment(
+        hooks[43] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
             abi.encodePacked(type(MorphoRepayAndWithdrawHook).creationCode, abi.encode(MORPHO))
         );
 
-        // --- Fill remaining slots if length is greater than used hooks ---
-        for (uint256 i = 45; i < len; ++i) {
-            // Updated start index
-            hooks[i] = HookDeployment("UNUSED_PLACEHOLDER", type(ApproveERC20Hook).creationCode); // Use a simple
-                // placeholder
-        }
-        // ---
-
         for (uint256 i = 0; i < len; ++i) {
-            // Check if the hook name is not a placeholder or an experimental placeholder before deploying
-            bool isExperimentalPlaceholder = Strings.equal(hooks[i].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY)
-                || Strings.equal(hooks[i].name, ETHENA_UNSTAKE_HOOK_KEY)
-                || Strings.equal(hooks[i].name, SPECTRA_EXCHANGE_HOOK_KEY)
-                || Strings.equal(hooks[i].name, PENDLE_ROUTER_SWAP_HOOK_KEY)
-                || Strings.equal(hooks[i].name, PENDLE_ROUTER_REDEEM_HOOK_KEY); // Added new Pendle hook
-
-            if (!Strings.equal(hooks[i].name, "UNUSED_PLACEHOLDER") && !isExperimentalPlaceholder) {
-                HookDeployment memory hook = hooks[i];
-                addresses[i] = __deployContract(
-                    deployer,
-                    hook.name,
-                    chainId,
-                    __getSalt(configuration.owner, configuration.deployer, hook.name),
-                    hook.creationCode
-                );
-            } else {
-                addresses[i] = address(0); // Assign address(0) to placeholders and experimental hooks
-            }
+            HookDeployment memory hook = hooks[i];
+            addresses[i] = __deployContract(
+                deployer,
+                hook.name,
+                chainId,
+                __getSalt(configuration.owner, configuration.deployer, hook.name),
+                hook.creationCode
+            );
         }
 
         hookAddresses.approveErc20Hook =
@@ -621,16 +594,14 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[38].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[38] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
             Strings.equal(hooks[39].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
-        hookAddresses.cancelDepositHook =
-            Strings.equal(hooks[40].name, CANCEL_DEPOSIT_HOOK_KEY) ? addresses[40] : address(0);
         hookAddresses.cancelRedeemHook =
-            Strings.equal(hooks[41].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[41] : address(0);
+            Strings.equal(hooks[40].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[41] : address(0);
         hookAddresses.morphoBorrowHook =
-            Strings.equal(hooks[42].name, MORPHO_BORROW_HOOK_KEY) ? addresses[42] : address(0);
+            Strings.equal(hooks[41].name, MORPHO_BORROW_HOOK_KEY) ? addresses[42] : address(0);
         hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[43].name, MORPHO_REPAY_HOOK_KEY) ? addresses[43] : address(0);
+            Strings.equal(hooks[42].name, MORPHO_REPAY_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
-            Strings.equal(hooks[44].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[44] : address(0);
+            Strings.equal(hooks[43].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[44] : address(0);
 
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -689,7 +660,6 @@ contract DeployV2 is Script, Configuration {
             hookAddresses.claimCancelRedeemRequest7540Hook != address(0),
             "claimCancelRedeemRequest7540Hook not assigned"
         );
-        require(hookAddresses.cancelDepositHook != address(0), "cancelDepositHook not assigned");
         require(hookAddresses.cancelRedeemHook != address(0), "cancelRedeemHook not assigned");
         require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
         require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
@@ -735,15 +705,14 @@ contract DeployV2 is Script, Configuration {
         peripheryRegistry.registerHook(address(hookAddresses.cancelRedeemRequest7540Hook), false);
         peripheryRegistry.registerHook(address(hookAddresses.claimCancelDepositRequest7540Hook), false);
         peripheryRegistry.registerHook(address(hookAddresses.claimCancelRedeemRequest7540Hook), false);
-        peripheryRegistry.registerHook(address(hookAddresses.cancelDepositHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.cancelRedeemHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.morphoBorrowHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.morphoRepayHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.morphoRepayAndWithdrawHook), false);
-        // peripheryRegistry.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false); // Placeholder
-        // peripheryRegistry.registerHook(address(hookAddresses.spectraExchangeHook), false); // Placeholder
-        // peripheryRegistry.registerHook(address(hookAddresses.pendleRouterSwapHook), false); // Placeholder
-        // peripheryRegistry.registerHook(address(hookAddresses.pendleRouterRedeemHook), false); // New Placeholder
+        peripheryRegistry.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false); // Placeholder
+        peripheryRegistry.registerHook(address(hookAddresses.spectraExchangeHook), false); // Placeholder
+        peripheryRegistry.registerHook(address(hookAddresses.pendleRouterSwapHook), false); // Placeholder
+        peripheryRegistry.registerHook(address(hookAddresses.pendleRouterRedeemHook), false); // New Placeholder
     }
 
     function _deployOracles(

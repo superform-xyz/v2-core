@@ -8,12 +8,6 @@ import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 /// @author SuperForm Labs
 /// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 interface ISuperVaultStrategy {
-    enum FulfillmentType {
-        UNSET,
-        DEPOSIT,
-        REDEEM
-    }
-
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -21,62 +15,42 @@ interface ISuperVaultStrategy {
     error ZERO_LENGTH();
     error INVALID_HOOK();
     error ZERO_ADDRESS();
-    error INVALID_VAULT();
     error ACCESS_DENIED();
-    error INVALID_ORACLE();
     error INVALID_AMOUNT();
-    error ALREADY_EXISTS();
-    error LIMIT_EXCEEDED();
-    error LENGTH_MISMATCH();
     error INVALID_MANAGER();
     error ALREADY_INITIALIZED();
     error OPERATION_FAILED();
     error INVALID_TIMESTAMP();
     error REQUEST_NOT_FOUND();
     error INVALID_HOOK_ROOT();
-    error INVALID_VAULT_CAP();
     error INVALID_HOOK_TYPE();
     error INSUFFICIENT_FUNDS();
-    error INVALID_DEPOSIT_FILL();
-    error INVALID_REDEEM_FILL();
     error INVALID_STRATEGIST();
-    error INVALID_CONTROLLER();
     error ZERO_OUTPUT_AMOUNT();
     error INSUFFICIENT_SHARES();
     error ZERO_EXPECTED_VALUE();
-    error INVALID_ASSET_VALUE();
-    error ZERO_SHARES_FULFILLED();
     error INVALID_ARRAY_LENGTH();
-    error INVALID_ASSET_BALANCE();
-    error FULFILMENT_TYPE_UNSET();
-    error INVALID_FULFILMENT_TYPE();
-    error INVALID_BALANCE_CHANGE();
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
-    error INVALID_VAULT_THRESHOLD();
     error YIELD_SOURCE_NOT_ACTIVE();
     error INVALID_SUPER_VAULT_CAP();
     error INVALID_EMERGENCY_ADMIN();
-    error VAULT_THRESHOLD_EXCEEDED();
-    error INCOMPLETE_DEPOSIT_MATCH();
-    error SUPER_VAULT_CAP_EXCEEDED();
-    error RESIZED_ARRAY_LENGTH_ERROR();
     error INVALID_PERIPHERY_REGISTRY();
-    error CANNOT_CHANGE_TOTAL_ASSETS();
     error YIELD_SOURCE_ALREADY_EXISTS();
-    error INVALID_MAX_ALLOCATION_RATE();
     error YIELD_SOURCE_ALREADY_ACTIVE();
     error INVALID_PERFORMANCE_FEE_BPS();
     error INVALID_EMERGENCY_WITHDRAWAL();
-    error CLAIMING_MORE_THAN_IN_TRANSIT();
-    error REDEEMED_MORE_THAN_REQUESTED();
-    error YIELD_SOURCE_ORACLE_NOT_FOUND();
-    error DEPOSIT_FAILURE_INVALID_TARGET();
-    error NOT_VALID_OUTFLOW_REQUEST();
     error ASYNC_REQUEST_BLOCKING();
-    error INVALID_CANCELATION_TYPE();
     error MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET();
-    error MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET();
+    error MINIMUM_OUTPUT_AMOUNT_ASSETS_NOT_MET();
+    error INVALID_REDEEM_CLAIM();
+    error STRATEGIST_NOT_AUTHORIZED();
+    error PPS_UPDATE_RATE_LIMITED();
+    error PPS_OUT_OF_BOUNDS();
+    error CALCULATION_BLOCK_TOO_OLD();
+    error INVALID_PPS();
+    error INVALID_REDEEM_FILL();
+    error INVALID_VAULT();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -96,110 +70,52 @@ interface ISuperVaultStrategy {
     event SuperVaultCapUpdated(uint256 superVaultCap);
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
-    event FeeConfigUpdated(uint256 feeBps, address indexed recipient);
     event EmergencyWithdrawableProposed(bool newWithdrawable, uint256 effectiveTime);
     event EmergencyWithdrawableUpdated(bool withdrawable);
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
-    event FeePaid(address indexed recipient, uint256 assets, uint256 bps);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
     event HooksExecuted(address[] hooks);
-    event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 processedShares);
-    event AsyncYieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets);
-    event AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(address indexed source, uint256 assets);
-    event AsyncYieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets);
-    event AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(address indexed source, uint256 assets);
-    event YieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets);
-    event YieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets);
+    event RedeemRequestPlaced(address indexed controller, address indexed owner, uint256 shares);
+    event RedeemRequestFulfilled(address indexed controller, address indexed receiver, uint256 assets, uint256 shares);
+    event RedeemRequestCanceled(address indexed controller, uint256 shares);
+    event HookExecuted(
+        address indexed hook,
+        address indexed prevHook,
+        address indexed targetedYieldSource,
+        bool usePrevHookAmount,
+        bytes hookCalldata
+    );
+    event FulfillHookExecuted(address indexed hook, address indexed targetedYieldSource, bytes hookCalldata);
 
-    /*////////////////////////////////`//////////////////////////////
+    event PPSUpdated(uint256 newPPS, uint256 calculationBlock);
+
+    event RedeemRequestsFulfilled(address[] hooks, address[] controllers, uint256 processedShares, uint256 currentPPS);
+
+    event FeePaid(address indexed recipient, uint256 amount, uint256 performanceFeeBps);
+    event DepositHandled(address indexed controller, uint256 assets, uint256 shares);
+
+    /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
+
     struct FeeConfig {
         uint256 performanceFeeBps; // Fee in basis points
         address recipient; // Fee recipient address
     }
 
-    struct SuperVaultState {
-        uint256 pendingDepositRequest;
-        uint256 pendingRedeemRequest;
-        uint256 maxMint;
-        uint256 maxWithdraw;
-        uint256 accumulatorShares;
-        uint256 accumulatorCostBasis;
-        uint256 averageDepositPrice;
-        uint256 averageWithdrawPrice;
-    }
-
-    struct ExecutionVars {
-        // Common variables
-        address prevHook;
-        address targetedYieldSource;
-        bool success;
-        ISuperHook hookContract;
-        ISuperHook.HookType hookType;
-        bytes32 hookSubtype;
-        uint256 outAmount;
-        Execution[] executions;
-        // Fulfill hooks specific
-        uint256 totalRequestedAmount;
-        uint256 processedShares;
-        uint256 processedAssets;
-        uint256 pricePerShare;
-        uint256 requestedAmount;
-        uint256 shares;
-        uint256 totalSuperVaultSharesRedeeming;
-    }
-
-    /// @notice Arguments for the execute function
     struct ExecuteArgs {
-        address[] users;
         address[] hooks;
         bytes[] hookCalldata;
         bytes32[][] hookProofs;
         uint256[] expectedAssetsOrSharesOut;
     }
 
-    /// @notice Local variables struct for executeHooks to avoid stack too deep
-    struct ExecuteHooksVars {
-        uint256 hooksLength;
-        uint256 initialAssetBalance;
-        uint256 finalAssetBalance;
-        uint256 amount;
-        uint256 maxDecrease;
-        uint256 inflowCount;
-        uint256 actualDecrease;
-        address targetedYieldSource;
-        address prevHook;
-        address[] inflowTargets;
-        ISuperHook hookContract;
-        ISuperHook.HookType hookType;
-        Execution[] executions;
-        bool success;
-    }
-
-    struct OutflowExecutionVars {
-        uint256 amount;
-        uint256 amountOfAssets;
-        uint256 amountConvertedToUnderlyingShares;
-        uint256 balanceAssetBefore;
-        address target;
-    }
-
-    struct MatchVars {
-        // Variables for deposit processing
-        uint256 depositAssets; // Assets requested in the deposit
-        uint256 sharesNeeded; // Total shares needed for this deposit
-        uint256 remainingShares; // Remaining shares needed to fulfill deposit
-        // Variables for redeem processing
-        uint256 redeemShares; // Shares available from redeemer
-        uint256 sharesToUse; // Shares to take from current redeemer
-        // Variables for historical assets calculation
-        uint256 lastConsumedIndex; // Last consumed share price point index
-        uint256 finalAssets; // Final assets after fee calculation
-        // Price tracking
-        uint256 currentPricePerShare; // Current price per share for calculations
-        uint256 totalAssets; // Total assets across all yield sources
+    struct FulfillArgs {
+        address[] controllers;
+        address[] hooks;
+        bytes[] hookCalldata;
+        uint256[] expectedAssetsOrSharesOut;
     }
 
     struct YieldSource {
@@ -207,51 +123,77 @@ interface ISuperVaultStrategy {
         bool isActive; // Whether the source is active
     }
 
-    struct YieldSourceTVL {
-        address source;
-        uint256 tvl;
+    /// @notice State specific to asynchronous redeem requests
+    struct SuperVaultState {
+        uint256 pendingRedeemRequest; // Shares requested
+        uint256 maxWithdraw; // Assets claimable after fulfillment
+        // Accumulators needed for fee calculation on redeem
+        uint256 accumulatorShares;
+        uint256 accumulatorCostBasis;
+        uint256 averageWithdrawPrice; // Average price for claimable assets
+    }
+
+    struct ExecutionVars {
+        bool success;
+        address targetedYieldSource;
+        uint256 outAmount;
+        ISuperHook hookContract;
+        Execution[] executions;
+    }
+
+    struct OutflowExecutionVars {
+        bool success;
+        address targetedYieldSource;
+        address svAsset;
+        uint256 outAmount;
+        uint256 superVaultShares;
+        uint256 amountOfAssets;
+        uint256 amountConvertedToUnderlyingShares;
+        uint256 balanceAssetBefore;
+        Execution[] executions;
+        ISuperHook hookContract;
+        ISuperHook.HookType hookType;
     }
 
     /*//////////////////////////////////////////////////////////////
                                 ENUMS
     //////////////////////////////////////////////////////////////*/
     enum Operation {
-        DepositRequest,
-        CancelDeposit,
-        ClaimDeposit,
+        Deposit,
         RedeemRequest,
         CancelRedeem,
-        ClaimRedeem
+        ClaimRedeem,
+        Claim,
+        UpdateDepositAccumulators
     }
 
     /*//////////////////////////////////////////////////////////////
-                        REQUEST MANAGEMENT
+                        CORE STRATEGY OPERATIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Update state for a deposit or a redeem operation
-    /// @param controller The controller address
-    /// @param assetsOrShares Amount of assets being deposited
-    /// @param operation The operation to perform
-    /// @return assetsOrSharesOut The amount of assets or shares after the operation
-    function handleOperation(
-        address controller,
-        uint256 assetsOrShares,
-        Operation operation
-    )
-        external
-        returns (uint256 assetsOrSharesOut);
+
+    /// @notice Handles asynchronous redeem operations initiated by the Vault.
+    /// @param controller Controller address for the redeem operation.
+    /// @param assets For Redeem Request: Ignored. For Claim Redeem: assets amount. For Cancel: Ignored.
+    /// @param shares For Redeem Request: shares amount. For Claim Redeem: Ignored. For Cancel: Ignored.
+    /// @param operation The type of redeem operation (RedeemRequest, CancelRedeem, ClaimRedeem).
+    function handleOperation(address controller, uint256 assets, uint256 shares, Operation operation) external;
+
+    /// @notice Updates the stored Price Per Share (PPS).
+    /// @param newPPS The newly calculated PPS value (1e18 scaled).
+    /// @param calculationBlock_ The block number at which `newPPS` was determined.
+    function updatePPS(uint256 newPPS, uint256 calculationBlock_) external;
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Execute hooks with support for fulfilling user requests
-    /// @param args Execution arguments containing all parameters
+    /// @notice Execute hooks for general strategy management (rebalancing, etc.).
+    /// @param args Execution arguments containing hooks, calldata, proofs, expectations.
     function executeHooks(ExecuteArgs calldata args) external;
 
-    /// @notice Match redeem requests with deposit requests directly
-    /// @param redeemUsers Array of users with pending redeem requests
-    /// @param depositUsers Array of users with pending deposit requests
-    function matchRequests(address[] calldata redeemUsers, address[] calldata depositUsers) external;
+    /// @notice Fulfills pending redeem requests by executing specific fulfill hooks.
+    /// @param args Execution arguments containing fulfill hooks, calldata, and expected outputs (proofs ignored).
+    function fulfillRedeemRequests(FulfillArgs calldata args) external;
 
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
@@ -264,10 +206,7 @@ interface ISuperVaultStrategy {
     /// @notice Manage yield sources: add, update oracle, and toggle activation.
     /// @param source Address of the yield source.
     /// @param oracle Address of the oracle (used for adding/updating).
-    /// @param actionType Type of action:
-    ///        0 - Add new yield source,
-    ///        1 - Update oracle,
-    ///        2 - Toggle activation (oracle param ignored).
+    /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation.
     /// @param activate Boolean flag for activation when actionType is 2.
     /// @param isAsync Boolean flag for async yield source
     function manageYieldSource(
@@ -280,8 +219,7 @@ interface ISuperVaultStrategy {
         external;
 
     /// @notice Propose or execute a hook root update
-    /// @dev if newRoot is 0, executes the proposed hook root update
-    /// @param newRoot New hook root to propose or execute
+    /// @param newRoot New hook root to propose or 0 to execute proposed root.
     function proposeOrExecuteHookRoot(bytes32 newRoot) external;
 
     /// @notice Propose changes to vault-specific fee configuration
@@ -293,18 +231,12 @@ interface ISuperVaultStrategy {
     function executeVaultFeeConfigUpdate() external;
 
     /// @notice Set an address for a given role
-    /// @dev Only callable by MANAGER role. Cannot set address(0) or remove MANAGER role from themselves
-    /// @param role The role identifier
-    /// @param account The address to set for the role
     function setAddress(bytes32 role, address account) external;
 
     /// @notice Manage emergency withdrawals
-    /// @param action The action to perform
-    ///        0 - Propose new emergency withdrawable state,
-    ///        1 - Execute emergency withdrawable update,
-    ///        2 - Perform emergency withdrawal
-    /// @param recipient The recipient of the withdrawn assets
-    /// @param amount The amount of assets to withdraw
+    /// @param action Type of action: 1=Propose, 2=ExecuteActivation, 3=Withdraw
+    /// @param recipient The recipient of the withdrawn assets (for action 3)
+    /// @param amount The amount of assets to withdraw (for action 3)
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
@@ -312,15 +244,12 @@ interface ISuperVaultStrategy {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Check if the strategy is initialized
-    /// @return True if the strategy is initialized, false otherwise
     function isInitialized() external view returns (bool);
 
     /// @notice Get the vault info
-    /// @dev returns vault address, asset address, and vault decimals
     function getVaultInfo() external view returns (address vault, address asset, uint8 vaultDecimals);
 
     /// @notice Get the hook info
-    /// @dev returns hook root, proposed hook root, and hook root effective time
     function getHookInfo()
         external
         view
@@ -329,58 +258,36 @@ interface ISuperVaultStrategy {
     /// @notice Get the super vault cap and fee configurations
     function getConfigInfo() external view returns (uint256 superVaultCap, FeeConfig memory feeConfig);
 
-    /// @notice Get total assets managed by the strategy
-    /// @return totalAssets_ Total assets across all yield sources and idle assets
-    /// @return sourceTVLs Array of TVL information for each yield source
-    function totalAssets() external view returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs);
+    /// @notice Returns the currently stored PPS value.
+    function getStoredPPS() external view returns (uint256);
 
     /// @notice Get a yield source's configuration
-    /// @param source Address of the yield source
     function getYieldSource(address source) external view returns (YieldSource memory);
 
     /// @notice Get the list of all yield sources
     function getYieldSourcesList() external view returns (address[] memory);
 
+    /// @notice Get the average withdraw price for a controller
+    /// @param controller The controller address
+    /// @return averageWithdrawPrice The average withdraw price
+    function getAverageWithdrawPrice(address controller) external view returns (uint256 averageWithdrawPrice);
+
     /// @notice Check if a hook is allowed via merkle proof
-    /// @param hook Address of the hook to check
-    /// @param proof Merkle proof for the hook
     function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
 
-    /// @notice Get the claimed token amounts in the vault
-    /// @param token The token address
-    /// @return The amount of tokens claimed
-    function claimedTokens(address token) external view returns (uint256);
-
-    /// @notice Get the SuperVault state for a given owner and state type
-    /// @param owner The owner address
-    /// @param stateType The state type to get
-    ///        1 - maxMint,
-    ///        2 - maxWithdraw,
-    ///        3 - averageDepositPrice,
-    ///        4 - averageWithdrawPrice
-    /// @return The state value
-    function getSuperVaultState(address owner, uint8 stateType) external view returns (uint256);
-
-    /// @notice Get the yield source assets in transit inflows
-    /// @param source The yield source address
-    /// @return The amount of assets in transit inflows
-    function getYieldSourceAssetsInTransitInflows(address source) external view returns (uint256);
-
-    /// @notice Get the yield source shares in transit outflows
-    /// @param source The yield source address
-    function getYieldSourceSharesInTransitOutflows(address source) external view returns (uint256);
-
-    /*//////////////////////////////////////////////////////////////
-                        ERC7540 VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Get the pending deposit request amount for a controller
-    /// @param controller The controller address
-    /// @return pendingAssets The amount of assets pending deposit
-    function pendingDepositRequest(address controller) external view returns (uint256 pendingAssets);
-
-    /// @notice Get the pending redeem request amount for a controller
+    /// @notice Get the pending redeem request amount (shares) for a controller
     /// @param controller The controller address
     /// @return pendingShares The amount of shares pending redemption
     function pendingRedeemRequest(address controller) external view returns (uint256 pendingShares);
+
+    /// @notice Get the claimable withdraw amount (assets) for a controller
+    /// @param controller The controller address
+    /// @return claimableAssets The amount of assets claimable
+    function claimableWithdraw(address controller) external view returns (uint256 claimableAssets);
+
+    // Added view functions for PPS config
+    function getMinTimeBetweenUpdates() external view returns (uint256);
+    function getMaxPPSDeviationBps() external view returns (uint256);
+    function getMaxCalculationBlockAge() external view returns (uint256);
+    function getLastUpdateTimestamp() external view returns (uint256); // Needed for off-chain checks/UI
 }

@@ -13,20 +13,15 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 // Interfaces
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
-import {
-    IERC7540Vault,
-    IERC7540Operator,
-    IERC7540Deposit,
-    IERC7540Redeem,
-    IERC7741
-} from "../vendor/standards/ERC7540/IERC7540Vault.sol";
+import { IERC7540Operator, IERC7540Redeem, IERC7741 } from "../vendor/standards/ERC7540/IERC7540Vault.sol";
 import { IERC7575 } from "../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "./interfaces/ISuperVaultEscrow.sol";
 
 /// @title SuperVault
 /// @author SuperForm Labs
-/// @notice SuperVault vault contract implementing ERC7540 and ERC4626 standards
-contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGuard {
+/// @notice SuperVault vault contract implementing ERC4626 with synchronous deposits and asynchronous redeems via
+/// ERC7540
+contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -43,24 +38,15 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
                                 STATE
     //////////////////////////////////////////////////////////////*/
     bool public initialized;
-
-    // Token metadata
     string private vaultName;
     string private vaultSymbol;
-
     address public share;
-
-    // Domain separator
     bytes32 private _DOMAIN_SEPARATOR;
     bytes32 private _NAME_HASH;
     bytes32 private _VERSION_HASH;
     uint256 public deploymentChainId;
-
-    // 4626
     IERC20 private _asset;
     uint8 private _underlyingDecimals;
-
-    // Strategy
     ISuperVaultStrategy public strategy;
     address public escrow;
 
@@ -128,13 +114,10 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     /*//////////////////////////////////////////////////////////////
                             ERC20 OVERRIDES
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Returns the name of the token
     function name() public view virtual override(IERC20Metadata, ERC20) returns (string memory) {
         return vaultName;
     }
 
-    /// @notice Returns the symbol of the token
     function symbol() public view virtual override(IERC20Metadata, ERC20) returns (string memory) {
         return vaultSymbol;
     }
@@ -142,43 +125,49 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     /*//////////////////////////////////////////////////////////////
                         USER EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    //--ERC7540--
 
-    /// @inheritdoc IERC7540Deposit
-    function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256) {
+    /// @inheritdoc IERC4626
+    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         if (assets == 0) revert ZERO_AMOUNT();
-        if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
-        if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
 
-        if (_asset.balanceOf(owner) < assets) revert INVALID_AMOUNT();
+        uint256 currentPPS = strategy.getStoredPPS();
+        if (currentPPS == 0) revert INVALID_PPS();
 
-        // Transfer assets to vault
-        _asset.safeTransferFrom(owner, address(this), assets);
+        _checkSuperVaultCap(assets, currentPPS);
 
-        // Forward to strategy
-        _asset.forceApprove(address(strategy), assets);
-        strategy.handleOperation(controller, assets, ISuperVaultStrategy.Operation.DepositRequest);
-        _asset.forceApprove(address(strategy), 0);
+        shares = Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
+        if (shares == 0) revert ZERO_AMOUNT();
 
-        emit DepositRequest(controller, owner, REQUEST_ID, msg.sender, assets);
-        return REQUEST_ID;
+        _asset.safeTransferFrom(msg.sender, address(strategy), assets);
+
+        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
+
+        _mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
-    /// @inheritdoc ISuperVault
-    function cancelDeposit(address controller) external {
-        _validateController(controller);
+    /// @inheritdoc IERC4626
+    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
+        if (shares == 0) revert ZERO_AMOUNT();
 
-        // Get assets from strategy
-        uint256 assets = strategy.pendingDepositRequest(controller);
-        if (assets == 0) revert REQUEST_NOT_FOUND();
+        uint256 currentPPS = strategy.getStoredPPS();
+        if (currentPPS == 0) revert INVALID_PPS();
 
-        // Forward to strategy
-        strategy.handleOperation(controller, assets, ISuperVaultStrategy.Operation.CancelDeposit);
+        assets = Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
+        if (assets == 0) revert ZERO_AMOUNT();
 
-        // Return assets to user
-        _asset.safeTransfer(msg.sender, assets);
+        _checkSuperVaultCap(assets, currentPPS);
 
-        emit DepositRequestCancelled(controller, msg.sender);
+        _asset.safeTransferFrom(msg.sender, address(strategy), assets);
+
+        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
+
+        _mint(receiver, shares);
+
+        emit Deposit(msg.sender, receiver, assets, shares);
     }
 
     /// @inheritdoc IERC7540Redeem
@@ -197,7 +186,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         ISuperVaultEscrow(escrow).escrowShares(sender, shares);
 
         // Forward to strategy
-        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.RedeemRequest);
+        strategy.handleOperation(controller, 0, shares, ISuperVaultStrategy.Operation.RedeemRequest);
 
         emit RedeemRequest(controller, owner, REQUEST_ID, msg.sender, shares);
         return REQUEST_ID;
@@ -211,15 +200,13 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         if (shares == 0) revert REQUEST_NOT_FOUND();
 
         // Forward to strategy
-        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.CancelRedeem);
+        strategy.handleOperation(controller, 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
 
         // Return shares to user
         ISuperVaultEscrow(escrow).returnShares(msg.sender, shares);
 
         emit RedeemRequestCancelled(controller, msg.sender);
     }
-
-    //--Operator Management--
 
     /// @inheritdoc IERC7540Operator
     function setOperator(address operator, bool approved) public returns (bool success) {
@@ -269,28 +256,6 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
 
     //--ERC7540--
 
-    function pendingDepositRequest(
-        uint256, /*requestId*/
-        address controller
-    )
-        external
-        view
-        returns (uint256 pendingAssets)
-    {
-        return strategy.pendingDepositRequest(controller);
-    }
-
-    function claimableDepositRequest(
-        uint256, /*requestId*/
-        address controller
-    )
-        external
-        view
-        returns (uint256 claimableAssets)
-    {
-        return maxDeposit(controller);
-    }
-
     function pendingRedeemRequest(
         uint256, /*requestId*/
         address controller
@@ -334,137 +299,78 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     /*//////////////////////////////////////////////////////////////
                             ERC4626 IMPLEMENTATION
     //////////////////////////////////////////////////////////////*/
-
     function decimals() public view virtual override(IERC20Metadata, ERC20) returns (uint8) {
         return _underlyingDecimals;
     }
 
-    /// @inheritdoc IERC4626
     function asset() public view virtual override returns (address) {
         return address(_asset);
     }
 
     /// @inheritdoc IERC4626
     function totalAssets() public view override returns (uint256) {
-        (uint256 totalAssets_,) = strategy.totalAssets();
-        return totalAssets_;
+        uint256 supply = totalSupply();
+        if (supply == 0) return 0;
+        uint256 currentPPS = strategy.getStoredPPS();
+        return Math.mulDiv(supply, currentPPS, PRECISION, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToShares(uint256 assets) public view override returns (uint256) {
-        uint256 supply = totalSupply();
-        return supply == 0 ? assets : Math.mulDiv(assets, supply, totalAssets(), Math.Rounding.Floor);
+        uint256 currentPPS = strategy.getStoredPPS();
+        if (currentPPS == 0) return assets;
+        return Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToAssets(uint256 shares) public view override returns (uint256) {
-        uint256 supply = totalSupply();
-        return supply == 0 ? shares : Math.mulDiv(shares, totalAssets(), supply, Math.Rounding.Floor);
+        uint256 currentPPS = strategy.getStoredPPS();
+        if (currentPPS == 0) return shares;
+        return Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Floor);
+    }
+
+    /// @inheritdoc IERC4626
+    function maxDeposit(address) public view override returns (uint256) {
+        (uint256 cap,) = strategy.getConfigInfo();
+        if (cap == 0) return type(uint256).max;
+        uint256 currentAssets = totalAssets();
+        return (cap > currentAssets) ? cap - currentAssets : 0;
     }
 
     /// @inheritdoc IERC4626
     function maxMint(address owner) public view override returns (uint256) {
-        return strategy.getSuperVaultState(owner, 1);
-    }
-
-    /// @inheritdoc IERC4626
-    function maxDeposit(address owner) public view override returns (uint256) {
-        return maxMint(owner).mulDiv(strategy.getSuperVaultState(owner, 3), PRECISION, Math.Rounding.Floor);
+        uint256 maxAssets = maxDeposit(owner);
+        return convertToShares(maxAssets);
     }
 
     /// @inheritdoc IERC4626
     function maxWithdraw(address owner) public view override returns (uint256) {
-        return strategy.getSuperVaultState(owner, 2);
+        return strategy.claimableWithdraw(owner);
     }
 
     /// @inheritdoc IERC4626
     function maxRedeem(address owner) public view override returns (uint256) {
-        return maxWithdraw(owner).mulDiv(PRECISION, strategy.getSuperVaultState(owner, 4), Math.Rounding.Floor);
+        return balanceOf(owner);
     }
 
     /// @inheritdoc IERC4626
-    function previewDeposit(uint256 /*assets*/ ) public pure override returns (uint256) {
+    function previewDeposit(uint256 assets) public view override returns (uint256) {
+        return convertToShares(assets);
+    }
+
+    /// @inheritdoc IERC4626
+    function previewMint(uint256 shares) public view override returns (uint256) {
+        return convertToAssets(shares);
+    }
+
+    /// @inheritdoc IERC4626
+    function previewWithdraw(uint256 /* assets*/ ) public pure override returns (uint256) {
         revert NOT_IMPLEMENTED();
     }
 
     /// @inheritdoc IERC4626
-    function previewMint(uint256 /*shares*/ ) public pure override returns (uint256) {
+    function previewRedeem(uint256 /* shares*/ ) public pure override returns (uint256) {
         revert NOT_IMPLEMENTED();
-    }
-
-    /// @inheritdoc IERC4626
-    function previewWithdraw(uint256 /*assets*/ ) public pure override returns (uint256) {
-        revert NOT_IMPLEMENTED();
-    }
-
-    /// @inheritdoc IERC4626
-    function previewRedeem(uint256 /*shares*/ ) public pure override returns (uint256) {
-        revert NOT_IMPLEMENTED();
-    }
-
-    /// @inheritdoc IERC7540Deposit
-    function deposit(
-        uint256 assets,
-        address receiver,
-        address controller
-    )
-        public
-        nonReentrant
-        returns (uint256 shares)
-    {
-        if (receiver == address(0)) revert ZERO_ADDRESS();
-        _validateController(controller);
-
-        uint256 averageDepositPrice = strategy.getSuperVaultState(controller, 3);
-        if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
-
-        // Convert maxMint to assets using average deposit price
-        /// @dev we use `Ceil` rounding here because `Floor` is used for shares
-        uint256 maxAssets = maxMint(controller).mulDiv(averageDepositPrice, PRECISION, Math.Rounding.Ceil);
-
-        if (assets > maxAssets) revert INVALID_DEPOSIT_CLAIM();
-
-        // Calculate shares based on assets and average price
-        shares = assets.mulDiv(PRECISION, averageDepositPrice, Math.Rounding.Floor);
-        // Forward to strategy
-        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
-
-        // Transfer shares to receiver
-        ISuperVaultEscrow(escrow).transferShares(receiver, shares);
-
-        emit Deposit(msg.sender, receiver, assets, shares);
-    }
-
-    /// @inheritdoc IERC4626
-    function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
-        if (receiver == address(0)) revert ZERO_ADDRESS();
-        shares = deposit(assets, receiver, msg.sender);
-    }
-
-    /// @inheritdoc IERC7540Deposit
-    function mint(uint256 shares, address receiver, address controller) public nonReentrant returns (uint256 assets) {
-        if (receiver == address(0)) revert ZERO_ADDRESS();
-        _validateController(controller);
-
-        uint256 maxMintAmount = maxMint(controller);
-
-        if (shares > maxMintAmount) revert INVALID_DEPOSIT_CLAIM();
-        uint256 averageDepositPrice = strategy.getSuperVaultState(controller, 3);
-        if (averageDepositPrice == 0) revert INVALID_DEPOSIT_PRICE();
-        assets = shares.mulDiv(averageDepositPrice, PRECISION, Math.Rounding.Floor);
-
-        // Forward to strategy
-        strategy.handleOperation(controller, shares, ISuperVaultStrategy.Operation.ClaimDeposit);
-
-        // Transfer shares to receiver
-        ISuperVaultEscrow(escrow).transferShares(receiver, shares);
-
-        emit Deposit(msg.sender, receiver, assets, shares);
-    }
-
-    /// @inheritdoc IERC4626
-    function mint(uint256 shares, address receiver) public override nonReentrant returns (uint256 assets) {
-        assets = mint(shares, receiver, msg.sender);
     }
 
     /// @inheritdoc IERC4626
@@ -481,7 +387,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
-        uint256 averageWithdrawPrice = strategy.getSuperVaultState(owner, 4);
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         uint256 maxWithdrawAmount = maxWithdraw(owner);
@@ -491,10 +397,10 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         shares = assets.mulDiv(PRECISION, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Take assets from strategy
-        uint256 actualAssets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
-        _asset.safeTransfer(receiver, actualAssets);
+        strategy.handleOperation(owner, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
+        _asset.safeTransfer(receiver, assets);
 
-        emit Withdraw(msg.sender, receiver, owner, actualAssets, shares);
+        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     /// @inheritdoc IERC4626
@@ -511,7 +417,7 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         if (receiver == address(0)) revert ZERO_ADDRESS();
         _validateController(owner);
 
-        uint256 averageWithdrawPrice = strategy.getSuperVaultState(owner, 4);
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         // Calculate assets based on shares and average withdraw price
@@ -521,56 +427,25 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Take assets from strategy
-        assets = strategy.handleOperation(owner, assets, ISuperVaultStrategy.Operation.ClaimRedeem);
+        strategy.handleOperation(owner, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
         _asset.safeTransfer(receiver, assets);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
-    /// @notice Mint new shares, only callable by strategy
-    /// @param amount The amount of shares to mint
+    // @inheritdoc ISuperVault
     function mintShares(uint256 amount) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
         _mint(escrow, amount);
     }
 
-    /// @notice Burn shares, only callable by strategy
-    /// @param amount The amount of shares to burn
+    // @inheritdoc ISuperVault
     function burnShares(uint256 amount) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
         _burn(escrow, amount);
     }
 
-    /// @notice Callback function for when a deposit becomes claimable
-    /// @param user The user whose deposit is claimable
-    /// @param assets The amount of assets deposited
-    /// @param shares The amount of shares to be received
-    /// @param averageDepositPrice The average price of the deposit
-    /// @param accumulatorShares The amount of shares in the accumulator
-    /// @param accumulatorCostBasis The cost basis of the accumulator
-    function onDepositClaimable(
-        address user,
-        uint256 assets,
-        uint256 shares,
-        uint256 averageDepositPrice,
-        uint256 accumulatorShares,
-        uint256 accumulatorCostBasis
-    )
-        external
-    {
-        if (msg.sender != address(strategy)) revert UNAUTHORIZED();
-        emit DepositClaimable(
-            user, REQUEST_ID, assets, shares, averageDepositPrice, accumulatorShares, accumulatorCostBasis
-        );
-    }
-
-    /// @notice Callback function for when a redeem becomes claimable
-    /// @param user The user whose redeem is claimable
-    /// @param assets The amount of assets to be received
-    /// @param shares The amount of shares redeemed
-    /// @param averageWithdrawPrice The average price of the redeem
-    /// @param accumulatorShares The amount of shares in the accumulator
-    /// @param accumulatorCostBasis The cost basis of the accumulator
+    // @inheritdoc ISuperVault
     function onRedeemClaimable(
         address user,
         uint256 assets,
@@ -590,9 +465,8 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
     /*//////////////////////////////////////////////////////////////
                             ERC165 INTERFACE
     //////////////////////////////////////////////////////////////*/
-
     function supportsInterface(bytes4 interfaceId) public pure returns (bool) {
-        return interfaceId == type(IERC7540Vault).interfaceId || interfaceId == type(IERC165).interfaceId
+        return interfaceId == type(IERC7540Redeem).interfaceId || interfaceId == type(IERC165).interfaceId
             || interfaceId == type(IERC7741).interfaceId || interfaceId == type(IERC4626).interfaceId
             || interfaceId == type(IERC7575).interfaceId;
     }
@@ -605,7 +479,19 @@ contract SuperVault is ERC20, IERC7540Vault, IERC4626, ISuperVault, ReentrancyGu
         if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_CONTROLLER();
     }
 
-    /// @notice Calculate the EIP712 domain separator
+    function _checkSuperVaultCap(uint256 assetsToDeposit, uint256 currentPPS) internal view {
+        (uint256 cap,) = strategy.getConfigInfo();
+        if (cap > 0) {
+            uint256 supply = totalSupply();
+            if (supply == 0) return;
+            uint256 currentAssets = Math.mulDiv(supply, currentPPS, PRECISION, Math.Rounding.Floor);
+
+            if (currentAssets + assetsToDeposit > cap) {
+                revert CAP_EXCEEDED();
+            }
+        }
+    }
+
     function _calculateDomainSeparator() internal view returns (bytes32) {
         return keccak256(
             abi.encode(

@@ -28,12 +28,13 @@ interface IPeripheryRegistry {
     event FeeSplitProposed(uint256 superformFeeSplit, uint256 effectiveTime);
     event TreasuryUpdated(address indexed treasury);
     event SvSlippageToleranceUpdated(uint256 svSlippageTolerance);
-
+    event ReputationSystemUpdated(address indexed reputationSystem);
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @dev Get the current Superform fee split.
     /// @return The fee split in basis points (0-10000).
+
     function getSuperformFeeSplit() external view returns (uint256);
 
     /// @notice Get all registered hooks
@@ -86,4 +87,12 @@ interface IPeripheryRegistry {
     /// @dev Set the treasury address.
     /// @param treasury_ The new treasury address.
     function setTreasury(address treasury_) external;
+
+    /// @dev Set the reputation system address.
+    /// @param reputationSystem_ The new reputation system address.
+    function setReputationSystem(address reputationSystem_) external;
+
+    /// @dev Get the reputation system address.
+    /// @return The reputation system address.
+    function getReputationSystem() external view returns (address);
 }
