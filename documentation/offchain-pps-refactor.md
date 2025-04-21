@@ -71,12 +71,7 @@ Below are the main additions:
    - Remove direct on-chain `totalAssets()` computations.  
    - Add `uint256 storedPPS` and `updatePPS(...)`, plus a reference to SuperVaultReputationSystem to check the strategist’s stake.  
 
-2. **`SuperVaultPPSOracle.sol`** (Reference Implementation)  
-   - Exposes `calculateReferencePPS(address vault) returns (uint256)`, doing the heavy yield‐source logic.  
-   - Uses modular logic to plug different totalAssets accounting mechanisms (extensible)
-    - The first module comprises of the logic currently used in totalAssets() of SuperVaultStrategy
-
-3. **`SuperVaultReputationSystem.sol`** 
+2. **`SuperVaultReputationSystem.sol`** 
    - A place for “KYCed” strategists to put their stake
    - Disputers do not need KYC to register, just need to put a stake.
    - Manages the staking (strategist stakes, disputer stakes).  
@@ -85,12 +80,17 @@ Below are the main additions:
    - Ensure strategists remain above a minimum stake to keep privileges.
    - If a dispute is raised and is successful, the adjudicator slashes the strategist
 
-4. Change SuperVault / SuperVaultStrategy to only ERC7540AsyncRedeem
+3. Change **`SuperVault / SuperVaultStrategy`** to only ERC7540AsyncRedeem
    - Make the deposit step fully synchronous:
       - Assets are transferred to the strategy
       - PPS is immediately available, mint shares to the user
    - Therefore request deposit ceases to exist, as well as cancelation of deposit requests
    - matchRequests ceases to exist as there are no requests to match
+
+4. **`SuperVaultPPSOracle.sol`** (Reference Implementation)  
+   - Exposes `calculateReferencePPS(address vault) returns (uint256)`, doing the heavy yield‐source logic.  
+   - Uses modular logic to plug different totalAssets accounting mechanisms (extensible)
+    - The first module comprises of the logic currently used in totalAssets() of SuperVaultStrategy
 
 5. **Updated Test Suites**  
    - We must thoroughly test:  
@@ -116,11 +116,11 @@ Below is a concise summary of the **core** new or changed functions in the vault
    - **Access**: Strategist only (must have staked + be recognized).  
    - **Stores**: `storedPPS = newPPS`, records updateBlockNumber in the event
 
-2. **`disputePPS(address strategy, uint256 disputeBlockNumber)`**  
+2. **`disputePPS(address strategy, uint256 disputeBlockNumber, uint256 disputeTxHash)`**  
    - **Access**: Any user with `challengeStake`.  
    - **Flow**:
-     1. If within dispute window (a maximum of blocks in the past), this block is marked in dispute (and cannot be disputed by anyone else) and an event is emitted with the information 
-     2. The adjudicator role compares the simulated PPS to the `storedPPS` at that block.number. If difference is beyond tolerance, slash strategist. Otherwise, slash disputer. Update the status of the dispute with this information.
+     1. If within dispute window (a maximum of blocks in the past), this txHash is marked in dispute (and cannot be disputed by anyone else) and an event is emitted with the information being disputed (block number and hash)
+     2. The adjudicator role compares the simulated PPS to the `storedPPS` for that txHash and if the disputed block number also corresponds to the hash. If difference is beyond tolerance, slash strategist. Otherwise, slash disputer. Update the status of the dispute with this information.
 
 3. **`slashStrategist(address strategist, uint256 updatePPSTimestamp, uint256 realPPS, uint256 disputedPPS)`**  
    - **In**: Staking contract.  
@@ -145,4 +145,5 @@ Below is a concise summary of the **core** new or changed functions in the vault
 
 
 Assume any other relevant configuration functions, as required.
+Create always interfaces for new contracts and have any natspec, structs, errors, events or enums be placed there. Make sure to update existing interfaces
 
