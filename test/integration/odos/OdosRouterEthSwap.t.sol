@@ -5,6 +5,7 @@ pragma solidity >=0.8.28;
 import { BaseTest } from "../../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 import { strings } from "@stringutils/strings.sol";
+import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
@@ -21,6 +22,11 @@ contract OdosRouterEthSwap is BaseTest {
     address public account;
 
     address public token;
+
+    uint256 public nodeOperatorPremium;
+    uint256 public maxFeePerGas;
+    uint256 public maxGasLimit;
+
     function setUp() public override {
         useLatestFork = true;
         super.setUp();
@@ -32,6 +38,10 @@ contract OdosRouterEthSwap is BaseTest {
         account = instance.account;
 
         token = CHAIN_1_USDC;
+
+        maxFeePerGas = 10 gwei;
+        maxGasLimit = 1_000_000;
+        nodeOperatorPremium = 10; // 10%
     }
 
     function test_ETH_Swap_With_Odos_NoPaymaster() public {
@@ -91,11 +101,8 @@ contract OdosRouterEthSwap is BaseTest {
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
     }
 
-    //@dev will do this after the others are done not to lose time on it
-    /**
     function test_ETH_Swap_With_Odos_With_Paymaster() public {
-        uint256 amount = 1e18;
-
+        uint256 amount = 5e17;
     
         address[] memory hookAddresses_ = new address[](2);
         hookAddresses_[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -103,7 +110,6 @@ contract OdosRouterEthSwap is BaseTest {
 
         bytes[] memory hookData = new bytes[](2);
         hookData[0] = _createApproveHookData(token, ODOS_ROUTER[ETH], amount, false);
-
 
         QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
         quoteInputTokens[0] = QuoteInputToken({
@@ -138,29 +144,57 @@ contract OdosRouterEthSwap is BaseTest {
         address paymaster = _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY);
         SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
         vm.startPrank(superNativePaymaster.owner());
-        superNativePaymaster.addStake{value: 2 ether}(1);
+        superNativePaymaster.addStake{value: 5 ether}(1 weeks);
+        
+        superNativePaymaster.entryPoint().depositTo{value: 5 ether}(address(superNativePaymaster));
         vm.stopPrank();
-        superNativePaymaster.entryPoint().depositTo{value: 2 ether}(address(superNativePaymaster));
 
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
-        UserOpData memory opData = _getExecOps(
-            instance, superExecutor, abi.encode(entryToExecute), paymaster
-        );
+        // ISuperExecutor.ExecutorEntry memory entryToExecute =
+        //     ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+        // UserOpData memory opData = _getExecOps(
+        //     instance, superExecutor, abi.encode(entryToExecute), paymaster
+        // );
 
-        //opData.userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(2e12), uint128(2e12)));
-        opData.userOp.paymasterAndData = bytes.concat(
-            bytes20(address(paymaster)), 
-            new bytes(32),
-            abi.encode(uint128(2e6), uint128(1000)) 
-        );
+        PackedUserOperation memory userOp = PackedUserOperation({
+            sender: account,
+            nonce: 0,
+            initCode: bytes(""),
+            callData: odosCalldata,
+            accountGasLimits: bytes32(abi.encodePacked(uint128(1e18), uint128(1e18))),
+            preVerificationGas: 0,
+            gasFees: bytes32(abi.encodePacked(uint128(1e3), uint128(1e3))),
+            paymasterAndData: bytes.concat(
+                bytes20(address(paymaster)), 
+                abi.encodePacked(uint128(2e6), // verificationGasLimit
+                abi.encodePacked(uint128(1000)), // postOpGasLimit
+                abi.encodePacked(uint128(1000)) // callGasLimit
+            )),
+            signature: bytes("")
+        });
+
+        // opData.userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(1e18), uint128(1e18)));
+        // opData.userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(1e18), uint128(1e18)));
+        // opData.userOp.gasFees = bytes32(abi.encodePacked(uint128(1e3), uint128(1e3)));
+        // opData.userOp.paymasterAndData = bytes.concat(
+        //     bytes20(address(paymaster)), 
+        //     new bytes(32),
+        //     abi.encode(uint128(2e6), uint128(1000)) 
+        // );
+        // opData.userOp.paymasterAndData = bytes.concat(
+        //     bytes20(address(paymaster)), 
+        //     abi.encodePacked(uint128(2e6), // verificationGasLimit
+        //     abi.encodePacked(uint128(1000)), // postOpGasLimit
+        //     new bytes(32) // extraData
+        // );
         uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
 
-        executeOp(opData);
+        //executeOp{value: 1e18}(opData);
+        //executeOp(opData);
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOp;
+        superNativePaymaster.handleOps{value: 2e18}(ops);
 
         uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
     }
-    */
-
 }
