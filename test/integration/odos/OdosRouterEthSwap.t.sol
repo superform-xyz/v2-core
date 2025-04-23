@@ -143,56 +143,35 @@ contract OdosRouterEthSwap is BaseTest {
 
         address paymaster = _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY);
         SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
-        vm.startPrank(superNativePaymaster.owner());
-        superNativePaymaster.addStake{value: 5 ether}(1 weeks);
+        // vm.startPrank(superNativePaymaster.owner());
+        // superNativePaymaster.addStake{value: 5 ether}(1 weeks);
         
-        superNativePaymaster.entryPoint().depositTo{value: 5 ether}(address(superNativePaymaster));
-        vm.stopPrank();
-
-        // ISuperExecutor.ExecutorEntry memory entryToExecute =
-        //     ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
-        // UserOpData memory opData = _getExecOps(
-        //     instance, superExecutor, abi.encode(entryToExecute), paymaster
-        // );
+        // superNativePaymaster.entryPoint().depositTo{value: 5 ether}(address(superNativePaymaster));
+        // vm.stopPrank();
 
         PackedUserOperation memory userOp = PackedUserOperation({
             sender: account,
             nonce: 0,
             initCode: bytes(""),
             callData: odosCalldata,
-            accountGasLimits: bytes32(abi.encodePacked(uint128(1e18), uint128(1e18))),
-            preVerificationGas: 0,
+            accountGasLimits: bytes32(abi.encodePacked(uint128(0), uint128(25000000))),
+            preVerificationGas: 10000000,
             gasFees: bytes32(abi.encodePacked(uint128(1e3), uint128(1e3))),
             paymasterAndData: bytes.concat(
                 bytes20(address(paymaster)), 
                 abi.encodePacked(uint128(2e6), // verificationGasLimit
-                abi.encodePacked(uint128(1000)), // postOpGasLimit
-                abi.encodePacked(uint128(1000)) // callGasLimit
+                abi.encodePacked(uint128(1e6)), // postOpGasLimit
+                abi.encode(maxGasLimit, nodeOperatorPremium) // callGasLimit
             )),
             signature: bytes("")
         });
 
-        // opData.userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(1e18), uint128(1e18)));
-        // opData.userOp.accountGasLimits = bytes32(abi.encodePacked(uint128(1e18), uint128(1e18)));
-        // opData.userOp.gasFees = bytes32(abi.encodePacked(uint128(1e3), uint128(1e3)));
-        // opData.userOp.paymasterAndData = bytes.concat(
-        //     bytes20(address(paymaster)), 
-        //     new bytes(32),
-        //     abi.encode(uint128(2e6), uint128(1000)) 
-        // );
-        // opData.userOp.paymasterAndData = bytes.concat(
-        //     bytes20(address(paymaster)), 
-        //     abi.encodePacked(uint128(2e6), // verificationGasLimit
-        //     abi.encodePacked(uint128(1000)), // postOpGasLimit
-        //     new bytes(32) // extraData
-        // );
         uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
 
-        //executeOp{value: 1e18}(opData);
-        //executeOp(opData);
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
-        superNativePaymaster.handleOps{value: 5 ether}(ops);
+        vm.prank(account);
+        superNativePaymaster.handleOps{value: 20e18}(ops);
 
         uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
