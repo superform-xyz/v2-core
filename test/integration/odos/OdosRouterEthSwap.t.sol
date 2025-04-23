@@ -4,13 +4,22 @@ pragma solidity >=0.8.28;
 // Tests
 import { BaseTest } from "../../BaseTest.t.sol";
 import { strings } from "@stringutils/strings.sol";
+import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFactory.sol";
+import { AuxiliaryFactory } from "modulekit/test/Auxiliary.sol";
+import { ERC7579Factory } from "modulekit/accounts/erc7579/ERC7579Factory.sol";
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
+import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { SuperNativePaymaster } from "../../../src/core/paymaster/SuperNativePaymaster.sol";
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 contract OdosRouterEthSwap is BaseTest {
+    using ModuleKitHelpers for *;
+    using ExecutionLib for *;
     using strings for *;
 
     ISuperExecutor public superExecutor;
@@ -28,10 +37,29 @@ contract OdosRouterEthSwap is BaseTest {
         super.setUp();
 
         vm.selectFork(FORKS[ETH]);
-
+        
+        MockValidatorModule validator = new MockValidatorModule();
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        instance = accountInstances[ETH];
+
+        string memory accountName = "SuperformAccount";
+        _initializeModuleKit("DEFAULT");
+        instance = makeAccountInstance(keccak256(abi.encode(accountName)));
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: _getContract(ETH, SUPER_EXECUTOR_KEY),
+            data: ""
+        });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: ""
+        });
+        vm.label(instance.account, accountName);
         account = instance.account;
+        // instance = accountInstances[ETH];
+        // account = instance.account;
+
+        
 
         token = CHAIN_1_USDC;
 
@@ -124,13 +152,18 @@ contract OdosRouterEthSwap is BaseTest {
         address paymaster = _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY);
         SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
 
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+        UserOpData memory opData = _getExecOps(
+            instance, superExecutor, abi.encode(entryToExecute), _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
+        );
+
         PackedUserOperation memory userOp = PackedUserOperation({
             sender: account,
             nonce: 0,
             initCode: bytes(""),
-            callData: odosCalldata,
-            accountGasLimits: bytes32(abi.encodePacked(uint128(0), uint128(25_000_000))), // 0 for accountCreation and
-                // 25M for callGasLimit
+            callData: opData.userOp.callData, 
+            accountGasLimits: bytes32(abi.encodePacked(uint128(10_000_000), uint128(20_000_000))),
             preVerificationGas: 10_000_000, // 10M
             gasFees: bytes32(abi.encodePacked(uint128(1e3), uint128(1e3))), // 1000 Wei each
             paymasterAndData: bytes.concat(
@@ -148,7 +181,7 @@ contract OdosRouterEthSwap is BaseTest {
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
-        superNativePaymaster.handleOps{ value: 20e18 }(ops);
+        superNativePaymaster.handleOps{ value: 20 ether }(ops);
 
         uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
