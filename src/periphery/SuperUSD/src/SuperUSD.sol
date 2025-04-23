@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
-
+import "./IncentiveCalculationContract.sol";
 
 
 /**
@@ -122,12 +122,13 @@ contract SuperUSD is AccessControl {
         address receiver,
         address tokenIn,
         uint256 amountTokenToDeposit,
-        uint256 minSharesOut
+        uint256 minSharesOut            // Slippage Protection
     ) external returns (uint256 amountSharesOut) {
         require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
         require(receiver != address(0), "SuperUSD: Receiver cannot be zero address");
 
-        // TODO: Transfer the tokenIn from the sender to this contract
+        // Transfer the tokenIn from the sender to this contract
+        // If there is not enough allowance or balance, this will revert and saves gas
         IERC20(tokenIn).transferFrom(msg.sender, address(this), amountTokenToDeposit);
 
         // Calculate swap fees (example: 0.1% fee)
@@ -137,32 +138,34 @@ contract SuperUSD is AccessControl {
         //  uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
         //  uint256 amountAfterFees = amountTokenToDeposit - swapFee;
         uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // Swap fee based on percentage
-        uint256 amountAfterFees = amountTokenToDeposit - swapFee;
+        uint256 amountInAfterFees = amountTokenToDeposit - swapFee;
 
-        // Transfer swap fees to Swap Fee Fund
+        // Transfer swap fees to Swap Fee Fund while holding the rest in the contract, since the full amount was already transferred in the beginning of the function
         IERC20(tokenIn).transfer(swapFeeFundContract, swapFee);
 
-        // Deposit into underlying vault or handle ERC20
-        uint256 underlyingShares;
-        if (isVault[tokenIn]) {
-            underlyingShares = IEIP7540(tokenIn).deposit(address(this), IERC20(tokenIn).asset(), amountAfterFees, 0); // Use 0 for minShares
-        } else {
-            //  Handle ERC20 deposit (simplified -  no vault involved, mint shares directly)
-            IERC20(tokenIn).transferFrom(msg.sender, address(this), amountAfterFees);
-            underlyingShares = amountAfterFees; // Example: 1:1 conversion.  Adjust as needed.
-        }
+
+//        // Deposit into underlying vault or handle ERC20
+//        uint256 underlyingShares;
+//        if (isVault[tokenIn]) {
+//            underlyingShares = IEIP7540(tokenIn).deposit(address(this), IERC20(tokenIn).asset(), amountAfterFees, 0); // Use 0 for minShares
+//        } else {
+//            //  Handle ERC20 deposit (simplified -  no vault involved, mint shares directly)
+//            IERC20(tokenIn).transferFrom(msg.sender, address(this), amountAfterFees);
+//            underlyingShares = amountAfterFees; // Example: 1:1 conversion.  Adjust as needed.
+//        }
 
         // TODO: Replace this with calling SuperOracle to get the conversion price
         // Get price of underlying vault shares in USD
         (uint256 pricePerShare,) = getPrice(tokenIn);
 
         // Calculate SuperUSD shares to mint
-        amountSharesOut = (underlyingShares * pricePerShare) / 1e18; // Adjust for decimals
+        amountSharesOut = (amountInAfterFees * 1e18) / pricePerShare; // Adjust for decimals
+//        amountSharesOut = (underlyingShares * pricePerShare) / 1e18; // Adjust for decimals
 
+        // Slippage Check
         require(amountSharesOut >= minSharesOut, "SuperUSD: Amount of shares is less than minSharesOut");
 
         // Mint SuperUSD shares (assuming this contract is a minter)
-        //  Missing mint function.  For demo, assume a simple state variable.
         _mintSuperUSD(receiver, amountSharesOut); //  Use a proper minting mechanism.
 
         // Calculate and settle incentives
@@ -534,7 +537,19 @@ contract SuperUSD is AccessControl {
     }
 
     function _settleIncentive(address user, int256 amount) internal {
-        IIncentiveFundContract(incentiveFundContract).settleIncentive(user, amount);
+        // Interface for the IncentiveCalculationContract
+        IIncentiveCalculationContract icc = IIncentiveCalculationContract(incentiveCalculationContract);
+
+        // Call the calculateIncentive function
+        int256 incentive = icc.calculateIncentive(
+            allocationPreOperation,
+            allocationPostOperation,
+            allocationTarget,
+            weights,
+            energyToTokenExchangeRatio
+        );
+
+//        IIncentiveFundContract(incentiveFundContract).settleIncentive(user, amount);
     }
 }
 

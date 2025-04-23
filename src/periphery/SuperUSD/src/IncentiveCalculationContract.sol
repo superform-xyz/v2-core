@@ -17,24 +17,21 @@ contract IncentiveCalculationContract {
      * @return energy The calculated energy.
      */
     function energy(
-        uint256[] memory allocationPreOperation,
+        uint256[] memory currentAllocation,
         uint256[] memory allocationTarget,
         uint256[] memory weights
-    ) public pure returns (uint256 energy) {
-        require(allocationPreOperation.length == allocationTarget.length &&
-        allocationPreOperation.length == weights.length,
+    ) public pure returns (uint256 res) {
+        require(currentAllocation.length == allocationTarget.length &&
+        currentAllocation.length == weights.length,
             "ICC: Input arrays must have the same length");
 
-        for (uint256 i = 0; i < allocationPreOperation.length; i++) {
+        for (uint256 i = 0; i < currentAllocation.length; i++) {
             //  Safe subtraction to avoid underflow
-            uint256 diff;
-            if (allocationPreOperation[i] > allocationTarget[i]) {
-                diff = allocationPreOperation[i] - allocationTarget[i];
-            } else {
-                diff = allocationTarget[i] - allocationPreOperation[i];
-            }
-            energy += (diff * diff * weights[i]); // Simplified square
+            int256 diff = int256(currentAllocation[i]) - int256(allocationTarget[i]);
+            uint256 diff2 = uint256(diff * diff);
+            res += (diff2 * weights[i]); // Simplified square
         }
+        return res;
     }
 
     /**
@@ -57,7 +54,8 @@ contract IncentiveCalculationContract {
         uint256[] memory allocationPreOperation,
         uint256[] memory allocationPostOperation,
         uint256[] memory allocationTarget,
-        uint256[] memory weights
+        uint256[] memory weights,
+        uint256 energyToTokenExchangeRatio
     ) public view returns (int256 incentive) {
         require(allocationPreOperation.length == allocationPostOperation.length &&
         allocationPreOperation.length == allocationTarget.length,
@@ -71,8 +69,7 @@ contract IncentiveCalculationContract {
         uint256 energyBefore = energy(allocationPreOperation, allocationTarget, weights);
         uint256 energyAfter = energy(allocationPostOperation, allocationTarget, weights);
         //  Positive incentive means the user earns the incentive
-        incentive = (int256(energyBefore) - int256(energyAfter));
-//        incentive = (incentive * 10) / 100; // Example: 10% of the energy difference
+        incentive = int256(energyToTokenExchangeRatio) * (int256(energyBefore) - int256(energyAfter));
     }
 }
 
