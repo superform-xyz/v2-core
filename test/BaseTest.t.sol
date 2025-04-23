@@ -153,7 +153,7 @@ import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster
 // Nexus and Rhinestone overrides to allow for SuperformNativePaymaster
 import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFactory.sol";
 import { getFactory, getHelper, getStorageCompliance } from "modulekit/test/utils/Storage.sol";
-import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 import { BootstrapConfig, INexusBootstrap } from "../src/vendor/nexus/INexusBootstrap.sol";
 import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";

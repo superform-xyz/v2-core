@@ -31,7 +31,7 @@ contract OdosRouterEthSwap is BaseTest {
         super.setUp();
 
         vm.selectFork(FORKS[ETH]);
-        
+
         MockValidatorModule validator = new MockValidatorModule();
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
@@ -43,17 +43,11 @@ contract OdosRouterEthSwap is BaseTest {
             module: _getContract(ETH, SUPER_EXECUTOR_KEY),
             data: ""
         });
-        instance.installModule({
-            moduleTypeId: MODULE_TYPE_VALIDATOR,
-            module: address(validator),
-            data: ""
-        });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
         vm.label(instance.account, accountName);
         account = instance.account;
         // instance = accountInstances[ETH];
         // account = instance.account;
-
-        
 
         token = CHAIN_1_USDC;
 
@@ -152,25 +146,6 @@ contract OdosRouterEthSwap is BaseTest {
         UserOpData memory opData = _getExecOps(
             instance, superExecutor, abi.encode(entryToExecute), _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
         );
-
-        // PackedUserOperation memory userOp = PackedUserOperation({
-        //     sender: account,
-        //     nonce: 0,
-        //     initCode: bytes(""),
-        //     callData: opData.userOp.callData, 
-        //     accountGasLimits: bytes32(abi.encodePacked(uint128(10_000_000), uint128(20_000_000))),
-        //     preVerificationGas: 10_000_000, // 10M
-        //     gasFees: bytes32(abi.encodePacked(uint128(1e3), uint128(1e3))), // 1000 Wei each
-        //     paymasterAndData: bytes.concat(
-        //         bytes20(address(paymaster)),
-        //         abi.encodePacked(
-        //             uint128(2e6), // verificationGasLimit 2M
-        //             abi.encodePacked(uint128(1e6)), // postOpGasLimit 1M
-        //             abi.encode(maxGasLimit, nodeOperatorPremium) // After PAYMASTER_DATA_OFFSET
-        //         )
-        //     ),
-        //     signature: bytes("")
-        // });
 
         uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
 
