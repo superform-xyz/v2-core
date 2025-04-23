@@ -29,7 +29,13 @@ contract SuperUSD is AccessControl {
 
     mapping(address => uint256) public targetAllocations;
 
-    uint256 public swapFeePercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
+    uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
+    uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
+
+    // Add a constant equal to 10^6
+    uint256 public constant SWAP_FEE_PERC = 10**6; // TODO: Add this to SuperOracle
+
+    mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
     // --- Events ---
     event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut);
@@ -59,16 +65,19 @@ contract SuperUSD is AccessControl {
         address _incentiveCalculationContract,
         address _incentiveFundContract,
         address _swapFeeFundContract,
-        uint256 _swapFeePercentage
+        uint256 _swapFeeInPercentage,
+        uint256 _swapFeeOutPercentage
     ) {
         require(_incentiveCalculationContract != address(0), "SuperUSD: ICC address cannot be zero");
         require(_incentiveFundContract != address(0), "SuperUSD: Incentive Fund address cannot be zero");
         require(_swapFeeFundContract != address(0), "SuperUSD: Swap Fee Fund address cannot be zero");
-        require(_swapFeePercentage <= 1000, "SuperUSD: Swap fee percentage too high"); // Max 10%
+        require(_swapFeeInPercentage <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
+        require(_swapFeeOutPercentage <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
         incentiveCalculationContract = _incentiveCalculationContract;
         incentiveFundContract = _incentiveFundContract;
         swapFeeFundContract = _swapFeeFundContract;
-        swapFeePercentage = _swapFeePercentage;
+        swapFeeInPercentage = _swapFeeInPercentage;
+        swapFeeOutPercentage = _swapFeeOutPercentage;
 
         _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _setupRole(VAULT_MANAGER_ROLE, msg.sender);
@@ -127,7 +136,7 @@ contract SuperUSD is AccessControl {
         //  Example: 0.1% fee
         //  uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
         //  uint256 amountAfterFees = amountTokenToDeposit - swapFee;
-        uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeePercentage, 10000); // Swap fee based on percentage
+        uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // Swap fee based on percentage
         uint256 amountAfterFees = amountTokenToDeposit - swapFee;
 
         // Transfer swap fees to Swap Fee Fund
@@ -203,7 +212,7 @@ contract SuperUSD is AccessControl {
 
 
         // Calculate swap fees on output (example: 0.1% fee)
-        uint256 swapFee = (amountBeforeFees * 1) / 1000; // 0.1%
+        uint256 swapFee = (amountBeforeFees * swapFeeOutPercentage) / SWAP_FEE_PERC;
         amountTokenOut = amountBeforeFees - swapFee;
 
         // Transfer swap fees to Swap Fee Fund
@@ -426,6 +435,28 @@ contract SuperUSD is AccessControl {
         } else {
             revert("SuperUSD: Unsupported tokenIn");
         }
+    }
+
+    function relativeStdDev(uint256 mu, uint256 sigma) pure returns (uint256) {
+        return (sigma * 1e18) / mu; // Adjust for decimals
+    }
+
+    function convertAssetToUSD(address tokenIn, uint256 amountAsset) public view returns (uint256 amountUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
+        require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
+        (uint256 mu, uint256 sigma, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
+            amountAsset,
+            tokenIn,
+            USD,                    // TODO: Add USD definition
+            AVERAGE_PROVIDER        // TODO: Add AVERAGE_PROVIDER definition, taking it from SuperOracle
+        );
+
+        // Circuit Breaker for Oracle Off
+        if (M == 0) {
+            return (emergencyPrices[tokenIn], false, false, true);
+        }
+
+//        (uint256 mu, uint256 sigma, uint256 N, uint256 M) = getPrice(tokenIn);
+        amountUSD = (amountAsset * mu) / 1e18; // Adjust for decimals
     }
 
     /**
