@@ -34,8 +34,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-/// @notice         bool isFullRepayment = _decodeBool(data, 146);
+/// @notice         bool isFullRepayment = _decodeBool(data, 145);
 contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -49,6 +48,8 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     IMorphoStaticTyping public morphoStaticTyping;
 
     uint256 private constant AMOUNT_POSITION = 80;
+    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
+    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     /*//////////////////////////////////////////////////////////////
@@ -122,16 +123,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
             uint256 fullCollateral = deriveCollateralForFullRepayment(id, account);
-            collateralForWithdraw = deriveCollateralForPartialRepayment(
-                id,
-                vars.oracle,
-                vars.loanToken,
-                vars.collateralToken,
-                account,
-                vars.amount,
-                fullCollateral,
-                vars.isPositiveFeed
-            );
+            collateralForWithdraw = deriveCollateralForPartialRepayment(id, account, vars.amount, fullCollateral);
 
             executions[1] = Execution({
                 target: vars.loanToken,
@@ -190,10 +182,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     }
 
     function deriveCollateralAmountFromLoanAmount(
-        address loanToken,
         address oracle,
-        address collateralToken,
-        bool isPositiveFeed,
         uint256 loanAmount
     )
         public
@@ -202,33 +191,15 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
 
-        if (collateralDecimals > 36 + loanDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
-
-        // Correct scaling factor as per the oracle's specification:
-        // 10^(36 + loanDecimals - collateralDecimals)
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
-        if (isPositiveFeed) {
-            // loanAmount = collateralAmount * price / scalingFactor
-            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
-        } else {
-            // loanAmount = collateralAmount * scalingFactor / price
-            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
-        }
+        collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
     }
 
     function deriveCollateralForPartialRepayment(
         Id id,
-        address oracle,
-        address loanToken,
-        address collateralToken,
         address account,
         uint256 amount,
-        uint256 fullCollateral,
-        bool isPositiveFeed
+        uint256 fullCollateral
     )
         public
         view
@@ -236,31 +207,8 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     {
         uint256 fullLoanAmount = deriveLoanAmount(id, account);
         if (fullLoanAmount < amount) revert AMOUNT_NOT_VALID();
-        uint256 remainingLoanAmount = fullLoanAmount - amount;
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
 
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        uint256 requiredCollateralForRemaining;
-        if (isPositiveFeed) {
-            // For a positive feed, the oracle returns the price in units of loan token per collateral token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * scalingFactor / price
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, scalingFactor, price);
-        } else {
-            // For a negative feed, the oracle returns the price in units of collateral token per loan token.
-            // The collateral required is:
-            //   requiredCollateral = remainingLoan * price / scalingFactor
-            requiredCollateralForRemaining = Math.mulDiv(remainingLoanAmount, price, scalingFactor);
-        }
-        if (fullCollateral > requiredCollateralForRemaining) {
-            withdrawableCollateral = fullCollateral - requiredCollateralForRemaining;
-        } else {
-            revert AMOUNT_NOT_VALID();
-        }
+        withdrawableCollateral = Math.mulDiv(fullCollateral, amount, fullLoanAmount);
     }
 
     function deriveLoanAmount(Id id, address account) public view returns (uint256 loanAmount) {

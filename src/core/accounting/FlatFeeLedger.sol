@@ -12,7 +12,12 @@ import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedger
 /// @author Superform Labs
 /// @notice Rewards ledger
 contract FlatFeeLedger is BaseLedger {
-    constructor(address ledgerConfiguration_, address[] memory allowedExecutors_) BaseLedger(ledgerConfiguration_, allowedExecutors_) { }
+    constructor(
+        address ledgerConfiguration_,
+        address[] memory allowedExecutors_
+    )
+        BaseLedger(ledgerConfiguration_, allowedExecutors_)
+    { }
 
     /// @dev override to use a flat fee out of `amountAssets`
     function _processOutflow(

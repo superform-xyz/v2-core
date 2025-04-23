@@ -715,7 +715,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
                 users: new address[](0),
                 hooks: requestHooksAddresses,
                 hookCalldata: requestHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH,   requestHooksAddresses),
+                hookProofs: _getMerkleProofsForAddresses(ETH, requestHooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](1)
             })
         );

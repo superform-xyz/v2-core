@@ -255,22 +255,31 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         assertEq(Mock1InchRouter(executor).swappedAmount(), amount);
     }
 
-    function test_SwapThroughMockOdosRouter(uint256 amount) external {
+    function test_SwapThroughOdosRouter(uint256 amount) external {
         amount = _bound(amount);
 
         MockERC20 inputToken = new MockERC20("A", "A", 18);
         MockERC20 outputToken = new MockERC20("B", "B", 18);
 
+        address swapHook;
+        swapHook = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
+
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[1] = swapHook;
 
         _getTokens(address(inputToken), account, amount);
         _getTokens(address(outputToken), mockOdosRouters[ETH], amount);
 
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
-        hooksData[1] = _createOdosSwapHookData(
+        bytes memory approveData;
+        if (useRealOdosRouter) {
+            approveData = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
+        } else {
+            approveData = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
+        }
+
+        bytes memory odosCallData;
+        odosCallData = _createMockOdosSwapHookData(
             address(inputToken),
             amount,
             account,
@@ -283,6 +292,10 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             false
         );
 
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = approveData;
+        hooksData[1] = odosCallData;
+
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -294,7 +307,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         uint256 amount = 1 ether;
 
         address[] memory hooksAddresses = new address[](3);
-        hooksAddresses[0] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[2] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
@@ -340,8 +353,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         address[] memory hooksAddresses = new address[](5);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
-        hooksAddresses[2] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
+        hooksAddresses[2] = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
         hooksAddresses[3] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hooksAddresses[4] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
 
@@ -360,7 +373,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             false
         );
         hooksData[2] = _createOdosSwapHookData(
-            address(0),
+            address(0), // ETH
             amount,
             account,
             address(underlying), // ETH

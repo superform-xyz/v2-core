@@ -142,7 +142,8 @@ library SpectraCommands {
 
     /**
      * Removes liquidity from Pendle.
-     * (address receiver, address market, uint256 netLpToRemove, TokenOutput calldata output, LimitOrderData calldata limit)
+     * (address receiver, address market, uint256 netLpToRemove, TokenOutput calldata output, LimitOrderData calldata
+     * limit)
      */
     uint256 constant PENDLE_REMOVE_LIQUIDITY_SINGLE_TOKEN = 0x13;
 }

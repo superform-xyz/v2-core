@@ -35,6 +35,7 @@ contract MorphoBorrowHookTest is BaseTest {
     address public morpho;
     uint256 public amount;
     uint256 public lltv;
+    uint256 public ltvRatio;
 
     IMorphoBase public morphoBase;
 
@@ -55,6 +56,7 @@ contract MorphoBorrowHookTest is BaseTest {
         // Set test values
         amount = 1000e18;
         lltv = 0.8e18; // 80% LLTV
+        ltvRatio = 0.75e18; // 75% LTV ratio
     }
 
     function test_Constructor() public view {
@@ -99,7 +101,6 @@ contract MorphoBorrowHookTest is BaseTest {
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 4);
-        // Similar assertions as test_Build()
     }
 
     function test_Build_RevertIf_ZeroAmount() public {
@@ -109,7 +110,15 @@ contract MorphoBorrowHookTest is BaseTest {
             address(0),
             address(this),
             abi.encodePacked(
-                address(loanToken), address(collateralToken), address(oracle), irm, uint256(0), lltv, false, true, false
+                address(loanToken),
+                address(collateralToken),
+                address(oracle),
+                irm,
+                uint256(0),
+                ltvRatio,
+                false,
+                lltv,
+                false
             )
         );
     }
@@ -128,7 +137,15 @@ contract MorphoBorrowHookTest is BaseTest {
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
-            address(loanToken), address(collateralToken), address(oracle), irm, amount, lltv, usePrevHook, true, false
+            address(loanToken),
+            address(collateralToken),
+            address(oracle),
+            irm,
+            amount,
+            ltvRatio,
+            usePrevHook,
+            lltv,
+            false
         );
     }
 }

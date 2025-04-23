@@ -6,8 +6,8 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -16,19 +16,19 @@ import {
     TokenOutput,
     FillOrderParams,
     Order
-} from "../../../vendor/pendle/IPendleRouterV4.sol";
-import { IPendleMarket } from "../../../vendor/pendle/IPendleMarket.sol";
-import { HookSubTypes } from "../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
+} from "../../../../vendor/pendle/IPendleRouterV4.sol";
+import { IPendleMarket } from "../../../../vendor/pendle/IPendleMarket.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4); // Pendle Market
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = abi.decode(data[25:57], (uint256));
-/// @notice         bytes txData_ = data[57:];
+/// @notice         uint256 value = BytesLib.toUint256(data, 57);
+/// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -52,11 +52,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     error INVALID_GUESS_PT_OUT();
     error MAKING_AMOUNT_NOT_VALID();
 
-    constructor(
-        address pendleRouterV4_
-    )
-        BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT)
-    {
+    constructor(address pendleRouterV4_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (pendleRouterV4_ == address(0)) revert ADDRESS_NOT_VALID();
         pendleRouterV4 = IPendleRouterV4(pendleRouterV4_);
     }
@@ -74,7 +70,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         view
         override
         returns (Execution[] memory executions)
-    {   
+    {
         address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         uint256 value = abi.decode(data[25:57], (uint256));
@@ -123,6 +119,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         view
         returns (bytes memory updatedTxData)
     {
+        // todo: this requires optimization so we don't do abi.encodeWithSelector but rather abi.encodePacked
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector

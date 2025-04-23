@@ -10,7 +10,12 @@ import { BaseLedger } from "./BaseLedger.sol";
 /// @author Superform Labs
 /// @notice 5115 vaults ledger implementation
 contract ERC5115Ledger is BaseLedger {
-    constructor(address ledgerConfiguration_, address[] memory allowedExecutors_) BaseLedger(ledgerConfiguration_, allowedExecutors_) { }
+    constructor(
+        address ledgerConfiguration_,
+        address[] memory allowedExecutors_
+    )
+        BaseLedger(ledgerConfiguration_, allowedExecutors_)
+    { }
 
     function _getOutflowProcessVolume(
         uint256,
