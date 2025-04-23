@@ -80,7 +80,6 @@ import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveA
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
 // --- Spectra
 import { SpectraCommands } from "../src/vendor/spectra/SpectraCommands.sol";
-import { ISpectraRouter } from "../src/vendor/spectra/ISpectraRouter.sol";
 
 // Stake hooks
 // --- Gearbox
