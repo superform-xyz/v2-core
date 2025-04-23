@@ -3,10 +3,7 @@ pragma solidity 0.8.28;
 
 // external
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
-import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
-import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
-import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
-import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
+import { PackedUserOperation, IEntryPointSimulations, UserOperationLib } from "modulekit/external/ERC4337.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // superform

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 
 /// @title ISuperNativePaymaster
 /// @author Superform Labs

@@ -5,10 +5,12 @@ pragma solidity ^0.8.23;
 
 import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
-
-import "@account-abstraction/interfaces/IPaymaster.sol";
-import "@account-abstraction/interfaces/IEntryPoint.sol";
-import "@account-abstraction/core/UserOperationLib.sol";
+import { IEntryPoint, UserOperationLib } from "modulekit/external/ERC4337.sol";
+import { IPaymaster } from "@account-abstraction/interfaces/IPaymaster.sol";
+import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
+// import "@account-abstraction/interfaces/IPaymaster.sol";
+// import "@account-abstraction/interfaces/IEntryPoint.sol";
+// import "@account-abstraction/core/UserOperationLib.sol";
 
 /// @dev Taken from @account-abstraction/core/BasePaymaster.sol"
 /// Removed `deposit()` method as it does not perform a refund and changed to ownable2step

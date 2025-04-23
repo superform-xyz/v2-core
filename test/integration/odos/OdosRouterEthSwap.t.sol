@@ -5,6 +5,7 @@ pragma solidity >=0.8.28;
 import { BaseTest } from "../../BaseTest.t.sol";
 import { strings } from "@stringutils/strings.sol";
 import { SuperNativePaymaster } from "../../../src/core/paymaster/SuperNativePaymaster.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
@@ -145,13 +146,6 @@ contract OdosRouterEthSwap is BaseTest {
         address paymaster = _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY);
         SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
 
-        vm.startPrank(superNativePaymaster.owner());
-        superNativePaymaster.addStake{value: 5 ether}(1 weeks);
-        
-        superNativePaymaster.entryPoint().depositTo{value: 5 ether}(address(superNativePaymaster));
-        vm.stopPrank();
-
-
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
 
@@ -180,13 +174,9 @@ contract OdosRouterEthSwap is BaseTest {
 
         uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
 
-        executeOp(opData);
-        //opData.execUserOps{value: 5 ether}(opData);
-        //executeOp{value: 5 ether}(opData);
-
-        // PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        // ops[0] = userOp;
-        // superNativePaymaster.handleOps{ value: 20 ether }(ops);
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = opData.userOp;
+        superNativePaymaster.handleOps{ value: 20 ether }(ops);
 
         uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
