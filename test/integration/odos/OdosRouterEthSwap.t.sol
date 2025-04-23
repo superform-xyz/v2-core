@@ -192,7 +192,7 @@ contract OdosRouterEthSwap is BaseTest {
         //executeOp(opData);
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = userOp;
-        superNativePaymaster.handleOps{value: 2e18}(ops);
+        superNativePaymaster.handleOps{value: 5 ether}(ops);
 
         uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
