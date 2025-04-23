@@ -14,9 +14,9 @@ import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedger
 contract FlatFeeLedger is BaseLedger {
     constructor(
         address ledgerConfiguration_,
-        address superRegistry_
+        address[] memory allowedExecutors_
     )
-        BaseLedger(ledgerConfiguration_, superRegistry_)
+        BaseLedger(ledgerConfiguration_, allowedExecutors_)
     { }
 
     /// @dev override to use a flat fee out of `amountAssets`

@@ -2,20 +2,16 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import { IStakedUSDeCooldown } from "../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
+import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import {
-    ISuperHookResultOutflow,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow
-} from "../../../src/core/interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHookResultOutflow, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaUnstakeHook
 /// @author Superform Labs
@@ -34,7 +30,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
     // if the callee is the superRegistry, the receiver must be the account
     error INVALID_RECEIVER();
 
-    constructor(address registry_) BaseHook(registry_, HookType.OUTFLOW, "Ethena") { }
+    constructor() BaseHook(HookType.OUTFLOW, "Ethena") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -45,7 +41,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
         bytes memory data
     )
         external
-        view
+        pure
         override
         returns (Execution[] memory executions)
     {
@@ -56,7 +52,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
 
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
-        if (msg.sender == address(superRegistry) && receiver != account) revert INVALID_RECEIVER();
+        if (receiver != account) revert INVALID_RECEIVER();
         executions = new Execution[](1);
 
         executions[0] = Execution({

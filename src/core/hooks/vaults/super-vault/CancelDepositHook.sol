@@ -14,7 +14,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperVault } from "../../../../periphery/interfaces/ISuperVault.sol";
 import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
 
-
 /// @title CancelDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
@@ -23,7 +22,7 @@ import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol"
 contract CancelDepositHook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

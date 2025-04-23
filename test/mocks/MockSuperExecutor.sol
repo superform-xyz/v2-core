@@ -8,8 +8,6 @@ import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
-
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
@@ -18,16 +16,22 @@ import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
 
-contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISuperExecutor {
+contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
     using HookDataDecoder for bytes;
+
+    ISuperLedgerConfiguration public immutable ledgerConfiguration;
+    address public immutable superCollectiveVault;
+
+    constructor(address ledgerConfiguration_, address superCollectiveVault_) {
+        ledgerConfiguration = ISuperLedgerConfiguration(ledgerConfiguration_);
+        superCollectiveVault = superCollectiveVault_;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
     mapping(address => bool) internal _initialized;
-
-    constructor(address registry_) SuperRegistryImplementer(registry_) { }
 
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
@@ -100,8 +104,6 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            ISuperLedgerConfiguration ledgerConfiguration =
-                ISuperLedgerConfiguration(superRegistry.getAddress(keccak256("SUPER_LEDGER_CONFIGURATION_ID")));
             bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
@@ -124,13 +126,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, SuperRegistryImplementer, ISu
             address spToken = ISuperHookResult(hook).spToken();
             uint256 amount = ISuperHookResult(hook).outAmount();
 
-            ISuperCollectiveVault vault;
-            try superRegistry.getAddress(keccak256("SUPER_COLLECTIVE_VAULT_ID")) returns (address vaultAddress) {
-                vault = ISuperCollectiveVault(vaultAddress);
-            } catch {
-                return;
-            }
-
+            ISuperCollectiveVault vault = ISuperCollectiveVault(superCollectiveVault);
             if (address(vault) != address(0)) {
                 // forge approval for vault
                 Execution[] memory execs = new Execution[](1);

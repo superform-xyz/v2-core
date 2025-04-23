@@ -12,7 +12,7 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 
-import { IAcrossTargetExecutor } from "../../src/core/interfaces/IAcrossTargetExecutor.sol";
+import { ISuperDestinationExecutor } from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
 
 import { BaseTest } from "../BaseTest.t.sol";
 
@@ -42,9 +42,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
     ISuperExecutor public superExecutorOnBase;
     ISuperExecutor public superExecutorOnOP;
 
-    IAcrossTargetExecutor public superTargetExecutorOnBase;
-    IAcrossTargetExecutor public superTargetExecutorOnETH;
-    IAcrossTargetExecutor public superTargetExecutorOnOP;
+    ISuperDestinationExecutor public superTargetExecutorOnBase;
+    ISuperDestinationExecutor public superTargetExecutorOnETH;
+    ISuperDestinationExecutor public superTargetExecutorOnOP;
 
     IValidator public validatorOnBase;
     IValidator public validatorOnETH;
@@ -106,9 +106,9 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
         superExecutorOnOP = ISuperExecutor(_getContract(OP, SUPER_EXECUTOR_KEY));
-        superTargetExecutorOnBase = IAcrossTargetExecutor(_getContract(BASE, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnETH = IAcrossTargetExecutor(_getContract(ETH, ACROSS_TARGET_EXECUTOR_KEY));
-        superTargetExecutorOnOP = IAcrossTargetExecutor(_getContract(OP, ACROSS_TARGET_EXECUTOR_KEY));
+        superTargetExecutorOnBase = ISuperDestinationExecutor(_getContract(BASE, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnETH = ISuperDestinationExecutor(_getContract(ETH, SUPER_DESTINATION_EXECUTOR_KEY));
+        superTargetExecutorOnOP = ISuperDestinationExecutor(_getContract(OP, SUPER_DESTINATION_EXECUTOR_KEY));
         validatorOnBase = IValidator(_getContract(BASE, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnETH = IValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnOP = IValidator(_getContract(OP, SUPER_DESTINATION_VALIDATOR_KEY));
@@ -186,63 +186,4 @@ contract ERC4626DepositRedeemFlowTest is BaseTest {
         // uint256 accSharesAfterWithdraw = vaultInstanceEth.balanceOf(accountEth);
         // assertEq(accSharesAfterWithdraw, 0);
     }
-
-    /*
-    /// @dev Commented in case we need it back
-    function test_RebalanceCrossChain_WithDebridge_4626_Mainnet_Flow() public {
-        vm.selectFork(FORKS[ETH]);
-
-        uint256 amount = 1e10;
-
-        // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
-
-        // PREPARE DST DATA
-        address[] memory dstHooksAddresses = new address[](2);
-        dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        bytes[] memory dstHooksData = new bytes[](2);
-        dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceAddressBase, amount, false);
-        dstHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressBase, amount, false, false
-        );
-
-        // ETH is SRC
-        vm.selectFork(FORKS[ETH]);
-        address[] memory srcHooksAddresses = new address[](2);
-        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[1] = _getHookAddress(ETH, DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-
-        IDeBridgeGate.SubmissionAutoParamsTo memory autoParams = IDeBridgeGate.SubmissionAutoParamsTo({
-            executionFee: 0,
-            flags: 0,
-            fallbackAddress: abi.encodePacked(instanceOnBase.account),
-            data: ""
-        });
-        bytes memory autoParamsBytes = abi.encode(autoParams);
-
-        bytes[] memory srcHooksData = new bytes[](2);
-        srcHooksData[0] = _createApproveHookData(underlyingEth_USDC, DEBRIDGE_GATE_ADDRESSES[ETH], amount, false);
-        srcHooksData[1] = _createDebridgeSendFundsAndExecuteHookData(
-            1 ether,
-            accountBase,
-            existingUnderlyingTokens[ETH][USDC_KEY],
-            amount,
-            chainIds[2], //Base
-            0,
-            false, // use asset fee
-            false, // use prev hook amount
-            autoParamsBytes.length,
-            autoParamsBytes,
-            ""
-        );
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
-
-        UserOpData memory srcUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
-        _processDebridgeMessage(ETH, BASE, executeOp(srcUserOpData));
-    }
-    */
 }

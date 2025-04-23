@@ -34,8 +34,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isPositiveFeed = _decodeBool(data, 145);
-/// @notice         bool isFullRepayment = _decodeBool(data, 146);
+/// @notice         bool isFullRepayment = _decodeBool(data, 145);
 contract MorphoRepayHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -49,12 +48,14 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     IMorphoStaticTyping public morphoStaticTyping;
 
     uint256 private constant AMOUNT_POSITION = 80;
+    uint256 private constant PRICE_SCALING_FACTOR = 1e36;
+    uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address registry_, address morpho_) BaseMorphoLoanHook(registry_, HookSubTypes.LOAN_REPAY) {
+    constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) {
         if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);
@@ -130,9 +131,8 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     /// @inheritdoc ISuperHookLoans
     function getUsedAssets(address, bytes memory data) external view returns (uint256) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-        uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(
-            vars.loanToken, vars.oracle, vars.collateralToken, vars.isPositiveFeed, outAmount
-        );
+        uint256 amountInCollateral =
+            deriveCollateralAmountFromLoanAmount(vars.oracle, outAmount);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         return amountInCollateral + deriveFeeAmount(marketParams);
@@ -155,10 +155,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     }
 
     function deriveCollateralAmountFromLoanAmount(
-        address loanToken,
         address oracle,
-        address collateralToken,
-        bool isPositiveFeed,
         uint256 loanAmount
     )
         public
@@ -167,24 +164,8 @@ contract MorphoRepayHook is BaseMorphoLoanHook {
     {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
-        uint256 loanDecimals = ERC20(loanToken).decimals();
-        uint256 collateralDecimals = ERC20(collateralToken).decimals();
 
-        if (collateralDecimals > 36 + loanDecimals) revert TOKEN_DECIMALS_NOT_SUPPORTED();
-
-        // Correct scaling factor as per the oracle's specification:
-        // 10^(36 + loanDecimals - collateralDecimals)
-        uint256 scalingFactor = 10 ** (36 + loanDecimals - collateralDecimals);
-
-        if (isPositiveFeed) {
-            // Inverting the original calculation when isPositiveFeed is true:
-            // loanAmount = collateralAmount * price / scalingFactor
-            collateralAmount = Math.mulDiv(loanAmount, scalingFactor, price);
-        } else {
-            // Inverting the original calculation when isPositiveFeed is false:
-            // loanAmount = collateralAmount * scalingFactor / price
-            collateralAmount = Math.mulDiv(loanAmount, price, scalingFactor);
-        }
+        collateralAmount = Math.mulDiv(loanAmount, price, PRICE_SCALING_FACTOR);
     }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {

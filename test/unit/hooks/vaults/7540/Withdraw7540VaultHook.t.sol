@@ -26,7 +26,7 @@ contract Withdraw7540VaultHookTest is BaseTest {
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
 
-        hook = new Withdraw7540VaultHook(address(this));
+        hook = new Withdraw7540VaultHook();
     }
 
     function test_Constructor() public view {

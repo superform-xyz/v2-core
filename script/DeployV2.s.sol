@@ -11,8 +11,10 @@ import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
 import { Configuration } from "./utils/Configuration.sol";
 
 import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
-import { AcrossTargetExecutor } from "../src/core/executors/AcrossTargetExecutor.sol";
-import { SuperRegistry } from "../src/core/settings/SuperRegistry.sol";
+import { SuperDestinationExecutor } from "../src/core/executors/SuperDestinationExecutor.sol";
+import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
+
 import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
@@ -66,11 +68,24 @@ import { ApproveAndFluidStakeHook } from "../src/core/hooks/stake/fluid/ApproveA
 // ---- | bridges
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-
+import { ApproveAndRedeem4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndRedeem4626VaultHook.sol";
+import { ApproveAndRedeem5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
+import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
+import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
+import { DeBridgeSendOrderAndExecuteOnDstHook } from
+    "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
+import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+import { SpectraExchangeHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
+import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { SuperOracle } from "../src/core/accounting/oracles/SuperOracle.sol";
+import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
@@ -95,8 +110,9 @@ contract DeployV2 is Script, Configuration {
 
     struct DeployedContracts {
         address superExecutor;
-        address acrossTargetExecutor;
-        address superRegistry;
+        address acrossV3Adapter;
+        address debridgeAdapter;
+        address superDestinationExecutor;
         address superLedger;
         address pendleLedger;
         address superLedgerConfiguration;
@@ -143,7 +159,26 @@ contract DeployV2 is Script, Configuration {
         address claimCancelRedeemRequest7540Hook;
         address cancelDepositHook;
         address cancelRedeemHook;
+        // --- New Hook Addresses Start ---
+        address approveAndRedeem4626VaultHook;
+        address approveAndRedeem5115VaultHook;
+        address approveAndWithdraw7540VaultHook;
+        address approveAndRedeem7540VaultHook;
+        address deBridgeSendOrderAndExecuteOnDstHook;
+        // address ethenaCooldownSharesHook; // Placeholder
+        // address ethenaUnstakeHook; // Placeholder
+        // address spectraExchangeHook; // Placeholder
+        // address pendleRouterSwapHook; // Placeholder
+        address ethenaCooldownSharesHook; // Experimental Placeholder
+        address ethenaUnstakeHook; // Experimental Placeholder
+        address spectraExchangeHook; // Experimental Placeholder
+        address pendleRouterSwapHook; // Experimental Placeholder
+        address pendleRouterRedeemHook; // New Address Field
+        address morphoBorrowHook;
+        address morphoRepayHook;
+        address morphoRepayAndWithdrawHook;
     }
+    // --- New Hook Addresses End ---
 
     modifier broadcast(uint256 env) {
         if (env == 1) {
@@ -168,9 +203,6 @@ contract DeployV2 is Script, Configuration {
         // deploy contracts
         _deploy(chainId);
 
-        // Configure contracts
-        _configure(chainId);
-
         // Setup SuperLedger
         _setupSuperLedgerConfiguration(chainId);
     }
@@ -188,15 +220,6 @@ contract DeployV2 is Script, Configuration {
 
         // retrieve deployer
         ISuperDeployer deployer = ISuperDeployer(configuration.deployer);
-
-        // Deploy SuperRegistry
-        deployedContracts.superRegistry = __deployContract(
-            deployer,
-            SUPER_REGISTRY_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_REGISTRY_KEY),
-            abi.encodePacked(type(SuperRegistry).creationCode, abi.encode(configuration.owner))
-        );
 
         deployedContracts.peripheryRegistry = __deployContract(
             deployer,
@@ -220,23 +243,85 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        // Deploy SuperExecutor
-        deployedContracts.superExecutor = __deployContract(
-            deployer,
-            SUPER_EXECUTOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
-            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superRegistry))
-        );
-
         // Deploy SuperLedgerConfiguration
         deployedContracts.superLedgerConfiguration = __deployContract(
             deployer,
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_CONFIGURATION_KEY),
-            abi.encodePacked(type(SuperLedgerConfiguration).creationCode, abi.encode(deployedContracts.superRegistry))
+            type(SuperLedgerConfiguration).creationCode
         );
+
+        // Deploy SuperMerkleValidator
+        deployedContracts.superMerkleValidator = __deployContract(
+            deployer,
+            SUPER_MERKLE_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
+            type(SuperMerkleValidator).creationCode
+        );
+
+        // Deploy SuperDestinationValidator
+        deployedContracts.superDestinationValidator = __deployContract(
+            deployer,
+            SUPER_DESTINATION_VALIDATOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
+            type(SuperDestinationValidator).creationCode
+        );
+
+        // Deploy SuperExecutor
+        deployedContracts.superExecutor = __deployContract(
+            deployer,
+            SUPER_EXECUTOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
+            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+        );
+
+        // Deploy SuperDestinationExecutor
+        deployedContracts.superDestinationExecutor = __deployContract(
+            deployer,
+            SUPER_DESTINATION_EXECUTOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_EXECUTOR_KEY),
+            abi.encodePacked(
+                type(SuperDestinationExecutor).creationCode,
+                abi.encode(
+                    deployedContracts.superLedgerConfiguration,
+                    deployedContracts.superDestinationValidator,
+                    configuration.nexusFactories[chainId]
+                )
+            )
+        );
+
+        // Deploy AcrossV3Adapter
+        deployedContracts.acrossV3Adapter = __deployContract(
+            deployer,
+            ACROSS_V3_ADAPTER_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ACROSS_V3_ADAPTER_KEY),
+            abi.encodePacked(
+                type(AcrossV3Adapter).creationCode,
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], deployedContracts.superDestinationExecutor)
+            )
+        );
+
+        // Deploy DebridgeAdapter
+        deployedContracts.debridgeAdapter = __deployContract(
+            deployer,
+            DEBRIDGE_ADAPTER_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
+            abi.encodePacked(
+                type(DebridgeAdapter).creationCode,
+                abi.encode(configuration.debridgeDstDln[chainId], deployedContracts.superDestinationExecutor)
+            )
+        );
+
+        address[] memory allowedExecutors = new address[](2);
+        allowedExecutors[0] = address(deployedContracts.superExecutor);
+        allowedExecutors[1] = address(deployedContracts.superDestinationExecutor);
 
         // Deploy SuperLedger
         deployedContracts.superLedger = __deployContract(
@@ -245,8 +330,7 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
             abi.encodePacked(
-                type(SuperLedger).creationCode,
-                abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry)
+                type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -258,7 +342,7 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
             abi.encodePacked(
                 type(ERC5115Ledger).creationCode,
-                abi.encode(deployedContracts.superLedgerConfiguration, deployedContracts.superRegistry)
+                abi.encode(deployedContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -280,63 +364,13 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperVaultFactory).creationCode, abi.encode(deployedContracts.peripheryRegistry))
         );
 
-        // Deploy SuperMerkleValidator
-        deployedContracts.superMerkleValidator = __deployContract(
-            deployer,
-            SUPER_MERKLE_VALIDATOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
-            type(SuperMerkleValidator).creationCode
-        );
-
-        // Deploy SuperDestinationValidator
-        deployedContracts.superDestinationValidator = __deployContract(
-            deployer,
-            SUPER_DESTINATION_VALIDATOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
-            type(SuperDestinationValidator).creationCode
-        );
-
-        // Deploy AcrossTargetExecutor
-        deployedContracts.acrossTargetExecutor = __deployContract(
-            deployer,
-            ACROSS_TARGET_EXECUTOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, ACROSS_TARGET_EXECUTOR_KEY),
-            abi.encodePacked(
-                type(AcrossTargetExecutor).creationCode,
-                abi.encode(
-                    deployedContracts.superRegistry,
-                    configuration.acrossSpokePoolV3s[chainId],
-                    deployedContracts.superDestinationValidator,
-                    configuration.nexusFactories[chainId]
-                )
-            )
-        );
-
         // Deploy Hooks
-        HookAddresses memory hookAddresses = _deployHooks(deployer, deployedContracts.superRegistry, chainId);
+        HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
         _registerHooks(hookAddresses, PeripheryRegistry(deployedContracts.peripheryRegistry));
 
         // Deploy Oracles
-        _deployOracles(deployer, deployedContracts.oracleRegistry, chainId);
-    }
-
-    function _configure(uint64 chainId) internal {
-        SuperRegistry superRegistry = SuperRegistry(_getContract(chainId, SUPER_REGISTRY_KEY));
-
-        superRegistry.setAddress(
-            keccak256(bytes(SUPER_LEDGER_CONFIGURATION_ID)), _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)
-        );
-        superRegistry.setExecutor(keccak256(bytes(SUPER_EXECUTOR_ID)), _getContract(chainId, SUPER_EXECUTOR_KEY));
-        superRegistry.setExecutor(
-            keccak256(bytes(ACROSS_TARGET_EXECUTOR_ID)), _getContract(chainId, ACROSS_TARGET_EXECUTOR_KEY)
-        );
-        superRegistry.setAddress(
-            keccak256(bytes(SUPER_NATIVE_PAYMASTER_ID)), _getContract(chainId, SUPER_NATIVE_PAYMASTER_KEY)
-        );
+        _deployOracles(deployer, chainId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -377,150 +411,142 @@ contract DeployV2 is Script, Configuration {
 
     function _deployHooks(
         ISuperDeployer deployer,
-        address registry,
         uint64 chainId
     )
         private
         returns (HookAddresses memory hookAddresses)
     {
-        uint256 len = 32;
+        uint256 len = 47; // Updated length including new Pendle hook
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
-        hooks[0] = HookDeployment(
-            APPROVE_ERC20_HOOK_KEY, abi.encodePacked(type(ApproveERC20Hook).creationCode, abi.encode(registry))
-        );
-        hooks[1] = HookDeployment(
-            TRANSFER_ERC20_HOOK_KEY, abi.encodePacked(type(TransferERC20Hook).creationCode, abi.encode(registry))
-        );
-        hooks[2] = HookDeployment(
-            DEPOSIT_4626_VAULT_HOOK_KEY, abi.encodePacked(type(Deposit4626VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[3] = HookDeployment(
-            APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndDeposit4626VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[4] = HookDeployment(
-            REDEEM_4626_VAULT_HOOK_KEY, abi.encodePacked(type(Redeem4626VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[5] = HookDeployment(
-            DEPOSIT_5115_VAULT_HOOK_KEY, abi.encodePacked(type(Deposit5115VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[6] = HookDeployment(
-            APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndDeposit5115VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[7] = HookDeployment(
-            REDEEM_5115_VAULT_HOOK_KEY, abi.encodePacked(type(Redeem5115VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[8] = HookDeployment(
-            REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(RequestDeposit7540VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[9] = HookDeployment(
-            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndRequestDeposit7540VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[10] = HookDeployment(
-            REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(RequestRedeem7540VaultHook).creationCode, abi.encode(registry))
-        );
-
+        hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, type(ApproveERC20Hook).creationCode);
+        hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, type(TransferERC20Hook).creationCode);
+        hooks[2] = HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, type(Deposit4626VaultHook).creationCode);
+        hooks[3] =
+            HookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, type(ApproveAndDeposit4626VaultHook).creationCode);
+        hooks[4] = HookDeployment(REDEEM_4626_VAULT_HOOK_KEY, type(Redeem4626VaultHook).creationCode);
+        hooks[5] =
+            HookDeployment(APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY, type(ApproveAndRedeem4626VaultHook).creationCode);
+        hooks[6] = HookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, type(Deposit5115VaultHook).creationCode);
+        hooks[7] =
+            HookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, type(ApproveAndDeposit5115VaultHook).creationCode);
+        hooks[8] = HookDeployment(REDEEM_5115_VAULT_HOOK_KEY, type(Redeem5115VaultHook).creationCode);
+        hooks[9] =
+            HookDeployment(APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY, type(ApproveAndRedeem5115VaultHook).creationCode);
+        hooks[10] = HookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(RequestDeposit7540VaultHook).creationCode);
         hooks[11] = HookDeployment(
-            DEPOSIT_7540_VAULT_HOOK_KEY, abi.encodePacked(type(Deposit7540VaultHook).creationCode, abi.encode(registry))
+            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(ApproveAndRequestDeposit7540VaultHook).creationCode
         );
-        hooks[12] = HookDeployment(
-            WITHDRAW_7540_VAULT_HOOK_KEY,
-            abi.encodePacked(type(Withdraw7540VaultHook).creationCode, abi.encode(registry))
-        );
-        hooks[13] = HookDeployment(
+        hooks[12] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
+        hooks[13] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
+        hooks[14] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
+        hooks[15] =
+            HookDeployment(APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY, type(ApproveAndWithdraw7540VaultHook).creationCode);
+        hooks[16] =
+            HookDeployment(APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRedeem7540VaultHook).creationCode);
+
+        hooks[17] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
-            abi.encodePacked(
-                type(Swap1InchHook).creationCode, abi.encode(registry, configuration.aggregationRouters[chainId])
-            )
+            abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(configuration.aggregationRouters[chainId]))
         );
-        hooks[14] = HookDeployment(
+        hooks[18] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(registry, configuration.odosRouters[chainId]))
+            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
-        hooks[15] = HookDeployment(
+        hooks[19] = HookDeployment(
             APPROVE_AND_SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(
-                type(ApproveAndSwapOdosHook).creationCode, abi.encode(registry, configuration.odosRouters[chainId])
-            )
+            abi.encodePacked(type(ApproveAndSwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
 
-        hooks[16] = HookDeployment(
+        hooks[20] = HookDeployment(
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(registry, configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(configuration.acrossSpokePoolV3s[chainId])
             )
         );
-        hooks[17] = HookDeployment(
-            FLUID_CLAIM_REWARD_HOOK_KEY, abi.encodePacked(type(FluidClaimRewardHook).creationCode, abi.encode(registry))
-        );
-        hooks[18] = HookDeployment(
-            FLUID_STAKE_HOOK_KEY, abi.encodePacked(type(FluidStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[19] = HookDeployment(
-            APPROVE_AND_FLUID_STAKE_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndFluidStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[20] = HookDeployment(
-            FLUID_UNSTAKE_HOOK_KEY, abi.encodePacked(type(FluidUnstakeHook).creationCode, abi.encode(registry))
-        );
         hooks[21] = HookDeployment(
-            GEARBOX_CLAIM_REWARD_HOOK_KEY,
-            abi.encodePacked(type(GearboxClaimRewardHook).creationCode, abi.encode(registry))
-        );
-        hooks[22] = HookDeployment(
-            GEARBOX_STAKE_HOOK_KEY, abi.encodePacked(type(GearboxStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[23] = HookDeployment(
-            GEARBOX_APPROVE_AND_STAKE_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndGearboxStakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[24] = HookDeployment(
-            GEARBOX_UNSTAKE_HOOK_KEY, abi.encodePacked(type(GearboxUnstakeHook).creationCode, abi.encode(registry))
-        );
-        hooks[25] = HookDeployment(
-            YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
-            abi.encodePacked(type(YearnClaimOneRewardHook).creationCode, abi.encode(registry))
+            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
+            abi.encodePacked(type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode, abi.encode(DEBRIDGE_DLN_SRC))
         );
 
-        hooks[26] = HookDeployment(
-            CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(CancelDepositRequest7540Hook).creationCode, abi.encode(registry))
+        hooks[22] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);
+        hooks[23] = HookDeployment(FLUID_STAKE_HOOK_KEY, type(FluidStakeHook).creationCode);
+        hooks[24] = HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, type(ApproveAndFluidStakeHook).creationCode);
+        hooks[25] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, type(FluidUnstakeHook).creationCode);
+        hooks[26] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, type(GearboxClaimRewardHook).creationCode);
+        hooks[27] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, type(GearboxStakeHook).creationCode);
+        hooks[28] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, type(ApproveAndGearboxStakeHook).creationCode);
+        hooks[29] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, type(GearboxUnstakeHook).creationCode);
+        hooks[30] = HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, type(YearnClaimOneRewardHook).creationCode);
+        hooks[31] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, type(EthenaCooldownSharesHook).creationCode);
+        hooks[32] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, type(EthenaUnstakeHook).creationCode);
+        hooks[33] = HookDeployment(
+            SPECTRA_EXCHANGE_HOOK_KEY,
+            abi.encodePacked(type(SpectraExchangeHook).creationCode, abi.encode(configuration.spectraRouters[chainId]))
         );
-        hooks[27] = HookDeployment(
-            CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(CancelRedeemRequest7540Hook).creationCode, abi.encode(registry))
+        hooks[34] = HookDeployment(
+            PENDLE_ROUTER_SWAP_HOOK_KEY,
+            abi.encodePacked(type(PendleRouterSwapHook).creationCode, abi.encode(configuration.pendleRouters[chainId]))
         );
-        hooks[28] = HookDeployment(
-            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(ClaimCancelDepositRequest7540Hook).creationCode, abi.encode(registry))
+        hooks[35] = HookDeployment(
+            PENDLE_ROUTER_REDEEM_HOOK_KEY,
+            abi.encodePacked(
+                type(PendleRouterRedeemHook).creationCode, abi.encode(configuration.pendleRouters[chainId])
+            )
         );
-        hooks[29] = HookDeployment(
-            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
-            abi.encodePacked(type(ClaimCancelRedeemRequest7540Hook).creationCode, abi.encode(registry))
+        hooks[36] =
+            HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
+        hooks[37] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
+        hooks[38] = HookDeployment(
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(ClaimCancelDepositRequest7540Hook).creationCode
         );
-        hooks[30] = HookDeployment(
-            CANCEL_DEPOSIT_HOOK_KEY, abi.encodePacked(type(CancelDepositHook).creationCode, abi.encode(registry))
+        hooks[39] = HookDeployment(
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(ClaimCancelRedeemRequest7540Hook).creationCode
         );
-        hooks[31] = HookDeployment(
-            CANCEL_REDEEM_HOOK_KEY, abi.encodePacked(type(CancelRedeemHook).creationCode, abi.encode(registry))
+        hooks[40] = HookDeployment(CANCEL_DEPOSIT_HOOK_KEY, type(CancelDepositHook).creationCode);
+        hooks[41] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
+
+        hooks[42] = HookDeployment(
+            MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
         );
+        hooks[43] = HookDeployment(
+            MORPHO_REPAY_HOOK_KEY, abi.encodePacked(type(MorphoRepayHook).creationCode, abi.encode(MORPHO))
+        );
+        hooks[44] = HookDeployment(
+            MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
+            abi.encodePacked(type(MorphoRepayAndWithdrawHook).creationCode, abi.encode(MORPHO))
+        );
+
+        // --- Fill remaining slots if length is greater than used hooks ---
+        for (uint256 i = 45; i < len; ++i) {
+            // Updated start index
+            hooks[i] = HookDeployment("UNUSED_PLACEHOLDER", type(ApproveERC20Hook).creationCode); // Use a simple
+                // placeholder
+        }
+        // ---
 
         for (uint256 i = 0; i < len; ++i) {
-            HookDeployment memory hook = hooks[i];
-            addresses[i] = __deployContract(
-                deployer,
-                hook.name,
-                chainId,
-                __getSalt(configuration.owner, configuration.deployer, hook.name),
-                hook.creationCode
-            );
+            // Check if the hook name is not a placeholder or an experimental placeholder before deploying
+            bool isExperimentalPlaceholder = Strings.equal(hooks[i].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY)
+                || Strings.equal(hooks[i].name, ETHENA_UNSTAKE_HOOK_KEY)
+                || Strings.equal(hooks[i].name, SPECTRA_EXCHANGE_HOOK_KEY)
+                || Strings.equal(hooks[i].name, PENDLE_ROUTER_SWAP_HOOK_KEY)
+                || Strings.equal(hooks[i].name, PENDLE_ROUTER_REDEEM_HOOK_KEY); // Added new Pendle hook
+
+            if (!Strings.equal(hooks[i].name, "UNUSED_PLACEHOLDER") && !isExperimentalPlaceholder) {
+                HookDeployment memory hook = hooks[i];
+                addresses[i] = __deployContract(
+                    deployer,
+                    hook.name,
+                    chainId,
+                    __getSalt(configuration.owner, configuration.deployer, hook.name),
+                    hook.creationCode
+                );
+            } else {
+                addresses[i] = address(0); // Assign address(0) to placeholders and experimental hooks
+            }
         }
 
         hookAddresses.approveErc20Hook =
@@ -533,59 +559,80 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[3].name, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY) ? addresses[3] : address(0);
         hookAddresses.redeem4626VaultHook =
             Strings.equal(hooks[4].name, REDEEM_4626_VAULT_HOOK_KEY) ? addresses[4] : address(0);
+        hookAddresses.approveAndRedeem4626VaultHook =
+            Strings.equal(hooks[5].name, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY) ? addresses[5] : address(0);
         hookAddresses.deposit5115VaultHook =
-            Strings.equal(hooks[5].name, DEPOSIT_5115_VAULT_HOOK_KEY) ? addresses[5] : address(0);
+            Strings.equal(hooks[6].name, DEPOSIT_5115_VAULT_HOOK_KEY) ? addresses[6] : address(0);
         hookAddresses.approveAndDeposit5115VaultHook =
-            Strings.equal(hooks[6].name, APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY) ? addresses[6] : address(0);
+            Strings.equal(hooks[7].name, APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY) ? addresses[7] : address(0);
         hookAddresses.redeem5115VaultHook =
-            Strings.equal(hooks[7].name, REDEEM_5115_VAULT_HOOK_KEY) ? addresses[7] : address(0);
+            Strings.equal(hooks[8].name, REDEEM_5115_VAULT_HOOK_KEY) ? addresses[8] : address(0);
+        hookAddresses.approveAndRedeem5115VaultHook =
+            Strings.equal(hooks[9].name, APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY) ? addresses[9] : address(0);
         hookAddresses.requestDeposit7540VaultHook =
-            Strings.equal(hooks[8].name, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[8] : address(0);
+            Strings.equal(hooks[10].name, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[10] : address(0);
         hookAddresses.approveAndRequestDeposit7540VaultHook =
-            Strings.equal(hooks[9].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[9] : address(0);
+            Strings.equal(hooks[11].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[11] : address(0);
         hookAddresses.requestRedeem7540VaultHook =
-            Strings.equal(hooks[10].name, REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[10] : address(0);
+            Strings.equal(hooks[12].name, REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[12] : address(0);
         hookAddresses.deposit7540VaultHook =
-            Strings.equal(hooks[11].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[11] : address(0);
+            Strings.equal(hooks[13].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[13] : address(0);
         hookAddresses.withdraw7540VaultHook =
-            Strings.equal(hooks[12].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[12] : address(0);
-        hookAddresses.swap1InchHook = Strings.equal(hooks[13].name, SWAP_1INCH_HOOK_KEY) ? addresses[13] : address(0);
-        hookAddresses.swapOdosHook = Strings.equal(hooks[14].name, SWAP_ODOS_HOOK_KEY) ? addresses[14] : address(0);
+            Strings.equal(hooks[14].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[14] : address(0);
+        hookAddresses.approveAndWithdraw7540VaultHook =
+            Strings.equal(hooks[15].name, APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
+        hookAddresses.approveAndRedeem7540VaultHook =
+            Strings.equal(hooks[16].name, APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
+        hookAddresses.swap1InchHook = Strings.equal(hooks[17].name, SWAP_1INCH_HOOK_KEY) ? addresses[17] : address(0);
+        hookAddresses.swapOdosHook = Strings.equal(hooks[18].name, SWAP_ODOS_HOOK_KEY) ? addresses[18] : address(0);
         hookAddresses.approveAndSwapOdosHook =
-            Strings.equal(hooks[15].name, APPROVE_AND_SWAP_ODOS_HOOK_KEY) ? addresses[15] : address(0);
+            Strings.equal(hooks[19].name, APPROVE_AND_SWAP_ODOS_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
-            Strings.equal(hooks[16].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[16] : address(0);
+            Strings.equal(hooks[20].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
+        hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
+            Strings.equal(hooks[21].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.fluidClaimRewardHook =
-            Strings.equal(hooks[17].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[17] : address(0);
-        hookAddresses.fluidStakeHook = Strings.equal(hooks[18].name, FLUID_STAKE_HOOK_KEY) ? addresses[18] : address(0);
+            Strings.equal(hooks[22].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[22] : address(0);
+        hookAddresses.fluidStakeHook = Strings.equal(hooks[23].name, FLUID_STAKE_HOOK_KEY) ? addresses[23] : address(0);
         hookAddresses.approveAndFluidStakeHook =
-            Strings.equal(hooks[19].name, APPROVE_AND_FLUID_STAKE_HOOK_KEY) ? addresses[19] : address(0);
+            Strings.equal(hooks[24].name, APPROVE_AND_FLUID_STAKE_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.fluidUnstakeHook =
-            Strings.equal(hooks[20].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[20] : address(0);
+            Strings.equal(hooks[25].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[25] : address(0);
         hookAddresses.gearboxClaimRewardHook =
-            Strings.equal(hooks[21].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[21] : address(0);
+            Strings.equal(hooks[26].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[26] : address(0);
         hookAddresses.gearboxStakeHook =
-            Strings.equal(hooks[22].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[22] : address(0);
+            Strings.equal(hooks[27].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[27] : address(0);
         hookAddresses.approveAndGearboxStakeHook =
-            Strings.equal(hooks[23].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[23] : address(0);
+            Strings.equal(hooks[28].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[28] : address(0);
         hookAddresses.gearboxUnstakeHook =
-            Strings.equal(hooks[24].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[24] : address(0);
+            Strings.equal(hooks[29].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.yearnClaimOneRewardHook =
-            Strings.equal(hooks[25].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[25] : address(0);
+            Strings.equal(hooks[30].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[30] : address(0);
+        hookAddresses.ethenaCooldownSharesHook = address(0); // Experimental Placeholder
+        hookAddresses.ethenaUnstakeHook = address(0); // Experimental Placeholder
+        hookAddresses.spectraExchangeHook = address(0); // Experimental Placeholder
+        hookAddresses.pendleRouterSwapHook = address(0); // Experimental Placeholder
+        hookAddresses.pendleRouterRedeemHook = address(0); // New Experimental Placeholder
         hookAddresses.cancelDepositRequest7540Hook =
-            Strings.equal(hooks[26].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
+            Strings.equal(hooks[36].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[36] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
-            Strings.equal(hooks[27].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
+            Strings.equal(hooks[37].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[37] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-            Strings.equal(hooks[28].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[28] : address(0);
+            Strings.equal(hooks[38].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[38] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
-            Strings.equal(hooks[29].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[29] : address(0);
+            Strings.equal(hooks[39].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
         hookAddresses.cancelDepositHook =
-            Strings.equal(hooks[30].name, CANCEL_DEPOSIT_HOOK_KEY) ? addresses[30] : address(0);
+            Strings.equal(hooks[40].name, CANCEL_DEPOSIT_HOOK_KEY) ? addresses[40] : address(0);
         hookAddresses.cancelRedeemHook =
-            Strings.equal(hooks[31].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[31] : address(0);
+            Strings.equal(hooks[41].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[41] : address(0);
+        hookAddresses.morphoBorrowHook =
+            Strings.equal(hooks[42].name, MORPHO_BORROW_HOOK_KEY) ? addresses[42] : address(0);
+        hookAddresses.morphoRepayHook =
+            Strings.equal(hooks[43].name, MORPHO_REPAY_HOOK_KEY) ? addresses[43] : address(0);
+        hookAddresses.morphoRepayAndWithdrawHook =
+            Strings.equal(hooks[44].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[44] : address(0);
 
-        // Verify no hooks were assigned address(0)
+        // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
         require(hookAddresses.transferErc20Hook != address(0), "transferErc20Hook not assigned");
         require(hookAddresses.deposit4626VaultHook != address(0), "deposit4626VaultHook not assigned");
@@ -593,11 +640,13 @@ contract DeployV2 is Script, Configuration {
             hookAddresses.approveAndDeposit4626VaultHook != address(0), "approveAndDeposit4626VaultHook not assigned"
         );
         require(hookAddresses.redeem4626VaultHook != address(0), "redeem4626VaultHook not assigned");
+        require(hookAddresses.approveAndRedeem4626VaultHook != address(0), "approveAndRedeem4626VaultHook not assigned");
         require(hookAddresses.deposit5115VaultHook != address(0), "deposit5115VaultHook not assigned");
         require(
             hookAddresses.approveAndDeposit5115VaultHook != address(0), "approveAndDeposit5115VaultHook not assigned"
         );
         require(hookAddresses.redeem5115VaultHook != address(0), "redeem5115VaultHook not assigned");
+        require(hookAddresses.approveAndRedeem5115VaultHook != address(0), "approveAndRedeem5115VaultHook not assigned");
         require(hookAddresses.requestDeposit7540VaultHook != address(0), "requestDeposit7540VaultHook not assigned");
         require(
             hookAddresses.approveAndRequestDeposit7540VaultHook != address(0),
@@ -606,12 +655,20 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.requestRedeem7540VaultHook != address(0), "requestRedeem7540VaultHook not assigned");
         require(hookAddresses.deposit7540VaultHook != address(0), "deposit7540VaultHook not assigned");
         require(hookAddresses.withdraw7540VaultHook != address(0), "withdraw7540VaultHook not assigned");
+        require(
+            hookAddresses.approveAndWithdraw7540VaultHook != address(0), "approveAndWithdraw7540VaultHook not assigned"
+        );
+        require(hookAddresses.approveAndRedeem7540VaultHook != address(0), "approveAndRedeem7540VaultHook not assigned");
         require(hookAddresses.swap1InchHook != address(0), "swap1InchHook not assigned");
         require(hookAddresses.swapOdosHook != address(0), "swapOdosHook not assigned");
         require(hookAddresses.approveAndSwapOdosHook != address(0), "approveAndSwapOdosHook not assigned");
         require(
             hookAddresses.acrossSendFundsAndExecuteOnDstHook != address(0),
             "acrossSendFundsAndExecuteOnDstHook not assigned"
+        );
+        require(
+            hookAddresses.deBridgeSendOrderAndExecuteOnDstHook != address(0),
+            "deBridgeSendOrderAndExecuteOnDstHook not assigned"
         );
         require(hookAddresses.fluidClaimRewardHook != address(0), "fluidClaimRewardHook not assigned");
         require(hookAddresses.fluidStakeHook != address(0), "fluidStakeHook not assigned");
@@ -634,6 +691,9 @@ contract DeployV2 is Script, Configuration {
         );
         require(hookAddresses.cancelDepositHook != address(0), "cancelDepositHook not assigned");
         require(hookAddresses.cancelRedeemHook != address(0), "cancelRedeemHook not assigned");
+        require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
+        require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
+        require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "morphoRepayAndWithdrawHook not assigned");
     }
 
     function _registerHooks(HookAddresses memory hookAddresses, PeripheryRegistry peripheryRegistry) internal {
@@ -641,21 +701,30 @@ contract DeployV2 is Script, Configuration {
         peripheryRegistry.registerHook(address(hookAddresses.deposit4626VaultHook), true);
         peripheryRegistry.registerHook(address(hookAddresses.approveAndDeposit4626VaultHook), true);
         peripheryRegistry.registerHook(address(hookAddresses.redeem4626VaultHook), true);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndRedeem4626VaultHook), true);
         peripheryRegistry.registerHook(address(hookAddresses.deposit5115VaultHook), true);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndDeposit5115VaultHook), true);
         peripheryRegistry.registerHook(address(hookAddresses.redeem5115VaultHook), true);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndRedeem5115VaultHook), true);
+        peripheryRegistry.registerHook(address(hookAddresses.deposit7540VaultHook), true);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndWithdraw7540VaultHook), true);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndRedeem7540VaultHook), true);
 
         // Register remaining hooks
         peripheryRegistry.registerHook(address(hookAddresses.approveErc20Hook), false);
         peripheryRegistry.registerHook(address(hookAddresses.transferErc20Hook), false);
         peripheryRegistry.registerHook(address(hookAddresses.requestDeposit7540VaultHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndRequestDeposit7540VaultHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.requestRedeem7540VaultHook), false);
-        peripheryRegistry.registerHook(address(hookAddresses.deposit7540VaultHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.withdraw7540VaultHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.swap1InchHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.swapOdosHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndSwapOdosHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.acrossSendFundsAndExecuteOnDstHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.deBridgeSendOrderAndExecuteOnDstHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.fluidClaimRewardHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.fluidStakeHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.approveAndFluidStakeHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.fluidUnstakeHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.gearboxClaimRewardHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.gearboxStakeHook), false);
@@ -668,11 +737,17 @@ contract DeployV2 is Script, Configuration {
         peripheryRegistry.registerHook(address(hookAddresses.claimCancelRedeemRequest7540Hook), false);
         peripheryRegistry.registerHook(address(hookAddresses.cancelDepositHook), false);
         peripheryRegistry.registerHook(address(hookAddresses.cancelRedeemHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.morphoBorrowHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.morphoRepayHook), false);
+        peripheryRegistry.registerHook(address(hookAddresses.morphoRepayAndWithdrawHook), false);
+        // peripheryRegistry.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false); // Placeholder
+        // peripheryRegistry.registerHook(address(hookAddresses.spectraExchangeHook), false); // Placeholder
+        // peripheryRegistry.registerHook(address(hookAddresses.pendleRouterSwapHook), false); // Placeholder
+        // peripheryRegistry.registerHook(address(hookAddresses.pendleRouterRedeemHook), false); // New Placeholder
     }
 
     function _deployOracles(
         ISuperDeployer deployer,
-        address registry,
         uint64 chainId
     )
         private
@@ -683,20 +758,16 @@ contract DeployV2 is Script, Configuration {
         oracleAddresses = new address[](len);
 
         oracles[0] = OracleDeployment(
-            ERC4626_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode, abi.encode(registry))
+            ERC4626_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode)
         );
         oracles[1] = OracleDeployment(
-            ERC5115_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode, abi.encode(registry))
+            ERC5115_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode)
         );
         oracles[2] = OracleDeployment(
-            ERC7540_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(registry))
+            ERC7540_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode)
         );
         oracles[3] = OracleDeployment(
-            STAKING_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(registry))
+            STAKING_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(StakingYieldSourceOracle).creationCode)
         );
 
         for (uint256 i = 0; i < len; ++i) {

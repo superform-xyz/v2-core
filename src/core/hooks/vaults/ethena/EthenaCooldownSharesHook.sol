@@ -2,15 +2,15 @@
 pragma solidity >=0.8.28;
 
 // external
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { IStakedUSDeCooldown } from "../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
+import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookAsync } from "../../../src/core/interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookAsync } from "../../../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaCooldownSharesHook
 /// @author Superform Labs
@@ -24,7 +24,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor(address registry_) BaseHook(registry_, HookType.NONACCOUNTING, "Cooldown") { }
+    constructor() BaseHook(HookType.NONACCOUNTING, "Cooldown") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

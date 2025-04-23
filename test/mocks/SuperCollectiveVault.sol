@@ -10,9 +10,8 @@ import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 // Superform
 import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
-import { SuperRegistryImplementer } from "../../src/core/utils/SuperRegistryImplementer.sol";
 
-contract SuperCollectiveVault is Ownable, SuperRegistryImplementer, ISuperCollectiveVault {
+contract SuperCollectiveVault is Ownable, ISuperCollectiveVault {
     using ExcessivelySafeCall for address;
     using SafeERC20 for IERC20;
 
@@ -27,10 +26,18 @@ contract SuperCollectiveVault is Ownable, SuperRegistryImplementer, ISuperCollec
     mapping(address => mapping(address => uint256)) private _lockedAmounts;
     mapping(address => mapping(address => mapping(bytes32 => bool))) private _hasBeenDistributed;
 
-    constructor(address registry_, address owner_) SuperRegistryImplementer(registry_) Ownable(owner_) { }
+    // allowed executors
+    mapping(address => bool) private _allowedExecutors;
+
+    constructor(address owner_, address[] memory allowedExecutors_) Ownable(owner_) {
+        uint256 len = allowedExecutors_.length;
+        for (uint256 i = 0; i < len; i++) {
+            _allowedExecutors[allowedExecutors_[i]] = true;
+        }
+    }
 
     modifier onlyExecutor() {
-        if (_getAddress(keccak256("SUPER_EXECUTOR_ID")) != msg.sender) revert NOT_AUTHORIZED();
+        if (!_allowedExecutors[msg.sender]) revert NOT_AUTHORIZED();
         _;
     }
 
@@ -167,10 +174,6 @@ contract SuperCollectiveVault is Ownable, SuperRegistryImplementer, ISuperCollec
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getAddress(bytes32 id_) internal view returns (address) {
-        return superRegistry.getAddress(id_);
-    }
-
     function _claim(
         address target,
         uint256 gasLimit,

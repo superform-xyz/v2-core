@@ -73,7 +73,6 @@ abstract contract Constants {
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
-    string public constant DEBRIDGE_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string public constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
     string public constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
@@ -95,6 +94,7 @@ abstract contract Constants {
     string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
     string public constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
     string public constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
+    string public constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string public constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
     string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
@@ -102,14 +102,17 @@ abstract contract Constants {
     // contracts
     string public constant ACROSS_V3_HELPER_KEY = "AcrossV3Helper";
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
-    string public constant SUPER_REGISTRY_KEY = "SuperRegistry";
-    string public constant ACROSS_TARGET_EXECUTOR_KEY = "AcrossTargetExecutor";
+    string public constant DEBRIDGE_DLN_HELPER_KEY = "DebridgeDlnHelper";
+    string public constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
+    string public constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
+    string public constant SUPER_EXECUTOR_WITH_SP_LOCK_KEY = "SuperExecutorWithSPLock";
     string public constant MOCK_TARGET_EXECUTOR_KEY = "MockTargetExecutor";
-    string public constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";
+    string public constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
+    string public constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string public constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string public constant SUPER_ORACLE_KEY = "SuperOracle";
@@ -158,7 +161,7 @@ abstract contract Constants {
     address public constant CHAIN_1_ODOS_ROUTER = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address public constant CHAIN_10_ODOS_ROUTER = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
     address public constant CHAIN_8453_ODOS_ROUTER = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
-    
+
     // morpho
     string public constant MORPHO_KEY = "Morpho";
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
@@ -166,7 +169,7 @@ abstract contract Constants {
     // Base USDC-WETH Market Constants
     address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;
     address public constant MORPHO_ORACLE = 0xD09048c8B568Dbf5f189302beA26c9edABFC4858;
-    
+
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";
     string public constant ERC5115_VAULT_KEY = "ERC5115";
@@ -185,11 +188,7 @@ abstract contract Constants {
 
     string public constant SUPER_COLLECTIVE_VAULT_KEY = "SUPER_COLLECTIVE_VAULT_KEY";
 
-    string public constant SUPER_LEDGER_CONFIGURATION_ID = "SUPER_LEDGER_CONFIGURATION_ID";
-    string public constant SUPER_EXECUTOR_ID = "SUPER_EXECUTOR_ID";
-    string public constant ACROSS_TARGET_EXECUTOR_ID = "ACROSS_TARGET_EXECUTOR_ID";
     string public constant SUPER_GAS_TANK_ID = "SUPER_GAS_TANK_ID";
-    string public constant SUPER_NATIVE_PAYMASTER_ID = "SUPER_NATIVE_PAYMASTER_ID";
 
     address public constant CHAIN_1_AaveVault = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
     address public constant CHAIN_1_FluidVault = 0x490681095ed277B45377d28cA15Ac41d64583048;
@@ -206,34 +205,32 @@ abstract contract Constants {
     address public constant CHAIN_1_SpectraRouter = 0xD733e545C65d539f588d7c3793147B497403F0d2;
     address public constant CHAIN_1_SpectraPTToken = 0x3b660B2f136FddF98A081439De483D8712c16ca4; // PT-cUSDO
     address public constant CHAIN_1_SPECTRA_PT_IPOR_USDC = 0xf2C5E30fD95A7363583BCAa932Dbe493765BF74f; // PT-IPOR-USDC
-
     address public constant CHAIN_10_AloeUSDC = 0x462654Cc90C9124A406080EadaF0bA349eaA4AF9;
     address public constant CHAIN_10_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_10_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_10_SpectraRouter = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
 
     address public constant CHAIN_8453_MorphoGauntletUSDCPrime = 0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61;
     address public constant CHAIN_8453_MorphoGauntletWETHCore = 0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844;
     address public constant CHAIN_8453_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
+    address public constant CHAIN_8453_SpectraRouter = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
+
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
     address public constant CHAIN_1_GearboxStaking = 0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2;
 
     // bridges
-    string public constant DEBRIDGE_GATE_ADDRESS_KEY = "DeBridgeGateAddress";
 
     address public constant CHAIN_1_SPOKE_POOL_V3_ADDRESS = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
-    address public constant CHAIN_1_DEBRIDGE_GATE_ADDRESS = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-    address public constant CHAIN_1_DEBRIDGE_GATE_ADMIN_ADDRESS = 0x6bec1faF33183e1Bc316984202eCc09d46AC92D5;
 
     address public constant CHAIN_10_SPOKE_POOL_V3_ADDRESS = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
-    address public constant CHAIN_10_DEBRIDGE_GATE_ADDRESS = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-    address public constant CHAIN_10_DEBRIDGE_GATE_ADMIN_ADDRESS = 0xA52842cD43fA8c4B6660E443194769531d45b265;
 
     address public constant CHAIN_8453_SPOKE_POOL_V3_ADDRESS = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
-    address public constant CHAIN_8453_DEBRIDGE_GATE_ADDRESS = 0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF;
-    address public constant CHAIN_8453_DEBRIDGE_GATE_ADMIN_ADDRESS = 0xF0A9d50F912D64D1105b276526e21881bF48A29e;
+
+    address public constant DEBRIDGE_DLN_SOURCE_ADDRESS = 0xeF4fB24aD0916217251F553c0596F8Edc630EB66;
+    address public constant DEBRIDGE_DLN_DST = 0xE7351Fd770A37282b91D153Ee690B63579D6dd7f;
 
     // Nexus
     string public constant NEXUS_ACCOUNT_IMPLEMENTATION_ID = "biconomy.nexus.1.0.0";

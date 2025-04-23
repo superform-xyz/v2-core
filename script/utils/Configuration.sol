@@ -27,11 +27,13 @@ abstract contract Configuration is Constants {
         address bundler;
         address treasury;
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
-        mapping(uint64 chainId => address debridgeGate) debridgeGates;
+        mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
         mapping(uint64 chainId => address okxRouter) okxRouters;
         mapping(uint64 chainId => address nexusFactory) nexusFactories;
+        mapping(uint64 chainId => address spectraRouter) spectraRouters;
+        mapping(uint64 chainId => address pendleRouter) pendleRouters;
         SuperPositionData[] superPositions;
     }
 
@@ -78,12 +80,12 @@ abstract contract Configuration is Constants {
         configuration.acrossSpokePoolV3s[BASE_SEPOLIA_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE_SEPOLIA;
         configuration.acrossSpokePoolV3s[OP_SEPOLIA_CHAIN_ID] = ACROSS_SPOKE_POOL_OP_SEPOLIA;
 
-        configuration.debridgeGates[MAINNET_CHAIN_ID] = DEBRIDGE_GATE_MAINNET;
-        configuration.debridgeGates[BASE_CHAIN_ID] = DEBRIDGE_GATE_BASE;
-        configuration.debridgeGates[OPTIMISM_CHAIN_ID] = DEBRIDGE_GATE_OPTIMISM;
-        configuration.debridgeGates[ARB_SEPOLIA_CHAIN_ID] = DEBRIDGE_GATE_ARB_SEPOLIA;
-        configuration.debridgeGates[BASE_SEPOLIA_CHAIN_ID] = DEBRIDGE_GATE_BASE_SEPOLIA;
-        configuration.debridgeGates[OP_SEPOLIA_CHAIN_ID] = DEBRIDGE_GATE_OP_SEPOLIA;
+        configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[OPTIMISM_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[ARB_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[BASE_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[OP_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
 
         configuration.aggregationRouters[MAINNET_CHAIN_ID] = AGGREGATION_ROUTER_MAINNET;
         configuration.aggregationRouters[BASE_CHAIN_ID] = AGGREGATION_ROUTER_BASE;
@@ -112,5 +114,13 @@ abstract contract Configuration is Constants {
         configuration.nexusFactories[ARB_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_ARB_SEPOLIA;
         configuration.nexusFactories[BASE_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_BASE_SEPOLIA;
         configuration.nexusFactories[OP_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_OP_SEPOLIA;
+
+        configuration.spectraRouters[MAINNET_CHAIN_ID] = SPECTRA_ROUTER_MAINNET;
+        configuration.spectraRouters[BASE_CHAIN_ID] = SPECTRA_ROUTER_BASE;
+        configuration.spectraRouters[OPTIMISM_CHAIN_ID] = SPECTRA_ROUTER_OPTIMISM;
+
+        configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
+        configuration.pendleRouters[BASE_CHAIN_ID] = PENDLE_ROUTER_BASE;
+        configuration.pendleRouters[OPTIMISM_CHAIN_ID] = PENDLE_ROUTER_OPTIMISM;
     }
 }

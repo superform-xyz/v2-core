@@ -11,7 +11,11 @@ import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 /// @author Superform Labs
 /// @notice Oracle for 4626 Vaults
 contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
-    constructor(address _superRegistry) AbstractYieldSourceOracle(_superRegistry) { }
+    constructor() AbstractYieldSourceOracle() { }
+
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc AbstractYieldSourceOracle
     function decimals(address yieldSourceAddress) external view override returns (uint8) {
@@ -88,7 +92,34 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function _validateBaseAsset(address yieldSourceAddress, address base) internal view override {
-        if (base != IERC4626(yieldSourceAddress).asset()) revert INVALID_BASE_ASSET();
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
+        public
+        view
+        override
+        returns (bool)
+    {
+        return IERC4626(yieldSourceAddress).asset() == expectedUnderlying;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
+
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
+        }
     }
 }

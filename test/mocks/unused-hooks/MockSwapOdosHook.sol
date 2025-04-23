@@ -10,6 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 import { HookSubTypes } from "../../../src/core/libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../src/core/interfaces/ISuperHook.sol";
 
 /// @title MockSwapOdosHook
@@ -31,7 +32,7 @@ contract MockSwapOdosHook is BaseHook, ISuperHookContextAware {
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 
-    constructor(address registry_, address _routerV2) BaseHook(registry_, HookType.NONACCOUNTING, HookSubTypes.SWAP) {
+    constructor(address _routerV2) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
         if (_routerV2 == address(0)) revert ADDRESS_NOT_VALID();
         odosRouterV2 = IOdosRouterV2(_routerV2);
     }

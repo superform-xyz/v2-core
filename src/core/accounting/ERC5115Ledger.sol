@@ -12,9 +12,9 @@ import { BaseLedger } from "./BaseLedger.sol";
 contract ERC5115Ledger is BaseLedger {
     constructor(
         address ledgerConfiguration_,
-        address superRegistry_
+        address[] memory allowedExecutors_
     )
-        BaseLedger(ledgerConfiguration_, superRegistry_)
+        BaseLedger(ledgerConfiguration_, allowedExecutors_)
     { }
 
     function _getOutflowProcessVolume(
