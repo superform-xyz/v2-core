@@ -23,7 +23,6 @@ import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidato
 import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.sol";
 
-
 // hooks
 
 // token hooks
@@ -843,21 +842,33 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             MockOdosRouterV2 odosRouter = new MockOdosRouterV2{ salt: SALT }();
             mockOdosRouters[chainIds[i]] = address(odosRouter);
             vm.label(address(odosRouter), "MockOdosRouterV2");
-            A[i].mockApproveAndSwapOdosHook =
-                new MockApproveAndSwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
+            A[i].mockApproveAndSwapOdosHook = new MockApproveAndSwapOdosHook{ salt: SALT }(
+                _getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter)
+            );
             vm.label(address(A[i].mockApproveAndSwapOdosHook), MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(A[i].mockApproveAndSwapOdosHook);
             hooks[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY] = Hook(
-                MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].mockApproveAndSwapOdosHook), ""
+                MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(A[i].mockApproveAndSwapOdosHook),
+                ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(
+                hooks[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY]
+            );
             hooksAddresses[18] = address(A[i].mockApproveAndSwapOdosHook);
-            
-            A[i].mockSwapOdosHook = new MockSwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
+
+            A[i].mockSwapOdosHook =
+                new MockSwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), address(odosRouter));
             vm.label(address(A[i].mockSwapOdosHook), MOCK_SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY] = address(A[i].mockSwapOdosHook);
             hooks[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY] = Hook(
-                MOCK_SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].mockSwapOdosHook), ""
+                MOCK_SWAP_ODOS_HOOK_KEY,
+                HookCategory.Swaps,
+                HookCategory.TokenApprovals,
+                address(A[i].mockSwapOdosHook),
+                ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[19] = address(A[i].mockSwapOdosHook);
@@ -877,7 +888,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[20] = address(A[i].approveAndSwapOdosHook);
 
-            A[i].swapOdosHook = new SwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ODOS_ROUTER[chainIds[i]]);
+            A[i].swapOdosHook =
+                new SwapOdosHook{ salt: SALT }(_getContract(chainIds[i], SUPER_REGISTRY_KEY), ODOS_ROUTER[chainIds[i]]);
             vm.label(address(A[i].swapOdosHook), SWAP_ODOS_HOOK_KEY);
             hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(A[i].swapOdosHook);
             hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
@@ -885,7 +897,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[21] = address(A[i].swapOdosHook);
-            
 
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
                 _getContract(chainIds[i], SUPER_REGISTRY_KEY), SPOKE_POOL_V3_ADDRESSES[chainIds[i]]
@@ -2568,7 +2579,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory)
     {
         bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
-        return abi.encodePacked(/**yieldSourceOracleId*/bytes4(bytes("")), /**yieldSource*/ptToken, usePrevHookAmount, value, txData);
+        return abi.encodePacked(
+            /**
+             * yieldSourceOracleId
+             */
+            bytes4(bytes("")),
+            /**
+             * yieldSource
+             */
+            ptToken,
+            usePrevHookAmount,
+            value,
+            txData
+        );
     }
 
     function _createSpectraExchangeSimpleCommandTxData(
@@ -2628,7 +2651,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             //TODO: fill with the other
             revert("Not implemented");
         }
-        return abi.encodePacked(/**yieldSourceOracleId*/bytes4(bytes("")), /**yieldSource*/market, usePrevHookAmount, value, pendleTxData);
+        return abi.encodePacked(
+            /**
+             * yieldSourceOracleId
+             */
+            bytes4(bytes("")),
+            /**
+             * yieldSource
+             */
+            market,
+            usePrevHookAmount,
+            value,
+            pendleTxData
+        );
     }
 
     function _createOdosSwapCalldataRequest(
