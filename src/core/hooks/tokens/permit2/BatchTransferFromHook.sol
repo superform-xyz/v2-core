@@ -46,6 +46,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookContextAware {
         uint256 amount;
         uint256 amountTokens;
         bool usePrevHookAmount;
+        uint256[] amounts;
         address[] tokens;
     }
 
@@ -78,6 +79,8 @@ contract BatchTransferFromHook is BaseHook, ISuperHookContextAware {
         }
 
         _verifyAmount(account, data);
+
+        IAllowanceTransfer.AllowanceTransferDetails[] memory details = _createAllowanceTransferDetails(account, data);
 
         // @dev no-revert-on-failure tokens are not supported
         executions = new Execution[](1);
@@ -131,8 +134,15 @@ contract BatchTransferFromHook is BaseHook, ISuperHookContextAware {
         });
     }
 
-    function _createAllowanceTransferDetails(address account, bytes memory data) private view returns (AllowanceTransferDetails memory details) {
-        address token = BytesLib.toAddress(data, 0);
+    function _createAllowanceTransferDetails(address from, address account, address[] memory tokens, uint256[] memory amounts) private view returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details) {
+        for (uint256 i; i < tokens.length; ++i) {
+            details[i] = IAllowanceTransfer.AllowanceTransferDetails({
+                from: from,
+                to: account,
+                token: tokens[i],
+                amount: amounts[i]
+            });
+        }
     }
 
     function _verifyAmount(address account, bytes memory data) private view {
