@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
 import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
-import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
+import { UserOperationLib } from "../../src/vendor/account-abstraction/UserOperationLib.sol";
 
 import "forge-std/console2.sol";
 

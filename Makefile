@@ -22,8 +22,7 @@ ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-
-test-vvv :; forge test --match-test test_Borrow_Repay_Hooks_E2E -vvvv
+test-vvv :; forge test --match-test test_ETH_Swap_With_Odos_With_Paymaster -vvvv
 
 test-integration :; forge test --match-contract SuperGovernorTest
 
