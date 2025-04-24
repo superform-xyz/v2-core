@@ -1656,9 +1656,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
         );
         uint128 paymasterVerificationGasLimit = 2e6;
-        uint128 postOpGasLimit = 2e6;
-        bytes memory extraData = abi.encodePacked(uint128(1000));
-        bytes memory paymasterData = abi.encodePacked(uint128(2e6), uint128(1000), extraData); // paymasterData {
+        uint128 postOpGasLimit = 1e6;
+        bytes memory paymasterData = abi.encode(uint128(2e6), uint128(10)); // paymasterData {
             // maxGasLimit = 200000, nodeOperatorPremium = 10 % }
         userOpData.userOp.paymasterAndData =
             abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
