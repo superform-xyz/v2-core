@@ -35,19 +35,9 @@ contract OdosRouterEthSwap is BaseTest {
         MockValidatorModule validator = new MockValidatorModule();
         superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
-        string memory accountName = "SuperformAccount";
-        _initializeModuleKit("DEFAULT");
-        instance = makeAccountInstance(keccak256(abi.encode(accountName)));
-        instance.installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: _getContract(ETH, SUPER_EXECUTOR_KEY),
-            data: ""
-        });
-        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
-        vm.label(instance.account, accountName);
+        instance = accountInstances[ETH];
         account = instance.account;
-        // instance = accountInstances[ETH];
-        // account = instance.account;
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
 
         token = CHAIN_1_USDC;
 
