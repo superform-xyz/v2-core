@@ -17,9 +17,9 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @title BatchTransferHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address to = BytesLib.toAddress(data, 20);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 40);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
+/// @notice         address to = BytesLib.toAddress(data, 0);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 contract BatchTransferHook is BaseHook, ISuperHookContextAware {
     using SafeCast for uint256;
 
