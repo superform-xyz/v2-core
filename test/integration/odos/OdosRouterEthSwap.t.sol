@@ -147,6 +147,41 @@ contract OdosRouterEthSwap is BaseTest {
             instance, superExecutor, abi.encode(entryToExecute), _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
         );
 
+        // PackedUserOperation memory userOp = PackedUserOperation({
+        //     sender: account,
+        //     nonce: 0,
+        //     initCode: bytes(""),
+        //     callData: opData.userOp.callData, 
+        //     accountGasLimits: bytes32(abi.encodePacked(uint128(10_000_000), uint128(20_000_000))),
+        //     preVerificationGas: 10_000_000, // 10M
+        //     gasFees: bytes32(abi.encodePacked(uint128(1e3), uint128(1e3))), // 1000 Wei each
+        //     paymasterAndData: bytes.concat(
+        //         bytes20(address(paymaster)),
+        //         abi.encodePacked(
+        //             uint128(2e6), // verificationGasLimit 2M
+        //             abi.encodePacked(uint128(1e6)), // postOpGasLimit 1M
+        //             abi.encode(maxGasLimit, nodeOperatorPremium) // After PAYMASTER_DATA_OFFSET
+        //         )
+        //     ),
+        //     signature: bytes("")
+        // });
+
+        uint128 paymasterVerificationGasLimit = uint128(2e6);
+        uint128 postOpGasLimit = uint128(1e6);
+        bytes memory extraData = abi.encodePacked(uint128(1e6));
+        bytes memory paymasterData = abi.encodePacked(uint128(2e6), uint128(1e6), extraData); // paymasterData {
+            // maxGasLimit = 200000, nodeOperatorPremium = 10 % }
+        opData.userOp.paymasterAndData =
+            bytes.concat(
+                bytes20(address(paymaster)),
+                abi.encodePacked(
+                    uint128(2e6), // verificationGasLimit 2M
+                    abi.encodePacked(uint128(1e6)), // postOpGasLimit 1M
+                    abi.encode(maxGasLimit, nodeOperatorPremium)
+                )
+            );
+            // abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
+
         uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
