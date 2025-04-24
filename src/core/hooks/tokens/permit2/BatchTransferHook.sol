@@ -4,7 +4,8 @@ pragma solidity 0.8.28;
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { IPermit2 } from "../../../../vendor/uniswap/permit2/IPermit2.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { IPermit2Batch } from "../../../../vendor/uniswap/permit2/IPermit2Batch.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IAllowanceTransfer } from "../../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
@@ -16,14 +17,30 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @title BatchTransferHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address token = BytesLib.toAddress(data, 0);
 /// @notice         address to = BytesLib.toAddress(data, 20);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 contract BatchTransferHook is BaseHook, ISuperHookContextAware {
+    using SafeCast for uint256;
+
+    error INSUFFICIENT_APPROVAL();
+
+    /*//////////////////////////////////////////////////////////////
+                                 STORAGE
+    //////////////////////////////////////////////////////////////*/
+
+    address public permit2;
+
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
+    /*//////////////////////////////////////////////////////////////
+                                CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    constructor(address permit2_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) {
+        if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
+        permit2 = permit2_;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
