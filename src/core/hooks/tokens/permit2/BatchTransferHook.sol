@@ -18,12 +18,11 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address to = BytesLib.toAddress(data, 0);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
+/// @notice         uint256 amountTokens = BytesLib.toUint256(data, 20);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 52);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
 contract BatchTransferHook is BaseHook, ISuperHookContextAware {
     using SafeCast for uint256;
-
-    error INSUFFICIENT_APPROVAL();
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -55,9 +54,8 @@ contract BatchTransferHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(data, 0);
-        address to = BytesLib.toAddress(data, 20);
-        uint256 amount = BytesLib.toUint256(data, 40);
+        address to = BytesLib.toAddress(data, 0);
+        uint256 amount = BytesLib.toUint256(data, 20);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -65,7 +63,7 @@ contract BatchTransferHook is BaseHook, ISuperHookContextAware {
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (token == address(0)) revert ADDRESS_NOT_VALID();
+        if (to == address(0)) revert ADDRESS_NOT_VALID();
 
         // @dev no-revert-on-failure tokens are not supported
         executions = new Execution[](1);
