@@ -1043,7 +1043,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
             hooksAddresses[32] = address(A[i].yearnClaimOneRewardHook);
 
-            A[i].batchTransferFromHook = new BatchTransferFromHook{ salt: SALT }();
+            A[i].batchTransferFromHook = new BatchTransferFromHook{ salt: SALT }(PERMIT2);
             vm.label(address(A[i].batchTransferFromHook), BATCH_TRANSFER_FROM_HOOK_KEY);
             hookAddresses[chainIds[i]][BATCH_TRANSFER_FROM_HOOK_KEY] = address(A[i].batchTransferFromHook);
             hooks[chainIds[i]][BATCH_TRANSFER_FROM_HOOK_KEY] = Hook(
