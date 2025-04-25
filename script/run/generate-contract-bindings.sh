@@ -2,21 +2,8 @@
 
 set -e
 
-# Add GOPATH and update PATH for abigen
-export GOPATH=$HOME/go
-export PATH=$PATH:$GOPATH/bin
-
-# Enable debugging
-set -x
-
-# First, make sure we have the ABIs
-./script/run/retrieve-abis.sh
-
 # Create the base directory if it doesn't exist
 mkdir -p contract_bindings
-
-# Clean up existing bindings
-rm -rf contract_bindings/*
 
 # Find all ABI files directly
 find ./out -name "*.abi" | while read abi_file; do
