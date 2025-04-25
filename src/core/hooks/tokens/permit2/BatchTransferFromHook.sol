@@ -70,6 +70,9 @@ contract BatchTransferFromHook is BaseHook {
         returns (Execution[] memory executions)
     {
         address from = BytesLib.toAddress(data, 0);
+
+        if (from == address(0)) revert ADDRESS_NOT_VALID();
+
         uint256 arrayLength = BytesLib.toUint256(data, 20);
         address[] memory tokens = new address[](arrayLength);
         uint256[] memory amounts = new uint256[](arrayLength);
