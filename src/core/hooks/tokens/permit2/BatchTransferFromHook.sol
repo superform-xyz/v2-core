@@ -29,23 +29,8 @@ contract BatchTransferFromHook is BaseHook {
     error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
     error INVALID_ARRAY_LENGTH();
-    /*//////////////////////////////////////////////////////////////
-                                 STORAGE
-    //////////////////////////////////////////////////////////////*/
 
     address public permit2;
-
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 124;
-
-    struct BuildHookVars {
-        address from;
-        address to;
-        uint256 amount;
-        uint256 amountTokens;
-        bool usePrevHookAmount;
-        uint256[] amounts;
-        address[] tokens;
-    }
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -74,6 +59,7 @@ contract BatchTransferFromHook is BaseHook {
         if (from == address(0)) revert ADDRESS_NOT_VALID();
 
         uint256 arrayLength = BytesLib.toUint256(data, 20);
+
         address[] memory tokens = new address[](arrayLength);
         uint256[] memory amounts = new uint256[](arrayLength);
 
@@ -127,7 +113,8 @@ contract BatchTransferFromHook is BaseHook {
         private
         pure
         returns (address[] memory tokens)
-    {
+    {   
+        tokens = new address[](length);
         for (uint256 i; i < length; ++i) {
             tokens[i] = BytesLib.toAddress(data, offset + (20 * i));
         }
@@ -141,7 +128,8 @@ contract BatchTransferFromHook is BaseHook {
         private
         pure
         returns (uint256[] memory amounts)
-    {
+    {   
+        amounts = new uint256[](length);
         for (uint256 i; i < length; ++i) {
             amounts[i] = BytesLib.toUint256(data, offset + (32 * i));
         }
@@ -156,8 +144,10 @@ contract BatchTransferFromHook is BaseHook {
         private
         pure
         returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details)
-    {
-        for (uint256 i; i < tokens.length; ++i) {
+    {   
+        uint256 length = tokens.length;
+        details = new IAllowanceTransfer.AllowanceTransferDetails[](length);
+        for (uint256 i; i < length; ++i) {
             details[i] = IAllowanceTransfer.AllowanceTransferDetails({
                 from: from,
                 to: account,
@@ -175,11 +165,12 @@ contract BatchTransferFromHook is BaseHook {
     )
         private
         view
-    {
-        if (tokens.length != amounts.length) revert INVALID_ARRAY_LENGTH();
+    {   
+        uint256 length = tokens.length;
+        if (length != amounts.length) revert INVALID_ARRAY_LENGTH();
         address from = BytesLib.toAddress(data, 0);
 
-        for (uint256 i; i < tokens.length; ++i) {
+        for (uint256 i; i < length; ++i) {
             address token = tokens[i];
             uint256 amount = amounts[i];
 
