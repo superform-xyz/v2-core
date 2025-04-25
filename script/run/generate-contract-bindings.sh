@@ -17,10 +17,13 @@ find ./out -name "*.abi" | while read abi_file; do
   # Convert to lowercase for comparison
   base_name_lower=$(echo "$base_name" | tr '[:upper:]' '[:lower:]')
   dir_name_lower=$(echo "$dir_name" | tr '[:upper:]' '[:lower:]')
-  
+
+  if [[ "$base_name" != Super* && "$base_name" != Periphery* ]]; then
+    continue
+  fi
   
   # Only process contracts that start with Super and don't end with hook
-  if [[ "$base_name" != Super* || "$base_name_lower" == *hook || "$dir_name" == *.t.sol ]]; then
+  if [[ "$base_name_lower" == *hook || "$dir_name" == *.t.sol ]]; then
     continue
   fi
   
