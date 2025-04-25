@@ -12,26 +12,23 @@ import { IAllowanceTransfer } from "../../../../vendor/uniswap/permit2/IAllowanc
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title BatchTransferFromHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address from = BytesLib.toAddress(data, 0);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 20);
-/// @notice         uint256 amountTokens = BytesLib.toUint256(data, 52);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         uint256 arrayLength = BytesLib.toUint256(data, 20);
 /// @notice         // ─── dynamic arrays ───────────────────────────────────────────────────
-/// @notice         //  address[] tokens  — starts at byte 84, length = 20  * amountTokens
-/// @notice         //  uint256[] amounts — starts at 84 + 20 * amountTokens,
-/// @notice         //                         length = 32 * amountTokens
+/// @notice         //  address[] tokens  — starts at byte 52, length = 20  * arrayLength
+/// @notice         //  uint256[] amounts — starts at 52 + (20 * arrayLength),
+/// @notice         //                         length = 32 * arrayLength
 /// @notice         //  Each amounts[i] corresponds to tokens[i].
-contract BatchTransferFromHook is BaseHook, ISuperHookContextAware {
+contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
     error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
-
+    error INVALID_ARRAY_LENGTH();
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -63,7 +60,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookContextAware {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     function build(
-        address prevHook,
+        address,
         address account,
         bytes memory data
     )
@@ -72,89 +69,123 @@ contract BatchTransferFromHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        BuildHookVars memory vars = _decodeBuildHookVars(data);
+        address from = BytesLib.toAddress(data, 0);
+        uint256 arrayLength = BytesLib.toUint256(data, 20);
+        address[] memory tokens = new address[](arrayLength);
+        uint256[] memory amounts = new uint256[](arrayLength);
 
-        if (vars.usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
-        }
+        tokens = _decodeTokenArray(data, 52, arrayLength);
+        amounts = _decodeAmountArray(data, 52 + (20 * arrayLength), arrayLength);
 
-        _verifyAmount(account, data);
+        _verifyAmounts(account, tokens, amounts, data);
 
-        IAllowanceTransfer.AllowanceTransferDetails[] memory details = _createAllowanceTransferDetails(account, data);
+        IAllowanceTransfer.AllowanceTransferDetails[] memory details =
+            _createAllowanceTransferDetails(from, account, tokens, amounts);
 
         // @dev no-revert-on-failure tokens are not supported
         executions = new Execution[](1);
-        executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        executions[0] =
+            Execution({ target: permit2, value: 0, callData: abi.encodeCall(IPermit2Batch.transferFrom, (details)) });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        uint256 arrayLength = BytesLib.toUint256(data, 20);
+        address[] memory tokens = _decodeTokenArray(data, 52, arrayLength);
+        for (uint256 i; i < tokens.length; ++i) {
+            outAmount += _getBalance(tokens[i], account);
+        }
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        uint256 arrayLength = BytesLib.toUint256(data, 20);
+        uint256 newAmount;
+        address[] memory tokens = _decodeTokenArray(data, 52, arrayLength);
+        for (uint256 i; i < tokens.length; ++i) {
+            newAmount += _getBalance(tokens[i], account);
+        }
+        outAmount = newAmount - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
-        address token = BytesLib.toAddress(data, 0);
-        address from = BytesLib.toAddress(data, 20);
-        return IERC20(token).balanceOf(from);
+    function _getBalance(address token, address account) private view returns (uint256) {
+        return IERC20(token).balanceOf(account);
     }
 
-    function _decodeBuildHookVars(bytes memory data) private pure returns (BuildHookVars memory vars) {
-        address token = BytesLib.toAddress(data, 0);
-        address from = BytesLib.toAddress(data, 20);
-        address to = BytesLib.toAddress(data, 40);
-        uint256 amount = BytesLib.toUint256(data, 60);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (token == address(0)) revert ADDRESS_NOT_VALID();
-
-        return BuildHookVars({ 
-            token: token, 
-            from: from, 
-            to: to, 
-            amount: amount,
-            usePrevHookAmount: usePrevHookAmount
-        });
+    function _decodeTokenArray(
+        bytes memory data,
+        uint256 offset,
+        uint256 length
+    )
+        private
+        pure
+        returns (address[] memory tokens)
+    {
+        for (uint256 i; i < length; ++i) {
+            tokens[i] = BytesLib.toAddress(data, offset + (20 * i));
+        }
     }
 
-    function _createAllowanceTransferDetails(address from, address account, address[] memory tokens, uint256[] memory amounts) private view returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details) {
+    function _decodeAmountArray(
+        bytes memory data,
+        uint256 offset,
+        uint256 length
+    )
+        private
+        pure
+        returns (uint256[] memory amounts)
+    {
+        for (uint256 i; i < length; ++i) {
+            amounts[i] = BytesLib.toUint256(data, offset + (32 * i));
+        }
+    }
+
+    function _createAllowanceTransferDetails(
+        address from,
+        address account,
+        address[] memory tokens,
+        uint256[] memory amounts
+    )
+        private
+        view
+        returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details)
+    {
         for (uint256 i; i < tokens.length; ++i) {
             details[i] = IAllowanceTransfer.AllowanceTransferDetails({
                 from: from,
                 to: account,
                 token: tokens[i],
-                amount: amounts[i]
+                amount: uint160(amounts[i])
             });
         }
     }
 
-    function _verifyAmount(address account, bytes memory data) private view {
-        address token = BytesLib.toAddress(data, 0);
-        address from = BytesLib.toAddress(data, 20);
-        uint256 amount = BytesLib.toUint256(data, 40);
+    function _verifyAmounts(
+        address account,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        bytes memory data
+    )
+        private
+        view
+    {
+        if (tokens.length != amounts.length) revert INVALID_ARRAY_LENGTH();
+        address from = BytesLib.toAddress(data, 0);
 
-        (uint160 allowance, uint48 expiration, uint48 nonce) = IPermit2Batch(permit2).allowance(from, token, account);
+        for (uint256 i; i < tokens.length; ++i) {
+            address token = tokens[i];
+            uint256 amount = amounts[i];
 
-        if (allowance < amount) revert INSUFFICIENT_ALLOWANCE();
+            (uint160 allowance,,) = IAllowanceTransfer(permit2).allowance(from, token, account);
 
-        uint256 balance = _getBalance(data);
-        if (balance < amount) revert INSUFFICIENT_BALANCE();
+            if (allowance < amount) revert INSUFFICIENT_ALLOWANCE();
+
+            uint256 balance = IERC20(token).balanceOf(from);
+            if (balance < amount) revert INSUFFICIENT_BALANCE();
+        }
     }
 }
