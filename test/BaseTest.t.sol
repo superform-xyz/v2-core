@@ -2904,4 +2904,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         // Prepend version byte (1) to the encoded envelope
         return abi.encodePacked(uint8(1), abi.encode(dataEnvelope));
     }
+
+    function _createBatchTransferFromHookData(
+        address from,
+        uint256 arrayLength,
+        address[] memory tokens,
+        uint256[] memory amounts
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        data = abi.encodePacked(from, arrayLength);
+        for (uint256 i = 0; i < arrayLength; i++) {
+            data = bytes.concat(data, bytes20(tokens[i]));
+        }
+        for (uint256 i = 0; i < arrayLength; i++) {
+            data = bytes.concat(data, abi.encodePacked(amounts[i]));
+        }
+    }
 }
