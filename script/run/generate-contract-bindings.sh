@@ -33,12 +33,7 @@ find ./out -name "*.abi" | while read abi_file; do
   
   
   # Only process contracts that start with Super and don't end with hook
-  if [[ "$base_name" != Super* ]]; then
-    continue
-  fi
-  
-  # Skip if the contract name ends with "hook" or is in a test directory
-  if [[ "$base_name_lower" == *hook || "$dir_name" == *.t.sol ]]; then
+  if [[ "$base_name" != Super* || "$base_name_lower" == *hook || "$dir_name" == *.t.sol ]]; then
     continue
   fi
   
