@@ -151,7 +151,7 @@ contract BatchTransferFromHook is BaseHook {
         uint256[] memory amounts
     )
         private
-        view
+        pure
         returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details)
     {
         for (uint256 i; i < tokens.length; ++i) {
