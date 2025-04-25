@@ -102,7 +102,6 @@ import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxC
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
 // --- Pendle
-
 import {
     IPendleRouterV4,
     LimitOrderData,
@@ -121,6 +120,9 @@ import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRo
 import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { MockLockVault } from "./mocks/MockLockVault.sol";
 import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
+
+// --- Onramp
+import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -223,6 +225,7 @@ struct Addresses {
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
     EthenaCooldownSharesHook ethenaCooldownSharesHook;
     EthenaUnstakeHook ethenaUnstakeHook;
+    BatchTransferFromHook batchTransferFromHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
