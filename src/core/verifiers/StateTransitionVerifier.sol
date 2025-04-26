@@ -34,8 +34,8 @@ contract StateTransitionVerifier is ISuperStateVerifier {
         return true;
     }
     
-    /// @inheritdoc ISuperStateProver
-    function proverTypeId() external pure returns (bytes32) {
-        return keccak256("STATE_TRANSITION_PROVER");
+    /// @inheritdoc ISuperStateVerifier
+    function verifierTypeId() external pure returns (bytes32) {
+        return keccak256("STATE_TRANSITION_VERIFIER");
     }
 }

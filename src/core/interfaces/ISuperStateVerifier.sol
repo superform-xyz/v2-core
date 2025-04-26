@@ -24,7 +24,7 @@ interface ISuperStateVerifier {
         bytes calldata proof
     ) external view returns (bool isValid);
     
-    /// @notice Returns the unique identifier for this prover
-    /// @return proverTypeId The prover system identifier
-    function proverTypeId() external pure returns (bytes32);
+    /// @notice Returns the unique identifier for this verifier
+    /// @return verifierTypeId The verifier system identifier
+    function verifierTypeId() external pure returns (bytes32);
 }

@@ -10,12 +10,12 @@ import { SuperExecutorBase } from "./SuperExecutorBase.sol";
 contract SuperExecutor is SuperExecutorBase {
     constructor(
         address ledgerConfiguration_,
-        address stateProver_,
+        address stateVerifier_,
         address resultVerifier_,
         bool requireProofsForSkippedExecution_
     ) SuperExecutorBase(
         ledgerConfiguration_,
-        stateProver_,
+        stateVerifier_,
         resultVerifier_,
         requireProofsForSkippedExecution_
     ) { }

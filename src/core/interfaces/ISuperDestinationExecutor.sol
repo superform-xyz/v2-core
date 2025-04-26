@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+pragma solidity >=0.8.28;
 
 /// @title ISuperDestinationExecutor Interface
 /// @notice Defines the standard interface for receiving bridged executions.
@@ -13,6 +13,15 @@ interface ISuperDestinationExecutor {
     event SuperDestinationExecutorFailed(address indexed account, string reason);
     event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData);
     event AccountCreated(address indexed account, bytes32 salt);
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error INVALID_ACCOUNT();
+    error INVALID_SIGNATURE();
+    error ADDRESS_NOT_ACCOUNT();
+    error ACCOUNT_NOT_CREATED();
+    error MERKLE_ROOT_ALREADY_USED();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS

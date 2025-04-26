@@ -13,7 +13,7 @@ import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
-import { ISuperStateProver } from "../interfaces/ISuperStateProver.sol";
+import { ISuperStateVerifier } from "../interfaces/ISuperStateVerifier.sol";
 import { ISuperResultVerifier } from "../interfaces/ISuperResultVerifier.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 
@@ -31,15 +31,15 @@ abstract contract SuperExecutorBase is
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    mapping(address => bool) internal _initialized;
-    ISuperLedgerConfiguration public immutable ledgerConfiguration;
+    mapping(address account => bool initialized) internal _initialized;
+    ISuperLedgerConfiguration public immutable LEDGER_CONFIGURATION;
     
     // Verifiers for proofs - can be zero for standard execution
-    address public immutable stateProver;
-    address public immutable resultVerifier;
+    address public immutable STATE_VERIFIER;
+    address public immutable RESULT_VERIFIER;
     
     // If true, requires proofs for specific execution types
-    bool public immutable requireProofsForSkippedExecution;
+    bool public immutable REQUIRE_PROOFS_FOR_SKIPPED_EXECUTION;
 
     uint256 internal constant FEE_TOLERANCE = 10_000;
     uint256 internal constant FEE_TOLERANCE_DENOMINATOR = 100_000;
@@ -53,15 +53,15 @@ abstract contract SuperExecutorBase is
 
     constructor(
         address superLedgerConfiguration_,
-        address stateProver_,
+        address stateVerifier_,
         address resultVerifier_,
         bool requireProofsForSkippedExecution_
     ) {
         if (superLedgerConfiguration_ == address(0)) revert ADDRESS_NOT_VALID(); 
-        ledgerConfiguration = ISuperLedgerConfiguration(superLedgerConfiguration_);
-        stateProver = stateProver_;
-        resultVerifier = resultVerifier_;
-        requireProofsForSkippedExecution = requireProofsForSkippedExecution_;
+        LEDGER_CONFIGURATION = ISuperLedgerConfiguration(superLedgerConfiguration_);
+        STATE_VERIFIER = stateVerifier_;
+        RESULT_VERIFIER = resultVerifier_;
+        REQUIRE_PROOFS_FOR_SKIPPED_EXECUTION = requireProofsForSkippedExecution_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -150,8 +150,8 @@ abstract contract SuperExecutorBase is
         bytes memory expectedResults
     ) internal nonReentrant {
         // When skipping execution, we must have proofs if the flag is set
-        if (requireProofsForSkippedExecution) {
-            if (stateProver == address(0)) revert PROVER_NOT_CONFIGURED();
+        if (REQUIRE_PROOFS_FOR_SKIPPED_EXECUTION) {
+            if (STATE_VERIFIER == address(0)) revert PROVER_NOT_CONFIGURED();
             if (stateProof.length == 0) revert PROOF_REQUIRED();
             if (expectedResults.length == 0) revert EXPECTED_RESULTS_REQUIRED();
             
@@ -168,7 +168,7 @@ abstract contract SuperExecutorBase is
             );
             
             // Verify state transition with prover
-            bool verified = ISuperStateProver(stateProver).verifyStateTransition(
+            bool verified = ISuperStateVerifier(STATE_VERIFIER).verifyStateTransition(
                 initialState,
                 finalState,
                 hookData,
@@ -302,7 +302,7 @@ abstract contract SuperExecutorBase is
             
             // Get config
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-                ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+                LEDGER_CONFIGURATION.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
             
             // Update accounting directly with proven values
@@ -345,7 +345,7 @@ abstract contract SuperExecutorBase is
             address yieldSource = hookData.extractYieldSource();
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-                ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+                LEDGER_CONFIGURATION.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
             // Capture the actual outAmount and usedShares
@@ -353,7 +353,7 @@ abstract contract SuperExecutorBase is
             uint256 actualUsedShares = ISuperHookResultOutflow(address(hook)).usedShares();
             
             // If result verification is enabled and expected results are provided
-            if (resultVerifier != address(0) && expectedResults.length > 0) {
+            if (RESULT_VERIFIER != address(0) && expectedResults.length > 0) {
                 // Decode expected results
                 (uint256 expectedOutAmount, uint256 expectedUsedShares) = 
                     abi.decode(expectedResults, (uint256, uint256));
@@ -362,7 +362,7 @@ abstract contract SuperExecutorBase is
                 bytes memory actualResult = abi.encode(actualOutAmount, actualUsedShares);
                 bytes memory expectedResult = abi.encode(expectedOutAmount, expectedUsedShares);
                 
-                bool verified = ISuperResultVerifier(resultVerifier).verifyResults(
+                bool verified = ISuperResultVerifier(RESULT_VERIFIER).verifyResults(
                     account, 
                     hook, 
                     expectedResult, 
