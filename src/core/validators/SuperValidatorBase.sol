@@ -3,19 +3,22 @@ pragma solidity 0.8.28;
 
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+
+// interfaces
+import { ISuperProofVerifier } from "../interfaces/ISuperProofVerifier.sol";
+import { ISuperSignatureVerifier } from "../interfaces/ISuperSignatureVerifier.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
-/// @notice A base contract for all Superform validators
+/// @notice A base contract for all Superform validators with abstracted proof verification
 abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    struct SignatureData {
+    struct ProofData {
         uint48 validUntil;
-        bytes32 merkleRoot;
-        bytes32[] proof;
+        bytes32 commitment;
+        bytes proof;
         bytes signature;
     }
 
@@ -29,6 +32,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     error INVALID_PROOF();
     error NOT_INITIALIZED();
     error ALREADY_INITIALIZED();
+    error ARRAY_LENGTH_MISMATCH();
+    error VERIFIER_REQUIRED();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -70,18 +75,80 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _namespace() internal pure virtual returns (string memory);
-    function _createLeaf(bytes memory data, uint48 validUntil) internal view virtual returns (bytes32);
-
-    function _decodeSignatureData(bytes memory sigDataRaw) internal pure virtual returns (SignatureData memory) {
-        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proof, bytes memory signature) =
-            abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes));
-        return SignatureData(validUntil, merkleRoot, proof, signature);
+    
+    function _decodeProofData(bytes memory proofDataRaw) internal pure virtual returns (ProofData memory) {
+        (uint48 validUntil, bytes32 commitment, bytes memory proof, bytes memory signature) =
+            abi.decode(proofDataRaw, (uint48, bytes32, bytes, bytes));
+        return ProofData(validUntil, commitment, proof, signature);
     }
-
-    function _createMessageHash(bytes32 merkleRoot) internal pure returns (bytes32) {
-        return keccak256(abi.encode(namespace(), merkleRoot));
+    
+    function _createMessageHash(bytes32 commitment) internal pure returns (bytes32) {
+        return keccak256(abi.encode(namespace(), commitment));
     }
-
+    
+    /// @notice Verifies a proof using a specified verifier
+    /// @param verifier The proof verifier contract address
+    /// @param commitment The commitment to verify against
+    /// @param message The message or data being verified
+    /// @param proof The verification proof
+    function _verifyProof(
+        address verifier,
+        bytes32 commitment,
+        bytes memory message,
+        bytes memory proof
+    ) internal view returns (bool) {
+        if (verifier == address(0)) revert VERIFIER_REQUIRED();
+        return ISuperProofVerifier(verifier).verifyProof(commitment, message, proof);
+    }
+    
+    /// @notice Verifies a batch of proofs using a specified verifier
+    /// @param verifier The proof verifier contract address
+    /// @param commitments Array of commitments
+    /// @param messages Array of messages
+    /// @param proofs Array of proofs
+    /// @return validProofs Bitmap of valid proofs
+    function _batchVerifyProofs(
+        address verifier,
+        bytes32[] memory commitments,
+        bytes[] memory messages,
+        bytes[] memory proofs
+    ) internal view returns (uint256) {
+        if (verifier == address(0)) revert VERIFIER_REQUIRED();
+        if (commitments.length != messages.length || commitments.length != proofs.length) 
+            revert ARRAY_LENGTH_MISMATCH();
+            
+        return ISuperProofVerifier(verifier).batchVerifyProofs(commitments, messages, proofs);
+    }
+    
+    /// @notice Verifies a signature using a specified verifier
+    /// @param verifier The signature verifier contract address
+    /// @param signer The expected signer
+    /// @param message The message that was signed
+    /// @param signature The signature to verify
+    function _verifySignature(
+        address verifier,
+        address signer,
+        bytes32 message,
+        bytes memory signature
+    ) internal view returns (bool) {
+        if (verifier == address(0)) revert VERIFIER_REQUIRED();
+        return ISuperSignatureVerifier(verifier).verifySignature(signer, message, signature);
+    }
+    
+    /// @notice Recovers the signer of a signature using a specified verifier
+    /// @param verifier The signature verifier contract address
+    /// @param message The message that was signed
+    /// @param signature The signature to recover from
+    /// @return signer The recovered signer address
+    function _recoverSigner(
+        address verifier,
+        bytes32 message,
+        bytes memory signature
+    ) internal view returns (address) {
+        if (verifier == address(0)) revert VERIFIER_REQUIRED();
+        return ISuperSignatureVerifier(verifier).recoverSigner(message, signature);
+    }
+    
     function _isSignatureValid(
         address signer,
         address sender,

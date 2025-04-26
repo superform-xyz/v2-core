@@ -4,20 +4,32 @@ pragma solidity 0.8.28;
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 /// @title SuperMerkleValidator
 /// @author Superform Labs
-/// @notice A userOp validator contract
+/// @notice A userOp validator contract with abstracted proof and signature verification
 contract SuperMerkleValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+    
+    // Immutable verifiers for this validator instance
+    address public immutable proofVerifier;
+    address public immutable signatureVerifier;
+    
+    /*//////////////////////////////////////////////////////////////
+                             CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+    constructor(address _proofVerifier, address _signatureVerifier) {
+        if (_proofVerifier == address(0) || _signatureVerifier == address(0)) 
+            revert ZERO_ADDRESS();
+            
+        proofVerifier = _proofVerifier;
+        signatureVerifier = _signatureVerifier;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -36,15 +48,28 @@ contract SuperMerkleValidator is SuperValidatorBase {
         if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
 
         // Decode signature
-        SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
+        ProofData memory proofData = _decodeProofData(_userOp.signature);
 
-        // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, _userOpHash);
+        // Verify proof
+        bool isProofValid = _verifyProof(
+            proofVerifier,
+            proofData.commitment,
+            abi.encode(_userOpHash),
+            proofData.proof
+        );
+        if (!isProofValid) revert INVALID_PROOF();
+
+        // Get signer from signature
+        address signer = _recoverSigner(
+            signatureVerifier,
+            _createMessageHash(proofData.commitment),
+            proofData.signature
+        );
 
         // Validate
-        bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
+        bool isValid = _isSignatureValid(signer, _userOp.sender, proofData.validUntil);
 
-        return _packValidationData(!isValid, sigData.validUntil, 0);
+        return _packValidationData(!isValid, proofData.validUntil, 0);
     }
 
     /// @notice Validate a signature with sender
@@ -62,13 +87,26 @@ contract SuperMerkleValidator is SuperValidatorBase {
 
         // Decode data
         bytes memory sigDataRaw = abi.decode(data, (bytes));
-        SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
+        ProofData memory proofData = _decodeProofData(sigDataRaw);
 
-        // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, dataHash);
+        // Verify proof
+        bool isProofValid = _verifyProof(
+            proofVerifier,
+            proofData.commitment,
+            abi.encode(dataHash),
+            proofData.proof
+        );
+        if (!isProofValid) revert INVALID_PROOF();
+
+        // Get signer from signature
+        address signer = _recoverSigner(
+            signatureVerifier,
+            _createMessageHash(proofData.commitment),
+            proofData.signature
+        );
 
         // Validate
-        bool isValid = _isSignatureValid(signer, msg.sender, sigData.validUntil);
+        bool isValid = _isSignatureValid(signer, msg.sender, proofData.validUntil);
 
         return isValid ? VALID_SIGNATURE : bytes4("");
     }
@@ -78,30 +116,5 @@ contract SuperMerkleValidator is SuperValidatorBase {
     //////////////////////////////////////////////////////////////*/
     function _namespace() internal pure override returns (string memory) {
         return "SuperMerkleValidator-v0.0.1";
-    }
-
-    function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
-        bytes32 userOpHash = abi.decode(data, (bytes32));
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil))));
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _processSignatureAndVerifyLeaf(
-        SignatureData memory sigData,
-        bytes32 userOpHash
-    )
-        private
-        pure
-        returns (address signer, bytes32 leaf)
-    {
-        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil);
-        if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
-
-        // Get signer
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-        signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
     }
 }
