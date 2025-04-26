@@ -14,9 +14,13 @@ import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockHook } from "../../mocks/MockHook.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol";
+import { MockStateProver } from "../../mocks/MockStateProver.sol";
+import { MockResultVerifier } from "../../mocks/MockResultVerifier.sol";
 
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperStateProver } from "../../../src/core/interfaces/ISuperStateProver.sol";
+import { ISuperResultVerifier } from "../../../src/core/interfaces/ISuperResultVerifier.sol";
 
 contract SuperExecutorTest is BaseTest {
     using ModuleKitHelpers for *;
@@ -30,6 +34,10 @@ contract SuperExecutorTest is BaseTest {
     MockLedger public ledger;
     MockLedgerConfiguration public ledgerConfig;
     address public feeRecipient;
+    
+    // Proof-based execution components
+    MockStateProver public stateProver;
+    MockResultVerifier public resultVerifier;
 
     function setUp() public override {
         super.setUp();
@@ -44,8 +52,18 @@ contract SuperExecutorTest is BaseTest {
 
         ledger = new MockLedger();
         ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, account);
+        
+        // Initialize proof-based execution components
+        stateProver = new MockStateProver(true);
+        resultVerifier = new MockResultVerifier(true);
 
-        superExecutor = new SuperExecutor(address(ledgerConfig));
+        superExecutor = new SuperExecutor(
+            address(ledgerConfig),
+            address(stateProver),
+            address(resultVerifier),
+            true // requireProofsForSkippedExecution
+        );
+        
         accountInstances[ETH].installModule({
             moduleTypeId: MODULE_TYPE_EXECUTOR,
             module: address(superExecutor),
@@ -58,7 +76,7 @@ contract SuperExecutorTest is BaseTest {
     }
 
     function test_Version() public view {
-        assertEq(superExecutor.version(), "0.0.1");
+        assertEq(superExecutor.version(), "0.0.2");
     }
 
     function test_IsModuleType() public view {
@@ -271,6 +289,235 @@ contract SuperExecutorTest is BaseTest {
 
         vm.expectRevert(ISuperExecutor.FEE_NOT_TRANSFERRED.selector);
         superExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+    }
+
+    // -------- Proof-Based Execution Tests --------
+
+    function test_ExecuteWithProof_SkipExecution() public {
+        account = accountInstances[ETH].account;
+        vm.startPrank(account);
+        superExecutor.onInstall("");
+
+        // Setup hook to track execution
+        outflowHook.setOutAmount(1000);
+        outflowHook.setUsedShares(500);
+
+        // Configure mock prover and verifier to pass
+        stateProver.setShouldVerify(true);
+        resultVerifier.setShouldVerify(true);
+
+        // Create execution data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(outflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+        );
+
+        // Create dummy proof and result data (in real usage these would be generated off-chain)
+        bytes memory stateProof = abi.encode("state_proof_data");
+        bytes memory expectedResults = abi.encode(uint256(1000), uint256(500)); // outAmount, usedShares
+
+        // Execute with proofs and skip on-chain execution
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: hooksAddresses,
+            hooksData: hooksData,
+            stateProof: stateProof,
+            expectedResults: expectedResults,
+            skipOnChainExecution: true
+        });
+
+        superExecutor.execute(abi.encode(entry));
+        
+        // Verify the token accounting was updated using the expected results
+        assertEq(ledger.getSetOutAmountValue(), 1000);
+        assertEq(ledger.getSetUsedSharesValue(), 500);
+        
+        // Verify that the hooks were not actually executed
+        assertEq(outflowHook.executionCount(), 0);
+        
+        vm.stopPrank();
+    }
+    
+    function test_ExecuteWithProof_FailOnMissingProof() public {
+        account = accountInstances[ETH].account;
+        vm.startPrank(account);
+        superExecutor.onInstall("");
+
+        // Setup hook
+        outflowHook.setOutAmount(1000);
+        outflowHook.setUsedShares(500);
+
+        // Create execution data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(outflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+        );
+
+        // Empty proof data
+        bytes memory emptyProof = "";
+        bytes memory expectedResults = abi.encode(uint256(1000), uint256(500));
+
+        // Execute with empty proof and skip on-chain execution
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: hooksAddresses,
+            hooksData: hooksData,
+            stateProof: emptyProof,
+            expectedResults: expectedResults,
+            skipOnChainExecution: true
+        });
+
+        // Should revert due to missing proof
+        vm.expectRevert(ISuperExecutor.PROOF_REQUIRED.selector);
+        superExecutor.execute(abi.encode(entry));
+        
+        vm.stopPrank();
+    }
+    
+    function test_ExecuteWithProof_FailOnInvalidProof() public {
+        account = accountInstances[ETH].account;
+        vm.startPrank(account);
+        superExecutor.onInstall("");
+
+        // Setup hook
+        outflowHook.setOutAmount(1000);
+        outflowHook.setUsedShares(500);
+
+        // Configure mock prover to fail verification
+        stateProver.setShouldVerify(false);
+
+        // Create execution data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(outflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+        );
+
+        // Invalid proof data
+        bytes memory invalidProof = abi.encode("invalid_proof_data");
+        bytes memory expectedResults = abi.encode(uint256(1000), uint256(500));
+
+        // Execute with invalid proof and skip on-chain execution
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: hooksAddresses,
+            hooksData: hooksData,
+            stateProof: invalidProof,
+            expectedResults: expectedResults,
+            skipOnChainExecution: true
+        });
+
+        // Should revert due to failed proof verification
+        vm.expectRevert(ISuperExecutor.PROOF_VERIFICATION_FAILED.selector);
+        superExecutor.execute(abi.encode(entry));
+        
+        vm.stopPrank();
+    }
+    
+    function test_ExecuteWithProof_FailOnInvalidResults() public {
+        account = accountInstances[ETH].account;
+        vm.startPrank(account);
+        superExecutor.onInstall("");
+
+        // Setup hook
+        outflowHook.setOutAmount(1000);
+        outflowHook.setUsedShares(500);
+
+        // Configure mock prover to pass but result verifier to fail
+        stateProver.setShouldVerify(true);
+        resultVerifier.setShouldVerify(false);
+
+        // Create execution data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(outflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+        );
+
+        // Valid proof but invalid expected results
+        bytes memory stateProof = abi.encode("valid_proof_data");
+        bytes memory invalidResults = abi.encode(uint256(999), uint256(499)); // Different from actual values
+
+        // Execute with valid proof but invalid results
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: hooksAddresses,
+            hooksData: hooksData,
+            stateProof: stateProof,
+            expectedResults: invalidResults,
+            skipOnChainExecution: true
+        });
+
+        // Should revert due to failed results verification
+        vm.expectRevert(ISuperExecutor.RESULTS_VERIFICATION_FAILED.selector);
+        superExecutor.execute(abi.encode(entry));
+        
+        vm.stopPrank();
+    }
+    
+    function test_ExecuteWithProof_FallbackToExecutionOnProofFailure() public {
+        account = accountInstances[ETH].account;
+        vm.startPrank(account);
+        superExecutor.onInstall("");
+
+        // Setup hook
+        outflowHook.setOutAmount(1000);
+        outflowHook.setUsedShares(500);
+
+        // Deploy new executor that doesn't require proofs
+        SuperExecutor nonRequiringExecutor = new SuperExecutor(
+            address(ledgerConfig),
+            address(stateProver),
+            address(resultVerifier),
+            false // Don't require proofs for skipped execution
+        );
+        
+        // Configure mock prover to fail verification
+        stateProver.setShouldVerify(false);
+
+        // Create execution data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(outflowHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+        );
+
+        // Invalid proof
+        bytes memory invalidProof = abi.encode("invalid_proof_data");
+        bytes memory expectedResults = abi.encode(uint256(1000), uint256(500));
+
+        // Execute with invalid proof but don't require proofs
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: hooksAddresses,
+            hooksData: hooksData,
+            stateProof: invalidProof,
+            expectedResults: expectedResults,
+            skipOnChainExecution: true
+        });
+
+        // Install the non-requiring executor
+        accountInstances[ETH].installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(nonRequiringExecutor),
+            data: ""
+        });
+        nonRequiringExecutor.onInstall("");
+
+        // Should execute normally without reverting
+        nonRequiringExecutor.execute(abi.encode(entry));
+        
+        // Verify that the hook was executed
+        assertEq(outflowHook.executionCount(), 1);
+        
         vm.stopPrank();
     }
 }

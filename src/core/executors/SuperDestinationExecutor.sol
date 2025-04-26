@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -62,10 +62,18 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     //////////////////////////////////////////////////////////////*/
     constructor(
         address ledgerConfiguration_,
+        address stateProver_,
+        address resultVerifier_,
+        bool requireProofsForSkippedExecution_,
         address superDestinationValidator_,
         address nexusFactory_
     )
-        SuperExecutorBase(ledgerConfiguration_)
+        SuperExecutorBase(
+            ledgerConfiguration_,
+            stateProver_,
+            resultVerifier_,
+            requireProofsForSkippedExecution_
+        )
     {
         // Updated constructor validation
         if (superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
@@ -76,7 +84,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
+                            VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     function name() external pure override returns (string memory) {
         // Updated name
@@ -84,7 +92,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function version() external pure override returns (string memory) {
-        return "0.0.1";
+        return "0.0.2";
     }
 
     /// @inheritdoc ISuperDestinationExecutor

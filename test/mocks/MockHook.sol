@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 import {
-    ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution
+    ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution, HookExecutionResult
 } from "../../src/core/interfaces/ISuperHook.sol";
 
 contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
@@ -13,6 +13,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     bool public preExecuteCalled;
     bool public postExecuteCalled;
     Execution[] public executions;
+    uint256 public executionCount;
 
     constructor(HookType _hookType, address _asset) {
         hookType = _hookType;
@@ -60,5 +61,16 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
 
     function spToken() external pure override returns (address) {
         return address(0);
+    }
+
+    function executeHook(
+        address account,
+        address tokenIn,
+        uint256 amountIn,
+        bytes calldata data
+    ) external override returns (HookExecutionResult memory) {
+        executionCount++;
+        postExecuteCalled = true;
+        return HookExecutionResult({ outToken: asset, outAmount: outAmount, usedShares: usedShares });
     }
 }

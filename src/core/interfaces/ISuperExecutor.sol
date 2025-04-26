@@ -8,6 +8,9 @@ interface ISuperExecutor {
     struct ExecutorEntry {
         address[] hooksAddresses;
         bytes[] hooksData;
+        bytes[] stateProofs;       // Optional proofs for state transitions
+        bytes[] expectedResults;   // Optional expected results
+        bool[] skipOnChainExecution; // Whether to skip actual execution
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -23,11 +26,20 @@ interface ISuperExecutor {
     error ALREADY_INITIALIZED();
     error INSUFFICIENT_BALANCE_FOR_FEE();
     error FEE_NOT_TRANSFERRED();
+    error PROOF_REQUIRED();
+    error PROOF_VERIFICATION_FAILED();
+    error EXPECTED_RESULTS_REQUIRED();
+    error VERIFIER_NOT_CONFIGURED();
+    error EXECUTION_SKIP_NOT_ALLOWED();
+    error PROVER_NOT_CONFIGURED();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount);
+    event HookExecutionSkipped(address indexed account, address indexed hook, bool verified);
+    event ProofVerified(address indexed account, address indexed hook, bool success);
+    event ResultsVerified(address indexed account, address indexed hook, bool success);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
