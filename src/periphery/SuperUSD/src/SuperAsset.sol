@@ -51,6 +51,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     // Add a constant equal to 10^6
     uint256 public constant SWAP_FEE_PERC = 10**6; 
     uint256 public constant MAX_SWAP_FEE_PERC = 1000; 
+    uint256 public constant ONE_SHARE = 1e18;
 
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
@@ -261,7 +262,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
         // Calculate and settle incentives
         (uint256 amountIncentives,) = previewRedeem(tokenOut, amountSharesToRedeem);
-        _settleIncentive(msg.sender, int256(amountIncentives));
+d        _settleIncentive(msg.sender, int256(amountIncentives));
 
         // Get price of underlying asset
         (uint256 pricePerShare,) = getPrice(tokenOut);
@@ -544,7 +545,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     {
         if (!isVault[share]) revert NotVault();
         address asset = IEIP7540(share).asset(); // or IEIP4626
-        uint256 amountAssetPerShare = IEIP7540(share).convertToAssets(1e18); // Amount of asset for 1 share.
+        uint256 amountAssetPerShare = IEIP7540(share).convertToAssets(ONE_SHARE); // Amount of asset for 1 share.
         (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
         ppsMu = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
         ppsSigma = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
@@ -592,13 +593,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             allocationPreOperation,
             totalCurrentAllocation,
             allocationPreOperation,
-
             allocationTarget,
-            totalTargetAllocation,
-            new uint256[](0), // Placeholder, adjust as needed
-            new uint256[](0)  // Placeholder, adjust as needed
+            totalTargetAllocation
         );
 
-//        IIncentiveFundContract(incentiveFundContract).settleIncentive(user, amount);
+        IIncentiveFundContract(incentiveFundContract).settleIncentive(user, incentive);
     }
 }
