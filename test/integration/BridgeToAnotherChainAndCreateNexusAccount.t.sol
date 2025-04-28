@@ -18,7 +18,6 @@ import { MockTargetExecutor } from "../mocks/MockTargetExecutor.sol";
 
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 
-
 contract CrossChainNexusAccountCreation is BaseTest {
     ISuperExecutor public superExecutorOnBase;
     ISuperExecutor public superExecutorOnETH;
@@ -36,7 +35,6 @@ contract CrossChainNexusAccountCreation is BaseTest {
     AccountInstance public instanceOnBase;
     address public accountBase;
 
-
     uint256 public constant WARP_START_TIME = 1_740_137_231;
 
     function setUp() public override {
@@ -46,7 +44,7 @@ contract CrossChainNexusAccountCreation is BaseTest {
 
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
-        
+
         // Set up the super executors
         superExecutorOnBase = ISuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
         superExecutorOnETH = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
@@ -61,7 +59,7 @@ contract CrossChainNexusAccountCreation is BaseTest {
         instanceOnBase = accountInstances[BASE];
         accountBase = accountInstances[BASE].account;
     }
-    
+
     function test_Bridge_To_ETH_And_Create_Nexus_Account() public {
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
@@ -90,7 +88,7 @@ contract CrossChainNexusAccountCreation is BaseTest {
 
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
-        
+
         deal(underlyingBase_USDC, accountBase, 1e18);
 
         // PREPARE BASE DATA
@@ -99,32 +97,17 @@ contract CrossChainNexusAccountCreation is BaseTest {
         srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory srcHooksData = new bytes[](2);
-        srcHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], 1e18, false);
+        srcHooksData[0] = _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], 1e18, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndCreateAccount(
-            underlyingBase_USDC,
-            underlyingETH_USDC,
-            1e18,
-            1e18,
-            ETH,
-            false,
-            destinationMessage
+            underlyingBase_USDC, underlyingETH_USDC, 1e18, 1e18, ETH, false, destinationMessage
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
-        UserOpData memory srcUserOpData = _getExecOps(
-                instanceOnBase,
-                superExecutorOnBase,
-                abi.encode(entryToExecute),
-                _getContract(BASE, SUPER_NATIVE_PAYMASTER_KEY)
-        );
-        srcUserOpData.userOp.paymasterAndData = bytes("");
-            
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+        UserOpData memory srcUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
+
         // EXECUTE ETH
-        _processAcrossV3MessageWithoutDestinationAccount(
-            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData)
-        );
+        _processAcrossV3MessageWithoutDestinationAccount(BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData));
 
         // check account
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
@@ -133,9 +116,18 @@ contract CrossChainNexusAccountCreation is BaseTest {
         uint256 tokenBalanceOfCreatedAccount = IERC20(underlyingETH_USDC).balanceOf(createdAccount);
         assertEq(tokenBalanceOfCreatedAccount, 1e18);
 
-        assertEq(IERC7579Account(createdAccount).isModuleInstalled(MODULE_TYPE_EXECUTOR, address(superExecutorOnETH), ""), true);
-        assertEq(IERC7579Account(createdAccount).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(validatorOnETH), ""), true);
-        assertEq(IERC7579Account(createdAccount).isModuleInstalled(MODULE_TYPE_EXECUTOR, address(mockTargetExecutorOnETH), ""), false);
+        assertEq(
+            IERC7579Account(createdAccount).isModuleInstalled(MODULE_TYPE_EXECUTOR, address(superExecutorOnETH), ""),
+            true
+        );
+        assertEq(
+            IERC7579Account(createdAccount).isModuleInstalled(MODULE_TYPE_VALIDATOR, address(validatorOnETH), ""), true
+        );
+        assertEq(
+            IERC7579Account(createdAccount).isModuleInstalled(
+                MODULE_TYPE_EXECUTOR, address(mockTargetExecutorOnETH), ""
+            ),
+            false
+        );
     }
-    
 }

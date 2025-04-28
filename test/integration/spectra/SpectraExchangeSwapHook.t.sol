@@ -52,9 +52,8 @@ contract SpectraExchangeSwapHook is BaseTest {
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
         UserOpData memory opData = _getExecOps(
-            instance, superExecutor, abi.encode(entryToExecute), _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
+            instance, superExecutor, abi.encode(entryToExecute)
         );
-        opData.userOp.paymasterAndData = bytes("");
         executeOp(opData);
 
         uint256 balance = IERC20(ptToken).balanceOf(account);

@@ -2,13 +2,11 @@
 pragma solidity 0.8.28;
 
 // external
-import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
-import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
-import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
-import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
-import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-
+import { UserOperationLib } from "../../vendor/account-abstraction/UserOperationLib.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 // superform
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
