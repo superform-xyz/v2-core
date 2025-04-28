@@ -112,7 +112,7 @@ contract BatchTransferFromHook is BaseHook {
         private
         pure
         returns (address[] memory tokens)
-    {   
+    {
         tokens = new address[](length);
         for (uint256 i; i < length; ++i) {
             tokens[i] = BytesLib.toAddress(data, offset + (20 * i));
@@ -127,7 +127,7 @@ contract BatchTransferFromHook is BaseHook {
         private
         pure
         returns (uint256[] memory amounts)
-    {   
+    {
         amounts = new uint256[](length);
         for (uint256 i; i < length; ++i) {
             amounts[i] = BytesLib.toUint256(data, offset + (32 * i));
@@ -143,7 +143,7 @@ contract BatchTransferFromHook is BaseHook {
         private
         pure
         returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details)
-    {   
+    {
         uint256 length = tokens.length;
         details = new IAllowanceTransfer.AllowanceTransferDetails[](length);
         for (uint256 i; i < length; ++i) {
@@ -164,7 +164,7 @@ contract BatchTransferFromHook is BaseHook {
     )
         private
         view
-    {   
+    {
         uint256 length = tokens.length;
         if (length != amounts.length) revert INVALID_ARRAY_LENGTH();
         address from = BytesLib.toAddress(data, 0);
