@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
 
@@ -9,6 +10,7 @@ import "./IncentiveFundContract.sol";
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
  */
 contract SuperUSD is AccessControl {
+    using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
 
@@ -150,7 +152,7 @@ contract SuperUSD is AccessControl {
 
         // Transfer the tokenIn from the sender to this contract
         // If there is not enough allowance or balance, this will revert and saves gas
-        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountTokenToDeposit);
+        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
 
         // Calculate swap fees (example: 0.1% fee)
         // TODO: Make it a governance params
@@ -162,7 +164,7 @@ contract SuperUSD is AccessControl {
         uint256 amountInAfterFees = amountTokenToDeposit - swapFee;
 
         // Transfer swap fees to Swap Fee Fund while holding the rest in the contract, since the full amount was already transferred in the beginning of the function
-        IERC20(tokenIn).transfer(swapFeeFundContract, swapFee);
+        IERC20(tokenIn).safeTransfer(swapFeeFundContract, swapFee);
 
 
 //        // Deposit into underlying vault or handle ERC20
@@ -240,10 +242,10 @@ contract SuperUSD is AccessControl {
         amountTokenOut = amountBeforeFees - swapFee;
 
         // Transfer swap fees to Swap Fee Fund
-        IERC20(tokenOut).transferFrom(address(this), swapFeeFundContract, swapFee);
+        IERC20(tokenOut).safeTransferFrom(address(this), swapFeeFundContract, swapFee);
 
         // Transfer assets to receiver
-        IERC20(tokenOut).transfer(receiver, amountTokenOut);
+        IERC20(tokenOut).safeTransfer(receiver, amountTokenOut);
 
         require(amountTokenOut >= minTokenOut, "SuperUSD: Amount of token is less than minTokenOut");
 

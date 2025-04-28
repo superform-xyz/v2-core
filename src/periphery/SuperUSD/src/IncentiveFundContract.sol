@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./IncentiveCalculationContract.sol";
 
 /**
@@ -8,6 +9,7 @@ import "./IncentiveCalculationContract.sol";
  * @notice Manages incentive tokens.
  */
 contract IncentiveFundContract is AccessControl {
+    using SafeERC20 for IERC20;
     // --- State ---
     address public tokenInIncentive;  // The token users send incentives to.
     address public tokenOutIncentive; // The token we pay incentives with.
@@ -43,7 +45,7 @@ contract IncentiveFundContract is AccessControl {
         require(tokenOut != address(0), "IncentiveFund: TokenOut cannot be zero address");
 
         amountOut = previewPayIncentive(tokenOut, amount);
-        IERC20(tokenOut).transfer(receiver, amountOut);
+        IERC20(tokenOut).safeTransfer(receiver, amountOut);
         emit IncentivePaid(receiver, tokenOut, amountOut);
     }
 
@@ -60,7 +62,7 @@ contract IncentiveFundContract is AccessControl {
         require(sender != address(0), "IncentiveFund: Sender cannot be zero address");
         require(tokenIn != address(0), "IncentiveFund: TokenIn cannot be zero address");
 
-        IERC20(tokenIn).transferFrom(sender, address(this), amount);
+        IERC20(tokenIn).safeTransferFrom(sender, address(this), amount);
         emit IncentiveTaken(sender, tokenIn, amount);
     }
 
@@ -91,7 +93,7 @@ contract IncentiveFundContract is AccessControl {
         require(receiver != address(0), "IncentiveFund: Receiver cannot be zero address");
         require(tokenOut != address(0), "IncentiveFund: TokenOut cannot be zero address");
 
-        IERC20(tokenOut).transferFrom(address(this), receiver, amount);
+        IERC20(tokenOut).safeTransferFrom(address(this), receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
     }
 
