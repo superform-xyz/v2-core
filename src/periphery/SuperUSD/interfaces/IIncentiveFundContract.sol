@@ -2,6 +2,11 @@
 pragma solidity ^0.8.28;
 
 interface IIncentiveFundContract {
+    // Errors //
+    error ZERO_ADDRESS();
+    error ZERO_AMOUNT();
+
+
     /**
      * @notice Settles the incentive for a user.
      * @param user The address of the user.

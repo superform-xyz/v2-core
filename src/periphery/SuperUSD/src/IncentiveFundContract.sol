@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./IncentiveCalculationContract.sol";
+import "../interfaces/IIncentiveFundContract.sol";
 
 /**
  * @title Incentive Fund Contract
@@ -11,7 +12,7 @@ import "./IncentiveCalculationContract.sol";
  * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
  * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
  */
-contract IncentiveFundContract is AccessControl {
+contract IncentiveFundContract is AccessControl, IIncentiveFundContract {
     using SafeERC20 for IERC20;
     // --- State ---
     address public tokenInIncentive;  // The token users send incentives to.
@@ -32,6 +33,15 @@ contract IncentiveFundContract is AccessControl {
 
     // --- State Changing Functions ---
 
+    function _validateInput(address user, uint256 amount) internal pure {
+        if (user == address(0)) {
+            revert ZERO_ADDRESS();
+        }
+        if (amount == 0) {
+            revert ZERO_AMOUNT();
+        }
+    }
+
     /**
      * @notice Pays incentives to a receiver.
      * @param receiver The address to receive the incentives.
@@ -44,9 +54,7 @@ contract IncentiveFundContract is AccessControl {
     onlyRole(INCENTIVE_FUND_MANAGER)
     returns (uint256 amountOut)
     {
-        require(receiver != address(0), "IncentiveFund: Receiver cannot be zero address");
-        require(tokenOut != address(0), "IncentiveFund: TokenOut cannot be zero address");
-
+        _validateInput(receiver, amount);
         amountOut = previewPayIncentive(tokenOut, amount);
         IERC20(tokenOut).safeTransfer(receiver, amountOut);
         emit IncentivePaid(receiver, tokenOut, amountOut);
@@ -62,9 +70,7 @@ contract IncentiveFundContract is AccessControl {
     external
     onlyRole(INCENTIVE_FUND_MANAGER)
     {
-        require(sender != address(0), "IncentiveFund: Sender cannot be zero address");
-        require(tokenIn != address(0), "IncentiveFund: TokenIn cannot be zero address");
-
+        _validateInput(sender, amount);
         IERC20(tokenIn).safeTransferFrom(sender, address(this), amount);
         emit IncentiveTaken(sender, tokenIn, amount);
     }
@@ -74,7 +80,7 @@ contract IncentiveFundContract is AccessControl {
      * @param user The address of the user.
      * @param amount The amount of incentives (positive for pay, negative for take).
      */
-    function settleIncentive(address user, int256 amount) internal {
+    function _settleIncentive(address user, int256 amount) internal {
         if (amount > 0) {
             payIncentive(user, tokenOutIncentive, uint256(amount));
         } else if (amount < 0) {
@@ -93,9 +99,7 @@ contract IncentiveFundContract is AccessControl {
     external
     onlyRole(INCENTIVE_FUND_MANAGER)
     {
-        require(receiver != address(0), "IncentiveFund: Receiver cannot be zero address");
-        require(tokenOut != address(0), "IncentiveFund: TokenOut cannot be zero address");
-
+        _validateInput(receiver, tokenOut, amount);
         IERC20(tokenOut).safeTransferFrom(address(this), receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
     }
@@ -136,13 +140,17 @@ contract IncentiveFundContract is AccessControl {
     }
 
     function setSettlementTokenIn(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(token != address(0), "IncentiveFund: Token address cannot be zero");
+        if (token == address(0)) {
+            revert ZERO_ADDRESS();
+        }
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
     }
 
     function setSettlementTokenOut(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(token != address(0), "IncentiveFund: Token address cannot be zero");
+        if (token == address(0)) {
+            revert ZERO_ADDRESS();
+        }
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
     }
