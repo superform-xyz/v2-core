@@ -1,13 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
+
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "./interfaces/IAssetBank.sol";
+import "./interfaces/IAssetBankErrors.sol";
 
 /**
- * @title Swap Fee Fund
- * @notice Manages swap fee tokens.
+ * @title AssetBank
+ * @notice Manages asset holdings and withdrawals for the SuperAsset system
  */
-contract AssetBank is AccessControl{
+contract AssetBank is AccessControl, IAssetBank, IAssetBankErrors {
     using SafeERC20 for IERC20;
+
+    // --- Roles ---
+    bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
     // --- Events ---
     event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
@@ -18,26 +25,19 @@ contract AssetBank is AccessControl{
         _setupRole(INCENTIVE_FUND_MANAGER, msg.sender);
     }
 
-    // --- State Changing Functions ---
-
     /**
-     * @notice Withdraws tokens from the fund.
-     * @param receiver The address to receive the tokens.
-     * @param tokenOut The token to withdraw.
-     * @param amount The amount to withdraw.
+     * @inheritdoc IAssetBank
      */
-    function withdraw(address receiver, address tokenOut, uint256 amount)
-    external
-    onlyRole(INCENTIVE_FUND_MANAGER)
-    {
-        require(receiver != address(0), "SwapFeeFund: Receiver cannot be zero address");
-        require(tokenOut != address(0), "SwapFeeFund: TokenOut cannot be zero address");
+    function withdraw(
+        address receiver,
+        address tokenOut,
+        uint256 amount
+    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
+        if (receiver == address(0)) revert ZeroAddress();
+        if (tokenOut == address(0)) revert ZeroAddress();
+        if (amount == 0) revert ZeroAmount();
 
-        IERC20(tokenOut).safeTransferFrom(address(this), receiver, amount);
+        IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
     }
 }
-
-
-
-
