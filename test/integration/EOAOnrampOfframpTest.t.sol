@@ -99,10 +99,6 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         bytes[] memory hookData = new bytes[](1);
         hookData[0] = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
 
-        // Give EOA access to the account instance
-        // vm.prank(account);
-        // setTrustedForwarder(eoa);
-
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookData });
 
@@ -110,9 +106,9 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
 
         executeOp(userOpData);
 
-        assertGt(IERC20(usdc).balanceOf(account), usdcBalanceBefore);
-        assertGt(IERC20(weth).balanceOf(account), wethBalanceBefore);
-        assertGt(IERC20(dai).balanceOf(account), daiBalanceBefore);
+        assertEq(IERC20(usdc).balanceOf(account), usdcBalanceBefore + 1e18);
+        assertEq(IERC20(weth).balanceOf(account), wethBalanceBefore + 1e18);
+        assertEq(IERC20(dai).balanceOf(account), daiBalanceBefore + 1e18);
 
         uint256 usdcBalanceEOABefore = IERC20(usdc).balanceOf(eoa);
         uint256 wethBalanceEOABefore = IERC20(weth).balanceOf(eoa);
@@ -135,9 +131,9 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
 
         executeOp(offrampUserOpData);
 
-        assertGt(IERC20(usdc).balanceOf(eoa), usdcBalanceEOABefore);
-        assertGt(IERC20(weth).balanceOf(eoa), wethBalanceEOABefore);
-        assertGt(IERC20(dai).balanceOf(eoa), daiBalanceEOABefore);
+        assertEq(IERC20(usdc).balanceOf(eoa), usdcBalanceEOABefore + 1e18);
+        assertEq(IERC20(weth).balanceOf(eoa), wethBalanceEOABefore + 1e18);
+        assertEq(IERC20(dai).balanceOf(eoa), daiBalanceEOABefore + 1e18);
     }
 
     function defaultERC20PermitBatchAllowance(

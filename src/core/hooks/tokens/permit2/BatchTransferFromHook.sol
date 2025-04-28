@@ -23,11 +23,17 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
+    /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
     error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
     error INVALID_ARRAY_LENGTH();
 
-    address public permit2;
+    /*//////////////////////////////////////////////////////////////
+                                STORAGE
+    //////////////////////////////////////////////////////////////*/
+    address public immutable permit2;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -62,8 +68,6 @@ contract BatchTransferFromHook is BaseHook {
 
         tokens = _decodeTokenArray(data, 52, arrayLength);
         amounts = _decodeAmountArray(data, 52 + (20 * arrayLength), arrayLength);
-
-        _verifyAmounts(account, tokens, amounts, data);
 
         IAllowanceTransfer.AllowanceTransferDetails[] memory details =
             _createAllowanceTransferDetails(from, account, tokens, amounts);
@@ -151,32 +155,6 @@ contract BatchTransferFromHook is BaseHook {
                 token: tokens[i],
                 amount: uint160(amounts[i])
             });
-        }
-    }
-
-    function _verifyAmounts(
-        address account,
-        address[] memory tokens,
-        uint256[] memory amounts,
-        bytes memory data
-    )
-        private
-        view
-    {
-        uint256 length = tokens.length;
-        if (length != amounts.length) revert INVALID_ARRAY_LENGTH();
-        address from = BytesLib.toAddress(data, 0);
-
-        for (uint256 i; i < length; ++i) {
-            address token = tokens[i];
-            uint256 amount = amounts[i];
-
-            (uint160 allowance,,) = IAllowanceTransfer(permit2).allowance(from, token, account);
-
-            if (allowance < amount) revert INSUFFICIENT_ALLOWANCE();
-
-            uint256 balance = IERC20(token).balanceOf(from);
-            if (balance < amount) revert INSUFFICIENT_BALANCE();
         }
     }
 }

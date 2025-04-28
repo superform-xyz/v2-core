@@ -72,12 +72,6 @@ contract BatchTransferFromHookTest is BaseTest {
         hook.build(address(0), account, hookData);
     }
 
-    function test_Build_RevertIf_InvalidAmounts() public {
-        vm.expectRevert(BatchTransferFromHook.INSUFFICIENT_ALLOWANCE.selector);
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
-        hook.build(eoa, account, hookData);
-    }
-
     function test_Build_Executions() public {
         bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
 
