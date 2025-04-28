@@ -29,10 +29,6 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
 
     bytes32 public constant DOMAIN_SEPARATOR = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
 
-    bytes32 public constant _PERMIT_BATCH_TRANSFER_FROM_TYPEHASH = keccak256(
-        "PermitBatchTransferFrom(TokenPermissions[] permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
-    );
-
     bytes32 public constant _PERMIT_BATCH_TYPEHASH = keccak256(
         "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
     );
@@ -178,73 +174,4 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, msgHash);
         return bytes.concat(r, s, bytes1(v));
     }
-
-    // function defaultERC20PermitMultiple(
-    //     address[] memory permitTokens,
-    //     uint256 nonce
-    // )
-    //     internal
-    //     view
-    //     returns (ISignatureTransfer.PermitBatchTransferFrom memory)
-    // {
-    //     ISignatureTransfer.TokenPermissions[] memory permitted =
-    //         new ISignatureTransfer.TokenPermissions[](permitTokens.length);
-    //     for (uint256 i = 0; i < permitTokens.length; ++i) {
-    //         permitted[i] = ISignatureTransfer.TokenPermissions({ token: permitTokens[i], amount: 1e18 });
-    //     }
-    //     return ISignatureTransfer.PermitBatchTransferFrom({
-    //         permitted: permitted,
-    //         nonce: nonce,
-    //         deadline: block.timestamp + 1000
-    //     });
-    // }
-
-    // function getPermitBatchTransferSignature(
-    //     ISignatureTransfer.PermitBatchTransferFrom memory permit,
-    //     uint256 privateKey,
-    //     bytes32 domainSeparator
-    // )
-    //     internal
-    //     view
-    //     returns (bytes memory sig)
-    // {
-    //     bytes32[] memory tokenPermissions = new bytes32[](permit.permitted.length);
-    //     for (uint256 i = 0; i < permit.permitted.length; ++i) {
-    //         tokenPermissions[i] = keccak256(abi.encode(_TOKEN_PERMISSIONS_TYPEHASH, permit.permitted[i]));
-    //     }
-    //     bytes32 msgHash = keccak256(
-    //         abi.encodePacked(
-    //             "\x19\x01",
-    //             domainSeparator,
-    //             keccak256(
-    //                 abi.encode(
-    //                     _PERMIT_BATCH_TRANSFER_FROM_TYPEHASH,
-    //                     keccak256(abi.encodePacked(tokenPermissions)),
-    //                     //address(account),
-    //                     eoa,
-    //                     permit.nonce,
-    //                     permit.deadline
-    //                 )
-    //             )
-    //         )
-    //     );
-
-    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, msgHash);
-    //     return bytes.concat(r, s, bytes1(v));
-    // }
-
-    // function fillSigTransferDetails(
-    //     uint256[] memory permitAmounts,
-    //     address[] memory tos
-    // )
-    //     public
-    //     pure
-    //     returns (ISignatureTransfer.SignatureTransferDetails[] memory transferDetails)
-    // {
-    //     transferDetails = new ISignatureTransfer.SignatureTransferDetails[](tos.length);
-    //     for (uint256 i = 0; i < tos.length; ++i) {
-    //         transferDetails[i] =
-    //             ISignatureTransfer.SignatureTransferDetails({ to: tos[i], requestedAmount: permitAmounts[i] });
-    //     }
-    // }
 }
