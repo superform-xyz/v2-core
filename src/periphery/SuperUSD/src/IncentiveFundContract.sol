@@ -2,21 +2,27 @@
 pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./IncentiveCalculationContract.sol";
-import "../interfaces/IIncentiveFundContract.sol";
+import "./interfaces/IIncentiveFundContract.sol";
+import "./interfaces/IIncentiveFundErrors.sol";
 
 /**
  * @title Incentive Fund Contract
- * @notice Manages incentive tokens.
+ * @notice Manages incentive tokens in the SuperAsset system
  * @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.
  * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
  * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
  */
-contract IncentiveFundContract is AccessControl, IIncentiveFundContract {
+contract IncentiveFundContract is AccessControl, IIncentiveFundContract, IIncentiveFundErrors {
     using SafeERC20 for IERC20;
+
+    // --- Roles ---
+    bytes32 public constant override INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+
     // --- State ---
-    address public tokenInIncentive;  // The token users send incentives to.
-    address public tokenOutIncentive; // The token we pay incentives with.
+    address public override tokenInIncentive;  // The token users send incentives to
+    address public override tokenOutIncentive; // The token we pay incentives with
 
     // --- Events ---
     event IncentivePaid(address receiver, address tokenOut, uint256 amount);
@@ -31,128 +37,74 @@ contract IncentiveFundContract is AccessControl, IIncentiveFundContract {
         _setupRole(INCENTIVE_FUND_MANAGER, msg.sender);
     }
 
-    // --- State Changing Functions ---
-
+    // --- Internal Functions ---
     function _validateInput(address user, uint256 amount) internal pure {
-        if (user == address(0)) {
-            revert ZERO_ADDRESS();
-        }
-        if (amount == 0) {
-            revert ZERO_AMOUNT();
-        }
+        if (user == address(0)) revert ZERO_ADDRESS();
+        if (amount == 0) revert ZERO_AMOUNT();
     }
 
     /**
-     * @notice Pays incentives to a receiver.
-     * @param receiver The address to receive the incentives.
-     * @param tokenOut The token to pay the incentives in.
-     * @param amount The amount of incentives requested.
-     * @return amountOut The amount of incentives actually paid.
+     * @inheritdoc IIncentiveFundContract
      */
-    function payIncentive(address receiver, address tokenOut, uint256 amount)
-    external
-    onlyRole(INCENTIVE_FUND_MANAGER)
-    returns (uint256 amountOut)
-    {
+    function payIncentive(
+        address receiver,
+        uint256 amount
+    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(receiver, amount);
-        amountOut = previewPayIncentive(tokenOut, amount);
-        IERC20(tokenOut).safeTransfer(receiver, amountOut);
-        emit IncentivePaid(receiver, tokenOut, amountOut);
+        if (tokenOutIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
+
+        IERC20(tokenOutIncentive).safeTransfer(receiver, amount);
+        emit IncentivePaid(receiver, tokenOutIncentive, amount);
     }
 
     /**
-     * @notice Takes incentives from a sender.
-     * @param sender The address to send the incentives from.
-     * @param tokenIn The token the incentives are paid in.
-     * @param amount The amount of incentives to take.
+     * @inheritdoc IIncentiveFundContract
      */
-    function takeIncentive(address sender, address tokenIn, uint256 amount)
-    external
-    onlyRole(INCENTIVE_FUND_MANAGER)
-    {
+    function takeIncentive(
+        address sender,
+        uint256 amount
+    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(sender, amount);
-        IERC20(tokenIn).safeTransferFrom(sender, address(this), amount);
-        emit IncentiveTaken(sender, tokenIn, amount);
+        if (tokenInIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
+
+        IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amount);
+        emit IncentiveTaken(sender, tokenInIncentive, amount);
     }
 
     /**
-     * @notice Settles incentives for a user.
-     * @param user The address of the user.
-     * @param amount The amount of incentives (positive for pay, negative for take).
+     * @inheritdoc IIncentiveFundContract
      */
-    function _settleIncentive(address user, int256 amount) internal {
-        if (amount > 0) {
-            payIncentive(user, tokenOutIncentive, uint256(amount));
-        } else if (amount < 0) {
-            takeIncentive(user, tokenInIncentive, uint256(-amount));
-        }
-        // If amount == 0, do nothing.
-    }
+    function withdraw(
+        address receiver,
+        address tokenOut,
+        uint256 amount
+    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
+        _validateInput(receiver, amount);
+        if (tokenOut == address(0)) revert ZERO_ADDRESS();
 
-    /**
-     * @notice Withdraws tokens from the fund.
-     * @param receiver The address to receive the tokens.
-     * @param tokenOut The token to withdraw.
-     * @param amount The amount to withdraw.
-     */
-    function withdraw(address receiver, address tokenOut, uint256 amount)
-    external
-    onlyRole(INCENTIVE_FUND_MANAGER)
-    {
-        _validateInput(receiver, tokenOut, amount);
-        IERC20(tokenOut).safeTransferFrom(address(this), receiver, amount);
+        IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
     }
 
-    // --- View Functions ---
-
     /**
-     * @notice Preview the amount of incentives to pay.
-     * @param tokenOut The token to pay the incentives in.
-     * @param amount The amount of incentives requested.
-     * @return amountOut The actual amount of incentives to pay.
+     * @inheritdoc IIncentiveFundContract
      */
-    function previewPayIncentive(address tokenOut, uint256 amount)
-    public
-    view
-    returns (uint256 amountOut)
-    {
-        require(tokenOut != address(0), "IncentiveFund: TokenOut cannot be zero address");
-        amountOut = _cappingLogic(tokenOut, amount);
-    }
-
-    // --- Internal Functions ---
-
-    /**
-     * @notice Applies capping logic to the incentive amount.
-     * @param tokenOut The token to pay the incentives in.
-     * @param amount The amount of incentives.
-     * @return cappedAmount The capped amount of incentives.
-     */
-    function _cappingLogic(address tokenOut, uint256 amount)
-    internal
-    view
-    returns (uint256 cappedAmount)
-    {
-        // TBD: It could be something no more than X% of the remaining availability for tokenOut
-        uint256 balance = IERC20(tokenOut).balanceOf(address(this));
-        cappedAmount = (amount <= balance) ? amount : balance; // Simple cap: amount or balance, whichever is smaller
-    }
-
-    function setSettlementTokenIn(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) {
-            revert ZERO_ADDRESS();
-        }
+    function setSettlementTokenIn(
+        address token
+    ) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
     }
 
-    function setSettlementTokenOut(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) {
-            revert ZERO_ADDRESS();
-        }
+    /**
+     * @inheritdoc IIncentiveFundContract
+     */
+    function setSettlementTokenOut(
+        address token
+    ) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
     }
 }
-
