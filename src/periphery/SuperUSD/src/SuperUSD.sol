@@ -5,14 +5,14 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
-
+import "./interfaces/ISuperUSDErrors.sol";
 
 /**
  * @title SuperUSD
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
  * Implements ERC20 standard for better compatibility with integrators.
  */
-contract SuperUSD is AccessControl, ERC20 {
+contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
 
@@ -58,12 +58,12 @@ contract SuperUSD is AccessControl, ERC20 {
 
     // --- Modifiers ---
     modifier onlyVault() {
-        require(isVault[msg.sender], "SuperUSD: Sender is not a whitelisted vault");
+        if (!isVault[msg.sender]) revert NotVault();
         _;
     }
 
     modifier onlyERC20() {
-        require(isERC20[msg.sender], "SuperUSD: Sender is not a whitelisted ERC20");
+        if (!isERC20[msg.sender]) revert NotERC20Token();
         _;
     }
 
@@ -86,11 +86,11 @@ contract SuperUSD is AccessControl, ERC20 {
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     ) ERC20(name_, symbol_) {
-        require(icc_ != address(0), "Invalid ICC address");
-        require(ifc_ != address(0), "Invalid IFC address");
-        require(sfc_ != address(0), "Invalid SFC address");
-        require(swapFeeInPercentage_ <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
-        require(swapFeeOutPercentage_ <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
+        if (icc_ == address(0)) revert ZeroAddress();
+        if (ifc_ == address(0)) revert ZeroAddress();
+        if (sfc_ == address(0)) revert ZeroAddress();
+        if (swapFeeInPercentage_ > SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
+        if (swapFeeOutPercentage_ > SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
         
         incentiveCalculationContract = icc_;
         incentiveFundContract = ifc_;
@@ -160,7 +160,7 @@ contract SuperUSD is AccessControl, ERC20 {
 
 
     function setSwapFeePercentage(uint256 _swapFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(_swapFeePercentage <= 1000, "SuperUSD: Swap fee percentage too high"); // Max 10%
+        if (_swapFeePercentage > 1000) revert InvalidSwapFeePercentage(); // Max 10%
         swapFeePercentage = _swapFeePercentage;
     }
 
@@ -180,8 +180,8 @@ contract SuperUSD is AccessControl, ERC20 {
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
     ) external returns (uint256 amountSharesOut) {
-        require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
-        require(receiver != address(0), "SuperUSD: Receiver cannot be zero address");
+        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
+        if (receiver == address(0)) revert ZeroAddress();
 
         // Transfer the tokenIn from the sender to this contract
         // If there is not enough allowance or balance, this will revert and saves gas
@@ -219,7 +219,7 @@ contract SuperUSD is AccessControl, ERC20 {
 //        amountSharesOut = (underlyingShares * pricePerShare) / 1e18; // Adjust for decimals
 
         // Slippage Check
-        require(amountSharesOut >= minSharesOut, "SuperUSD: Amount of shares is less than minSharesOut");
+        if (amountSharesOut < minSharesOut) revert SlippageProtection();
 
         // Mint SuperUSD shares (assuming this contract is a minter)
         _mintSuperUSD(receiver, amountSharesOut); //  Use a proper minting mechanism.
@@ -246,8 +246,8 @@ contract SuperUSD is AccessControl, ERC20 {
         address tokenOut,
         uint256 minTokenOut
     ) external returns (uint256 amountTokenOut) {
-        require(isVault[tokenOut] || isERC20[tokenOut], "SuperUSD: Token not supported");
-        require(receiver != address(0), "SuperUSD: Receiver cannot be zero address");
+        if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
+        if (receiver == address(0)) revert ZeroAddress();
 
         // Get price of underlying asset
         (uint256 pricePerShare,) = getPrice(tokenOut);
@@ -280,7 +280,7 @@ contract SuperUSD is AccessControl, ERC20 {
         // Transfer assets to receiver
         IERC20(tokenOut).safeTransfer(receiver, amountTokenOut);
 
-        require(amountTokenOut >= minTokenOut, "SuperUSD: Amount of token is less than minTokenOut");
+        if (amountTokenOut < minTokenOut) revert SlippageProtection();
 
         // Calculate and settle incentives
         (uint256 amountIncentives,) = previewRedeem(tokenOut, amountSharesToRedeem);
@@ -308,7 +308,7 @@ contract SuperUSD is AccessControl, ERC20 {
         uint256 minSharesOut,
         uint256 minTokenOut
     ) external returns (uint256 amountTokenOut) {
-        require(receiver != address(0), "SuperUSD: Receiver cannot be zero address");
+        if (receiver == address(0)) revert ZeroAddress();
         uint256 amountSharesOut = deposit(address(this), tokenIn, amountTokenToDeposit, minSharesOut);
         amountTokenOut = redeem(receiver, amountSharesOut, tokenOut, minTokenOut);
         emit Swap(receiver, tokenIn, amountTokenToDeposit, tokenOut, amountSharesOut, amountTokenOut);
@@ -317,31 +317,31 @@ contract SuperUSD is AccessControl, ERC20 {
 
     // --- Vault Whitelist Management ---
     function whitelistVault(address vault) external onlyRole(VAULT_MANAGER_ROLE) {
-        require(vault != address(0), "SuperUSD: Vault address cannot be zero");
-        require(!isVault[vault], "SuperUSD: Vault already whitelisted");
+        if (vault == address(0)) revert ZeroAddress();
+        if (isVault[vault]) revert AlreadyWhitelisted();
         isVault[vault] = true;
         _supportedVaults.add(vault);
         emit VaultWhitelisted(vault);
     }
 
     function removeVault(address vault) external onlyRole(VAULT_MANAGER_ROLE) {
-        require(vault != address(0), "SuperUSD: Vault address cannot be zero");
-        require(isVault[vault], "SuperUSD: Vault not whitelisted");
+        if (vault == address(0)) revert ZeroAddress();
+        if (!isVault[vault]) revert NotWhitelisted();
         isVault[vault] = false;
         _supportedVaults.remove(vault);
         emit VaultRemoved(vault);
     }
 
     function whitelistERC20(address token) external onlyRole(VAULT_MANAGER_ROLE) {
-        require(token != address(0), "SuperUSD: Token address cannot be zero");
-        require(!isERC20[token], "SuperUSD: Token already whitelisted");
+        if (token == address(0)) revert ZeroAddress();
+        if (isERC20[token]) revert AlreadyWhitelisted();
         isERC20[token] = true;
         emit ERC20Whitelisted(token);
     }
 
     function removeERC20(address token) external onlyRole(VAULT_MANAGER_ROLE) {
-        require(token != address(0), "SuperUSD: Token address cannot be zero");
-        require(isERC20[token], "SuperUSD: Token not whitelisted");
+        if (token == address(0)) revert ZeroAddress();
+        if (!isERC20[token]) revert NotWhitelisted();
         isERC20[token] = false;
         emit ERC20Removed(token);
     }
@@ -360,7 +360,7 @@ contract SuperUSD is AccessControl, ERC20 {
     view
     returns (uint256 amountSharesOut, uint256 amountIncentives)
     {
-        require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
+        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
         // Calculate swap fees (example: 0.1% fee)
         uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
@@ -399,7 +399,7 @@ contract SuperUSD is AccessControl, ERC20 {
     view
     returns (uint256 amountTokenOut, uint256 amountIncentives)
     {
-        require(isVault[tokenOut] || isERC20[tokenOut], "SuperUSD: Token not supported");
+        if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
 
         // Get price of underlying asset
         (uint256 pricePerShare,) = getPrice(tokenOut);
@@ -450,7 +450,7 @@ contract SuperUSD is AccessControl, ERC20 {
      * @return res True if the stablecoin has depegged, false otherwise.
      */
     function isDepeg(address tokenIn) public view returns (bool res) {
-        require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
+        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         res = ISuperOracle(superOracle).isDepeg(tokenIn);
     }
 
@@ -460,7 +460,7 @@ contract SuperUSD is AccessControl, ERC20 {
      * @return res True if the uncertainty is too high, false otherwise.
      */
     function isDispersion(address tokenIn) public view returns (bool res) {
-        require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
+        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         res = ISuperOracle(superOracle).isDispersion(tokenIn);
     }
 
@@ -470,7 +470,7 @@ contract SuperUSD is AccessControl, ERC20 {
      * @return res True if the SuperOracle is up, false otherwise.
      */
     function isSuperOracleUp(address tokenIn) public view returns (bool res) {
-        require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
+        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         res = ISuperOracle(superOracle).isUp(tokenIn);
     }
 
@@ -492,7 +492,7 @@ contract SuperUSD is AccessControl, ERC20 {
         } else if (isERC20[tokenIn]) {
             return getPriceERC20(tokenIn);
         } else {
-            revert("SuperUSD: Unsupported tokenIn");
+            revert NotSupportedToken();
         }
     }
 
@@ -501,7 +501,7 @@ contract SuperUSD is AccessControl, ERC20 {
     }
 
     function convertAssetToUSD(address tokenIn, uint256 amountAsset) public view returns (uint256 amountUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
-        require(isVault[tokenIn] || isERC20[tokenIn], "SuperUSD: Token not supported");
+        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         (uint256 mu, uint256 sigma, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
             amountAsset,
             tokenIn,
@@ -531,7 +531,7 @@ contract SuperUSD is AccessControl, ERC20 {
     view
     returns (uint256 ppsMu, uint256 ppsSigma, uint256 N, uint256 M)
     {
-        require(isVault[share], "SuperUSD: Not a vault");
+        if (!isVault[share]) revert NotVault();
         address asset = IEIP7540(share).asset(); // or IEIP4626
         uint256 amountAssetPerShare = IEIP7540(share).convertToAssets(1e18); // Amount of asset for 1 share.
         (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
@@ -539,39 +539,31 @@ contract SuperUSD is AccessControl, ERC20 {
         ppsSigma = (amountAssetPerShare * sigma) / 1e18; // Adjust for decimals
     }
 
-    /**
-     * @notice Gets the price of an ERC20 token in USD.
-     * @param token The address of the ERC20 token.
-     * @return mu The price (mean).
-     * @return sigma The standard deviation of the price.
-     * @return N Oracle parameter.
-     * @return M Oracle parameter.
-     */
     function getPriceERC20(address token)
-    public
-    view
-    returns (uint256 mu, uint256 sigma, uint256 N, uint256 M)
+        public
+        view
+        returns (uint256 mu, uint256 sigma, uint256 N, uint256 M)
     {
-        require(isERC20[token], "SuperUSD: Not an ERC20 token");
+        if (!isERC20[token]) revert NotERC20Token();
         (mu, sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(token);
     }
 
     // --- Settlement Token Management ---
 
     function setSettlementTokenIn(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(token != address(0), "SuperUSD: Token address cannot be zero");
+        if (token == address(0)) revert ZeroAddress();
         settlementTokenIn = token;
         emit SettlementTokenInSet(token);
     }
 
     function setSettlementTokenOut(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(token != address(0), "SuperUSD: Token address cannot be zero");
+        if (token == address(0)) revert ZeroAddress();
         settlementTokenOut = token;
         emit SettlementTokenOutSet(token);
     }
 
     function setSuperOracle(address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(oracle != address(0), "SuperUSD: Oracle address cannot be zero");
+        if (oracle == address(0)) revert ZeroAddress();
         superOracle = ISuperOracle(oracle);
         emit SuperOracleSet(oracle);
     }
@@ -581,16 +573,13 @@ contract SuperUSD is AccessControl, ERC20 {
     //  mechanism for minting and burning (e.g., using an ERC20 implementation,
     //  or a custom solution).
     function _mintSuperUSD(address receiver, uint256 amount) internal {
-        // Implement minting logic here.
-        // For example, if you have a `_balances` mapping:
-        // _balances[receiver] += amount;
+        if (amount == 0) revert ZeroAmount();
         _mint(receiver, amount);
     }
 
     function _burnSuperUSD(address sender, uint256 amount) internal {
-        // Implement burning logic here.
-        // For example, if you have a `_balances` mapping:
-        // _balances[sender] -= amount;
+        if (amount == 0) revert ZeroAmount();
+        if (balanceOf(sender) < amount) revert InsufficientBalance();
         _burn(sender, amount);
     }
 
