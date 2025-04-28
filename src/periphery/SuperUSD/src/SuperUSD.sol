@@ -222,7 +222,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         if (amountSharesOut < minSharesOut) revert SlippageProtection();
 
         // Mint SuperUSD shares (assuming this contract is a minter)
-        _mintSuperUSD(receiver, amountSharesOut); //  Use a proper minting mechanism.
+        _mint(receiver, amountSharesOut); //  Use a proper minting mechanism.
 
         // Calculate and settle incentives
         (uint256 amountIncentives,) = previewDeposit(tokenIn, amountTokenToDeposit);
@@ -257,7 +257,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
 
         // Burn SuperUSD shares (assuming this contract is a burner)
         // Missing burn function.  For demo, assume a simple state variable.
-        _burnSuperUSD(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
+        _burn(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
 
         uint256 amountBeforeFees;
 
@@ -569,20 +569,6 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
     }
 
     // --- Internal Functions ---
-    //  Placeholder functions.  These need to be implemented with a proper
-    //  mechanism for minting and burning (e.g., using an ERC20 implementation,
-    //  or a custom solution).
-    function _mintSuperUSD(address receiver, uint256 amount) internal {
-        if (amount == 0) revert ZeroAmount();
-        _mint(receiver, amount);
-    }
-
-    function _burnSuperUSD(address sender, uint256 amount) internal {
-        if (amount == 0) revert ZeroAmount();
-        if (balanceOf(sender) < amount) revert InsufficientBalance();
-        _burn(sender, amount);
-    }
-
     function _settleIncentive(address user, int256 amount) internal {
         // Interface for the IncentiveCalculationContract
         IIncentiveCalculationContract icc = IIncentiveCalculationContract(incentiveCalculationContract);
