@@ -18,7 +18,6 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @dev data has the following structure
 /// @notice         address from = BytesLib.toAddress(data, 0);
 /// @notice         uint256 arrayLength = BytesLib.toUint256(data, 20);
-/// @notice         // ─── dynamic arrays ───────────────────────────────────────────────────
 /// @notice         //  address[] tokens  — starts at byte 52, length = 20  * arrayLength
 /// @notice         //  uint256[] amounts — starts at 52 + (20 * arrayLength),
 /// @notice         //                         length = 32 * arrayLength
@@ -66,7 +65,7 @@ contract BatchTransferFromHook is BaseHook {
         tokens = _decodeTokenArray(data, 52, arrayLength);
         amounts = _decodeAmountArray(data, 52 + (20 * arrayLength), arrayLength);
 
-        _verifyAmounts(account, tokens, amounts, data);
+        _verifyAmounts(tokens, amounts, data);
 
         IAllowanceTransfer.AllowanceTransferDetails[] memory details =
             _createAllowanceTransferDetails(from, account, tokens, amounts);
@@ -158,7 +157,6 @@ contract BatchTransferFromHook is BaseHook {
     }
 
     function _verifyAmounts(
-        address account,
         address[] memory tokens,
         uint256[] memory amounts,
         bytes memory data
@@ -174,7 +172,7 @@ contract BatchTransferFromHook is BaseHook {
             address token = tokens[i];
             uint256 amount = amounts[i];
 
-            (uint160 allowance,,) = IAllowanceTransfer(permit2).allowance(from, token, account);
+            (uint160 allowance,,) = IAllowanceTransfer(permit2).allowance(from, token, address(this));
 
             if (allowance < amount) revert INSUFFICIENT_ALLOWANCE();
 
