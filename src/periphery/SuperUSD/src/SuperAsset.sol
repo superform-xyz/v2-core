@@ -6,14 +6,14 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
-import "./interfaces/ISuperUSDErrors.sol";
+import "./interfaces/ISuperAssetErrors.sol";
 
 /**
- * @title SuperUSD
+ * @title SuperAsset
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
  * Implements ERC20 standard for better compatibility with integrators.
  */
-contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
+contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
     using Math for uint256;

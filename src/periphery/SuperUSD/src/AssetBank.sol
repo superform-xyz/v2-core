@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
  * @title Swap Fee Fund
  * @notice Manages swap fee tokens.
  */
-contract SwapFeeFund is AccessControl{
+contract AssetBank is AccessControl{
     using SafeERC20 for IERC20;
 
     // --- Events ---
