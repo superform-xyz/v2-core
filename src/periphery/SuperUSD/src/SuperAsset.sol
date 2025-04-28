@@ -7,6 +7,9 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
 import "./interfaces/ISuperAssetErrors.sol";
+import "./interfaces/IIncentiveCalculationContract.sol";
+import "./interfaces/IIncentiveFundContract.sol";
+import "./interfaces/IAsetBank.sol";
 
 /**
  * @title SuperAsset
