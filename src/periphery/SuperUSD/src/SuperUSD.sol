@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 import "./IncentiveCalculationContract.sol";
+import "./IncentiveFundContract.sol";
 
 
 /**
@@ -102,6 +103,24 @@ contract SuperUSD is AccessControl {
             totalTargetAllocation += absoluteTargetAllocation[i];
         }
     }
+
+
+    function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
+        // Placeholder for the current allocation normalized
+        // This function should return the current allocation of assets in the SuperUSD contract
+        // For now, we return an empty array
+        uint256 length = _supportedVaults.length();
+        absoluteCurrentAllocation = new uint256[](length);
+        absoluteTargetAllocation = new uint256[](length);
+        for (uint256 i = 0; i < length; i++) {
+            address vault = _supportedVaults.at(i);
+            absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
+            totalCurrentAllocation += absoluteCurrentAllocation[i];
+            absoluteTargetAllocation[i] = targetAllocations[vault];
+            totalTargetAllocation += absoluteTargetAllocation[i];
+        }
+    }
+
 
     function setSwapFeePercentage(uint256 _swapFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
         require(_swapFeePercentage <= 1000, "SuperUSD: Swap fee percentage too high"); // Max 10%
@@ -540,11 +559,17 @@ contract SuperUSD is AccessControl {
         // Interface for the IncentiveCalculationContract
         IIncentiveCalculationContract icc = IIncentiveCalculationContract(incentiveCalculationContract);
 
+        // Call getAllocations()
+        (uint256[] memory allocationPreOperation, uint256 totalCurrentAllocation, uint256[] memory allocationTarget, uint256 totalTargetAllocation) = getAllocations();
+
         // Call the calculateIncentive function
         int256 incentive = icc.calculateIncentive(
             allocationPreOperation,
+            totalCurrentAllocation,
             allocationPostOperation,
+
             allocationTarget,
+            totalTargetAllocation,
             weights,
             energyToTokenExchangeRatio
         );

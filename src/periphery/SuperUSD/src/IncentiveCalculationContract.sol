@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.24;
+pragma solidity ^0.8.28;
 
 
 /**
@@ -8,6 +8,9 @@ pragma solidity ^0.8.24;
  */
 contract IncentiveCalculationContract {
     // --- View Functions ---
+
+    // Add a constant equal to 10^6
+    uint256 public constant PERC = 10**6; // TODO: Add this to SuperOracle
 
     /**
      * @notice Calculates the energy function.
@@ -18,7 +21,9 @@ contract IncentiveCalculationContract {
      */
     function energy(
         uint256[] memory currentAllocation,
+        uint256 totalCurrentAllocation,
         uint256[] memory allocationTarget,
+        uint256 totalAllocationTarget,
         uint256[] memory weights
     ) public pure returns (uint256 res) {
         require(currentAllocation.length == allocationTarget.length &&
@@ -27,7 +32,11 @@ contract IncentiveCalculationContract {
 
         for (uint256 i = 0; i < currentAllocation.length; i++) {
             //  Safe subtraction to avoid underflow
-            int256 diff = int256(currentAllocation[i]) - int256(allocationTarget[i]);
+            // Calculate Percentage just in time
+            int256 _currentAllocation = Math.mulDiv(currentAllocation[i], PERC, totalCurrentAllocation);
+            // Calculate Percentage just in time
+            int256 _targetAllocation = Math.mulDiv(allocationTarget[i], PERC, totalAllocationTarget);
+            int256 diff = _currentAllocation - _targetAllocation;
             uint256 diff2 = uint256(diff * diff);
             res += (diff2 * weights[i]); // Simplified square
         }
@@ -52,8 +61,11 @@ contract IncentiveCalculationContract {
      */
     function calculateIncentive(
         uint256[] memory allocationPreOperation,
+        uint256 totalAllocationPreOperation,
         uint256[] memory allocationPostOperation,
+        uint256 totalAllocationPostOperation,
         uint256[] memory allocationTarget,
+        uint256 totalAllocationTarget,
         uint256[] memory weights,
         uint256 energyToTokenExchangeRatio
     ) public view returns (int256 incentive) {
@@ -66,8 +78,8 @@ contract IncentiveCalculationContract {
 //            weights[i] = 1; // default weight
 //        }
 
-        uint256 energyBefore = energy(allocationPreOperation, allocationTarget, weights);
-        uint256 energyAfter = energy(allocationPostOperation, allocationTarget, weights);
+        uint256 energyBefore = energy(allocationPreOperation, totalAllocationPreOperation, allocationTarget, totalAllocationTarget, weights);
+        uint256 energyAfter = energy(allocationPostOperation, totalAllocationPostOperation, allocationTarget, totalAllocationTarget, weights);
         //  Positive incentive means the user earns the incentive
         incentive = int256(energyToTokenExchangeRatio) * (int256(energyBefore) - int256(energyAfter));
     }
