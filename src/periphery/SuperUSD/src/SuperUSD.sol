@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
 
@@ -8,16 +10,18 @@ import "./IncentiveFundContract.sol";
 /**
  * @title SuperUSD
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
+ * Implements ERC20 standard for better compatibility with integrators.
  */
-contract SuperUSD is AccessControl {
+contract SuperUSD is AccessControl, ERC20 {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
-
 
     // --- Roles ---
     bytes32 public constant VAULT_MANAGER_ROLE = keccak256("VAULT_MANAGER_ROLE");
     bytes32 public constant SWAP_FEE_MANAGER_ROLE = keccak256("SWAP_FEE_MANAGER_ROLE");
     bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
+    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     // --- State ---
     mapping(address => bool) public isVault;
@@ -63,29 +67,58 @@ contract SuperUSD is AccessControl {
         _;
     }
 
-    // --- Constructor ---
+    /**
+     * @dev Constructor initializes the ERC20 token with name and symbol
+     * @param name_ The name of the token
+     * @param symbol_ The symbol of the token
+     * @param icc_ Address of the Incentive Calculation Contract
+     * @param ifc_ Address of the Incentive Fund Contract
+     * @param sfc_ Address of the Swap Fee Fund Contract
+     * @param swapFeeInPercentage_ Swap fee as a percentage (e.g., 10 for 0.1%)
+     * @param swapFeeOutPercentage_ Swap fee as a percentage (e.g., 10 for 0.1%)
+     */
     constructor(
-        address _incentiveCalculationContract,
-        address _incentiveFundContract,
-        address _swapFeeFundContract,
-        uint256 _swapFeeInPercentage,
-        uint256 _swapFeeOutPercentage
-    ) {
-        require(_incentiveCalculationContract != address(0), "SuperUSD: ICC address cannot be zero");
-        require(_incentiveFundContract != address(0), "SuperUSD: Incentive Fund address cannot be zero");
-        require(_swapFeeFundContract != address(0), "SuperUSD: Swap Fee Fund address cannot be zero");
-        require(_swapFeeInPercentage <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
-        require(_swapFeeOutPercentage <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
-        incentiveCalculationContract = _incentiveCalculationContract;
-        incentiveFundContract = _incentiveFundContract;
-        swapFeeFundContract = _swapFeeFundContract;
-        swapFeeInPercentage = _swapFeeInPercentage;
-        swapFeeOutPercentage = _swapFeeOutPercentage;
+        string memory name_,
+        string memory symbol_,
+        address icc_,
+        address ifc_,
+        address sfc_,
+        uint256 swapFeeInPercentage_,
+        uint256 swapFeeOutPercentage_
+    ) ERC20(name_, symbol_) {
+        require(icc_ != address(0), "Invalid ICC address");
+        require(ifc_ != address(0), "Invalid IFC address");
+        require(sfc_ != address(0), "Invalid SFC address");
+        require(swapFeeInPercentage_ <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
+        require(swapFeeOutPercentage_ <= SWAP_FEE_PERC, "SuperUSD: Swap fee in percentage too high");
+        
+        incentiveCalculationContract = icc_;
+        incentiveFundContract = ifc_;
+        swapFeeFundContract = sfc_;
+        swapFeeInPercentage = swapFeeInPercentage_;
+        swapFeeOutPercentage = swapFeeOutPercentage_;
+        
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(MINTER_ROLE, msg.sender);
+        _grantRole(BURNER_ROLE, msg.sender);
+    }
 
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(VAULT_MANAGER_ROLE, msg.sender);
-        _setupRole(SWAP_FEE_MANAGER_ROLE, msg.sender);
-        _setupRole(INCENTIVE_FUND_MANAGER, msg.sender);
+    /**
+     * @dev Mints new tokens. Can only be called by accounts with MINTER_ROLE.
+     * @param to The address that will receive the minted tokens
+     * @param amount The amount of tokens to mint
+     */
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
+        _mint(to, amount);
+    }
+
+    /**
+     * @dev Burns tokens. Can only be called by accounts with BURNER_ROLE.
+     * @param from The address whose tokens will be burned
+     * @param amount The amount of tokens to burn
+     */
+    function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) {
+        _burn(from, amount);
     }
 
     // NOTE:
@@ -551,12 +584,14 @@ contract SuperUSD is AccessControl {
         // Implement minting logic here.
         // For example, if you have a `_balances` mapping:
         // _balances[receiver] += amount;
+        _mint(receiver, amount);
     }
 
     function _burnSuperUSD(address sender, uint256 amount) internal {
         // Implement burning logic here.
         // For example, if you have a `_balances` mapping:
         // _balances[sender] -= amount;
+        _burn(sender, amount);
     }
 
     function _settleIncentive(address user, int256 amount) internal {
@@ -570,16 +605,14 @@ contract SuperUSD is AccessControl {
         int256 incentive = icc.calculateIncentive(
             allocationPreOperation,
             totalCurrentAllocation,
-            allocationPostOperation,
+            allocationPreOperation,
 
             allocationTarget,
             totalTargetAllocation,
-            weights,
-            energyToTokenExchangeRatio
+            new uint256[](0), // Placeholder, adjust as needed
+            new uint256[](0)  // Placeholder, adjust as needed
         );
 
 //        IIncentiveFundContract(incentiveFundContract).settleIncentive(user, amount);
     }
 }
-
-
