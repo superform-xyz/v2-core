@@ -10,13 +10,14 @@ import "./interfaces/ISuperAssetErrors.sol";
 import "./interfaces/IIncentiveCalculationContract.sol";
 import "./interfaces/IIncentiveFundContract.sol";
 import "./interfaces/IAsetBank.sol";
+import "./interfaces/ISuperAsset.sol";
 
 /**
  * @title SuperAsset
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
  * Implements ERC20 standard for better compatibility with integrators.
  */
-contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors {
+contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
     using Math for uint256;

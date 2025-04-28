@@ -1,0 +1,203 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.28;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+/**
+ * @title ISuperAsset
+ * @notice Interface for SuperAsset contract which manages deposits and redemptions across multiple
+ * underlying vaults. It implements ERC20 standard and provides functionality for asset management,
+ * fee handling, and incentive calculations.
+ */
+interface ISuperAsset is IERC20 {
+    /**
+     * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
+     * @param to The address that will receive the minted tokens
+     * @param amount The amount of tokens to mint
+     */
+    function mint(address to, uint256 amount) external;
+
+    /**
+     * @notice Burns tokens. Can only be called by accounts with BURNER_ROLE.
+     * @param from The address whose tokens will be burned
+     * @param amount The amount of tokens to burn
+     */
+    function burn(address from, uint256 amount) external;
+
+    /**
+     * @notice Gets the current and target allocations of assets
+     * @return absoluteCurrentAllocation Array of current absolute allocations
+     * @return totalCurrentAllocation Sum of all current allocations
+     * @return absoluteTargetAllocation Array of target absolute allocations
+     * @return totalTargetAllocation Sum of all target allocations
+     */
+    function getAllocations() external view returns (
+        uint256[] memory absoluteCurrentAllocation,
+        uint256 totalCurrentAllocation,
+        uint256[] memory absoluteTargetAllocation,
+        uint256 totalTargetAllocation
+    );
+
+    /**
+     * @notice Gets the allocations before and after an operation
+     * @param token The token address involved in the operation
+     * @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
+     * @return Same as getAllocations()
+     */
+    function getAllocationsPrePostOperation(
+        address token,
+        int256 deltaToken
+    ) external view returns (
+        uint256[] memory absoluteCurrentAllocation,
+        uint256 totalCurrentAllocation,
+        uint256[] memory absoluteTargetAllocation,
+        uint256 totalTargetAllocation
+    );
+
+    /**
+     * @notice Sets the swap fee percentage
+     * @param _swapFeePercentage New fee percentage (max 10%)
+     */
+    function setSwapFeePercentage(uint256 _swapFeePercentage) external;
+
+    /**
+     * @notice Deposits an underlying asset and mints SuperAsset shares
+     * @param receiver The address to receive the output shares
+     * @param tokenIn The address of the underlying asset to deposit
+     * @param amountTokenToDeposit The amount of the underlying asset to deposit
+     * @param minSharesOut Minimum amount of shares to receive (slippage protection)
+     * @return amountSharesOut The amount of SuperAsset shares minted
+     */
+    function deposit(
+        address receiver,
+        address tokenIn,
+        uint256 amountTokenToDeposit,
+        uint256 minSharesOut
+    ) external returns (uint256 amountSharesOut);
+
+    /**
+     * @notice Redeems SuperAsset shares for underlying assets
+     * @param receiver The address to receive the output assets
+     * @param amountSharesToRedeem The amount of SuperAsset shares to redeem
+     * @param tokenOut The address of the underlying asset to receive
+     * @param minTokenOut Minimum amount of tokens to receive (slippage protection)
+     * @return amountTokenOut The amount of underlying asset received
+     */
+    function redeem(
+        address receiver,
+        uint256 amountSharesToRedeem,
+        address tokenOut,
+        uint256 minTokenOut
+    ) external returns (uint256 amountTokenOut);
+
+    /**
+     * @notice Swaps one underlying asset for another through SuperAsset shares
+     * @param receiver The address to receive the output tokens
+     * @param tokenIn Input token address
+     * @param amountTokenToDeposit Amount of input tokens
+     * @param tokenOut Output token address
+     * @param minSharesOut Minimum shares to receive in intermediate step
+     * @param minTokenOut Minimum output tokens to receive
+     * @return amountTokenOut The amount of output tokens received
+     */
+    function swap(
+        address receiver,
+        address tokenIn,
+        uint256 amountTokenToDeposit,
+        address tokenOut,
+        uint256 minSharesOut,
+        uint256 minTokenOut
+    ) external returns (uint256 amountTokenOut);
+
+    /**
+     * @notice Whitelists a vault
+     * @param vault Address of the vault to whitelist
+     */
+    function whitelistVault(address vault) external;
+
+    /**
+     * @notice Removes a vault from whitelist
+     * @param vault Address of the vault to remove
+     */
+    function removeVault(address vault) external;
+
+    /**
+     * @notice Whitelists an ERC20 token
+     * @param token Address of the token to whitelist
+     */
+    function whitelistERC20(address token) external;
+
+    /**
+     * @notice Removes an ERC20 token from whitelist
+     * @param token Address of the token to remove
+     */
+    function removeERC20(address token) external;
+
+    /**
+     * @notice Sets the settlement token for deposits
+     * @param token Address of the token to set as settlement token
+     */
+    function setSettlementTokenIn(address token) external;
+
+    /**
+     * @notice Sets the settlement token for redemptions
+     * @param token Address of the token to set as settlement token
+     */
+    function setSettlementTokenOut(address token) external;
+
+    /**
+     * @notice Sets the oracle contract address
+     * @param oracle Address of the new oracle contract
+     */
+    function setSuperOracle(address oracle) external;
+
+    /**
+     * @notice Previews a deposit operation
+     * @param tokenIn Input token address
+     * @param amountTokenToDeposit Amount of input tokens
+     * @return amountSharesOut Expected amount of shares to receive
+     * @return amountIncentives Expected amount of incentives
+     */
+    function previewDeposit(
+        address tokenIn,
+        uint256 amountTokenToDeposit
+    ) external view returns (uint256 amountSharesOut, uint256 amountIncentives);
+
+    /**
+     * @notice Previews a redeem operation
+     * @param tokenOut Output token address
+     * @param amountSharesToRedeem Amount of shares to redeem
+     * @return amountTokenOut Expected amount of tokens to receive
+     * @return amountIncentives Expected amount of incentives
+     */
+    function previewRedeem(
+        address tokenOut,
+        uint256 amountSharesToRedeem
+    ) external view returns (uint256 amountTokenOut, uint256 amountIncentives);
+
+    /**
+     * @notice Previews a swap operation
+     * @param tokenIn Input token address
+     * @param amountTokenToDeposit Amount of input tokens
+     * @param tokenOut Output token address
+     * @return amountSharesOut Expected amount of shares in intermediate step
+     * @return amountIncentives Expected amount of incentives
+     */
+    function previewSwap(
+        address tokenIn,
+        uint256 amountTokenToDeposit,
+        address tokenOut
+    ) external view returns (uint256 amountSharesOut, uint256 amountIncentives);
+
+    // --- Events ---
+    event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut);
+    event Redeem(address receiver, uint256 amountSharesToRedeem, address tokenOut, uint256 amountTokenOut);
+    event Swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 amountSharesOut, uint256 amountTokenOut);
+    event VaultWhitelisted(address vault);
+    event VaultRemoved(address vault);
+    event ERC20Whitelisted(address token);
+    event ERC20Removed(address token);
+    event SettlementTokenInSet(address token);
+    event SettlementTokenOutSet(address token);
+    event SuperOracleSet(address oracle);
+}
