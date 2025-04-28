@@ -70,6 +70,7 @@ abstract contract Constants {
     string public constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
+    string public constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
