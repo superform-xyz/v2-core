@@ -180,6 +180,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
     ) external returns (uint256 amountSharesOut) {
+        if (amountTokenToDeposit == 0) revert ZeroAmount();
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
 
