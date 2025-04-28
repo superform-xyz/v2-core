@@ -29,7 +29,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
     EnumerableSet.AddressSet private _supportedVaults;
     address public immutable incentiveCalculationContract;  // Address of the ICC
     address public immutable incentiveFundContract;      // Address of the Incentive Fund Contract
-    address public immutable swapFeeFundContract;        // Address of the Swap Fee Fund Contract
+    address public immutable assetBank;        // Address of the Asset Bank Contract
     address public settlementTokenIn;
     address public settlementTokenOut;
     ISuperOracle public superOracle;
@@ -73,7 +73,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
      * @param symbol_ The symbol of the token
      * @param icc_ Address of the Incentive Calculation Contract
      * @param ifc_ Address of the Incentive Fund Contract
-     * @param sfc_ Address of the Swap Fee Fund Contract
+     * @param assetBank_ Address of the Asset Bank Contract
      * @param swapFeeInPercentage_ Swap fee as a percentage (e.g., 10 for 0.1%)
      * @param swapFeeOutPercentage_ Swap fee as a percentage (e.g., 10 for 0.1%)
      */
@@ -82,19 +82,19 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         string memory symbol_,
         address icc_,
         address ifc_,
-        address sfc_,
+        address assetBank_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     ) ERC20(name_, symbol_) {
         if (icc_ == address(0)) revert ZeroAddress();
         if (ifc_ == address(0)) revert ZeroAddress();
-        if (sfc_ == address(0)) revert ZeroAddress();
+        if (assetBank_ == address(0)) revert ZeroAddress();
         if (swapFeeInPercentage_ > SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
         if (swapFeeOutPercentage_ > SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
         
         incentiveCalculationContract = icc_;
         incentiveFundContract = ifc_;
-        swapFeeFundContract = sfc_;
+        assetBank = assetBank_;
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
         
@@ -197,8 +197,8 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // Swap fee based on percentage
         uint256 amountInAfterFees = amountTokenToDeposit - swapFee;
 
-        // Transfer swap fees to Swap Fee Fund while holding the rest in the contract, since the full amount was already transferred in the beginning of the function
-        IERC20(tokenIn).safeTransfer(swapFeeFundContract, swapFee);
+        // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already transferred in the beginning of the function
+        IERC20(tokenIn).safeTransfer(assetBank, swapFee);
 
 
 //        // Deposit into underlying vault or handle ERC20
@@ -217,7 +217,6 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
 
         // Calculate SuperUSD shares to mint
         amountSharesOut = (amountInAfterFees * 1e18) / pricePerShare; // Adjust for decimals
-//        amountSharesOut = (underlyingShares * pricePerShare) / 1e18; // Adjust for decimals
 
         // Slippage Check
         if (amountSharesOut < minSharesOut) revert SlippageProtection();
@@ -275,8 +274,8 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         uint256 swapFee = (amountBeforeFees * swapFeeOutPercentage) / SWAP_FEE_PERC;
         amountTokenOut = amountBeforeFees - swapFee;
 
-        // Transfer swap fees to Swap Fee Fund
-        IERC20(tokenOut).safeTransferFrom(address(this), swapFeeFundContract, swapFee);
+        // Transfer swap fees to Asset Bank
+        IERC20(tokenOut).safeTransferFrom(address(this), assetBank, swapFee);
 
         // Transfer assets to receiver
         IERC20(tokenOut).safeTransfer(receiver, amountTokenOut);
