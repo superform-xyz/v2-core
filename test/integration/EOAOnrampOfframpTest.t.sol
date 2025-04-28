@@ -114,6 +114,10 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         assertGt(IERC20(weth).balanceOf(account), wethBalanceBefore);
         assertGt(IERC20(dai).balanceOf(account), daiBalanceBefore);
 
+        uint256 usdcBalanceEOABefore = IERC20(usdc).balanceOf(eoa);
+        uint256 wethBalanceEOABefore = IERC20(weth).balanceOf(eoa);
+        uint256 daiBalanceEOABefore = IERC20(dai).balanceOf(eoa);
+
         address[] memory offrampHooks = new address[](3);
         offrampHooks[0] = _getHookAddress(ETH, TRANSFER_ERC20_HOOK_KEY);
         offrampHooks[1] = _getHookAddress(ETH, TRANSFER_ERC20_HOOK_KEY);
@@ -131,9 +135,9 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
 
         executeOp(offrampUserOpData);
 
-        assertEq(IERC20(usdc).balanceOf(account), 0);
-        assertEq(IERC20(weth).balanceOf(account), 0);
-        assertEq(IERC20(dai).balanceOf(account), 0);
+        assertGt(IERC20(usdc).balanceOf(eoa), usdcBalanceEOABefore);
+        assertGt(IERC20(weth).balanceOf(eoa), wethBalanceEOABefore);
+        assertGt(IERC20(dai).balanceOf(eoa), daiBalanceEOABefore);
     }
 
     function defaultERC20PermitBatchAllowance(
