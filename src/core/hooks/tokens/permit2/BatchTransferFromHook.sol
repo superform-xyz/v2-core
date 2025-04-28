@@ -18,9 +18,9 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @dev data has the following structure
 /// @notice         address from = BytesLib.toAddress(data, 0);
 /// @notice         uint256 arrayLength = BytesLib.toUint256(data, 20);
-/// @notice         tokensLength = 20 * arrayLength
+/// @notice         uint256 tokensLength = 20 * arrayLength
 /// @notice         address[] tokens  — starts at byte 52
-/// @notice         amountsLength = 32 * arrayLength
+/// @notice         uint256 amountsLength = 32 * arrayLength
 /// @notice         uint256[] amounts — starts at 52 + tokensLength
 contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
