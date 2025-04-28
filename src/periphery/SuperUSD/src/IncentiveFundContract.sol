@@ -7,6 +7,9 @@ import "./IncentiveCalculationContract.sol";
 /**
  * @title Incentive Fund Contract
  * @notice Manages incentive tokens.
+ * @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.
+ * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
+ * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
  */
 contract IncentiveFundContract is AccessControl {
     using SafeERC20 for IERC20;
