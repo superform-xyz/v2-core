@@ -22,9 +22,9 @@ ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_ETH_Swap_With_Odos_With_Paymaster -vvvv
+test-vvv :; forge test --match-test test_EOAOnrampOfframp -vvvv
 
-test-integration :; forge test --match-contract OdosRouterEthSwap -vvv
+test-integration :; forge test --match-contract PendleRouterRedeemHookTest -vvv
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report
