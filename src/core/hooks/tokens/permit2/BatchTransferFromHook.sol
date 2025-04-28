@@ -17,9 +17,9 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address from = BytesLib.toAddress(data, 0);
-/// @notice         uint256 arrayLength = BytesLib.toUint256(data, 20);
-/// @notice         address[] tokens = BytesLib.slice(data, 52, 20 * arrayLength);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 52 + 20 * arrayLength, 32 * arrayLength);
+/// @notice         uint256 amountTokens = BytesLib.toUint256(data, 20);
+/// @notice         address[] tokens = BytesLib.slice(data, 52, 20 * amountTokens);
+/// @notice         uint256[] amounts = BytesLib.slice(data, 52 + 20 * amountTokens, 32 * amountTokens);
 contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
