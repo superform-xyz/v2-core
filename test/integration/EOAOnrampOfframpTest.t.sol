@@ -2,17 +2,23 @@
 pragma solidity 0.8.28;
 
 import { BaseTest } from "../BaseTest.t.sol";
-import { console } from "forge-std/console.sol";
-import { AccountInstance } from "modulekit/ModuleKit.sol";
-import { IAllowanceTransfer } from "../../../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
+import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 
-contract EOAOnrampOfframpTest is BaseTest {
+contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
     address public eoa;
 
     AccountInstance public instance;
     address public account;
 
     IAllowanceTransfer public permit2;
+    IPermit2Batch public permit2Batch;
+
+    ISuperExecutor public superExecutor;
 
     address public usdc;
     address public weth;
@@ -21,7 +27,21 @@ contract EOAOnrampOfframpTest is BaseTest {
 
     uint256[] public amounts;
 
+    bytes32 public constant DOMAIN_SEPARATOR = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
+
+    bytes32 public constant _PERMIT_BATCH_TRANSFER_FROM_TYPEHASH = keccak256(
+        "PermitBatchTransferFrom(TokenPermissions[] permitted,address spender,uint256 nonce,uint256 deadline)TokenPermissions(address token,uint256 amount)"
+    );
+
+    bytes32 public constant _PERMIT_BATCH_TYPEHASH = keccak256(
+        "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
+    );
+
+    bytes32 public constant _PERMIT_DETAILS_TYPEHASH =
+        keccak256("PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)");
+
     function setUp() public override {
+        useLatestFork = true;
         super.setUp();
 
         vm.selectFork(FORKS[ETH]);
@@ -36,33 +56,195 @@ contract EOAOnrampOfframpTest is BaseTest {
         tokens[2] = dai;
 
         amounts = new uint256[](3);
-        amounts[0] = 1000e6;
-        amounts[1] = 2e18;
-        amounts[2] = 3e18;
+        amounts[0] = 1e18;
+        amounts[1] = 1e18;
+        amounts[2] = 1e18;
 
-        eoa = vm.addr(321);
-        deal(usdc, eoa, 1000e6);
-        deal(weth, eoa, 2e18);
-        deal(dai, eoa, 3e18);
+        eoa = vm.addr(0x12341234);
+        vm.label(eoa, "EOA");
+
+        deal(usdc, eoa, 1e18);
+        deal(weth, eoa, 1e18);
+        deal(dai, eoa, 1e18);
 
         instance = accountInstances[ETH];
         account = instance.account;
 
         permit2 = IAllowanceTransfer(PERMIT2);
+        permit2Batch = IPermit2Batch(PERMIT2);
+
+        superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
     }
 
     function test_EOAOnrampOfframp() public {
         vm.selectFork(FORKS[ETH]);
 
+        uint256 usdcBalanceBefore = IERC20(usdc).balanceOf(account);
+        uint256 wethBalanceBefore = IERC20(weth).balanceOf(account);
+        uint256 daiBalanceBefore = IERC20(dai).balanceOf(account);
+
         vm.startPrank(eoa);
-        permit2.approve(usdc, account, 10e18, uint48(block.timestamp + 1000000000000000000));
-        permit2.approve(weth, account, 10e18, uint48(block.timestamp + 1000000000000000000));
-        permit2.approve(dai, account, 10e18, uint48(block.timestamp + 1000000000000000000));
+        IERC20(usdc).approve(PERMIT2, 10e18);
+        IERC20(weth).approve(PERMIT2, 10e18);
+        IERC20(dai).approve(PERMIT2, 10e18);
         vm.stopPrank();
+
+        IAllowanceTransfer.PermitBatch memory permitBatch =
+            defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 1 weeks), uint48(0));
+
+        bytes memory sig = getPermitBatchSignature(permitBatch, 0x12341234, DOMAIN_SEPARATOR);
+
+        vm.prank(eoa);
+        permit2Batch.permit(eoa, permitBatch, sig);
 
         address[] memory hooks = new address[](1);
         hooks[0] = _getHookAddress(ETH, BATCH_TRANSFER_FROM_HOOK_KEY);
 
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
+        bytes[] memory hookData = new bytes[](1);
+        hookData[0] = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
+
+        // Give EOA access to the account instance
+        // vm.prank(account);
+        // setTrustedForwarder(eoa);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookData });
+
+        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+
+        executeOp(userOpData);
+
+        assertGt(IERC20(usdc).balanceOf(account), usdcBalanceBefore);
+        assertGt(IERC20(weth).balanceOf(account), wethBalanceBefore);
+        assertGt(IERC20(dai).balanceOf(account), daiBalanceBefore);
     }
+
+    function defaultERC20PermitBatchAllowance(
+        address[] memory permitTokens,
+        uint256[] memory permitAmounts,
+        uint48 expiration,
+        uint48 nonce
+    )
+        internal
+        view
+        returns (IAllowanceTransfer.PermitBatch memory)
+    {
+        IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](permitTokens.length);
+
+        for (uint256 i = 0; i < permitTokens.length; ++i) {
+            details[i] = IAllowanceTransfer.PermitDetails({
+                token: permitTokens[i],
+                amount: uint160(permitAmounts[i]),
+                expiration: expiration,
+                nonce: nonce
+            });
+        }
+
+        return IAllowanceTransfer.PermitBatch({
+            details: details,
+            spender: account,
+            sigDeadline: block.timestamp + 1 weeks
+        });
+    }
+
+    function getPermitBatchSignature(
+        IAllowanceTransfer.PermitBatch memory permit,
+        uint256 privateKey,
+        bytes32 domainSeparator
+    )
+        internal
+        pure
+        returns (bytes memory sig)
+    {
+        bytes32[] memory permitHashes = new bytes32[](permit.details.length);
+        for (uint256 i = 0; i < permit.details.length; ++i) {
+            permitHashes[i] = keccak256(abi.encode(_PERMIT_DETAILS_TYPEHASH, permit.details[i]));
+        }
+        bytes32 msgHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                keccak256(
+                    abi.encode(
+                        _PERMIT_BATCH_TYPEHASH,
+                        keccak256(abi.encodePacked(permitHashes)),
+                        permit.spender,
+                        permit.sigDeadline
+                    )
+                )
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, msgHash);
+        return bytes.concat(r, s, bytes1(v));
+    }
+
+    // function defaultERC20PermitMultiple(
+    //     address[] memory permitTokens,
+    //     uint256 nonce
+    // )
+    //     internal
+    //     view
+    //     returns (ISignatureTransfer.PermitBatchTransferFrom memory)
+    // {
+    //     ISignatureTransfer.TokenPermissions[] memory permitted =
+    //         new ISignatureTransfer.TokenPermissions[](permitTokens.length);
+    //     for (uint256 i = 0; i < permitTokens.length; ++i) {
+    //         permitted[i] = ISignatureTransfer.TokenPermissions({ token: permitTokens[i], amount: 1e18 });
+    //     }
+    //     return ISignatureTransfer.PermitBatchTransferFrom({
+    //         permitted: permitted,
+    //         nonce: nonce,
+    //         deadline: block.timestamp + 1000
+    //     });
+    // }
+
+    // function getPermitBatchTransferSignature(
+    //     ISignatureTransfer.PermitBatchTransferFrom memory permit,
+    //     uint256 privateKey,
+    //     bytes32 domainSeparator
+    // )
+    //     internal
+    //     view
+    //     returns (bytes memory sig)
+    // {
+    //     bytes32[] memory tokenPermissions = new bytes32[](permit.permitted.length);
+    //     for (uint256 i = 0; i < permit.permitted.length; ++i) {
+    //         tokenPermissions[i] = keccak256(abi.encode(_TOKEN_PERMISSIONS_TYPEHASH, permit.permitted[i]));
+    //     }
+    //     bytes32 msgHash = keccak256(
+    //         abi.encodePacked(
+    //             "\x19\x01",
+    //             domainSeparator,
+    //             keccak256(
+    //                 abi.encode(
+    //                     _PERMIT_BATCH_TRANSFER_FROM_TYPEHASH,
+    //                     keccak256(abi.encodePacked(tokenPermissions)),
+    //                     //address(account),
+    //                     eoa,
+    //                     permit.nonce,
+    //                     permit.deadline
+    //                 )
+    //             )
+    //         )
+    //     );
+
+    //     (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, msgHash);
+    //     return bytes.concat(r, s, bytes1(v));
+    // }
+
+    // function fillSigTransferDetails(
+    //     uint256[] memory permitAmounts,
+    //     address[] memory tos
+    // )
+    //     public
+    //     pure
+    //     returns (ISignatureTransfer.SignatureTransferDetails[] memory transferDetails)
+    // {
+    //     transferDetails = new ISignatureTransfer.SignatureTransferDetails[](tos.length);
+    //     for (uint256 i = 0; i < tos.length; ++i) {
+    //         transferDetails[i] =
+    //             ISignatureTransfer.SignatureTransferDetails({ to: tos[i], requestedAmount: permitAmounts[i] });
+    //     }
+    // }
 }
