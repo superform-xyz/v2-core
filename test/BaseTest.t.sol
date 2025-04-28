@@ -2781,7 +2781,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes memory pathDefinition,
         address executor,
         uint32 referralCode,
-        bool usePrevHookAmount
+        bool usePrevHookAmount,
+        address approveSpender
     )
         internal
         pure
@@ -2795,6 +2796,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             outputQuote,
             outputMin,
             usePrevHookAmount,
+            approveSpender,
             pathDefinition.length,
             pathDefinition,
             executor,

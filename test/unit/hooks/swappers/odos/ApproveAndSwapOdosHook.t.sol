@@ -112,6 +112,7 @@ contract ApproveAndSwapOdosHookTest is BaseTest {
             bytes32(outputQuote),
             bytes32(outputMin),
             usePrevious ? bytes1(uint8(1)) : bytes1(uint8(0)),
+            bytes20(address(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
@@ -193,6 +194,7 @@ contract ApproveAndSwapOdosHookTest is BaseTest {
             bytes32(outputQuote),
             bytes32(outputMin),
             bytes1(uint8(0)),
+            bytes20(address(0)),
             bytes32(testPathDefinition.length),
             testPathDefinition,
             bytes20(executor),
@@ -225,12 +227,13 @@ contract ApproveAndSwapOdosHookTest is BaseTest {
     function test_ZeroValue() public view {
         bytes memory data = bytes.concat(
             bytes20(inputToken),
-            bytes32(0), // Zero input amount
+            bytes32(uint256(0)), // Zero input amount
             bytes20(inputReceiver),
             bytes20(outputToken),
             bytes32(outputQuote),
             bytes32(outputMin),
             bytes1(uint8(0)),
+            bytes20(address(0)),
             bytes32(pathDefinition.length),
             pathDefinition,
             bytes20(executor),
