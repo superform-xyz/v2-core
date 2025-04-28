@@ -192,6 +192,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
 
+        // Calculate and settle incentives
+        (uint256 amountIncentives,) = previewDeposit(tokenIn, amountTokenToDeposit);
+        _settleIncentive(msg.sender, int256(amountIncentives));
+
         // Transfer the tokenIn from the sender to this contract
         // If there is not enough allowance or balance, this will revert and saves gas
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
@@ -234,10 +238,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (amountSharesOut == 0) revert ZeroAmount();
         _mint(receiver, amountSharesOut);
 
-        // Calculate and settle incentives
-        (uint256 amountIncentives,) = previewDeposit(tokenIn, amountTokenToDeposit);
-        _settleIncentive(msg.sender, int256(amountIncentives));
-
         emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesOut);
         return amountSharesOut;
     }
@@ -258,6 +258,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     ) external returns (uint256 amountTokenOut) {
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
+
+        // Calculate and settle incentives
+        (uint256 amountIncentives,) = previewRedeem(tokenOut, amountSharesToRedeem);
+        _settleIncentive(msg.sender, int256(amountIncentives));
 
         // Get price of underlying asset
         (uint256 pricePerShare,) = getPrice(tokenOut);
@@ -292,10 +296,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         IERC20(tokenOut).safeTransfer(receiver, amountTokenOut);
 
         if (amountTokenOut < minTokenOut) revert SlippageProtection();
-
-        // Calculate and settle incentives
-        (uint256 amountIncentives,) = previewRedeem(tokenOut, amountSharesToRedeem);
-        _settleIncentive(msg.sender, int256(amountIncentives));
 
         emit Redeem(receiver, amountSharesToRedeem, tokenOut, amountTokenOut);
         return amountTokenOut;
