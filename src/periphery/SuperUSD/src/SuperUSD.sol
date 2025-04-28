@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
 import "./interfaces/ISuperUSDErrors.sol";
@@ -15,6 +16,7 @@ import "./interfaces/ISuperUSDErrors.sol";
 contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
+    using Math for uint256;
 
     // --- Roles ---
     bytes32 public constant VAULT_MANAGER_ROLE = keccak256("VAULT_MANAGER_ROLE");
@@ -22,6 +24,9 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
     bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
+
+    // --- Constants ---
+    uint256 private constant PRECISION = 1e18;
 
     // --- State ---
     mapping(address => bool) public isVault;
@@ -194,6 +199,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         //  Example: 0.1% fee
         //  uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
         //  uint256 amountAfterFees = amountTokenToDeposit - swapFee;
+        // NOTE: The `swapFeeInPercentage` will be taken by SuperGovernor directly, when it will be ready
         uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // Swap fee based on percentage
         uint256 amountInAfterFees = amountTokenToDeposit - swapFee;
 
@@ -216,13 +222,14 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         (uint256 pricePerShare,) = getPrice(tokenIn);
 
         // Calculate SuperUSD shares to mint
-        amountSharesOut = (amountInAfterFees * 1e18) / pricePerShare; // Adjust for decimals
+        amountSharesOut = Math.mulDiv(amountInAfterFees, PRECISION, pricePerShare); // Adjust for decimals
 
         // Slippage Check
         if (amountSharesOut < minSharesOut) revert SlippageProtection();
 
-        // Mint SuperUSD shares (assuming this contract is a minter)
-        _mint(receiver, amountSharesOut); //  Use a proper minting mechanism.
+        // Mint SuperUSD shares
+        if (amountSharesOut == 0) revert ZeroAmount();
+        _mint(receiver, amountSharesOut);
 
         // Calculate and settle incentives
         (uint256 amountIncentives,) = previewDeposit(tokenIn, amountTokenToDeposit);
@@ -253,10 +260,11 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         (uint256 pricePerShare,) = getPrice(tokenOut);
 
         // Calculate underlying shares to redeem
-        uint256 underlyingShares = (amountSharesToRedeem * 1e18) / pricePerShare; // Adjust for decimals
+        uint256 underlyingShares = Math.mulDiv(amountSharesToRedeem, PRECISION, pricePerShare); // Adjust for decimals
 
-        // Burn SuperUSD shares (assuming this contract is a burner)
-        // Missing burn function.  For demo, assume a simple state variable.
+        // Burn SuperUSD shares
+        if (amountSharesToRedeem == 0) revert ZeroAmount();
+        if (balanceOf(msg.sender) < amountSharesToRedeem) revert InsufficientBalance();
         _burn(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
 
         uint256 amountBeforeFees;
@@ -377,7 +385,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         (uint256 pricePerShare,) = getPrice(tokenIn);
 
         // Calculate SuperUSD shares to mint
-        amountSharesOut = (underlyingShares * pricePerShare) / 1e18; // Adjust for decimals
+        amountSharesOut = Math.mulDiv(underlyingShares, pricePerShare, PRECISION); // Adjust for decimals
 
         // Calculate incentives (using ICC)
         amountIncentives = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
@@ -405,7 +413,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         (uint256 pricePerShare,) = getPrice(tokenOut);
 
         // Calculate underlying shares to redeem
-        uint256 underlyingShares = (amountSharesToRedeem * 1e18) / pricePerShare; // Adjust for decimals
+        uint256 underlyingShares = Math.mulDiv(amountSharesToRedeem, PRECISION, pricePerShare); // Adjust for decimals
 
         uint256 amountBeforeFees;
 
@@ -497,7 +505,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
     }
 
     function relativeStdDev(uint256 mu, uint256 sigma) pure returns (uint256) {
-        return (sigma * 1e18) / mu; // Adjust for decimals
+        return Math.mulDiv(sigma, PRECISION, mu); // Adjust for decimals
     }
 
     function convertAssetToUSD(address tokenIn, uint256 amountAsset) public view returns (uint256 amountUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
@@ -515,7 +523,7 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         }
 
 //        (uint256 mu, uint256 sigma, uint256 N, uint256 M) = getPrice(tokenIn);
-        amountUSD = (amountAsset * mu) / 1e18; // Adjust for decimals
+        amountUSD = Math.mulDiv(amountAsset, mu, PRECISION); // Adjust for decimals
     }
 
     /**
@@ -535,8 +543,8 @@ contract SuperUSD is AccessControl, ERC20, ISuperUSDErrors {
         address asset = IEIP7540(share).asset(); // or IEIP4626
         uint256 amountAssetPerShare = IEIP7540(share).convertToAssets(1e18); // Amount of asset for 1 share.
         (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
-        ppsMu = (amountAssetPerShare * mu) / 1e18; //  Adjust for decimals
-        ppsSigma = (amountAssetPerShare * sigma) / 1e18; // Adjust for decimals
+        ppsMu = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
+        ppsSigma = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
     }
 
     function getPriceERC20(address token)
