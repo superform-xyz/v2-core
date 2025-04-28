@@ -49,7 +49,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
 
     // Add a constant equal to 10^6
-    uint256 public constant SWAP_FEE_PERC = 10**6; // TODO: Add this to SuperOracle
+    uint256 public constant SWAP_FEE_PERC = 10**6; 
+    uint256 public constant MAX_SWAP_FEE_PERC = 1000; 
 
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
@@ -169,7 +170,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
 
     function setSwapFeePercentage(uint256 _swapFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_swapFeePercentage > 1000) revert InvalidSwapFeePercentage(); // Max 10%
+        if (_swapFeePercentage > MAX_SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
         swapFeePercentage = _swapFeePercentage;
     }
 
