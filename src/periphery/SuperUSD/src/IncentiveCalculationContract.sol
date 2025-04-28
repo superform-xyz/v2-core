@@ -31,8 +31,8 @@ contract IncentiveCalculationContract {
             "ICC: Input arrays must have the same length");
 
         uint256 length = currentAllocation.length;
-
-        for (uint256 i = 0; i < length; i++) {
+        uint256 i;
+        for (; i < length; i++) {
             //  Safe subtraction to avoid underflow
             // Calculate Percentage just in time
             int256 _currentAllocation = Math.mulDiv(currentAllocation[i], PERC, totalCurrentAllocation);

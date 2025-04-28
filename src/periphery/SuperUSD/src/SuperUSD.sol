@@ -95,7 +95,8 @@ contract SuperUSD is AccessControl {
         uint256 length = _supportedVaults.length();
         absoluteCurrentAllocation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
-        for (uint256 i = 0; i < length; i++) {
+        uint256 i;
+        for (; i < length; i++) {
             address vault = _supportedVaults.at(i);
             absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
             totalCurrentAllocation += absoluteCurrentAllocation[i];
@@ -112,7 +113,8 @@ contract SuperUSD is AccessControl {
         uint256 length = _supportedVaults.length();
         absoluteCurrentAllocation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
-        for (uint256 i = 0; i < length; i++) {
+        uint256 i;
+        for (; i < length; i++) {
             address vault = _supportedVaults.at(i);
             absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
             totalCurrentAllocation += absoluteCurrentAllocation[i];
