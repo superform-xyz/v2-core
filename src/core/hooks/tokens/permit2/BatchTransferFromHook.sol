@@ -65,7 +65,7 @@ contract BatchTransferFromHook is BaseHook {
         tokens = _decodeTokenArray(data, 52, arrayLength);
         amounts = _decodeAmountArray(data, 52 + (20 * arrayLength), arrayLength);
 
-        _verifyAmounts(tokens, amounts, data);
+        _verifyAmounts(account, tokens, amounts, data);
 
         IAllowanceTransfer.AllowanceTransferDetails[] memory details =
             _createAllowanceTransferDetails(from, account, tokens, amounts);
@@ -157,6 +157,7 @@ contract BatchTransferFromHook is BaseHook {
     }
 
     function _verifyAmounts(
+        address account,
         address[] memory tokens,
         uint256[] memory amounts,
         bytes memory data
@@ -172,7 +173,7 @@ contract BatchTransferFromHook is BaseHook {
             address token = tokens[i];
             uint256 amount = amounts[i];
 
-            (uint160 allowance,,) = IAllowanceTransfer(permit2).allowance(from, token, address(this));
+            (uint160 allowance,,) = IAllowanceTransfer(permit2).allowance(from, token, account);
 
             if (allowance < amount) revert INSUFFICIENT_ALLOWANCE();
 
