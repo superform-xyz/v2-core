@@ -2940,4 +2940,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             data = bytes.concat(data, abi.encodePacked(amounts[i]));
         }
     }
+
+    function _createTransferERC20HookData(
+        address token,
+        address to,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        data = abi.encodePacked(token, to, amount, usePrevHookAmount);
+    }
 }
