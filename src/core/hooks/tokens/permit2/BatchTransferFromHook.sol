@@ -82,7 +82,7 @@ contract BatchTransferFromHook is BaseHook {
     function _preExecute(address, address account, bytes calldata data) internal override {
         uint256 arrayLength = BytesLib.toUint256(data, 20);
         address[] memory tokens = _decodeTokenArray(data, 52, arrayLength);
-        for (uint256 i; i < tokens.length; ++i) {
+        for (uint256 i; i < arrayLength; ++i) {
             outAmount += _getBalance(tokens[i], account);
         }
     }
@@ -91,7 +91,7 @@ contract BatchTransferFromHook is BaseHook {
         uint256 arrayLength = BytesLib.toUint256(data, 20);
         uint256 newAmount;
         address[] memory tokens = _decodeTokenArray(data, 52, arrayLength);
-        for (uint256 i; i < tokens.length; ++i) {
+        for (uint256 i; i < arrayLength; ++i) {
             newAmount += _getBalance(tokens[i], account);
         }
         outAmount = newAmount - outAmount;
