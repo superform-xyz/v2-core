@@ -140,8 +140,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256 length = _supportedVaults.length();
         absoluteCurrentAllocation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
-        uint256 i;
-        for (; i < length; i++) {
+        for (uint256 i; i < length; i++) {
             address vault = _supportedVaults.at(i);
             absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
             totalCurrentAllocation += absoluteCurrentAllocation[i];
@@ -158,8 +157,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256 length = _supportedVaults.length();
         absoluteCurrentAllocation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
-        uint256 i;
-        for (; i < length; i++) {
+        for (uint256 i; i < length; i++) {
             address vault = _supportedVaults.at(i);
             absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
             totalCurrentAllocation += absoluteCurrentAllocation[i];
