@@ -372,30 +372,42 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
     function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
     public
     view
-    returns (uint256 amountSharesOut, int256 amountIncentives)
+    returns (uint256 amountSharesMinted, int256 amountIncentives)
     {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
         // Calculate swap fees (example: 0.1% fee)
         uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
-        uint256 amountAfterFees = amountTokenToDeposit - swapFee;
-
-        // uint256 underlyingShares;
-        // if (isVault[tokenIn]) {
-        //     underlyingShares = IEIP7540(tokenIn).previewDeposit(amountAfterFees);
-        // } else {
-        //     underlyingShares = amountAfterFees;
-        // }
+        uint256 amountTokenInAfterFees = amountTokenToDeposit - swapFee;
 
         // Get price of underlying vault shares in USD
-        (uint256 price,) = getPrice(tokenIn);
+        uint256 priceUSDTokenIn, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(tokenIn);
+        uint256 priceUSDThisShares, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(address(this));
 
         // Calculate SuperUSD shares to mint
-        amountSharesOut = Math.mulDiv(amountAfterFees, price, PRECISION); // Adjust for decimals
+        amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDThisShares); // Adjust for decimals
+
+        // Get current and post-operation allocations
+        (
+            uint256[] memory allocationPreOperation,
+            uint256 totalAllocationPreOperation,
+            uint256[] memory allocationPostOperation,
+            uint256 totalAllocationPostOperation,
+            uint256[] memory allocationTarget,
+            uint256 totalAllocationTarget,
+            uint256[] memory weights
+        ) = getAllocationsPrePostOperation(tokenIn, amountTokenToDeposit);
 
         // Calculate incentives (using ICC)
         amountIncentives = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
-            new uint256[](0), // Placeholder, adjust as needed
+            allocationPreOperation,
+            totalAllocationPreOperation,
+            allocationPostOperation,
+            totalAllocationPostOperation,
+            allocationTarget,
+            totalAllocationTarget,
+            weights,
+            energyToTokenExchangeRatio
         );
     }
 
@@ -409,33 +421,43 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
     function previewRedeem(address tokenOut, uint256 amountSharesToRedeem)
     public
     view
-    returns (uint256 amountTokenOut, uint256 amountIncentives)
+    returns (uint256 amountTokenOutAfterFees, int256 amountIncentives)
     {
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
 
-        // Get price of underlying asset
-        (uint256 pricePerShare,) = getPrice(tokenOut);
+        // Get price of underlying vault shares in USD
+        uint256 priceUSDThisShares, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(address(this));
+        uint256 priceUSDTokenOut, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
-        uint256 underlyingShares = Math.mulDiv(amountSharesToRedeem, PRECISION, pricePerShare); // Adjust for decimals
-
-        uint256 amountBeforeFees;
-
-        if(isVault[tokenOut]) {
-            amountBeforeFees = IEIP7540(tokenOut).previewRedeem(underlyingShares);
-        } else {
-            amountBeforeFees = underlyingShares;
-        }
+        uint256 amountTokenOutBeforeFees = Math.mulDiv(amountSharesToRedeem, priceUSDThisShares, priceUSDTokenOut); // Adjust for decimals
 
         // Calculate swap fees on output (example: 0.1% fee)
-        uint256 swapFee = (amountBeforeFees * 1) / 1000; // 0.1%
-        amountTokenOut = amountBeforeFees - swapFee;
+        // Calculate swap fees (example: 0.1% fee)
+        uint256 swapFee = Math.mulDiv(amountTokenOutBeforeFees, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
+        amountTokenOutAfterFees = amountTokenOutBeforeFees - swapFee;
+
+        // Get current and post-operation allocations
+        (
+            uint256[] memory allocationPreOperation,
+            uint256 totalAllocationPreOperation,
+            uint256[] memory allocationPostOperation,
+            uint256 totalAllocationPostOperation,
+            uint256[] memory allocationTarget,
+            uint256 totalAllocationTarget,
+            uint256[] memory weights
+        ) = getAllocationsPrePostOperation(tokenOut, int256(-amountTokenOutBeforeFees));
 
         // Calculate incentives (using ICC)
         amountIncentives = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
-            new uint256[](0), // Placeholder, adjust as needed
-            new uint256[](0), // Placeholder, adjust as needed
-            new uint256[](0)  // Placeholder, adjust as needed
+            allocationPreOperation,
+            totalAllocationPreOperation,
+            allocationPostOperation,
+            totalAllocationPostOperation,
+            allocationTarget,
+            totalAllocationTarget,
+            weights,
+            energyToTokenExchangeRatio
         );
     }
 
@@ -456,71 +478,20 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
         (, amountIncentives) = previewRedeem(tokenOut, amountSharesOut); // incentives are cumulative in this simplified example.
     }
 
-    /**
-     * @notice Checks if an underlying stablecoin has depegged.
-     * @param tokenIn The address of the underlying asset.
-     * @return res True if the stablecoin has depegged, false otherwise.
-     */
-    function isDepeg(address tokenIn) public view returns (bool res) {
-        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
-        res = ISuperOracle(superOracle).isDepeg(tokenIn);
-    }
 
-    /**
-     * @notice Checks if the uncertainty of an underlying asset's price is too high.
-     * @param tokenIn The address of the underlying asset.
-     * @return res True if the uncertainty is too high, false otherwise.
-     */
-    function isDispersion(address tokenIn) public view returns (bool res) {
-        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
-        res = ISuperOracle(superOracle).isDispersion(tokenIn);
-    }
-
-    /**
-     * @notice Checks if the SuperOracle is up.
-     * @param tokenIn The address of the underlying asset.
-     * @return res True if the SuperOracle is up, false otherwise.
-     */
-    function isSuperOracleUp(address tokenIn) public view returns (bool res) {
-        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
-        res = ISuperOracle(superOracle).isUp(tokenIn);
-    }
-
-    /**
-     * @notice Gets the price of an underlying asset in USD.
-     * @param tokenIn The address of the underlying asset.
-     * @return amountUSD The price of the asset in USD.
-     * @return stddev The standard deviation of the price.
-     * @return N Oracle parameter.
-     * @return M Oracle parameter.
-     */
-    function getPrice(address tokenIn)
-    public
-    view
-    returns (uint256 amountUSD, uint256 stddev, uint256 N, uint256 M)
-    {
-        (amountUSD, stddev, N, M) = ISuperOracle(superOracle).getMeanPrice(tokenIn);
-        // amountUSD = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
-        // stddev = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
-
-        // if (isVault[tokenIn]) {
-        //     return getPPS(tokenIn);
-        // } else if (isERC20[tokenIn]) {
-        //     return getPriceERC20(tokenIn);
-        // } else {
-        //     revert NotSupportedToken();
-        // }
-    }
-
-    function relativeStdDev(uint256 mu, uint256 sigma) pure returns (uint256) {
-        return Math.mulDiv(sigma, PRECISION, mu); // Adjust for decimals
-    }
+    // function relativeStdDev(uint256 mu, uint256 sigma) pure returns (uint256) {
+    //     return Math.mulDiv(sigma, PRECISION, mu); // Adjust for decimals
+    // }
     
     // @dev: This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
-    function convertAssetToUSD(address tokenIn, uint256 amountAsset) public view returns (uint256 amountUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
+    // @dev: Getting only single unit price
+    // TODO: Handle the decimals properly 
+    function getPriceWithCircuitBreakers(address tokenIn) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
-        (uint256 amountUSD, uint256 stddev, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
-            amountAsset,
+
+        // NOTE: We need to pass ONE_SHARE to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
+        (priceUSD, uint256 stddev, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
+            ONE_SHARE,  // TODO: Handle the decimals properly for different types of assets 
             tokenIn,
             USD,                    // TODO: Add USD definition
             AVERAGE_PROVIDER        // TODO: Add AVERAGE_PROVIDER definition, taking it from SuperOracle
@@ -528,56 +499,24 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
 
         // Circuit Breaker for Oracle Off
         if (M == 0) {
-            return (emergencyPrices[tokenIn], false, false, true);
-        }
+            priceUSD = emergencyPrices[tokenIn];
+            isOracleOff = true;
+        } else {
+            // Circuit Breaker for Depeg - price deviates more than ±2% from expected
+            if (priceUSD < DEPEG_LOWER_THRESHOLD || priceUSD > DEPEG_UPPER_THRESHOLD) {
+                isDepeg = true;
+            } else {
+                // Calculate relative standard deviation
+                uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
 
-        // Calculate relative standard deviation
-        uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, amountUSD);
-        // Circuit Breaker for Depeg - price deviates more than ±2% from expected
-        if (amountUSD < DEPEG_LOWER_THRESHOLD || amountUSD > DEPEG_UPPER_THRESHOLD) {
-            return (amountUSD, true, false, false);
+                // Circuit Breaker for Dispersion
+                if (relativeStdDev > DISPERSION_THRESHOLD) {
+                    isDispersion = true;
+                }
+            }
         }
-        // Circuit Breaker for Dispersion
-        if (relativeStdDev > DISPERSION_THRESHOLD) {
-            return (amountUSD, false, true, false);
-        }
-        amountUSD = Math.mulDiv(amountAsset, amountUSD, PRECISION); // Adjust for decimals
-        return (amountUSD, false, false, false);
+        return (priceUSD, isDepeg, isDispersion, isOracleOff);
     }
-
-    // /**
-    //  * @notice Gets the price per share of a vault in USD.
-    //  * @param share The address of the vault.
-    //  * @return ppsMu The price per share (mean).
-    //  * @return ppsSigma The standard deviation of the price per share.
-    //  * @return N Oracle parameter.
-    //  * @return M Oracle parameter.
-    //  */
-    // function getPPS(address share)
-    // public
-    // view
-    // returns (uint256 ppsMu, uint256 ppsSigma, uint256 N, uint256 M)
-    // {
-    //     if (!isVault[share]) revert NotVault();
-    //     address asset = IEIP7540(share).asset(); // or IEIP4626
-    //     uint256 amountAssetPerShare = IEIP7540(share).convertToAssets(ONE_SHARE); // Amount of asset for 1 share.
-    //     (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
-
-    //     (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
-    //     ppsMu = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
-    //     ppsSigma = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
-    //     ppsMu = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
-    // //     ppsSigma = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
-    // // }
-
-    // // function getPriceERC20(address token)
-    // //     public
-    // //     view
-    // //     returns (uint256 mu, uint256 sigma, uint256 N, uint256 M)
-    // {
-    //     if (!isERC20[token]) revert NotERC20Token();
-    //     (mu, sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(token);
-    // }
 
     // --- Settlement Token Management ---
 

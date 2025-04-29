@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
  * @title Incentive Calculation Contract (ICC)
  * @notice A stateless contract for calculating incentives.
  */
 contract IncentiveCalculationContract {
+    using Math for uint256;
+
     // --- View Functions ---
 
     // Add a constant equal to 10^6
     uint256 public constant PERC = 10**6; // TODO: Add this to SuperOracle
+
+    uint256 private constant PRECISION = 1e18;
 
     /**
      * @notice Calculates the energy function.
@@ -82,9 +87,15 @@ contract IncentiveCalculationContract {
 
         uint256 energyBefore = energy(allocationPreOperation, totalAllocationPreOperation, allocationTarget, totalAllocationTarget, weights);
         uint256 energyAfter = energy(allocationPostOperation, totalAllocationPostOperation, allocationTarget, totalAllocationTarget, weights);
-        //  Positive incentive means the user earns the incentive
-        incentive = int256(energyToTokenExchangeRatio) * (int256(energyBefore) - int256(energyAfter));
+        
+        // Calculate energy difference first
+        int256 energyDiff = int256(energyBefore) - int256(energyAfter);
+        
+        // Handle positive and negative cases separately for safe multiplication
+        if (energyDiff >= 0) {
+            incentive = int256(Math.mulDiv(uint256(energyDiff), energyToTokenExchangeRatio, PRECISION));
+        } else {
+            incentive = -int256(Math.mulDiv(uint256(-energyDiff), energyToTokenExchangeRatio, PRECISION));
+        }
     }
 }
-
-
