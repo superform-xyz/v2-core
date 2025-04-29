@@ -25,38 +25,39 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         bytes receiverDst = BytesLib.slice(data, 245 + takeTokenAddressLength, receiverDstLength);
 /// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 277 + takeTokenAddressLength +
 /// receiverDstLength);
-/// @notice         uint256 orderAuthorityAddressDstLength = BytesLib.toUint256(data, 329 + takeTokenAddressLength +
+/// @notice         uint256 orderAuthorityAddress_paramLength = BytesLib.toUint256(data, 329 + takeTokenAddressLength +
 /// receiverDstLength);
 /// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 361 + takeTokenAddressLength +
-/// receiverDstLength, orderAuthorityAddressDstLength);
-/// @notice         uint256 allowedTakerDstLength = BytesLib.toUint256(data, 393 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength);
+/// receiverDstLength, orderAuthorityAddress_paramLength);
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 393 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength);
 /// @notice         bytes allowedTakerDst = BytesLib.slice(data, 425 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength, allowedTakerDstLength);
-/// @notice         uint256 externalCallLength = BytesLib.toUint256(data, 457 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength);
+/// orderAuthorityAddress_paramLength, allowedTakerDst_paramLength);
+/// @notice         uint256 externalCall_paramLength = BytesLib.toUint256(data, 457 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength);
 /// @notice         bytes externalCall = BytesLib.slice(data, 489 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength, externalCallLength);
-/// @notice         uint256 allowedCancelBeneficiarySrcLength = BytesLib.toUint256(data, 521 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength);
+/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength, externalCall_paramLength);
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 521 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength);
 /// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 553 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength,
-/// allowedCancelBeneficiarySrcLength);
-/// @notice         uint256 affiliateFeeLength = BytesLib.toUint256(data, 585 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength +
-/// allowedCancelBeneficiarySrcLength);
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength,
+/// allowedCancelBeneficiarySrc_paramLength);
+/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 585 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength);
 /// @notice         bytes affiliateFee = BytesLib.slice(data, 617 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength + allowedCancelBeneficiarySrcLength,
-/// affiliateFeeLength);
+/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
 /// @notice         uint256 referralCode = BytesLib.toUint256(data, 649 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength + allowedCancelBeneficiarySrcLength +
-/// affiliateFeeLength);
-/// @notice         uint256 permitEnvelopeLength = BytesLib.toUint256(data, 681 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength +
-/// allowedCancelBeneficiarySrcLength + affiliateFeeLength + referralCode);
+/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
+/// @notice         uint256 permitEnvelope_paramLength = BytesLib.toUint256(data, 681 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength + referralCode);
 /// @notice         bytes permitEnvelope = BytesLib.slice(data, 713 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength + allowedCancelBeneficiarySrcLength +
-/// affiliateFeeLength + referralCode, permitEnvelopeLength - offset);
+/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength + referralCode,
+/// permitEnvelope_paramLength - offset);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
