@@ -59,8 +59,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
     // --- Errors ---
-    error InvalidInput();
-    error InvalidTotalAllocation();
 
     // --- Events ---
     event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
@@ -508,7 +506,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         (uint256[] memory allocationPreOperation, uint256 totalCurrentAllocation, uint256[] memory allocationTarget, uint256 totalTargetAllocation) = getAllocations();
 
         // Call the calculateIncentive function
-        int256 incentive = icc.calculateIncentive(
+        int256 amountIncentive = icc.calculateIncentive(
             allocationPreOperation,
             totalCurrentAllocation,
             allocationPreOperation,
@@ -516,7 +514,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             totalTargetAllocation
         );
 
-        IIncentiveFundContract(incentiveFundContract).settleIncentive(user, incentive);
+        // Pay or take incentives based on the sign of amountIncentive
+        if (amountIncentive > 0) {
+            IIncentiveFundContract(incentiveFundContract).payIncentive(user, uint256(amountIncentive));
+        } else if (amountIncentive < 0) {
+            IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentive));
+        }
     }
 
     /**
