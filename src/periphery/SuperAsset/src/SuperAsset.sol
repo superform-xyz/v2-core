@@ -58,6 +58,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
+    // --- Errors ---
+    error InvalidInput();
+    error InvalidTotalAllocation();
+
     // --- Events ---
     event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
     event Redeem(address receiver, address tokenOut, uint256 amountSharesToRedeem, uint256 amountTokenOut, uint256 swapFee, int256 amountIncentives);
@@ -69,6 +73,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     event SettlementTokenInSet(address token);
     event SettlementTokenOutSet(address token);
     event SuperOracleSet(address oracle);
+    event TargetAllocationSet(address token, uint256 allocation);
 
     // --- Modifiers ---
     modifier onlyVault() {
@@ -512,5 +517,49 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         );
 
         IIncentiveFundContract(incentiveFundContract).settleIncentive(user, incentive);
+    }
+
+    /**
+     * @notice Sets the target allocation for a token
+     * @param token The token address
+     * @param allocation The target allocation percentage (scaled by PRECISION)
+     */
+    function setTargetAllocation(address token, uint256 allocation) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) revert ZeroAddress();
+        if (!isVault[token] && !isERC20[token]) revert NotSupportedToken();
+
+        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC 
+        if (allocation > PRECISION) revert InvalidAllocation();
+        
+        targetAllocations[token] = allocation;
+        emit TargetAllocationSet(token, allocation);
+    }
+
+    /**
+     * @notice Sets target allocations for multiple tokens at once
+     * @param tokens Array of token addresses
+     * @param allocations Array of target allocation percentages (scaled by PRECISION)
+     */
+    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (tokens.length != allocations.length) revert InvalidInput();
+        
+        uint256 totalAllocation;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert ZeroAddress();
+            if (!isVault[tokens[i]] && !isERC20[tokens[i]]) revert NotSupportedToken();
+
+            // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC 
+            // if (allocations[i] > PRECISION) revert InvalidAllocation();
+
+            totalAllocation += allocations[i];
+        }
+
+        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC         
+        // if (totalAllocation > PRECISION) revert InvalidTotalAllocation();
+        
+        for (uint256 i = 0; i < tokens.length; i++) {
+            targetAllocations[tokens[i]] = allocations[i];
+            emit TargetAllocationSet(tokens[i], allocations[i]);
+        }
     }
 }

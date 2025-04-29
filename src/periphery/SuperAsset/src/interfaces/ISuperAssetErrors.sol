@@ -59,4 +59,11 @@ interface ISuperAssetErrors {
 
     /// @notice Thrown when incentive calculation fails
     error IncentiveCalculationFailed();
+
+    /// @notice Thrown when input arrays have mismatched lengths in batch operations
+    error InvalidInput();
+
+    /// @notice Thrown when the sum of all allocations exceeds 100% (PRECISION)
+    error InvalidTotalAllocation();
+
 }
