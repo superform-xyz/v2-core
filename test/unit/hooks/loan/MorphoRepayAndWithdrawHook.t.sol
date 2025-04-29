@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
 import { BaseTest } from "../../../BaseTest.t.sol";
-import { MockHook } from "../../../mocks/MockHook.sol";
-import { MockERC20 } from "../../../mocks/MockERC20.sol";
 
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
-import { IMorphoBase, IMorphoStaticTyping, IMorpho, Id, MarketParams } from "../../../../src/vendor/morpho/IMorpho.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { Id, MarketParams } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
-import { IPaymaster } from "@account-abstraction/interfaces/IPaymaster.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { IPaymaster } from "@ERC4337/account-abstraction/contracts/interfaces/IPaymaster.sol";
 import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
-import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 // Superform

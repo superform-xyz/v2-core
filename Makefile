@@ -22,8 +22,7 @@ ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-
-test-vvv :; forge test --match-test test_Borrow_Repay_Hooks_E2E -vvvv
+test-vvv :; forge test --match-test test_EOAOnrampOfframp -vvvv
 
 test-integration :; forge test --match-contract PendleRouterRedeemHookTest -vvv
 
@@ -37,10 +36,4 @@ test-cache :; forge test --cache-tests
 generate:
 	rm -rf contract_bindings/*
 	./script/run/retrieve-abis.sh
-	abigen --abi out/SuperExecutor.sol/SuperExecutor.abi --pkg contracts --type SuperExecutor --out contract_bindings/SuperExecutor.go
-	abigen --abi out/SuperDestinationExecutor.sol/SuperDestinationExecutor.abi --pkg contracts --type SuperDestinationExecutor --out contract_bindings/SuperDestinationExecutor.go
-	abigen --abi out/AcrossSendFundsAndExecuteOnDstHook.sol/AcrossSendFundsAndExecuteOnDstHook.abi --pkg contracts --type AcrossSendFundsAndExecuteOnDstHook --out contract_bindings/AcrossSendFundsAndExecuteOnDstHook.go
-	abigen --abi out/IAcrossV3Receiver.sol/IAcrossV3Receiver.abi --pkg contracts --type IAcrossV3Receiver --out contract_bindings/IAcrossV3Receiver.go
-	abigen --abi out/SuperRegistry.sol/SuperRegistry.abi --pkg contracts --type SuperRegistry --out contract_bindings/SuperRegistry.go
-	abigen --abi out/PeripheryRegistry.sol/PeripheryRegistry.abi --pkg contracts --type PeripheryRegistry --out contract_bindings/PeripheryRegistry.go
-	abigen --abi out/SuperMerkleValidator.sol/SuperMerkleValidator.abi --pkg contracts --type SuperMerkleValidator --out contract_bindings/SuperMerkleValidator.go
+	./script/run/generate-contract-bindings.sh

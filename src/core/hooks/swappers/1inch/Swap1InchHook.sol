@@ -41,7 +41,6 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     error INVALID_INPUT_AMOUNT();
     error INVALID_OUTPUT_AMOUNT();
     error INVALID_SELECTOR_OFFSET();
-    error INVALID_SOURCE_RECEIVER();
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
 
@@ -58,7 +57,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
     function build(
         address prevHook,
-        address account,
+        address,
         bytes calldata data
     )
         external
@@ -73,7 +72,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         bytes calldata txData_ = data[73:];
 
         bytes memory updatedTxData =
-            _validateTxData(account, dstToken, dstReceiver, prevHook, usePrevHookAmount, txData_);
+            _validateTxData(dstToken, dstReceiver, prevHook, usePrevHookAmount, txData_);
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -107,7 +106,6 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _validateTxData(
-        address account,
         address dstToken,
         address dstReceiver,
         address prevHook,
@@ -126,7 +124,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         } else if (selector == I1InchAggregationRouterV6.swap.selector) {
             /// @dev support for generic router call
             updatedTxData =
-                _validateGenericSwap(txData_[4:], dstReceiver, dstToken, account, prevHook, usePrevHookAmount);
+                _validateGenericSwap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
         } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
             updatedTxData = _validateClipperSwap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
         } else {
@@ -220,7 +218,6 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         bytes calldata txData_,
         address receiver,
         address toToken,
-        address account,
         address prevHook,
         bool usePrevHookAmount
     )
@@ -241,10 +238,6 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
 
         if (desc.dstReceiver != receiver) {
             revert INVALID_RECEIVER();
-        }
-
-        if (desc.srcReceiver != account) {
-            revert INVALID_SOURCE_RECEIVER();
         }
 
         if (usePrevHookAmount) {
