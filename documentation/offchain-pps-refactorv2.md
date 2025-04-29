@@ -28,7 +28,7 @@
 - [ ] Define **structs** cleanly
 - [ ] Write **NatSpec comments** (`@notice`, `@param`, `@return`) for all public and external functions
 - [ ] Inherit **interface properly** in contracts
-- [ ] Follow **revert ERROR() pattern** instead of require
+- [ ] Follow **revert ERROR() pattern** instead of require. Do not return false from functions, just revert in most cases
 - [ ] Use **external** for user-exposed functions unless internal-only
 - [ ] Constructors must initialize variables immutably where possible
 - [ ] Make sure arguments to functions have variables in camelCase_ (with an ending underscore)
@@ -77,18 +77,6 @@
   - All `set` and `remove` functions must be **timelocked** and **governance-only**.
   - Make sure known keys are set as constants, such as TREASURY, SUPER_ORACLE, BLSPPSORACLE, ECDSAPPSORACLE, SUPER_VAULT_AGGREGATOR, UP, SUP, 
 
----
-
-
-### [ ] sUP.sol (Staked UP Token)
-
-- **Purpose:**  
-  Staking version of the `$UP` token, allowing users to earn protocol rewards over time.  
-  Is instantiated via SuperVaultAggregator with a superform controlled strategist as a SuperVault tri
-
-
-- **Notes:**
-  - Assume a mock $UP token for the time being (UP.sol). Later this will be replaced by the proper UP token.
 
 ---
 
