@@ -59,8 +59,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
     // --- Events ---
-    event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut);
-    event Redeem(address receiver, uint256 amountSharesToRedeem, address tokenOut, uint256 amountTokenOut);
+    event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
+    event Redeem(address receiver, address tokenOut, uint256 amountSharesToRedeem, uint256 amountTokenOut, uint256 swapFee, int256 amountIncentives);
     event Swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 amountSharesOut, uint256 amountTokenOut);
     event VaultWhitelisted(address vault);
     event VaultRemoved(address vault);
@@ -191,59 +191,34 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         address tokenIn,
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
-    ) external returns (uint256 amountSharesOut) {
+    ) external returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentives) {
+        // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZeroAmount();
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
 
         // Calculate and settle incentives
-        (int256 amountIncentives,) = previewDeposit(tokenIn, amountTokenToDeposit);
+        (amountSharesMinted, swapFee, amountIncentives) = previewDeposit(tokenIn, amountTokenToDeposit);
+        if (amountSharesMinted == 0) revert ZeroAmount();
+        // Slippage Check
+        if (amountSharesMinted < minSharesOut) revert SlippageProtection();
+
+        // State Changing Functions //
+
+        // Settle Incentives
         _settleIncentive(msg.sender, amountIncentives);
 
         // Transfer the tokenIn from the sender to this contract
-        // If there is not enough allowance or balance, this will revert and saves gas
+        // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
-
-        // Calculate swap fees (example: 0.1% fee)
-        // TODO: Make it a governance params
-        // TODO: Use mulDiv() for better precision
-        //  Example: 0.1% fee
-        //  uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
-        //  uint256 amountAfterFees = amountTokenToDeposit - swapFee;
-        // NOTE: The `swapFeeInPercentage` will be taken by SuperGovernor directly, when it will be ready
-        uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // Swap fee based on percentage
-        uint256 amountInAfterFees = amountTokenToDeposit - swapFee;
 
         // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already transferred in the beginning of the function
         IERC20(tokenIn).safeTransfer(assetBank, swapFee);
 
-
-//        // Deposit into underlying vault or handle ERC20
-//        uint256 underlyingShares;
-//        if (isVault[tokenIn]) {
-//            underlyingShares = IEIP7540(tokenIn).deposit(address(this), IERC20(tokenIn).asset(), amountAfterFees, 0); // Use 0 for minShares
-//        } else {
-//            //  Handle ERC20 deposit (simplified -  no vault involved, mint shares directly)
-//            IERC20(tokenIn).transferFrom(msg.sender, address(this), amountAfterFees);
-//            underlyingShares = amountAfterFees; // Example: 1:1 conversion.  Adjust as needed.
-//        }
-
-        // TODO: Replace this with calling SuperOracle to get the conversion price
-        // Get price of underlying vault shares in USD
-        (uint256 pricePerShare,) = getPrice(tokenIn);
-
-        // Calculate SuperUSD shares to mint
-        amountSharesOut = Math.mulDiv(amountInAfterFees, PRECISION, pricePerShare); // Adjust for decimals
-
-        // Slippage Check
-        if (amountSharesOut < minSharesOut) revert SlippageProtection();
-
         // Mint SuperUSD shares
-        if (amountSharesOut == 0) revert ZeroAmount();
-        _mint(receiver, amountSharesOut);
+        _mint(receiver, amountSharesMinted);
 
-        emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesOut);
-        return amountSharesOut;
+        emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentives);
     }
 
     /**
@@ -259,50 +234,33 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256 amountSharesToRedeem,
         address tokenOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountTokenOut) {
+    ) external returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentives) {
+        if (amountSharesToRedeem == 0) revert ZeroAmount();
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
 
         // Calculate and settle incentives
-        (uint256 amountIncentives,) = previewRedeem(tokenOut, amountSharesToRedeem);
-d        _settleIncentive(msg.sender, int256(amountIncentives));
+        (amountTokenOutAfterFees, swapFee, amountIncentives) = previewRedeem(tokenOut, amountSharesToRedeem);
+        if (amountTokenOutAfterFees == 0) revert ZeroAmount();
+        // Slippage Check
+        if (amountTokenOutAfterFees < minTokenOut) revert SlippageProtection();
 
-        // Get price of underlying asset
-        (uint256 pricePerShare,) = getPrice(tokenOut);
+        // State Changing Functions //
 
-        // Calculate underlying shares to redeem
-        uint256 underlyingShares = Math.mulDiv(amountSharesToRedeem, PRECISION, pricePerShare); // Adjust for decimals
+        // Settle Incentives
+        _settleIncentive(msg.sender, amountIncentives);
 
         // Burn SuperUSD shares
-        if (amountSharesToRedeem == 0) revert ZeroAmount();
-        if (balanceOf(msg.sender) < amountSharesToRedeem) revert InsufficientBalance();
         _burn(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
-
-        uint256 amountBeforeFees;
-
-        if (isVault[tokenOut]) {
-            // Redeem from underlying vault
-            amountBeforeFees = IEIP7540(tokenOut).redeem(address(this), underlyingShares, IERC20(tokenOut).asset(), 0); // Use 0 for minAmount
-        } else {
-            // Handle ERC20 (simplified -  no vault involved, send directly)
-            amountBeforeFees = underlyingShares; // Example 1:1
-        }
-
-
-        // Calculate swap fees on output (example: 0.1% fee)
-        uint256 swapFee = (amountBeforeFees * 1) / 1000; // 0.1%
-        amountTokenOut = amountBeforeFees - swapFee;
 
         // Transfer swap fees to Asset Bank
         IERC20(tokenOut).safeTransferFrom(address(this), assetBank, swapFee);
 
         // Transfer assets to receiver
+        // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
         IERC20(tokenOut).safeTransfer(receiver, amountTokenOut);
 
-        if (amountTokenOut < minTokenOut) revert SlippageProtection();
-
-        emit Redeem(receiver, amountSharesToRedeem, tokenOut, amountTokenOut);
-        return amountTokenOut;
+        emit Redeem(receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentives);
     }
 
     /**
@@ -320,9 +278,8 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
         address tokenIn,
         uint256 amountTokenToDeposit,
         address tokenOut,
-        uint256 minSharesOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountTokenOut) {
+    ) external returns (uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut) {
         if (receiver == address(0)) revert ZeroAddress();
         uint256 amountSharesOut = deposit(address(this), tokenIn, amountTokenToDeposit, minSharesOut);
         amountTokenOut = redeem(receiver, amountSharesOut, tokenOut, minTokenOut);
@@ -373,12 +330,12 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
     function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
     public
     view
-    returns (uint256 amountSharesMinted, int256 amountIncentives)
+    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentives)
     {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
         // Calculate swap fees (example: 0.1% fee)
-        uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
+        swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
         uint256 amountTokenInAfterFees = amountTokenToDeposit - swapFee;
 
         // Get price of underlying vault shares in USD
@@ -422,7 +379,7 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
     function previewRedeem(address tokenOut, uint256 amountSharesToRedeem)
     public
     view
-    returns (uint256 amountTokenOutAfterFees, int256 amountIncentives)
+    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentives)
     {
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
 
@@ -435,7 +392,7 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
 
         // Calculate swap fees on output (example: 0.1% fee)
         // Calculate swap fees (example: 0.1% fee)
-        uint256 swapFee = Math.mulDiv(amountTokenOutBeforeFees, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
+        swapFee = Math.mulDiv(amountTokenOutBeforeFees, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
         amountTokenOutAfterFees = amountTokenOutBeforeFees - swapFee;
 
         // Get current and post-operation allocations
