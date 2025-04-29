@@ -32,12 +32,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
     // --- Constants ---
     uint256 public constant PRECISION = 1e18;
-    uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 1000; // Max 10% (1000 basis points)
+    uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 10**4; // Max 10% (1000 basis points)
     uint256 public constant DEPEG_LOWER_THRESHOLD = 98e16; // 0.98
     uint256 public constant DEPEG_UPPER_THRESHOLD = 102e16; // 1.02
     uint256 public constant DISPERSION_THRESHOLD = 1e16; // 1% relative standard deviation threshold
     uint256 public constant SWAP_FEE_PERC = 10**6; 
-    uint256 public constant ONE_SHARE = 1e18;
 
     // --- State ---
     mapping(address => bool) public isVault;
@@ -174,9 +173,22 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     }
 
 
-    function setSwapFeePercentage(uint256 _swapFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_swapFeePercentage > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
-        swapFeePercentage = _swapFeePercentage;
+    /**
+     * @notice Sets the swap fee percentage for deposits (input operations)
+     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
+     */
+    function setSwapFeeInPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
+        swapFeeInPercentage = _feePercentage;
+    }
+
+    /**
+     * @notice Sets the swap fee percentage for redemptions (output operations)
+     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
+     */
+    function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
+        swapFeeOutPercentage = _feePercentage;
     }
 
     // --- Token Movement Functions ---
@@ -395,7 +407,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
         // Calculate swap fees on output (example: 0.1% fee)
         // Calculate swap fees (example: 0.1% fee)
-        swapFee = Math.mulDiv(amountTokenOutBeforeFees, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
+        swapFee = Math.mulDiv(amountTokenOutBeforeFees, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         amountTokenOutAfterFees = amountTokenOutBeforeFees - swapFee;
 
         // Get current and post-operation allocations
@@ -448,9 +460,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         // Get token decimals
         uint256 oneUnit = 10**IERC20(tokenIn).decimals();
 
-        // NOTE: We need to pass ONE_SHARE to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
+        // NOTE: We need to pass oneUnit to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
         (priceUSD, uint256 stddev, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
-            oneUnit,  // Use token's actual decimals instead of ONE_SHARE
+            oneUnit,  
             tokenIn,
             USD,                    // TODO: Add USD definition
             AVERAGE_PROVIDER        // TODO: Add AVERAGE_PROVIDER definition, taking it from SuperOracle
