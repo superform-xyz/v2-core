@@ -70,7 +70,15 @@ abstract contract SuperExecutorBase is
 
     function execute(bytes calldata data) external virtual {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
-        _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
+        // data is structured as -
+        //    first 32 bytes: length of source hooks = n
+        //    data[32: 32 + n] = abi.encode(source hooks addresses, source hooks data)
+        //    data[32 + n: end] = abi.encode(target hooks addresses, target hooks data)
+        
+        uint256 sourceHooksLen = BytesLib.toUint256(data, 0);
+
+        (address[] memory hooksAddresses, bytes[] memory hooksData) = abi.decode(data[32: 32 + sourceHooksLen], (address[], bytes[]));
+        _execute(msg.sender, hooksAddresses, hooksData);
     }
 
     /*//////////////////////////////////////////////////////////////

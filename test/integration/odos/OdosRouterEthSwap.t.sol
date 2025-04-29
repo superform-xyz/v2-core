@@ -138,6 +138,7 @@ contract OdosRouterEthSwap is BaseTest {
         );
 
         uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
+        uint256 ethBalanceBefore = account.balance;
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = opData.userOp;
@@ -149,5 +150,8 @@ contract OdosRouterEthSwap is BaseTest {
 
         uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
+
+        uint256 ethBalanceAfter = account.balance;
+        assertEq(ethBalanceAfter, ethBalanceBefore);
     }
 }

@@ -73,6 +73,33 @@ contract SuperMerkleValidator is SuperValidatorBase {
         return isValid ? VALID_SIGNATURE : bytes4("");
     }
 
+    // this functions extracts the execution callData from the userOp calldata
+    function extractExecutionCalldata(bytes memory callData) external pure returns (bytes memory) {
+        // Skip the function selector (first 4 bytes)
+        bytes memory functionCalldata = new bytes(callData.length - 4);
+            for (uint256 i = 0; i < functionCalldata.length; i++) {
+                functionCalldata[i] = callData[i + 4];
+            }
+
+            // Decode the parameters
+            (, bytes memory executionCalldata) = abi.decode(functionCalldata, (bytes32, bytes));
+
+            return executionCalldata;
+    }
+
+    // this function extracts the superExecutor calldata from the execution calldata
+    function extractSuperExecutorCalldata(bytes calldata userOpCalldata) external pure returns (
+        bytes memory superExecutorCalldata
+    ) {
+        // first extract the executionCallData from the userOp.callData
+        bytes memory executionCallData = extractExecutionCalldata(userOpCalldata);
+
+        // first 20 bytes are the superExecutor address
+        // next 32 bytes are the value
+        // the rest is the calldata
+        superExecutorCalldata = executionCallData[52:];
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -81,8 +108,19 @@ contract SuperMerkleValidator is SuperValidatorBase {
     }
 
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
-        bytes32 userOpHash = abi.decode(data, (bytes32));
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil))));
+        PackedUserOperation memory userOp = abi.decode(data, (PackedUserOperation));
+        
+        bytes memory superExecutorCalldata = extractSuperExecutorCalldata(userOp.callData);
+
+        // now we need to extract the source hooks and destination hooks and create the leaf using source hooks and (bridging hook - signature)
+        uint256 sourceHooksLen = BytesLib.toUint256(data, 0);
+
+        (address bridgingHook, bytes memory bridgingHookData) = abi.decode(data[32: 32 + sourceHooksLen], (address, bytes));
+
+        // assuming signature is placed in last 20 bytes we remove that as it is inserted later
+        bytes memory bridgingHooksDataToUse = bridgingHookData[-20: 0]
+
+        return keccak256(bytes.concat(keccak256(abi.encode(superExecutorCalldata[0: 32 + sourceHooksLen], bridgingHook, bridgingHooksDataToUse, validUntil))));
     }
 
     /*//////////////////////////////////////////////////////////////
