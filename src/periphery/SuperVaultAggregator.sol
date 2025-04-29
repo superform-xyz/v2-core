@@ -128,12 +128,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Initialize strategy
         SuperVaultStrategy(strategy).initialize(
-            superVault,
-            params.manager,
-            params.strategist,
-            params.emergencyAdmin,
-            address(SUPER_GOVERNOR),
-            params.superVaultCap
+            superVault, params.manager, params.emergencyAdmin, address(SUPER_GOVERNOR), params.superVaultCap
         );
 
         // Store vault trio in registry
@@ -417,6 +412,14 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @inheritdoc ISuperVaultAggregator
     function getAuthorizedCallers(address strategy) external view returns (address[] memory callers) {
         return _strategyData[strategy].authorizedCallers;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getStrategist(address strategy) external view returns (address strategist) {
+        strategist = _strategyData[strategy].strategist;
+        if (strategist == address(0)) revert ZERO_ADDRESS();
+
+        return strategist;
     }
 
     /// @inheritdoc ISuperVaultAggregator

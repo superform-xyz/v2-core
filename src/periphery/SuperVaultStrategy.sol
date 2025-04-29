@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { Pausable } from "openzeppelin-contracts/contracts/utils/Pausable.sol";
 import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -22,15 +21,15 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 // Periphery Interfaces
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
-import { IPeripheryRegistry } from "./interfaces/IPeripheryRegistry.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
-import { ISuperAdjudicator } from "./interfaces/ISuperAdjudicator.sol";
+import { ISuperGovernor } from "./interfaces/ISuperGovernor.sol";
+import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperVaultStrategy
 /// @author SuperForm Labs
 /// @notice Strategy implementation for SuperVault that manages yield sources, executes strategies, and uses optimistic
 /// PPS.
-contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
+contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -45,8 +44,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     // Role identifiers
     bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 private constant STRATEGIST_ROLE = keccak256("STRATEGIST_ROLE");
     bytes32 private constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
+
+    // Slippage tolerance in BPS (1%)
+    uint256 private constant SV_SLIPPAGE_TOLERANCE_BPS = 100;
 
     /*//////////////////////////////////////////////////////////////
                                 STATE
@@ -64,8 +65,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     FeeConfig private proposedFeeConfig;
     uint256 private feeConfigEffectiveTime;
 
-    // Registry
-    IPeripheryRegistry private peripheryRegistry;
+    // Core contracts
+    ISuperGovernor private superGovernor;
 
     // Hook root configuration
     bytes32 private hookRoot;
@@ -86,14 +87,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     address[] private yieldSourcesList;
     address[] private asyncYieldSourcesList;
 
-    // --- Optimistic PPS State ---
-    uint256 private storedPPS;
-    uint256 private lastUpdateTimestamp;
-
-    // --- Optimistic PPS Configuration ---
-    uint256 private minTimeBetweenUpdates;
-    uint256 private maxPPSDeviationBps;
-    uint256 private maxCalculationBlockAge;
+    // PPS is now managed by SuperVaultAggregator
 
     // --- Redeem Request State ---
     mapping(address controller => SuperVaultState state) private superVaultState;
@@ -109,35 +103,27 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     function initialize(
         address vault_,
         address manager_,
-        address strategist_,
         address emergencyAdmin_,
-        address peripheryRegistry_,
+        address superGovernor_,
         uint256 superVaultCap_
     )
         external
     {
         if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
-
         if (manager_ == address(0)) revert INVALID_MANAGER();
-        if (strategist_ == address(0)) revert INVALID_STRATEGIST();
         if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
-        if (peripheryRegistry_ == address(0)) revert INVALID_PERIPHERY_REGISTRY();
+        if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
         if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
 
         _initialized = true;
         _vault = vault_;
-
-        // Store config
+        superGovernor = ISuperGovernor(superGovernor_);
         superVaultCap = superVaultCap_;
-        peripheryRegistry = IPeripheryRegistry(peripheryRegistry_);
 
-        _initializeRoles(peripheryRegistry_, manager_, strategist_, emergencyAdmin_);
-        _initializePPSState();
-        _initializePPSConfigDefaults();
+        _initializeRoles(manager_, emergencyAdmin_);
 
-        emit Initialized(_vault, manager_, strategist_, emergencyAdmin_, superVaultCap_);
-        emit PPSUpdated(storedPPS, block.number);
+        emit Initialized(_vault, manager_, emergencyAdmin_, superGovernor_, superVaultCap_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -149,8 +135,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         _requireVault();
 
         if (operation == Operation.Deposit) {
-            // note: all deposits are blocked if strategist doesn't have a minimum stake
-            _checkStrategistMinStake(addresses[STRATEGIST_ROLE]);
+            _getAndCheckStrategist();
 
             _handleDeposit(controller, assets, shares);
         } else if (operation == Operation.RedeemRequest) {
@@ -164,27 +149,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         }
     }
 
-    /// @inheritdoc ISuperVaultStrategy
-    function updatePPS(uint256 newPPS, uint256 calculationBlock_) external onlyRole(STRATEGIST_ROLE) whenNotPaused {
-        _checkStrategistMinStake(msg.sender);
-        _checkPPSRateLimit();
-        _checkPPSDeviation(newPPS);
-        _checkCalculationBlockAge(calculationBlock_);
-
-        storedPPS = newPPS;
-        // todo we need this for rate limitation, otherwise can remove lastUpdateTimestamp
-        lastUpdateTimestamp = block.timestamp;
-
-        emit PPSUpdated(newPPS, calculationBlock_);
-    }
-
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function executeHooks(ExecuteArgs calldata args) external nonReentrant onlyRole(STRATEGIST_ROLE) {
-        _checkStrategistMinStake(msg.sender);
+    function executeHooks(ExecuteArgs calldata args) external nonReentrant {
+        _getAndCheckStrategist();
+        // TODO check msg-sender to be a valid caller
 
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
@@ -203,10 +175,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     }
 
     /// @inheritdoc ISuperVaultStrategy
-    function fulfillRedeemRequests(FulfillArgs calldata args) external nonReentrant onlyRole(STRATEGIST_ROLE) {
+    function fulfillRedeemRequests(FulfillArgs calldata args) external nonReentrant {
         // note: this prevents users from exiting till strategist has a minimum stake
         // todo: implement emergency procedure could allow an adjudicator to take over strategist and allow exit here?
-        _checkStrategistMinStake(msg.sender);
+        _getAndCheckStrategist();
+        // todo check caller
 
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
@@ -216,7 +189,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         if (args.controllers.length != controllersLength) revert INVALID_ARRAY_LENGTH();
 
         uint256 processedShares;
-        uint256 currentPPS = storedPPS;
+        uint256 currentPPS = _getSuperVaultAggregator().getPPS(address(this));
         if (currentPPS == 0) revert INVALID_PPS();
 
         for (uint256 i; i < hooksLength; ++i) {
@@ -308,30 +281,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     function setAddress(bytes32 role, address account) external onlyRole(MANAGER_ROLE) {
         if (account == address(0)) revert ZERO_ADDRESS();
         if (role == MANAGER_ROLE && account != msg.sender) revert ACCESS_DENIED();
-        if (role == STRATEGIST_ROLE) {
-            // Check if the sender is a registered strategist
-            address adjudicator = peripheryRegistry.getSuperAdjudicator();
-            if (adjudicator == address(0)) revert ZERO_ADDRESS();
-            if (!ISuperAdjudicator(adjudicator).isStrategist(account)) {
-                revert STRATEGIST_NOT_AUTHORIZED();
-            }
-        }
+        // STRATEGIST_ROLE is no longer set here - managed by SuperVaultAggregator
         addresses[role] = account;
     }
 
-    function setMinTimeBetweenUpdates(uint256 newMinTime) external onlyRole(MANAGER_ROLE) {
-        minTimeBetweenUpdates = newMinTime;
-    }
-
-    function setMaxPPSDeviationBps(uint256 newMaxDeviationBps) external onlyRole(MANAGER_ROLE) {
-        if (newMaxDeviationBps > BPS_PRECISION) revert INVALID_AMOUNT();
-        maxPPSDeviationBps = newMaxDeviationBps;
-    }
-
-    function setMaxCalculationBlockAge(uint256 newMaxAge) external onlyRole(MANAGER_ROLE) {
-        if (newMaxAge == 0) revert INVALID_AMOUNT();
-        maxCalculationBlockAge = newMaxAge;
-    }
+    // PPS configuration is now managed by SuperVaultAggregator
 
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external {
         if (action == 1) {
@@ -343,14 +297,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         } else {
             revert ACTION_TYPE_DISALLOWED();
         }
-    }
-
-    function pause() external onlyRole(STRATEGIST_ROLE) {
-        _pause();
-    }
-
-    function unpause() external onlyRole(STRATEGIST_ROLE) {
-        _unpause();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -382,7 +328,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     }
 
     function getStoredPPS() external view returns (uint256) {
-        return storedPPS;
+        return _getSuperVaultAggregator().getPPS(address(this));
     }
 
     function getYieldSource(address source) external view returns (YieldSource memory) {
@@ -411,57 +357,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         return superVaultState[controller].averageWithdrawPrice;
     }
 
-    function getMinTimeBetweenUpdates() external view returns (uint256) {
-        return minTimeBetweenUpdates;
-    }
-
-    function getMaxPPSDeviationBps() external view returns (uint256) {
-        return maxPPSDeviationBps;
-    }
-
-    function getMaxCalculationBlockAge() external view returns (uint256) {
-        return maxCalculationBlockAge;
-    }
-
-    function getLastUpdateTimestamp() external view returns (uint256) {
-        return lastUpdateTimestamp;
-    }
+    // PPS configuration is now managed by SuperVaultAggregator
 
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     // --- Internal Initialization Helpers ---
-    function _initializeRoles(
-        address peripheryRegistry_,
-        address manager_,
-        address strategist_,
-        address emergencyAdmin_
-    )
-        internal
-    {
+    function _initializeRoles(address manager_, address emergencyAdmin_) internal {
         addresses[MANAGER_ROLE] = manager_;
-
-        address adjudicator = IPeripheryRegistry(peripheryRegistry_).getSuperAdjudicator();
-        if (adjudicator == address(0)) revert ZERO_ADDRESS();
-        if (!ISuperAdjudicator(adjudicator).isStrategist(strategist_)) {
-            revert STRATEGIST_NOT_AUTHORIZED();
-        }
-        addresses[STRATEGIST_ROLE] = strategist_;
         addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
     }
-
-    function _initializePPSState() internal {
-        storedPPS = PRECISION;
-        lastUpdateTimestamp = block.timestamp;
-    }
-
-    function _initializePPSConfigDefaults() internal {
-        minTimeBetweenUpdates = 1 minutes;
-        maxPPSDeviationBps = 100;
-        maxCalculationBlockAge = 100;
-    }
-    // --- End Internal Initialization Helpers ---
 
     // --- Hook Execution ---
 
@@ -670,14 +576,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, BPS_PRECISION, Math.Rounding.Floor);
             if (totalFee > 0) {
-                // Calculate Superform's portion of the fee
+                // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
                 uint256 superformFee =
-                    totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), BPS_PRECISION, Math.Rounding.Floor);
+                    totalFee.mulDiv(superGovernor.getRevenueShare(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees
                 if (superformFee > 0) {
-                    address treasury = peripheryRegistry.getTreasury();
+                    // Get treasury address from SuperGovernor
+                    address treasury = superGovernor.getAddress(superGovernor.TREASURY());
                     _safeTokenTransfer(address(_asset), treasury, superformFee);
                     emit FeePaid(treasury, superformFee, performanceFeeBps);
                 }
@@ -718,48 +625,31 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
 
     // --- End Hook Execution ---
 
-    // --- Internal PPS Update Helpers ---
-    function _checkStrategistMinStake(address strategist) internal view {
-        address adjudicator = peripheryRegistry.getSuperAdjudicator();
-        if (adjudicator == address(0)) revert ZERO_ADDRESS();
+    // --- Internal Strategist Check Helpers ---
+    function _getAndCheckStrategist() internal view {
+        // Get the strategist from the aggregator
+        address strategist = _getStrategist();
+        // Check if strategist
+        _isStrategist(strategist);
+    }
 
-        // Check if the strategist has the minimum required stake
-        ISuperAdjudicator.StakeInfo memory stakeInfo = ISuperAdjudicator(adjudicator).getStakeInfo(strategist);
-        if (stakeInfo.totalStake < ISuperAdjudicator(adjudicator).minStrategistStake()) {
-            revert STAKE_TOO_LOW();
+    function _getSuperVaultAggregator() internal view returns (ISuperVaultAggregator) {
+        address aggregatorAddress = superGovernor.getAddress(superGovernor.SUPER_VAULT_AGGREGATOR());
+
+        return ISuperVaultAggregator(aggregatorAddress);
+    }
+
+    function _getStrategist() internal view returns (address) {
+        return _getSuperVaultAggregator().getStrategist(address(this));
+    }
+
+    function _isStrategist(address strategist_) internal view {
+        if (!superGovernor.isStrategist(strategist_)) {
+            revert STRATEGIST_NOT_AUTHORIZED();
         }
     }
 
-    function _checkPPSRateLimit() internal view {
-        if (block.timestamp < lastUpdateTimestamp + minTimeBetweenUpdates) {
-            revert PPS_UPDATE_RATE_LIMITED();
-        }
-    }
-
-    function _checkPPSDeviation(uint256 newPPS) internal {
-        uint256 oldPPS_ = storedPPS;
-        if (oldPPS_ == 0) return;
-
-        uint256 deviationBps;
-        if (newPPS > oldPPS_) {
-            deviationBps = (newPPS - oldPPS_).mulDiv(BPS_PRECISION, oldPPS_, Math.Rounding.Ceil);
-        } else {
-            deviationBps = (oldPPS_ - newPPS).mulDiv(BPS_PRECISION, oldPPS_, Math.Rounding.Ceil);
-        }
-
-        if (deviationBps > maxPPSDeviationBps) {
-            _pause();
-            revert PPS_OUT_OF_BOUNDS();
-        }
-    }
-
-    function _checkCalculationBlockAge(uint256 calculationBlock_) internal view {
-        if (block.number < calculationBlock_) revert INVALID_TIMESTAMP();
-        if (block.number - calculationBlock_ > maxCalculationBlockAge) {
-            revert CALCULATION_BLOCK_TOO_OLD();
-        }
-    }
-    // --- End Internal PPS Update Helpers ---
+    // --- End Internal Strategist Check Helpers ---
 
     function _addYieldSource(address source, address oracle, bool isAsync) internal {
         if (source == address(0) || oracle == address(0)) revert ZERO_ADDRESS();
@@ -828,7 +718,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
     }
 
     function _isFulfillRequestsHook(address hook) private view returns (bool) {
-        return peripheryRegistry.isFulfillRequestsHookRegistered(hook);
+        return superGovernor.isFulfillRequestsHookRegistered(hook);
     }
 
     function _decodeHookAmount(address hook, bytes memory hookCalldata) private pure returns (uint256 amount) {
@@ -921,8 +811,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, Pausable, ReentrancyGuard {
         return IERC20(token).balanceOf(account);
     }
 
-    function _getSlippageTolerance() private view returns (uint256) {
-        return peripheryRegistry.svSlippageTolerance();
+    function _getSlippageTolerance() private pure returns (uint256) {
+        return SV_SLIPPAGE_TOLERANCE_BPS;
     }
 
     function _requireVault() internal view {

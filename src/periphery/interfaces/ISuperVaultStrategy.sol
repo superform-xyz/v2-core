@@ -59,8 +59,8 @@ interface ISuperVaultStrategy {
     event Initialized(
         address indexed vault,
         address indexed manager,
-        address indexed strategist,
         address emergencyAdmin,
+        address superGovernor,
         uint256 superVaultCap
     );
     event YieldSourceAdded(address indexed source, address indexed oracle);
@@ -171,17 +171,27 @@ interface ISuperVaultStrategy {
                         CORE STRATEGY OPERATIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Initializes the strategy with required parameters
+    /// @param vault_ Address of the associated SuperVault
+    /// @param manager_ Address of the strategy manager
+    /// @param emergencyAdmin_ Address of the emergency admin
+    /// @param superGovernor_ Address of the SuperGovernor contract
+    /// @param superVaultCap_ Maximum cap for the vault in underlying asset units
+    function initialize(
+        address vault_,
+        address manager_,
+        address emergencyAdmin_,
+        address superGovernor_,
+        uint256 superVaultCap_
+    )
+        external;
+
     /// @notice Handles asynchronous redeem operations initiated by the Vault.
     /// @param controller Controller address for the redeem operation.
     /// @param assets For Redeem Request: Ignored. For Claim Redeem: assets amount. For Cancel: Ignored.
     /// @param shares For Redeem Request: shares amount. For Claim Redeem: Ignored. For Cancel: Ignored.
     /// @param operation The type of redeem operation (RedeemRequest, CancelRedeem, ClaimRedeem).
     function handleOperation(address controller, uint256 assets, uint256 shares, Operation operation) external;
-
-    /// @notice Updates the stored Price Per Share (PPS).
-    /// @param newPPS The newly calculated PPS value (1e18 scaled).
-    /// @param calculationBlock_ The block number at which `newPPS` was determined.
-    function updatePPS(uint256 newPPS, uint256 calculationBlock_) external;
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
@@ -284,10 +294,4 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @return claimableAssets The amount of assets claimable
     function claimableWithdraw(address controller) external view returns (uint256 claimableAssets);
-
-    // Added view functions for PPS config
-    function getMinTimeBetweenUpdates() external view returns (uint256);
-    function getMaxPPSDeviationBps() external view returns (uint256);
-    function getMaxCalculationBlockAge() external view returns (uint256);
-    function getLastUpdateTimestamp() external view returns (uint256); // Needed for off-chain checks/UI
 }

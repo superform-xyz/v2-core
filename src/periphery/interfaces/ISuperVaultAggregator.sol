@@ -214,6 +214,11 @@ interface ISuperVaultAggregator {
     /// @return callers Array of authorized callers
     function getAuthorizedCallers(address strategy) external view returns (address[] memory callers);
 
+    /// @notice Gets the strategist for a strategy
+    /// @param strategy Address of the strategy
+    /// @return strategist Address of the strategist
+    function getStrategist(address strategy) external view returns (address strategist);
+
     /// @notice Gets the current upkeep balance for a strategist
     /// @param strategist Address of the strategist
     /// @return balance Current upkeep balance in UP tokens
