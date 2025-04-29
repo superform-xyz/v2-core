@@ -11,6 +11,7 @@ import "./interfaces/IIncentiveCalculationContract.sol";
 import "./interfaces/IIncentiveFundContract.sol";
 import "./interfaces/IAsetBank.sol";
 import "./interfaces/ISuperAsset.sol";
+import "../../interfaces/ISuperOracle.sol";
 
 /**
  * @title SuperAsset
@@ -30,7 +31,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
 
     // --- Constants ---
-    uint256 private constant PRECISION = 1e18;
+    uint256 public constant PRECISION = 1e18;
+    uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 1000; // Max 10% (1000 basis points)
+    uint256 public constant DEPEG_LOWER_THRESHOLD = 98e16; // 0.98
+    uint256 public constant DEPEG_UPPER_THRESHOLD = 102e16; // 1.02
+    uint256 public constant DISPERSION_THRESHOLD = 1e16; // 1% relative standard deviation threshold
+    uint256 public constant SWAP_FEE_PERC = 10**6; 
+    uint256 public constant ONE_SHARE = 1e18;
 
     // --- State ---
     mapping(address => bool) public isVault;
@@ -47,11 +54,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
-
-    // Add a constant equal to 10^6
-    uint256 public constant SWAP_FEE_PERC = 10**6; 
-    uint256 public constant MAX_SWAP_FEE_PERC = 1000; // TODO: Adjust 
-    uint256 public constant ONE_SHARE = 1e18;
 
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
@@ -100,8 +102,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (icc_ == address(0)) revert ZeroAddress();
         if (ifc_ == address(0)) revert ZeroAddress();
         if (assetBank_ == address(0)) revert ZeroAddress();
-        if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
-        if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
+        if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
+        if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
         
         incentiveCalculationContract = icc_;
         incentiveFundContract = ifc_;
@@ -169,7 +171,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
 
     function setSwapFeePercentage(uint256 _swapFeePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_swapFeePercentage > MAX_SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
+        if (_swapFeePercentage > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
         swapFeePercentage = _swapFeePercentage;
     }
 
@@ -194,8 +196,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (receiver == address(0)) revert ZeroAddress();
 
         // Calculate and settle incentives
-        (uint256 amountIncentives,) = previewDeposit(tokenIn, amountTokenToDeposit);
-        _settleIncentive(msg.sender, int256(amountIncentives));
+        (int256 amountIncentives,) = previewDeposit(tokenIn, amountTokenToDeposit);
+        _settleIncentive(msg.sender, amountIncentives);
 
         // Transfer the tokenIn from the sender to this contract
         // If there is not enough allowance or balance, this will revert and saves gas
@@ -287,7 +289,7 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
 
 
         // Calculate swap fees on output (example: 0.1% fee)
-        uint256 swapFee = (amountBeforeFees * swapFeeOutPercentage) / SWAP_FEE_PERC;
+        uint256 swapFee = (amountBeforeFees * 1) / 1000; // 0.1%
         amountTokenOut = amountBeforeFees - swapFee;
 
         // Transfer swap fees to Asset Bank
@@ -370,7 +372,7 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
     function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
     public
     view
-    returns (uint256 amountSharesOut, uint256 amountIncentives)
+    returns (uint256 amountSharesOut, int256 amountIncentives)
     {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
@@ -497,22 +499,27 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
     view
     returns (uint256 amountUSD, uint256 stddev, uint256 N, uint256 M)
     {
-        if (isVault[tokenIn]) {
-            return getPPS(tokenIn);
-        } else if (isERC20[tokenIn]) {
-            return getPriceERC20(tokenIn);
-        } else {
-            revert NotSupportedToken();
-        }
+        (amountUSD, stddev, N, M) = ISuperOracle(superOracle).getMeanPrice(tokenIn);
+        // amountUSD = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
+        // stddev = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
+
+        // if (isVault[tokenIn]) {
+        //     return getPPS(tokenIn);
+        // } else if (isERC20[tokenIn]) {
+        //     return getPriceERC20(tokenIn);
+        // } else {
+        //     revert NotSupportedToken();
+        // }
     }
 
     function relativeStdDev(uint256 mu, uint256 sigma) pure returns (uint256) {
         return Math.mulDiv(sigma, PRECISION, mu); // Adjust for decimals
     }
-
+    
+    // @dev: This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
     function convertAssetToUSD(address tokenIn, uint256 amountAsset) public view returns (uint256 amountUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
-        (uint256 mu, uint256 sigma, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
+        (uint256 amountUSD, uint256 stddev, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
             amountAsset,
             tokenIn,
             USD,                    // TODO: Add USD definition
@@ -524,39 +531,53 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
             return (emergencyPrices[tokenIn], false, false, true);
         }
 
-//        (uint256 mu, uint256 sigma, uint256 N, uint256 M) = getPrice(tokenIn);
-        amountUSD = Math.mulDiv(amountAsset, mu, PRECISION); // Adjust for decimals
+        // Calculate relative standard deviation
+        uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, amountUSD);
+        // Circuit Breaker for Depeg - price deviates more than ±2% from expected
+        if (amountUSD < DEPEG_LOWER_THRESHOLD || amountUSD > DEPEG_UPPER_THRESHOLD) {
+            return (amountUSD, true, false, false);
+        }
+        // Circuit Breaker for Dispersion
+        if (relativeStdDev > DISPERSION_THRESHOLD) {
+            return (amountUSD, false, true, false);
+        }
+        amountUSD = Math.mulDiv(amountAsset, amountUSD, PRECISION); // Adjust for decimals
+        return (amountUSD, false, false, false);
     }
 
-    /**
-     * @notice Gets the price per share of a vault in USD.
-     * @param share The address of the vault.
-     * @return ppsMu The price per share (mean).
-     * @return ppsSigma The standard deviation of the price per share.
-     * @return N Oracle parameter.
-     * @return M Oracle parameter.
-     */
-    function getPPS(address share)
-    public
-    view
-    returns (uint256 ppsMu, uint256 ppsSigma, uint256 N, uint256 M)
-    {
-        if (!isVault[share]) revert NotVault();
-        address asset = IEIP7540(share).asset(); // or IEIP4626
-        uint256 amountAssetPerShare = IEIP7540(share).convertToAssets(ONE_SHARE); // Amount of asset for 1 share.
-        (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
-        ppsMu = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
-        ppsSigma = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
-    }
+    // /**
+    //  * @notice Gets the price per share of a vault in USD.
+    //  * @param share The address of the vault.
+    //  * @return ppsMu The price per share (mean).
+    //  * @return ppsSigma The standard deviation of the price per share.
+    //  * @return N Oracle parameter.
+    //  * @return M Oracle parameter.
+    //  */
+    // function getPPS(address share)
+    // public
+    // view
+    // returns (uint256 ppsMu, uint256 ppsSigma, uint256 N, uint256 M)
+    // {
+    //     if (!isVault[share]) revert NotVault();
+    //     address asset = IEIP7540(share).asset(); // or IEIP4626
+    //     uint256 amountAssetPerShare = IEIP7540(share).convertToAssets(ONE_SHARE); // Amount of asset for 1 share.
+    //     (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
 
-    function getPriceERC20(address token)
-        public
-        view
-        returns (uint256 mu, uint256 sigma, uint256 N, uint256 M)
-    {
-        if (!isERC20[token]) revert NotERC20Token();
-        (mu, sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(token);
-    }
+    //     (uint256 mu, uint256 sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(asset);
+    //     ppsMu = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
+    //     ppsSigma = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
+    //     ppsMu = Math.mulDiv(amountAssetPerShare, mu, PRECISION); //  Adjust for decimals
+    // //     ppsSigma = Math.mulDiv(amountAssetPerShare, sigma, PRECISION); // Adjust for decimals
+    // // }
+
+    // // function getPriceERC20(address token)
+    // //     public
+    // //     view
+    // //     returns (uint256 mu, uint256 sigma, uint256 N, uint256 M)
+    // {
+    //     if (!isERC20[token]) revert NotERC20Token();
+    //     (mu, sigma, N, M) = ISuperOracle(superOracle).getMeanPrice(token);
+    // }
 
     // --- Settlement Token Management ---
 
