@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./IncentiveCalculationContract.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/IIncentiveFundContract.sol";
 import "./interfaces/IIncentiveFundErrors.sol";
+import "./IncentiveCalculationContract.sol";
+import "./SuperAsset.sol";
 
 /**
  * @title Incentive Fund Contract
@@ -14,27 +17,43 @@ import "./interfaces/IIncentiveFundErrors.sol";
  * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
  * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
  */
-contract IncentiveFundContract is AccessControl, IIncentiveFundContract, IIncentiveFundErrors {
+contract IncentiveFundContract is IIncentiveFundContract, IIncentiveFundErrors, AccessControl {
     using SafeERC20 for IERC20;
 
-    // --- Roles ---
-    bytes32 public constant override INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    // --- Constants ---
+    bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
-    // --- State ---
-    address public override tokenInIncentive;  // The token users send incentives to
-    address public override tokenOutIncentive; // The token we pay incentives with
+    // --- State Variables ---
+    address public override tokenInIncentive;
+    address public override tokenOutIncentive;
+    SuperAsset public superAsset;
 
     // --- Events ---
-    event IncentivePaid(address receiver, address tokenOut, uint256 amount);
-    event IncentiveTaken(address sender, address tokenIn, uint256 amount);
+    event IncentivePaid(address indexed receiver, address indexed token, uint256 amount);
+    event IncentiveTaken(address indexed sender, address indexed token, uint256 amount);
     event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
     event SettlementTokenInSet(address token);
     event SettlementTokenOutSet(address token);
 
     // --- Constructor ---
-    constructor() {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(INCENTIVE_FUND_MANAGER, msg.sender);
+    constructor(address _superAsset) {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
+        if (_superAsset == address(0)) revert ZERO_ADDRESS();
+        superAsset = SuperAsset(_superAsset);
+    }
+
+    // --- External Functions ---
+    function setTokenInIncentive(address token) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        tokenInIncentive = token;
+        emit SettlementTokenInSet(token);
+    }
+
+    function setTokenOutIncentive(address token) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        tokenOutIncentive = token;
+        emit SettlementTokenOutSet(token);
     }
 
     // --- Internal Functions ---
@@ -48,13 +67,24 @@ contract IncentiveFundContract is AccessControl, IIncentiveFundContract, IIncent
      */
     function payIncentive(
         address receiver,
-        uint256 amount
+        uint256 amountUSD
     ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
-        _validateInput(receiver, amount);
+        _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
 
-        IERC20(tokenOutIncentive).safeTransfer(receiver, amount);
-        emit IncentivePaid(receiver, tokenOutIncentive, amount);
+        // Get token price and check circuit breakers
+        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) = 
+            superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
+
+        // Revert if any circuit breaker is triggered
+        if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
+
+        // Convert USD amount to token amount using price
+        // amountToken = amountUSD / priceUSD
+        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.PRECISION(), priceUSD);
+
+        IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
+        emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
     }
 
     /**
@@ -62,13 +92,24 @@ contract IncentiveFundContract is AccessControl, IIncentiveFundContract, IIncent
      */
     function takeIncentive(
         address sender,
-        uint256 amount
+        uint256 amountUSD
     ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
-        _validateInput(sender, amount);
+        _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
 
-        IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amount);
-        emit IncentiveTaken(sender, tokenInIncentive, amount);
+        // Get token price and check circuit breakers
+        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) = 
+            superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
+
+        // Revert if any circuit breaker is triggered
+        if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
+
+        // Convert USD amount to token amount using price
+        // amountToken = amountUSD / priceUSD
+        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.PRECISION(), priceUSD);
+
+        IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
+        emit IncentiveTaken(sender, tokenInIncentive, amountToken);
     }
 
     /**
@@ -84,27 +125,5 @@ contract IncentiveFundContract is AccessControl, IIncentiveFundContract, IIncent
 
         IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
-    }
-
-    /**
-     * @inheritdoc IIncentiveFundContract
-     */
-    function setSettlementTokenIn(
-        address token
-    ) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenInIncentive = token;
-        emit SettlementTokenInSet(token);
-    }
-
-    /**
-     * @inheritdoc IIncentiveFundContract
-     */
-    function setSettlementTokenOut(
-        address token
-    ) external override onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenOutIncentive = token;
-        emit SettlementTokenOutSet(token);
     }
 }
