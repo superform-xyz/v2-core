@@ -42,6 +42,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     // --- State ---
     mapping(address => bool) public isVault;
     mapping(address => bool) public isERC20;
+    
     EnumerableSet.AddressSet private _supportedVaults;
     address public immutable incentiveCalculationContract;  // Address of the ICC
     address public immutable incentiveFundContract;      // Address of the Incentive Fund Contract
@@ -472,26 +473,24 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
     function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
     public
     view
-    returns (uint256 amountSharesOut, uint256 amountIncentives)
+    returns (uint256 amountTokenOutAfterFees, int256 amountIncentivesDeposit, int256 amountIncentivesRedeem)
     {
-        (amountSharesOut, amountIncentives) = previewDeposit(tokenIn, amountTokenToDeposit);
-        (, amountIncentives) = previewRedeem(tokenOut, amountSharesOut); // incentives are cumulative in this simplified example.
+        (uint256 amountSharesMinted, amountIncentivesDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
+        (amountTokenOutAfterFees, amountIncentivesRedeem) = previewRedeem(tokenOut, amountSharesMinted); // incentives are cumulative in this simplified example.
     }
 
-
-    // function relativeStdDev(uint256 mu, uint256 sigma) pure returns (uint256) {
-    //     return Math.mulDiv(sigma, PRECISION, mu); // Adjust for decimals
-    // }
     
     // @dev: This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
     // @dev: Getting only single unit price
-    // TODO: Handle the decimals properly 
     function getPriceWithCircuitBreakers(address tokenIn) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
+        // Get token decimals
+        uint256 oneUnit = 10**IERC20(tokenIn).decimals();
+
         // NOTE: We need to pass ONE_SHARE to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
         (priceUSD, uint256 stddev, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
-            ONE_SHARE,  // TODO: Handle the decimals properly for different types of assets 
+            oneUnit,  // Use token's actual decimals instead of ONE_SHARE
             tokenIn,
             USD,                    // TODO: Add USD definition
             AVERAGE_PROVIDER        // TODO: Add AVERAGE_PROVIDER definition, taking it from SuperOracle
