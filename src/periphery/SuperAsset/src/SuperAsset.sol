@@ -50,7 +50,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
     // Add a constant equal to 10^6
     uint256 public constant SWAP_FEE_PERC = 10**6; 
-    uint256 public constant MAX_SWAP_FEE_PERC = 1000; 
+    uint256 public constant MAX_SWAP_FEE_PERC = 1000; // TODO: Adjust 
     uint256 public constant ONE_SHARE = 1e18;
 
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
@@ -100,8 +100,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (icc_ == address(0)) revert ZeroAddress();
         if (ifc_ == address(0)) revert ZeroAddress();
         if (assetBank_ == address(0)) revert ZeroAddress();
-        if (swapFeeInPercentage_ > SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
-        if (swapFeeOutPercentage_ > SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
+        if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
+        if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERC) revert InvalidSwapFeePercentage();
         
         incentiveCalculationContract = icc_;
         incentiveFundContract = ifc_;
@@ -375,27 +375,25 @@ d        _settleIncentive(msg.sender, int256(amountIncentives));
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
         // Calculate swap fees (example: 0.1% fee)
-        uint256 swapFee = (amountTokenToDeposit * 1) / 1000; // 0.1%
+        uint256 swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
         uint256 amountAfterFees = amountTokenToDeposit - swapFee;
 
-        uint256 underlyingShares;
-        if (isVault[tokenIn]) {
-            underlyingShares = IEIP7540(tokenIn).previewDeposit(amountAfterFees);
-        } else {
-            underlyingShares = amountAfterFees;
-        }
+        // uint256 underlyingShares;
+        // if (isVault[tokenIn]) {
+        //     underlyingShares = IEIP7540(tokenIn).previewDeposit(amountAfterFees);
+        // } else {
+        //     underlyingShares = amountAfterFees;
+        // }
 
         // Get price of underlying vault shares in USD
-        (uint256 pricePerShare,) = getPrice(tokenIn);
+        (uint256 price,) = getPrice(tokenIn);
 
         // Calculate SuperUSD shares to mint
-        amountSharesOut = Math.mulDiv(underlyingShares, pricePerShare, PRECISION); // Adjust for decimals
+        amountSharesOut = Math.mulDiv(amountAfterFees, price, PRECISION); // Adjust for decimals
 
         // Calculate incentives (using ICC)
         amountIncentives = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             new uint256[](0), // Placeholder, adjust as needed
-            new uint256[](0), // Placeholder, adjust as needed
-            new uint256[](0)  // Placeholder, adjust as needed
         );
     }
 
