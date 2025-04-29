@@ -54,6 +54,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
+    uint256 public energyToUSDExchangeRatio;
 
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
 
@@ -71,6 +72,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     event SettlementTokenOutSet(address token);
     event SuperOracleSet(address oracle);
     event TargetAllocationSet(address token, uint256 allocation);
+    event EnergyToUSDExchangeRatioSet(uint256 newRatio);
 
     // --- Modifiers ---
     modifier onlyVault() {
@@ -206,14 +208,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         address tokenIn,
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
-    ) external returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentives) {
+    ) external returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
         // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZeroAmount();
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
 
         // Calculate and settle incentives
-        (amountSharesMinted, swapFee, amountIncentives) = previewDeposit(tokenIn, amountTokenToDeposit);
+        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
         if (amountSharesMinted == 0) revert ZeroAmount();
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SlippageProtection();
@@ -221,7 +223,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         // State Changing Functions //
 
         // Settle Incentives
-        _settleIncentive(msg.sender, amountIncentives);
+        _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
 
         // Transfer the tokenIn from the sender to this contract
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
@@ -233,7 +235,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
 
-        emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentives);
+        emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
     }
 
     /**
@@ -249,13 +251,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256 amountSharesToRedeem,
         address tokenOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentives) {
+    ) external returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) {
         if (amountSharesToRedeem == 0) revert ZeroAmount();
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
 
         // Calculate and settle incentives
-        (amountTokenOutAfterFees, swapFee, amountIncentives) = previewRedeem(tokenOut, amountSharesToRedeem);
+        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) = previewRedeem(tokenOut, amountSharesToRedeem);
         if (amountTokenOutAfterFees == 0) revert ZeroAmount();
         // Slippage Check
         if (amountTokenOutAfterFees < minTokenOut) revert SlippageProtection();
@@ -263,7 +265,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         // State Changing Functions //
 
         // Settle Incentives
-        _settleIncentive(msg.sender, amountIncentives);
+        _settleIncentive(msg.sender, amountIncentiveUSDRedeem);
 
         // Burn SuperUSD shares
         _burn(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
@@ -275,7 +277,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
         IERC20(tokenOut).safeTransfer(receiver, amountTokenOut);
 
-        emit Redeem(receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentives);
+        emit Redeem(receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem);
     }
 
     /**
@@ -340,12 +342,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
      * @param tokenIn The address of the underlying asset to deposit.
      * @param amountTokenToDeposit The amount of the underlying asset to deposit.
      * @return amountSharesOut The amount of SuperUSD shares that would be minted.
-     * @return amountIncentives The amount of incentives.
+     * @return amountIncentiveUSD The amount of incentives in USD.
      */
     function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
     public
     view
-    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentives)
+    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD)
     {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
@@ -372,7 +374,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         ) = getAllocationsPrePostOperation(tokenIn, amountTokenToDeposit);
 
         // Calculate incentives (using ICC)
-        amountIncentives = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             allocationPreOperation,
             totalAllocationPreOperation,
             allocationPostOperation,
@@ -380,7 +382,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             allocationTarget,
             totalAllocationTarget,
             weights,
-            energyToTokenExchangeRatio
+            energyToUSDExchangeRatio
         );
     }
 
@@ -389,12 +391,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
      * @param tokenOut The address of the underlying asset to redeem for.
      * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
      * @return amountTokenOut The amount of the underlying asset that would be received.
-     * @return amountIncentives The amount of incentives.
+     * @return amountIncentiveUSD The amount of incentives in USD.
      */
     function previewRedeem(address tokenOut, uint256 amountSharesToRedeem)
     public
     view
-    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentives)
+    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD)
     {
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
 
@@ -422,7 +424,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         ) = getAllocationsPrePostOperation(tokenOut, int256(-amountTokenOutBeforeFees));
 
         // Calculate incentives (using ICC)
-        amountIncentives = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             allocationPreOperation,
             totalAllocationPreOperation,
             allocationPostOperation,
@@ -430,7 +432,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             allocationTarget,
             totalAllocationTarget,
             weights,
-            energyToTokenExchangeRatio
+            energyToUSDExchangeRatio
         );
     }
 
@@ -445,10 +447,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
     public
     view
-    returns (uint256 amountTokenOutAfterFees, int256 amountIncentivesDeposit, int256 amountIncentivesRedeem)
+    returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem)
     {
-        (uint256 amountSharesMinted, amountIncentivesDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
-        (amountTokenOutAfterFees, amountIncentivesRedeem) = previewRedeem(tokenOut, amountSharesMinted); // incentives are cumulative in this simplified example.
+        (uint256 amountSharesMinted, swapFeeIn, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
+        (amountTokenOutAfterFees, swapFeeOut, amountIncentiveUSDRedeem) = previewRedeem(tokenOut, amountSharesMinted); // incentives are cumulative in this simplified example.
     }
 
     
@@ -510,27 +512,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     }
 
     // --- Internal Functions ---
-    function _settleIncentive(address user, int256 amount) internal {
-        // Interface for the IncentiveCalculationContract
-        IIncentiveCalculationContract icc = IIncentiveCalculationContract(incentiveCalculationContract);
-
-        // Call getAllocations()
-        (uint256[] memory allocationPreOperation, uint256 totalCurrentAllocation, uint256[] memory allocationTarget, uint256 totalTargetAllocation) = getAllocations();
-
-        // Call the calculateIncentive function
-        int256 amountIncentive = icc.calculateIncentive(
-            allocationPreOperation,
-            totalCurrentAllocation,
-            allocationPreOperation,
-            allocationTarget,
-            totalTargetAllocation
-        );
-
+    function _settleIncentive(address user, int256 amountIncentiveUSD) internal {
         // Pay or take incentives based on the sign of amountIncentive
-        if (amountIncentive > 0) {
-            IIncentiveFundContract(incentiveFundContract).payIncentive(user, uint256(amountIncentive));
-        } else if (amountIncentive < 0) {
-            IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentive));
+        if (amountIncentiveUSD > 0) {
+            IIncentiveFundContract(incentiveFundContract).payIncentive(user, uint256(amountIncentiveUSD));
+        } else if (amountIncentiveUSD < 0) {
+            IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentiveUSD));
         }
     }
 
@@ -576,5 +563,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             targetAllocations[tokens[i]] = allocations[i];
             emit TargetAllocationSet(tokens[i], allocations[i]);
         }
+    }
+
+    /**
+     * @notice Sets the exchange ratio between energy units and USD
+     * @param newRatio The new exchange ratio (scaled by PRECISION)
+     * @dev This is the ratio between energy units and USD
+     * @dev No checks on zero on purpose in case we want to disable incentives
+     */
+    function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        energyToUSDExchangeRatio = newRatio;
+        emit EnergyToUSDExchangeRatioSet(newRatio);
     }
 }

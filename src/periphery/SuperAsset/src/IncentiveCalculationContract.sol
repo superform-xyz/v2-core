@@ -4,24 +4,24 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
- * @title Incentive Calculation Contract (ICC)
+ * @title IncentiveCalculationContract
  * @notice A stateless contract for calculating incentives.
  */
 contract IncentiveCalculationContract {
     using Math for uint256;
 
+    // --- Constants ---
+    uint256 public constant PRECISION = 1e18;
+    uint256 public constant PERC = 100e18;
+
     // --- View Functions ---
-
-    // Add a constant equal to 10^6
-    uint256 public constant PERC = 10**6; // TODO: Add this to SuperOracle
-
-    uint256 private constant PRECISION = 1e18;
-
     /**
      * @notice Calculates the energy function.
-     * @param allocationPreOperation The allocation before the operation.
+     * @param currentAllocation The current allocation.
+     * @param totalCurrentAllocation The total current allocation.
      * @param allocationTarget The target allocation.
-     * @param weights The weights for each asset.
+     * @param totalAllocationTarget The total target allocation.
+     * @param weights The weights for each allocation in the energy calculation.
      * @return energy The calculated energy.
      */
     function energy(
@@ -51,20 +51,16 @@ contract IncentiveCalculationContract {
     }
 
     /**
-     * @notice Calculates the energy given the SuperUSD Contract, without the need to pass a bunch of parameters that could also change over time as we experiment with the energy function
-     * @param SuperUSD The address of the SuperUSD contract.
-     * @return energy The calculated energy.
-     */
-    function energy(address SuperUSD) {
-
-    }
-
-    /**
      * @notice Calculates the incentive.
      * @param allocationPreOperation The allocation before the operation.
+     * @param totalAllocationPreOperation The total allocation before the operation.
      * @param allocationPostOperation The allocation after the operation.
+     * @param totalAllocationPostOperation The total allocation after the operation.
      * @param allocationTarget The target allocation.
-     * @return incentive The calculated incentive.
+     * @param totalAllocationTarget The total target allocation.
+     * @param weights The weights for each allocation in the energy calculation.
+     * @param energyToUSDExchangeRatio The ratio to convert energy units to USD (scaled by PRECISION).
+     * @return incentiveUSD The calculated incentive in USD (scaled by PRECISION).
      */
     function calculateIncentive(
         uint256[] memory allocationPreOperation,
@@ -74,16 +70,11 @@ contract IncentiveCalculationContract {
         uint256[] memory allocationTarget,
         uint256 totalAllocationTarget,
         uint256[] memory weights,
-        uint256 energyToTokenExchangeRatio
-    ) public view returns (int256 incentive) {
+        uint256 energyToUSDExchangeRatio
+    ) public view returns (int256 incentiveUSD) {
         require(allocationPreOperation.length == allocationPostOperation.length &&
         allocationPreOperation.length == allocationTarget.length,
             "ICC: Input arrays must have the same length");
-//        // Example weights (replace with actual weights)
-//        uint256[] memory weights = new uint256[](allocationPreOperation.length);
-//        for(uint i = 0; i < weights.length; i++){
-//            weights[i] = 1; // default weight
-//        }
 
         uint256 energyBefore = energy(allocationPreOperation, totalAllocationPreOperation, allocationTarget, totalAllocationTarget, weights);
         uint256 energyAfter = energy(allocationPostOperation, totalAllocationPostOperation, allocationTarget, totalAllocationTarget, weights);
@@ -93,9 +84,9 @@ contract IncentiveCalculationContract {
         
         // Handle positive and negative cases separately for safe multiplication
         if (energyDiff >= 0) {
-            incentive = int256(Math.mulDiv(uint256(energyDiff), energyToTokenExchangeRatio, PRECISION));
+            incentiveUSD = int256(Math.mulDiv(uint256(energyDiff), energyToUSDExchangeRatio, PRECISION));
         } else {
-            incentive = -int256(Math.mulDiv(uint256(-energyDiff), energyToTokenExchangeRatio, PRECISION));
+            incentiveUSD = -int256(Math.mulDiv(uint256(-energyDiff), energyToUSDExchangeRatio, PRECISION));
         }
     }
 }
