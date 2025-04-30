@@ -116,16 +116,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _grantRole(BURNER_ROLE, msg.sender);
     }
 
-    /**
-     * @inheritdoc ERC20
-     */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
-    /**
-     * @inheritdoc ERC20
-     */
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) {
         _burn(from, amount);
     }

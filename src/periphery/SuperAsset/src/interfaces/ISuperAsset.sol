@@ -11,16 +11,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  */
 interface ISuperAsset is IERC20 {
     /**
-     * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
-     * @param to The address that will receive the minted tokens
-     * @param amount The amount of tokens to mint
+     * @inheritdoc ERC20
      */
     function mint(address to, uint256 amount) external;
 
     /**
-     * @notice Burns tokens. Can only be called by accounts with BURNER_ROLE.
-     * @param from The address whose tokens will be burned
-     * @param amount The amount of tokens to burn
+     * @inheritdoc ERC20
      */
     function burn(address from, uint256 amount) external;
 
