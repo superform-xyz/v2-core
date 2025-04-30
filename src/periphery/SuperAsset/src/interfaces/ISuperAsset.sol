@@ -42,7 +42,10 @@ interface ISuperAsset is IERC20 {
      * @notice Gets the allocations before and after an operation
      * @param token The token address involved in the operation
      * @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
-     * @return Same as getAllocations()
+     * @return absoluteCurrentAllocation Array of current absolute allocations
+     * @return totalCurrentAllocation Sum of all current allocations
+     * @return absoluteTargetAllocation Array of target absolute allocations
+     * @return totalTargetAllocation Sum of all target allocations
      */
     function getAllocationsPrePostOperation(
         address token,
@@ -67,27 +70,31 @@ interface ISuperAsset is IERC20 {
     function setSwapFeeOutPercentage(uint256 _feePercentage) external;
 
     /**
-     * @notice Deposits an underlying asset and mints SuperAsset shares
-     * @param receiver The address to receive the output shares
-     * @param tokenIn The address of the underlying asset to deposit
-     * @param amountTokenToDeposit The amount of the underlying asset to deposit
-     * @param minSharesOut Minimum amount of shares to receive (slippage protection)
-     * @return amountSharesOut The amount of SuperAsset shares minted
+     * @notice Deposits an underlying asset into a whitelisted vault and mints SuperUSD shares.
+     * @param receiver The address to receive the output shares.
+     * @param tokenIn The address of the underlying asset to deposit.
+     * @param amountTokenToDeposit The amount of the underlying asset to deposit.
+     * @param minSharesOut The minimum amount of SuperUSD shares to receive.
+     * @return amountSharesMinted The amount of SuperUSD shares minted.
+     * @return swapFee The amount of swap fee paid.
+     * @return amountIncentiveUSDDeposit The amount of incentives paid.
      */
     function deposit(
         address receiver,
         address tokenIn,
         uint256 amountTokenToDeposit,
-        uint256 minSharesOut
+        uint256 minSharesOut            // Slippage Protection
     ) external returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit);
 
     /**
-     * @notice Redeems SuperAsset shares for underlying assets
-     * @param receiver The address to receive the output assets
-     * @param amountSharesToRedeem The amount of SuperAsset shares to redeem
-     * @param tokenOut The address of the underlying asset to receive
-     * @param minTokenOut Minimum amount of tokens to receive (slippage protection)
-     * @return amountTokenOut The amount of underlying asset received
+     * @notice Redeems SuperUSD shares for underlying assets from a whitelisted vault.
+     * @param receiver The address to receive the output assets.
+     * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
+     * @param tokenOut The address of the underlying asset to redeem for.
+     * @param minTokenOut The minimum amount of the underlying asset to receive.
+     * @return amountTokenOutAfterFees The amount of the underlying asset received.
+     * @return swapFee The amount of swap fee paid.
+     * @return amountIncentiveUSDRedeem The amount of incentives paid.
      */
     function redeem(
         address receiver,
@@ -103,7 +110,12 @@ interface ISuperAsset is IERC20 {
      * @param amountTokenToDeposit The amount of the input asset to deposit.
      * @param tokenOut The address of the output asset.
      * @param minTokenOut The minimum amount of the output asset to receive.
-     * @return amountTokenOut The amount of the output asset received.
+     * @return amountSharesIntermediateStep The amount of shares received in the intermediate step.
+     * @return amountTokenOutAfterFees The amount of the output asset received.
+     * @return swapFeeIn The amount of swap fee paid for the input asset.
+     * @return swapFeeOut The amount of swap fee paid for the output asset.
+     * @return amountIncentivesIn The amount of incentives paid for the input asset.
+     * @return amountIncentivesOut The amount of incentives paid for the output asset.
      */
     function swap(
         address receiver,
@@ -156,42 +168,46 @@ interface ISuperAsset is IERC20 {
     function setSuperOracle(address oracle) external;
 
     /**
-     * @notice Previews a deposit operation
-     * @param tokenIn Input token address
-     * @param amountTokenToDeposit Amount of input tokens
-     * @return amountSharesOut Expected amount of shares to receive
-     * @return amountIncentives Expected amount of incentives
+     * @notice Preview a deposit.
+     * @param tokenIn The address of the underlying asset to deposit.
+     * @param amountTokenToDeposit The amount of the underlying asset to deposit.
+     * @return amountSharesMinted The amount of SuperUSD shares that would be minted.
+     * @return swapFee The amount of swap fee paid.
+     * @return amountIncentiveUSD The amount of incentives in USD.
      */
-    function previewDeposit(
-        address tokenIn,
-        uint256 amountTokenToDeposit
-    ) external view returns (uint256 amountSharesOut, uint256 swapFee, int256 amountIncentiveUSDDeposit);
+    function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
+    external 
+    view
+    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD);
 
     /**
-     * @notice Previews a redeem operation
-     * @param tokenOut Output token address
-     * @param amountSharesToRedeem Amount of shares to redeem
-     * @return amountTokenOut Expected amount of tokens to receive
-     * @return amountIncentives Expected amount of incentives
+     * @notice Preview a redemption.
+     * @param tokenOut The address of the underlying asset to redeem for.
+     * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
+     * @return amountTokenOutAfterFees The amount of the underlying asset that would be received.
+     * @return swapFee The amount of swap fee paid.
+     * @return amountIncentiveUSD The amount of incentives in USD.
      */
-    function previewRedeem(
-        address tokenOut,
-        uint256 amountSharesToRedeem
-    ) external view returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem);
+    function previewRedeem(address tokenOut, uint256 amountSharesToRedeem)
+    external
+    view
+    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD);
 
     /**
-     * @notice Previews a swap operation
-     * @param tokenIn Input token address
-     * @param amountTokenToDeposit Amount of input tokens
-     * @param tokenOut Output token address
-     * @return amountSharesOut Expected amount of shares in intermediate step
-     * @return amountIncentives Expected amount of incentives
+     * @notice Preview a swap.
+     * @param tokenIn The address of the input asset.
+     * @param amountTokenToDeposit The amount of the input asset to deposit.
+     * @param tokenOut The address of the output asset.
+     * @return amountTokenOutAfterFees The amount of the output asset that would be received.
+     * @return swapFeeIn The amount of swap fee paid for the input asset.
+     * @return swapFeeOut The amount of swap fee paid for the output asset.
+     * @return amountIncentiveUSDIn The amount of incentives paid for the input asset.
+     * @return amountIncentiveUSDOut The amount of incentives paid for the output asset.
      */
-    function previewSwap(
-        address tokenIn,
-        uint256 amountTokenToDeposit,
-        address tokenOut
-    ) external view returns (uint256 amountSharesOut, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDIn, int256 amountIncentiveUSDOut);
+    function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
+    external
+    view
+    returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem);
 
     // --- Events ---
     event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);

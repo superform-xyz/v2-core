@@ -187,14 +187,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
     // --- Token Movement Functions ---
 
-    /**
-     * @notice Deposits an underlying asset into a whitelisted vault and mints SuperUSD shares.
-     * @param receiver The address to receive the output shares.
-     * @param tokenIn The address of the underlying asset to deposit.
-     * @param amountTokenToDeposit The amount of the underlying asset to deposit.
-     * @param minSharesOut The minimum amount of SuperUSD shares to receive.
-     * @return amountSharesOut The amount of SuperUSD shares minted.
-     */
     function deposit(
         address receiver,
         address tokenIn,
@@ -230,14 +222,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
     }
 
-    /**
-     * @notice Redeems SuperUSD shares for underlying assets from a whitelisted vault.
-     * @param receiver The address to receive the output assets.
-     * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
-     * @param tokenOut The address of the underlying asset to redeem for.
-     * @param minTokenOut The minimum amount of the underlying asset to receive.
-     * @return amountTokenOut The amount of the underlying asset received.
-     */
     function redeem(
         address receiver,
         uint256 amountSharesToRedeem,
@@ -272,16 +256,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         emit Redeem(receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem);
     }
 
-    /**
-     * @notice Swaps an underlying asset for another.
-     * @param receiver The address to receive the output assets.
-     * @param tokenIn The address of the input asset.
-     * @param amountTokenToDeposit The amount of the input asset to deposit.
-     * @param tokenOut The address of the output asset.
-     * @param minSharesOut The minimum amount of SuperUSD shares to receive.
-     * @param minTokenOut The minimum amount of the output asset to receive.
-     * @return amountTokenOut The amount of the output asset received.
-     */
     function swap(
         address receiver,
         address tokenIn,
@@ -328,14 +302,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     }
 
     // --- View Functions ---
-
-    /**
-     * @notice Preview a deposit.
-     * @param tokenIn The address of the underlying asset to deposit.
-     * @param amountTokenToDeposit The amount of the underlying asset to deposit.
-     * @return amountSharesOut The amount of SuperUSD shares that would be minted.
-     * @return amountIncentiveUSD The amount of incentives in USD.
-     */
     function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
     public
     view
@@ -378,13 +344,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         );
     }
 
-    /**
-     * @notice Preview a redemption.
-     * @param tokenOut The address of the underlying asset to redeem for.
-     * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
-     * @return amountTokenOut The amount of the underlying asset that would be received.
-     * @return amountIncentiveUSD The amount of incentives in USD.
-     */
     function previewRedeem(address tokenOut, uint256 amountSharesToRedeem)
     public
     view
@@ -428,14 +387,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         );
     }
 
-    /**
-     * @notice Preview a swap.
-      * @param tokenIn The address of the input asset.
-     * @param amountTokenToDeposit The amount of the input asset to deposit.
-     * @param tokenOut The address of the output asset.
-     * @return amountSharesOut The amount of SuperUSD shares that would be minted.
-     * @return amountIncentives The amount of incentives.
-     */
     function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
     public
     view
