@@ -21,8 +21,8 @@ contract AssetBank is AccessControl, IAssetBank, IAssetBankErrors {
 
     // --- Constructor ---
     constructor() {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _setupRole(INCENTIVE_FUND_MANAGER, msg.sender);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
     }
 
     /**
