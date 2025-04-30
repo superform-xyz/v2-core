@@ -104,4 +104,8 @@ interface IIncentiveFundContract {
 
     /// @notice Thrown when price in USD is zero
     error PRICE_USD_ZERO();
+
+    /// @notice Thrown when contract is already initialized
+    error ALREADY_INITIALIZED();
+
 }

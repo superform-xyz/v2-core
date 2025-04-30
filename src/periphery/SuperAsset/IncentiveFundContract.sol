@@ -27,15 +27,28 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     address public tokenInIncentive;
     address public tokenOutIncentive;
     ISuperAsset public superAsset;
+    address public assetBank;
 
     // --- Constructor ---
-    constructor(address _superAsset) {
+    constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
-        if (_superAsset == address(0)) revert ZERO_ADDRESS();
-        superAsset = ISuperAsset(_superAsset);
     }
 
+    /**
+     * @notice Initializes the IncentiveFundContract
+     * @param superAsset_ Address of the SuperAsset contract
+     * @param assetBank_ Address of the AssetBank contract
+     */
+    function initialize(address superAsset_, address assetBank_) external {
+        // Ensure this can only be called once
+        if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
+
+        if (superAsset_ == address(0)) revert ZERO_ADDRESS();
+        if (assetBank_ == address(0)) revert ZERO_ADDRESS();
+
+        superAsset = ISuperAsset(superAsset_);
+        assetBank = assetBank_;
+    }
 
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS

@@ -6,8 +6,6 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-// import "./IncentiveCalculationContract.sol";
-// import "./IncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IAssetBank.sol";
@@ -24,6 +22,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
     using Math for uint256;
+
+    // --- Storage for ERC20 name/symbol ---
+    string private tokenName;
+    string private tokenSymbol;
 
     // --- Roles ---
     bytes32 public constant VAULT_MANAGER_ROLE = keccak256("VAULT_MANAGER_ROLE");
@@ -45,9 +47,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     mapping(address token => bool isSupported) public isSupportedERC20;
     
     EnumerableSet.AddressSet private _supportedVaults;
-    address public immutable incentiveCalculationContract;  // Address of the ICC
-    address public immutable incentiveFundContract;      // Address of the Incentive Fund Contract
-    address public immutable assetBank;        // Address of the Asset Bank Contract
+    address public incentiveCalculationContract;  // Address of the ICC
+    address public incentiveFundContract;      // Address of the Incentive Fund Contract
+    address public assetBank;        // Address of the Asset Bank Contract
 
     mapping(address token => uint256 allocation) public targetAllocations;
     mapping(address token => uint256 allocation) public weights;  // Weights for each vault in energy calculation
@@ -79,16 +81,36 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /**
-     * @dev Constructor initializes the ERC20 token with name and symbol
-     * @param name_ The name of the token
-     * @param symbol_ The symbol of the token
-     * @param icc_ Address of the Incentive Calculation Contract
-     * @param ifc_ Address of the Incentive Fund Contract
-     * @param assetBank_ Address of the Asset Bank Contract
-     * @param swapFeeInPercentage_ Swap fee as a percentage (e.g., 10 for 0.1%)
-     * @param swapFeeOutPercentage_ Swap fee as a percentage (e.g., 10 for 0.1%)
+     * @dev Empty constructor since we're using initialize pattern with Clones
      */
-    constructor(
+    constructor() ERC20("", "") {
+    }
+
+    /**
+     * @dev Override name() to use storage variable
+     */
+    function name() public view override returns (string memory) {
+        return tokenName;
+    }
+
+    /**
+     * @dev Override symbol() to use storage variable
+     */
+    function symbol() public view override returns (string memory) {
+        return tokenSymbol;
+    }
+
+    /**
+     * @notice Initializes the SuperAsset contract
+     * @param name_ Name of the token
+     * @param symbol_ Symbol of the token
+     * @param icc_ Address of the IncentiveCalculationContract
+     * @param ifc_ Address of the IncentiveFundContract
+     * @param assetBank_ Address of the AssetBank contract
+     * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
+     * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
+     */
+    function initialize(
         string memory name_,
         string memory symbol_,
         address icc_,
@@ -96,7 +118,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address assetBank_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
-    ) ERC20(name_, symbol_) {
+    ) external {
+        // Ensure this can only be called once
+        require(incentiveCalculationContract == address(0), "Already initialized");
+
         if (icc_ == address(0)) revert ZERO_ADDRESS();
         if (ifc_ == address(0)) revert ZERO_ADDRESS();
         if (assetBank_ == address(0)) revert ZERO_ADDRESS();
@@ -112,6 +137,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(BURNER_ROLE, msg.sender);
+
+        // Initialize ERC20 name and symbol
+        tokenName = name_;
+        tokenSymbol = symbol_;
     }
 
     /*//////////////////////////////////////////////////////////////
