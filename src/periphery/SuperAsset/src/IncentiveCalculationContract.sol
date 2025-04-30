@@ -40,10 +40,10 @@ contract IncentiveCalculationContract {
         for (; i < length; i++) {
             //  Safe subtraction to avoid underflow
             // Calculate Percentage just in time
-            int256 _currentAllocation = Math.mulDiv(currentAllocation[i], PERC, totalCurrentAllocation);
+            uint256 _currentAllocation = Math.mulDiv(currentAllocation[i], PERC, totalCurrentAllocation);
             // Calculate Percentage just in time
-            int256 _targetAllocation = Math.mulDiv(allocationTarget[i], PERC, totalAllocationTarget);
-            int256 diff = _currentAllocation - _targetAllocation;
+            uint256 _targetAllocation = Math.mulDiv(allocationTarget[i], PERC, totalAllocationTarget);
+            int256 diff = int256(_currentAllocation) - int256(_targetAllocation);
             uint256 diff2 = uint256(diff * diff);
             res += (diff2 * weights[i]); // Simplified square
         }
