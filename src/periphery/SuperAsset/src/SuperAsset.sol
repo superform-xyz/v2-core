@@ -52,8 +52,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     mapping(address => uint256) public targetAllocations;
     mapping(address => uint256) public weights;  // Weights for each vault in energy calculation
 
-    address public settlementTokenIn;
-    address public settlementTokenOut;
     ISuperOracle public superOracle;
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
@@ -116,6 +114,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _grantRole(BURNER_ROLE, msg.sender);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
@@ -124,55 +126,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _burn(from, amount);
     }
 
-    // NOTE:
-    // This is equivalent to also returning the normalized amount since it can be obtained just by doing absoluteAllocation[i] / totalAllocation
-    function getAllocations() public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
-        // Placeholder for the current allocation normalized
-        // This function should return the current allocation of assets in the SuperUSD contract
-        // For now, we return an empty array
-        uint256 length = _supportedVaults.length();
-        absoluteCurrentAllocation = new uint256[](length);
-        absoluteTargetAllocation = new uint256[](length);
-        for (uint256 i; i < length; i++) {
-            address vault = _supportedVaults.at(i);
-            absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
-            totalCurrentAllocation += absoluteCurrentAllocation[i];
-            absoluteTargetAllocation[i] = targetAllocations[vault];
-            totalTargetAllocation += absoluteTargetAllocation[i];
-        }
-    }
-
-
-    function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (
-        uint256[] memory absoluteAllocationPreOperation, 
-        uint256 totalAllocationPreOperation, 
-        uint256[] memory absoluteAllocationPostOperation, 
-        uint256 totalAllocationPostOperation, 
-        uint256[] memory absoluteTargetAllocation, 
-        uint256 totalTargetAllocation,
-        uint256[] memory vaultWeights) {
-        uint256 length = _supportedVaults.length();
-        absoluteAllocationPreOperation = new uint256[](length);
-        absoluteAllocationPostOperation = new uint256[](length);
-        absoluteTargetAllocation = new uint256[](length);
-        vaultWeights = new uint256[](length);
-        for (uint256 i; i < length; i++) {
-            address vault = _supportedVaults.at(i);
-            absoluteAllocationPreOperation[i] = IERC20(vault).balanceOf(address(this));
-            totalAllocationPreOperation += absoluteAllocationPreOperation[i];
-            absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
-            if(token == vault) {
-                if (deltaToken < 0 && uint256(-deltaToken) > absoluteAllocationPreOperation[i]) {
-                    revert INSUFFICIENT_BALANCE();
-                }
-                absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + deltaToken);
-            }
-            totalAllocationPostOperation += absoluteAllocationPostOperation[i];
-            absoluteTargetAllocation[i] = targetAllocations[vault];
-            totalTargetAllocation += absoluteTargetAllocation[i];
-            vaultWeights[i] = weights[vault];
-        }
-    }
 
 
     /**
@@ -192,6 +145,70 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeOutPercentage = _feePercentage;
     }
+
+    function setSuperOracle(address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (oracle == address(0)) revert ZERO_ADDRESS();
+        superOracle = ISuperOracle(oracle);
+        emit SuperOracleSet(oracle);
+    }
+
+    // --- Admin Functions ---
+    function setWeight(address vault, uint256 weight) external onlyRole(VAULT_MANAGER_ROLE) {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!isSupportedUnderlyingVault[vault]) revert NOT_VAULT();
+        weights[vault] = weight;
+        emit WeightSet(vault, weight);
+    }
+
+    /**
+     * @notice Sets target allocations for multiple tokens at once
+     * @param tokens Array of token addresses
+     * @param allocations Array of target allocation percentages (scaled by PRECISION)
+     */
+    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (tokens.length != allocations.length) revert INVALID_INPUT();
+        
+        uint256 totalAllocation;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert ZERO_ADDRESS();
+            if (!isSupportedUnderlyingVault[tokens[i]] && !isSupportedERC20[tokens[i]]) revert NOT_SUPPORTED_TOKEN();
+            totalAllocation += allocations[i];
+        }
+        
+        for (uint256 i = 0; i < tokens.length; i++) {
+            targetAllocations[tokens[i]] = allocations[i];
+            emit TargetAllocationSet(tokens[i], allocations[i]);
+        }
+    }
+
+    /**
+     * @notice Sets the target allocation for a token
+     * @param token The token address
+     * @param allocation The target allocation percentage (scaled by PRECISION)
+     */
+    function setTargetAllocation(address token, uint256 allocation) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
+
+        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC 
+        if (allocation > PRECISION) revert INVALID_ALLOCATION();
+        
+        targetAllocations[token] = allocation;
+        emit TargetAllocationSet(token, allocation);
+    }
+
+
+    /**
+     * @notice Sets the exchange ratio between energy units and USD
+     * @param newRatio The new exchange ratio (scaled by PRECISION)
+     * @dev This is the ratio between energy units and USD
+     * @dev No checks on zero on purpose in case we want to disable incentives
+     */
+    function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        energyToUSDExchangeRatio = newRatio;
+        emit EnergyToUSDExchangeRatioSet(newRatio);
+    }
+
 
     // --- Token Movement Functions ---
 
@@ -310,6 +327,55 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     // --- View Functions ---
+    // @dev This is equivalent to also returning the normalized amount since it can be obtained just by doing absoluteAllocation[i] / totalAllocation
+    function getAllocations() public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
+        // Placeholder for the current allocation normalized
+        // This function should return the current allocation of assets in the SuperUSD contract
+        // For now, we return an empty array
+        uint256 length = _supportedVaults.length();
+        absoluteCurrentAllocation = new uint256[](length);
+        absoluteTargetAllocation = new uint256[](length);
+        for (uint256 i; i < length; i++) {
+            address vault = _supportedVaults.at(i);
+            absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
+            totalCurrentAllocation += absoluteCurrentAllocation[i];
+            absoluteTargetAllocation[i] = targetAllocations[vault];
+            totalTargetAllocation += absoluteTargetAllocation[i];
+        }
+    }
+
+
+    function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (
+        uint256[] memory absoluteAllocationPreOperation, 
+        uint256 totalAllocationPreOperation, 
+        uint256[] memory absoluteAllocationPostOperation, 
+        uint256 totalAllocationPostOperation, 
+        uint256[] memory absoluteTargetAllocation, 
+        uint256 totalTargetAllocation,
+        uint256[] memory vaultWeights) {
+        uint256 length = _supportedVaults.length();
+        absoluteAllocationPreOperation = new uint256[](length);
+        absoluteAllocationPostOperation = new uint256[](length);
+        absoluteTargetAllocation = new uint256[](length);
+        vaultWeights = new uint256[](length);
+        for (uint256 i; i < length; i++) {
+            address vault = _supportedVaults.at(i);
+            absoluteAllocationPreOperation[i] = IERC20(vault).balanceOf(address(this));
+            totalAllocationPreOperation += absoluteAllocationPreOperation[i];
+            absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
+            if(token == vault) {
+                if (deltaToken < 0 && uint256(-deltaToken) > absoluteAllocationPreOperation[i]) {
+                    revert INSUFFICIENT_BALANCE();
+                }
+                absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + deltaToken);
+            }
+            totalAllocationPostOperation += absoluteAllocationPostOperation[i];
+            absoluteTargetAllocation[i] = targetAllocations[vault];
+            totalTargetAllocation += absoluteTargetAllocation[i];
+            vaultWeights[i] = weights[vault];
+        }
+    }
+
     function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
     public
     view
@@ -446,35 +512,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         return (priceUSD, isDepeg, isDispersion, isOracleOff);
     }
 
-    // --- Settlement Token Management ---
+    /*//////////////////////////////////////////////////////////////
+                INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
-    function setSettlementTokenIn(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        settlementTokenIn = token;
-        emit SettlementTokenInSet(token);
-    }
-
-    function setSettlementTokenOut(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        settlementTokenOut = token;
-        emit SettlementTokenOutSet(token);
-    }
-
-    function setSuperOracle(address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (oracle == address(0)) revert ZERO_ADDRESS();
-        superOracle = ISuperOracle(oracle);
-        emit SuperOracleSet(oracle);
-    }
-
-    // --- Admin Functions ---
-    function setWeight(address vault, uint256 weight) external onlyRole(VAULT_MANAGER_ROLE) {
-        if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!isSupportedUnderlyingVault[vault]) revert NOT_VAULT();
-        weights[vault] = weight;
-        emit WeightSet(vault, weight);
-    }
-
-    // --- Internal Functions ---
     function _settleIncentive(address user, int256 amountIncentiveUSD) internal {
         // Pay or take incentives based on the sign of amountIncentive
         if (amountIncentiveUSD > 0) {
@@ -482,54 +523,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         } else if (amountIncentiveUSD < 0) {
             IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentiveUSD));
         }
-    }
-
-    /**
-     * @notice Sets the target allocation for a token
-     * @param token The token address
-     * @param allocation The target allocation percentage (scaled by PRECISION)
-     */
-    function setTargetAllocation(address token, uint256 allocation) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
-
-        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC 
-        if (allocation > PRECISION) revert INVALID_ALLOCATION();
-        
-        targetAllocations[token] = allocation;
-        emit TargetAllocationSet(token, allocation);
-    }
-
-    /**
-     * @notice Sets target allocations for multiple tokens at once
-     * @param tokens Array of token addresses
-     * @param allocations Array of target allocation percentages (scaled by PRECISION)
-     */
-    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (tokens.length != allocations.length) revert INVALID_INPUT();
-        
-        uint256 totalAllocation;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == address(0)) revert ZERO_ADDRESS();
-            if (!isSupportedUnderlyingVault[tokens[i]] && !isSupportedERC20[tokens[i]]) revert NOT_SUPPORTED_TOKEN();
-            totalAllocation += allocations[i];
-        }
-        
-        for (uint256 i = 0; i < tokens.length; i++) {
-            targetAllocations[tokens[i]] = allocations[i];
-            emit TargetAllocationSet(tokens[i], allocations[i]);
-        }
-    }
-
-    /**
-     * @notice Sets the exchange ratio between energy units and USD
-     * @param newRatio The new exchange ratio (scaled by PRECISION)
-     * @dev This is the ratio between energy units and USD
-     * @dev No checks on zero on purpose in case we want to disable incentives
-     */
-    function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        energyToUSDExchangeRatio = newRatio;
-        emit EnergyToUSDExchangeRatioSet(newRatio);
     }
 
 }

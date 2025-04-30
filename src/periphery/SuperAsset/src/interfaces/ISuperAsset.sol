@@ -152,18 +152,6 @@ interface ISuperAsset is IERC20 {
     function removeERC20(address token) external;
 
     /**
-     * @notice Sets the settlement token for deposits
-     * @param token Address of the token to set as settlement token
-     */
-    function setSettlementTokenIn(address token) external;
-
-    /**
-     * @notice Sets the settlement token for redemptions
-     * @param token Address of the token to set as settlement token
-     */
-    function setSettlementTokenOut(address token) external;
-
-    /**
      * @notice Sets the oracle contract address
      * @param oracle Address of the new oracle contract
      */
