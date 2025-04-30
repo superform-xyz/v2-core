@@ -201,8 +201,8 @@ interface ISuperAsset is IERC20 {
      * @return amountTokenOutAfterFees The amount of the output asset that would be received.
      * @return swapFeeIn The amount of swap fee paid for the input asset.
      * @return swapFeeOut The amount of swap fee paid for the output asset.
-     * @return amountIncentiveUSDIn The amount of incentives paid for the input asset.
-     * @return amountIncentiveUSDOut The amount of incentives paid for the output asset.
+     * @return amountIncentiveUSDDeposit The amount of incentives paid for the input asset.
+     * @return amountIncentiveUSDRedeem The amount of incentives paid for the output asset.
      */
     function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
     external
