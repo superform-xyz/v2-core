@@ -26,9 +26,7 @@ interface IAssetBank {
      * @param tokenOut Token that was withdrawn
      * @param amount Amount that was withdrawn
      */
-    event RebalanceWithdrawal(
-        address receiver,
-        address tokenOut,
-        uint256 amount
-    );
+
+    // --- Events ---
+    event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
 }
