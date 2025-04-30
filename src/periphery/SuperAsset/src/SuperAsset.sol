@@ -275,7 +275,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
         // Transfer assets to receiver
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
-        IERC20(tokenOut).safeTransfer(receiver, amountTokenOut);
+        IERC20(tokenOut).safeTransfer(receiver, amountTokenOutAfterFees);
 
         emit Redeem(receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem);
     }
@@ -300,7 +300,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (receiver == address(0)) revert ZeroAddress();
         (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) = deposit(address(this), tokenIn, amountTokenToDeposit, 0);
         (amountTokenOutAfterFees, swapFeeOut, amountIncentivesOut) = redeem(receiver, amountSharesIntermediateStep, tokenOut, minTokenOut);
-        emit Swap(receiver, tokenIn, amountTokenToDeposit, tokenOut, amountSharesIntermediateStep, amountTokenOutAfterFees);
+        emit Swap(receiver, tokenIn, amountTokenToDeposit, tokenOut, amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
         return (amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
     }
 
@@ -356,8 +356,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256 amountTokenInAfterFees = amountTokenToDeposit - swapFee;
 
         // Get price of underlying vault shares in USD
-        uint256 priceUSDTokenIn, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(tokenIn);
-        uint256 priceUSDThisShares, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(address(this));
+        (uint256 priceUSDTokenIn, bool isDepegTokenIn, bool isDispersionTokenIn, bool isOracleOffTokenIn) = getPriceWithCircuitBreakers(tokenIn);
+        (uint256 priceUSDThisShares, bool isDepegShares, bool isDispersionShares, bool isOracleOffShares) = getPriceWithCircuitBreakers(address(this));
 
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDThisShares); // Adjust for decimals
@@ -401,8 +401,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
 
         // Get price of underlying vault shares in USD
-        uint256 priceUSDThisShares, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(address(this));
-        uint256 priceUSDTokenOut, bool isDepeg, bool isDispersion, bool isOracleOff = getPriceWithCircuitBreakers(tokenOut);
+        (uint256 priceUSDThisShares, bool isDepegShares, bool isDispersionShares, bool isOracleOffShares) = getPriceWithCircuitBreakers(address(this));
+        (uint256 priceUSDTokenOut, bool isDepegTokenOut, bool isDispersionTokenOut, bool isOracleOffTokenOut) = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
         uint256 amountTokenOutBeforeFees = Math.mulDiv(amountSharesToRedeem, priceUSDThisShares, priceUSDTokenOut); // Adjust for decimals
@@ -449,7 +449,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     view
     returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem)
     {
-        (uint256 amountSharesMinted, swapFeeIn, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
+        uint256 amountSharesMinted;
+        (amountSharesMinted, swapFeeIn, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
         (amountTokenOutAfterFees, swapFeeOut, amountIncentiveUSDRedeem) = previewRedeem(tokenOut, amountSharesMinted); // incentives are cumulative in this simplified example.
     }
 
@@ -461,9 +462,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
 
         // Get token decimals
         uint256 oneUnit = 10**IERC20(tokenIn).decimals();
+        uint256 stddev;
+        uint256 N;
+        uint256 M;
 
         // NOTE: We need to pass oneUnit to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
-        (priceUSD, uint256 stddev, uint256 N, uint256 M) = superOracle.getQuoteFromProvider(
+        (priceUSD, stddev, N, M) = superOracle.getQuoteFromProvider(
             oneUnit,  
             tokenIn,
             USD,                    // TODO: Add USD definition
