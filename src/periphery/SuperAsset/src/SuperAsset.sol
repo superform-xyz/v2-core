@@ -15,6 +15,7 @@ import "./interfaces/ISuperAsset.sol";
 import "../../interfaces/ISuperOracle.sol";
 
 /**
+ * @author Superform Labs
  * @title SuperAsset
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
  * Implements ERC20 standard for better compatibility with integrators.
@@ -375,8 +376,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Calculate underlying shares to redeem
         uint256 amountTokenOutBeforeFees = Math.mulDiv(amountSharesToRedeem, priceUSDThisShares, priceUSDTokenOut); // Adjust for decimals
 
-        // Calculate swap fees on output (example: 0.1% fee)
-        // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenOutBeforeFees, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         amountTokenOutAfterFees = amountTokenOutBeforeFees - swapFee;
 
@@ -421,14 +420,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
         // Get token decimals
-        uint256 oneUnit = 10**IERC20Metadata(tokenIn).decimals();
+        uint256 one = 10**IERC20Metadata(tokenIn).decimals();
         uint256 stddev;
         uint256 N;
         uint256 M;
 
         // NOTE: We need to pass oneUnit to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
         (priceUSD, stddev, N, M) = superOracle.getQuoteFromProvider(
-            oneUnit,  
+            one,  
             tokenIn,
             USD,                    // TODO: Add USD definition
             AVERAGE_PROVIDER        // TODO: Add AVERAGE_PROVIDER definition, taking it from SuperOracle
@@ -521,15 +520,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         for (uint256 i = 0; i < tokens.length; i++) {
             if (tokens[i] == address(0)) revert ZeroAddress();
             if (!isVault[tokens[i]] && !isERC20[tokens[i]]) revert NotSupportedToken();
-
-            // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC 
-            // if (allocations[i] > PRECISION) revert InvalidAllocation();
-
             totalAllocation += allocations[i];
         }
-
-        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC         
-        // if (totalAllocation > PRECISION) revert InvalidTotalAllocation();
         
         for (uint256 i = 0; i < tokens.length; i++) {
             targetAllocations[tokens[i]] = allocations[i];

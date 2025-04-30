@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 /**
+ * @author Superform Labs
  * @title IncentiveCalculationContract
  * @notice A stateless contract for calculating incentives.
  */

@@ -10,6 +10,7 @@ import "./IncentiveCalculationContract.sol";
 import "./SuperAsset.sol";
 
 /**
+ * @author Superform Labs
  * @title Incentive Fund Contract
  * @notice Manages incentive tokens in the SuperAsset system
  * @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.

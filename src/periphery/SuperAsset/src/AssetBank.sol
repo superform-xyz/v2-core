@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/IAssetBank.sol";
 
 /**
+ * @author Superform Labs
  * @title AssetBank
  * @notice Manages asset holdings and withdrawals for the SuperAsset system
  */
