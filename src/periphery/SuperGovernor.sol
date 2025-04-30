@@ -142,6 +142,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
 
         // Call the interface method to change the strategist
+        // This function can only be called by the SuperGovernor and bypasses the timelock
         ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
     }
 

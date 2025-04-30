@@ -49,9 +49,29 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     // Constant for PPS decimals
     uint256 public constant PPS_DECIMALS = 18;
+    
+    // Timelock for strategist changes
+    uint256 private constant _STRATEGIST_CHANGE_TIMELOCK = 7 days;
 
     // Upkeep cost per update
     uint256 public upkeepCostPerUpdate;
+
+    /*//////////////////////////////////////////////////////////////
+                               MODIFIERS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Validates that msg.sender is the active PPS Oracle
+    modifier onlyPPSOracle() {
+        if (!SUPER_GOVERNOR.isActivePPSOracle(msg.sender)) {
+            revert UNAUTHORIZED_PPS_ORACLE();
+        }
+        _;
+    }
+
+    /// @notice Validates that a strategy exists (has been created by this aggregator)
+    modifier validStrategy(address strategy) {
+        if (!_superVaultStrategies.contains(strategy)) revert UNKNOWN_STRATEGY();
+        _;
+    }
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -69,23 +89,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
         upkeepCostPerUpdate = upkeepCostPerUpdate_;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                              MODIFIERS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Validates that msg.sender is the active PPS Oracle
-    modifier onlyPPSOracle() {
-        if (!SUPER_GOVERNOR.isActivePPSOracle(msg.sender)) {
-            revert UNAUTHORIZED_PPS_ORACLE();
-        }
-        _;
-    }
-
-    /// @notice Validates that a strategy exists (has been created by this aggregator)
-    modifier validStrategy(address strategy) {
-        if (!_superVaultStrategies.contains(strategy)) revert UNKNOWN_STRATEGY();
-        _;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -309,9 +312,8 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     /// @inheritdoc ISuperVaultAggregator
     function changePrimaryStrategist(address strategy, address newStrategist) external validStrategy(strategy) {
-        // Only secondary strategists or Governor can change the primary strategist
-        if (!_strategyData[strategy].secondaryStrategists.contains(msg.sender) || msg.sender == address(SUPER_GOVERNOR))
-        {
+        // Only SuperGovernor can directly change the primary strategist
+        if (msg.sender != address(SUPER_GOVERNOR)) {
             revert UNAUTHORIZED_UPDATE_AUTHORITY();
         }
 
@@ -330,6 +332,56 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         // Set the new primary strategist
         _strategyData[strategy].mainStrategist = newStrategist;
 
+        emit PrimaryStrategistChanged(strategy, oldStrategist, newStrategist);
+    }
+    
+    /// @inheritdoc ISuperVaultAggregator
+    function proposeChangePrimaryStrategist(address strategy, address newStrategist) external validStrategy(strategy) {
+        // Only secondary strategists can propose changes to the primary strategist
+        if (!_strategyData[strategy].secondaryStrategists.contains(msg.sender)) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+        
+        if (newStrategist == address(0)) revert ZERO_ADDRESS();
+        
+        // Set up the proposal with 7-day timelock
+        uint256 effectiveTime = block.timestamp + _STRATEGIST_CHANGE_TIMELOCK;
+        
+        // Store proposal in the strategy data
+        _strategyData[strategy].proposedStrategist = newStrategist;
+        _strategyData[strategy].strategistChangeEffectiveTime = effectiveTime;
+        _strategyData[strategy].strategistChangeProposer = msg.sender;
+        
+        emit PrimaryStrategistChangeProposed(strategy, msg.sender, newStrategist, effectiveTime);
+    }
+    
+    /// @inheritdoc ISuperVaultAggregator
+    function executeChangePrimaryStrategist(address strategy) external validStrategy(strategy) {
+        // Check if there is a pending proposal
+        if (_strategyData[strategy].proposedStrategist == address(0)) revert NO_PENDING_STRATEGIST_CHANGE();
+        
+        // Check if the timelock period has passed
+        if (block.timestamp < _strategyData[strategy].strategistChangeEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        
+        address newStrategist = _strategyData[strategy].proposedStrategist;
+        address oldStrategist = _strategyData[strategy].mainStrategist;
+        
+        // If new strategist is already a secondary strategist, remove them
+        if (_strategyData[strategy].secondaryStrategists.contains(newStrategist)) {
+            _strategyData[strategy].secondaryStrategists.remove(newStrategist);
+        }
+        
+        // Make the old primary strategist a secondary strategist
+        _strategyData[strategy].secondaryStrategists.add(oldStrategist);
+        
+        // Set the new primary strategist
+        _strategyData[strategy].mainStrategist = newStrategist;
+        
+        // Clear the proposal
+        _strategyData[strategy].proposedStrategist = address(0);
+        _strategyData[strategy].strategistChangeEffectiveTime = 0;
+        _strategyData[strategy].strategistChangeProposer = address(0);
+        
         emit PrimaryStrategistChanged(strategy, oldStrategist, newStrategist);
     }
 

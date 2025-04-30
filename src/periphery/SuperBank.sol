@@ -15,7 +15,7 @@ import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
 import { ISuperHook, Execution } from "../core/interfaces/ISuperHook.sol";
 
 /// @title SuperBank
-/// @notice Compounds protocol revenue into sUP by executing registered hooks verified by Merkle proofs.
+/// @notice Compounds protocol revenue into UP and distributes it to sUP and treasury.
 contract SuperBank is ISuperBank, Ownable2Step {
     using SafeERC20 for IERC20;
     using Math for uint256;

@@ -29,6 +29,10 @@ interface ISuperVaultAggregator {
         address mainStrategist;
         EnumerableSet.AddressSet secondaryStrategists;
         address[] authorizedCallers;
+        // Strategist change proposal data
+        address proposedStrategist;
+        uint256 strategistChangeEffectiveTime;
+        address strategistChangeProposer;
     }
 
     /// @notice Parameters for creating a new SuperVault trio
@@ -124,6 +128,18 @@ interface ISuperVaultAggregator {
         address indexed strategy, address indexed oldStrategist, address indexed newStrategist
     );
 
+    /// @notice Emitted when a change to primary strategist is proposed by a secondary strategist
+    /// @param strategy Address of the strategy
+    /// @param proposer Address of the secondary strategist who made the proposal
+    /// @param newStrategist Address of the proposed new primary strategist
+    /// @param effectiveTime Timestamp when the proposal can be executed
+    event PrimaryStrategistChangeProposed(
+        address indexed strategy, 
+        address indexed proposer, 
+        address indexed newStrategist, 
+        uint256 effectiveTime
+    );
+
     /// @notice Emitted when a PPS update is stale (Validators could get slashed for innactivity)
     /// @param strategy Address of the strategy
     /// @param updateAuthority Address of the update authority
@@ -167,6 +183,10 @@ interface ISuperVaultAggregator {
     error STRATEGIST_ALREADY_EXISTS();
     /// @notice Thrown when strategist is not found
     error STRATEGIST_NOT_FOUND();
+    /// @notice Thrown when there is no pending strategist change proposal
+    error NO_PENDING_STRATEGIST_CHANGE();
+    /// @notice Thrown when the timelock for a proposed change has not expired
+    error TIMELOCK_NOT_EXPIRED();
 
     /*//////////////////////////////////////////////////////////////
                             VAULT CREATION
@@ -242,10 +262,19 @@ interface ISuperVaultAggregator {
     /// @param strategist Address of the strategist to remove
     function removeSecondaryStrategist(address strategy, address strategist) external;
 
-    /// @notice Changes the primary strategist of a strategy
+    /// @notice Changes the primary strategist of a strategy immediately (only callable by SuperGovernor)
     /// @param strategy Address of the strategy
     /// @param newStrategist Address of the new primary strategist
     function changePrimaryStrategist(address strategy, address newStrategist) external;
+    
+    /// @notice Proposes a change to the primary strategist (callable by secondary strategists)
+    /// @param strategy Address of the strategy
+    /// @param newStrategist Address of the proposed new primary strategist
+    function proposeChangePrimaryStrategist(address strategy, address newStrategist) external;
+    
+    /// @notice Executes a previously proposed change to the primary strategist after timelock
+    /// @param strategy Address of the strategy
+    function executeChangePrimaryStrategist(address strategy) external;
 
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
