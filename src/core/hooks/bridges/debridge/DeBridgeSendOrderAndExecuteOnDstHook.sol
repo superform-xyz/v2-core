@@ -51,13 +51,6 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint256 referralCode = BytesLib.toUint256(data, 649 + takeTokenAddressLength + receiverDstLength +
 /// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
 /// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
-/// @notice         uint256 permitEnvelope_paramLength = BytesLib.toUint256(data, 681 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
-/// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength + referralCode);
-/// @notice         bytes permitEnvelope = BytesLib.slice(data, 713 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
-/// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength + referralCode,
-/// permitEnvelope_paramLength - offset);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -88,8 +81,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             IDlnSource.OrderCreation memory orderCreation,
             uint256 value,
             bytes memory affiliateFee,
-            uint32 referralCode,
-            bytes memory permitEnvelope
+            uint32 referralCode
         ) = _createOrder(data);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
@@ -111,7 +103,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         executions[0] = Execution({
             target: dlnSource,
             value: value,
-            callData: abi.encodeCall(IDlnSource.createOrder, (orderCreation, affiliateFee, referralCode, permitEnvelope))
+            callData: abi.encodeCall(IDlnSource.createOrder, (orderCreation, affiliateFee, referralCode, ""))
         });
     }
 
@@ -147,8 +139,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             IDlnSource.OrderCreation memory orderCreation,
             uint256 value,
             bytes memory affiliateFee,
-            uint32 referralCode,
-            bytes memory permitEnvelope
+            uint32 referralCode
         )
     {
         LocalVars memory vars;
@@ -209,10 +200,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         referralCode = BytesLib.toUint32(data, vars.offset);
         vars.offset += 4;
-
-        uint256 permitEnvelopeLength = BytesLib.toUint256(data, vars.offset);
-        vars.offset += 32;
-        permitEnvelope = BytesLib.slice(data, vars.offset, permitEnvelopeLength);
 
         orderCreation = IDlnSource.OrderCreation({
             giveTokenAddress: vars.giveTokenAddress,
