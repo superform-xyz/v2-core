@@ -28,13 +28,6 @@ contract IncentiveFundContract is IIncentiveFundContract, IIncentiveFundErrors, 
     address public override tokenOutIncentive;
     SuperAsset public superAsset;
 
-    // --- Events ---
-    event IncentivePaid(address indexed receiver, address indexed token, uint256 amount);
-    event IncentiveTaken(address indexed sender, address indexed token, uint256 amount);
-    event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
-    event SettlementTokenInSet(address token);
-    event SettlementTokenOutSet(address token);
-
     // --- Constructor ---
     constructor(address _superAsset) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);

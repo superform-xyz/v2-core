@@ -38,16 +38,20 @@ interface IIncentiveFundContract {
     function withdraw(address receiver, address tokenOut, uint256 amount) external;
 
     /**
-     * @notice Sets the settlement token for incoming incentives
+     * @notice Sets the token for incoming incentives
      * @param token Address of the token
      */
-    function setSettlementTokenIn(address token) external;
+    function setTokenInIncentive(address token) external;
 
     /**
-     * @notice Sets the settlement token for outgoing incentives
+     * @notice Sets the token for outgoing incentives
      * @param token Address of the token
      */
-    function setSettlementTokenOut(address token) external;
+    function setTokenOutIncentive(address token) external;
+
+    // --- Events ---
+    event TokenInIncentiveSet(address token);
+    event TokenOutIncentiveSet(address token);
 
     /**
      * @notice Emitted when incentives are paid to a receiver
