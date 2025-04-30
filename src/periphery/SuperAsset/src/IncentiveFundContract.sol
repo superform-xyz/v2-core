@@ -24,8 +24,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
     // --- State Variables ---
-    address public override tokenInIncentive;
-    address public override tokenOutIncentive;
+    address public tokenInIncentive;
+    address public tokenOutIncentive;
     SuperAsset public superAsset;
 
     // --- Constructor ---
@@ -37,13 +37,13 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     // --- External Functions ---
-    function setTokenInIncentive(address token) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenInIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
     }
 
-    function setTokenOutIncentive(address token) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenOutIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
@@ -61,7 +61,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     function payIncentive(
         address receiver,
         uint256 amountUSD
-    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
+    ) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
 
@@ -86,7 +86,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     function takeIncentive(
         address sender,
         uint256 amountUSD
-    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
+    ) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
 
@@ -112,7 +112,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         address receiver,
         address tokenOut,
         uint256 amount
-    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
+    ) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 
