@@ -214,6 +214,27 @@ interface ISuperAsset is IERC20 {
      * @return The precision constant (e.g., 10000 for 4 decimal places)
      */
     function getPrecision() external pure returns (uint256);
+    
+    /**
+     * @notice Sets the weight for a vault
+     * @param vault The vault address
+     * @param weight The weight percentage (scaled by PRECISION)
+     */
+    function setWeight(address vault, uint256 weight) external;
+
+    /**
+     * @notice Sets target allocations for multiple tokens at once
+     * @param tokens Array of token addresses
+     * @param allocations Array of target allocation percentages (scaled by PRECISION)
+     */
+    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external;
+
+    /**
+     * @notice Sets the target allocation for a token
+     * @param token The token address
+     * @param allocation The target allocation percentage (scaled by PRECISION)
+     */
+    function setTargetAllocation(address token, uint256 allocation) external;
 
     // --- Events ---
     event Deposit(address indexed receiver, address indexed tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);

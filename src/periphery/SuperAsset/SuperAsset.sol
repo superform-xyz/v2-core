@@ -118,21 +118,29 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /**
+     * @inheritdoc ISuperAsset
+     */
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
+    /**
+     * @inheritdoc ISuperAsset
+     */
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) {
         _burn(from, amount);
     }
 
+    /**
+     * @inheritdoc ISuperAsset
+     */
     function getPrecision() external pure returns (uint256) {
         return PRECISION;
     }
 
     /**
-     * @notice Sets the swap fee percentage for deposits (input operations)
-     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
+     * @inheritdoc ISuperAsset
      */
     function setSwapFeeInPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
@@ -140,21 +148,25 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /**
-     * @notice Sets the swap fee percentage for redemptions (output operations)
-     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
+     * @inheritdoc ISuperAsset
      */
     function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeOutPercentage = _feePercentage;
     }
 
+    /**
+     * @inheritdoc ISuperAsset
+     */
     function setSuperOracle(address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (oracle == address(0)) revert ZERO_ADDRESS();
         superOracle = ISuperOracle(oracle);
         emit SuperOracleSet(oracle);
     }
 
-    // --- Admin Functions ---
+    /**
+     * @inheritdoc ISuperAsset
+     */
     function setWeight(address vault, uint256 weight) external onlyRole(VAULT_MANAGER_ROLE) {
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[vault]) revert NOT_VAULT();
@@ -163,9 +175,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /**
-     * @notice Sets target allocations for multiple tokens at once
-     * @param tokens Array of token addresses
-     * @param allocations Array of target allocation percentages (scaled by PRECISION)
+     * @inheritdoc ISuperAsset
      */
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (tokens.length != allocations.length) revert INVALID_INPUT();
@@ -184,9 +194,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /**
-     * @notice Sets the target allocation for a token
-     * @param token The token address
-     * @param allocation The target allocation percentage (scaled by PRECISION)
+     * @inheritdoc ISuperAsset
      */
     function setTargetAllocation(address token, uint256 allocation) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();

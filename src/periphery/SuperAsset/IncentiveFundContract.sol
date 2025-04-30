@@ -40,12 +40,18 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /**
+     * @inheritdoc IIncentiveFundContract
+     */
     function setTokenInIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
     }
 
+    /**
+     * @inheritdoc IIncentiveFundContract
+     */
     function setTokenOutIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;

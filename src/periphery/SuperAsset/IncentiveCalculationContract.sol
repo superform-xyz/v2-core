@@ -17,6 +17,9 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
     uint256 public constant PERC = 100e18;
 
     // --- View Functions ---
+    /**
+     * @inheritdoc IIncentiveCalculationContract
+     */
     function energy(
         uint256[] memory currentAllocation,
         uint256[] memory allocationTarget,
@@ -39,6 +42,9 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         return res;
     }
 
+    /**
+     * @inheritdoc IIncentiveCalculationContract
+     */
     function calculateIncentive(
         uint256[] memory allocationPreOperation,
         uint256[] memory allocationPostOperation,
