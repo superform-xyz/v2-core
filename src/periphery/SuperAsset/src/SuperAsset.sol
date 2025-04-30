@@ -41,8 +41,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     uint256 public constant SWAP_FEE_PERC = 10**6; 
 
     // --- State ---
-    mapping(address => bool) public isVault;
-    mapping(address => bool) public isERC20;
+    mapping(address => bool) public isSupportedUnderlyingVault;
+    mapping(address => bool) public isSupportedERC20;
     
     EnumerableSet.AddressSet private _supportedVaults;
     address public immutable incentiveCalculationContract;  // Address of the ICC
@@ -71,12 +71,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Modifiers ---
     modifier onlyVault() {
-        if (!isVault[msg.sender]) revert NotVault();
+        if (!isSupportedUnderlyingVault[msg.sender]) revert NOT_VAULT();
         _;
     }
 
     modifier onlyERC20() {
-        if (!isERC20[msg.sender]) revert NotERC20Token();
+        if (!isSupportedERC20[msg.sender]) revert NOT_ERC20_TOKEN();
         _;
     }
 
@@ -99,11 +99,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     ) ERC20(name_, symbol_) {
-        if (icc_ == address(0)) revert ZeroAddress();
-        if (ifc_ == address(0)) revert ZeroAddress();
-        if (assetBank_ == address(0)) revert ZeroAddress();
-        if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
-        if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
+        if (icc_ == address(0)) revert ZERO_ADDRESS();
+        if (ifc_ == address(0)) revert ZERO_ADDRESS();
+        if (assetBank_ == address(0)) revert ZERO_ADDRESS();
+        if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+        if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         
         incentiveCalculationContract = icc_;
         incentiveFundContract = ifc_;
@@ -173,7 +173,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
             if(token == vault) {
                 if (deltaToken < 0 && uint256(-deltaToken) > absoluteAllocationPreOperation[i]) {
-                    revert InsufficientBalance();
+                    revert INSUFFICIENT_BALANCE();
                 }
                 absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + deltaToken);
             }
@@ -190,7 +190,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
      * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
      */
     function setSwapFeeInPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeInPercentage = _feePercentage;
     }
 
@@ -199,7 +199,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
      * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
      */
     function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert InvalidSwapFeePercentage();
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeOutPercentage = _feePercentage;
     }
 
@@ -212,15 +212,15 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 minSharesOut            // Slippage Protection
     ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
         // First all the non state changing functions 
-        if (amountTokenToDeposit == 0) revert ZeroAmount();
-        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
-        if (receiver == address(0)) revert ZeroAddress();
+        if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
+        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        if (receiver == address(0)) revert ZERO_ADDRESS();
 
         // Calculate and settle incentives
         (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
-        if (amountSharesMinted == 0) revert ZeroAmount();
+        if (amountSharesMinted == 0) revert ZERO_AMOUNT();
         // Slippage Check
-        if (amountSharesMinted < minSharesOut) revert SlippageProtection();
+        if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
 
         // State Changing Functions //
 
@@ -246,15 +246,15 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address tokenOut,
         uint256 minTokenOut
     ) public returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) {
-        if (amountSharesToRedeem == 0) revert ZeroAmount();
-        if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
-        if (receiver == address(0)) revert ZeroAddress();
+        if (amountSharesToRedeem == 0) revert ZERO_AMOUNT();
+        if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
+        if (receiver == address(0)) revert ZERO_ADDRESS();
 
         // Calculate and settle incentives
         (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) = previewRedeem(tokenOut, amountSharesToRedeem);
-        if (amountTokenOutAfterFees == 0) revert ZeroAmount();
+        if (amountTokenOutAfterFees == 0) revert ZERO_AMOUNT();
         // Slippage Check
-        if (amountTokenOutAfterFees < minTokenOut) revert SlippageProtection();
+        if (amountTokenOutAfterFees < minTokenOut) revert SLIPPAGE_PROTECTION();
 
         // State Changing Functions //
 
@@ -281,7 +281,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address tokenOut,
         uint256 minTokenOut
     ) external returns (uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut) {
-        if (receiver == address(0)) revert ZeroAddress();
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) = deposit(address(this), tokenIn, amountTokenToDeposit, 0);
         (amountTokenOutAfterFees, swapFeeOut, amountIncentivesOut) = redeem(receiver, amountSharesIntermediateStep, tokenOut, minTokenOut);
         emit Swap(receiver, tokenIn, amountTokenToDeposit, tokenOut, amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
@@ -290,32 +290,32 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Vault Whitelist Management ---
     function whitelistVault(address vault) external onlyRole(VAULT_MANAGER_ROLE) {
-        if (vault == address(0)) revert ZeroAddress();
-        if (isVault[vault]) revert AlreadyWhitelisted();
-        isVault[vault] = true;
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (isSupportedUnderlyingVault[vault]) revert ALREADY_WHITELISTED();
+        isSupportedUnderlyingVault[vault] = true;
         _supportedVaults.add(vault);
         emit VaultWhitelisted(vault);
     }
 
     function removeVault(address vault) external onlyRole(VAULT_MANAGER_ROLE) {
-        if (vault == address(0)) revert ZeroAddress();
-        if (!isVault[vault]) revert NotWhitelisted();
-        isVault[vault] = false;
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!isSupportedUnderlyingVault[vault]) revert NOT_WHITELISTED();
+        isSupportedUnderlyingVault[vault] = false;
         _supportedVaults.remove(vault);
         emit VaultRemoved(vault);
     }
 
     function whitelistERC20(address token) external onlyRole(VAULT_MANAGER_ROLE) {
-        if (token == address(0)) revert ZeroAddress();
-        if (isERC20[token]) revert AlreadyWhitelisted();
-        isERC20[token] = true;
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (isSupportedERC20[token]) revert ALREADY_WHITELISTED();
+        isSupportedERC20[token] = true;
         emit ERC20Whitelisted(token);
     }
 
     function removeERC20(address token) external onlyRole(VAULT_MANAGER_ROLE) {
-        if (token == address(0)) revert ZeroAddress();
-        if (!isERC20[token]) revert NotWhitelisted();
-        isERC20[token] = false;
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (!isSupportedERC20[token]) revert NOT_WHITELISTED();
+        isSupportedERC20[token] = false;
         emit ERC20Removed(token);
     }
 
@@ -325,7 +325,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD)
     {
-        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
+        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
@@ -367,7 +367,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD)
     {
-        if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
+        if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
 
         // Get price of underlying vault shares in USD
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
@@ -417,7 +417,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     // @dev: This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
     // @dev: Getting only single unit price
     function getPriceWithCircuitBreakers(address tokenIn) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
-        if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
+        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
 
         // Get token decimals
         uint256 one = 10**IERC20Metadata(tokenIn).decimals();
@@ -457,27 +457,27 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     // --- Settlement Token Management ---
 
     function setSettlementTokenIn(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZeroAddress();
+        if (token == address(0)) revert ZERO_ADDRESS();
         settlementTokenIn = token;
         emit SettlementTokenInSet(token);
     }
 
     function setSettlementTokenOut(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZeroAddress();
+        if (token == address(0)) revert ZERO_ADDRESS();
         settlementTokenOut = token;
         emit SettlementTokenOutSet(token);
     }
 
     function setSuperOracle(address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (oracle == address(0)) revert ZeroAddress();
+        if (oracle == address(0)) revert ZERO_ADDRESS();
         superOracle = ISuperOracle(oracle);
         emit SuperOracleSet(oracle);
     }
 
     // --- Admin Functions ---
     function setWeight(address vault, uint256 weight) external onlyRole(VAULT_MANAGER_ROLE) {
-        if (vault == address(0)) revert ZeroAddress();
-        if (!isVault[vault]) revert NotVault();
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!isSupportedUnderlyingVault[vault]) revert NOT_VAULT();
         weights[vault] = weight;
         emit WeightSet(vault, weight);
     }
@@ -498,11 +498,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
      * @param allocation The target allocation percentage (scaled by PRECISION)
      */
     function setTargetAllocation(address token, uint256 allocation) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) revert ZeroAddress();
-        if (!isVault[token] && !isERC20[token]) revert NotSupportedToken();
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
 
         // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC 
-        if (allocation > PRECISION) revert InvalidAllocation();
+        if (allocation > PRECISION) revert INVALID_ALLOCATION();
         
         targetAllocations[token] = allocation;
         emit TargetAllocationSet(token, allocation);
@@ -514,12 +514,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
      * @param allocations Array of target allocation percentages (scaled by PRECISION)
      */
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (tokens.length != allocations.length) revert InvalidInput();
+        if (tokens.length != allocations.length) revert INVALID_INPUT();
         
         uint256 totalAllocation;
         for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == address(0)) revert ZeroAddress();
-            if (!isVault[tokens[i]] && !isERC20[tokens[i]]) revert NotSupportedToken();
+            if (tokens[i] == address(0)) revert ZERO_ADDRESS();
+            if (!isSupportedUnderlyingVault[tokens[i]] && !isSupportedERC20[tokens[i]]) revert NOT_SUPPORTED_TOKEN();
             totalAllocation += allocations[i];
         }
         

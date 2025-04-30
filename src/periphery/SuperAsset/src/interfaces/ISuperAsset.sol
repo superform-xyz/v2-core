@@ -227,64 +227,64 @@ interface ISuperAsset is IERC20 {
 
     // --- Errors ---
     /// @notice Thrown when an address parameter is zero
-    error ZeroAddress();
+    error ZERO_ADDRESS();
 
     /// @notice Thrown when token is not in the ERC20 whitelist
-    error NotERC20Token();
+    error NOT_ERC20_TOKEN();
 
     /// @notice Thrown when a token is not supported (neither vault nor ERC20)
-    error NotSupportedToken();
+    error NOT_SUPPORTED_TOKEN();
 
     /// @notice Thrown when vault is not in the vault whitelist
-    error NotVault();
+    error NOT_VAULT();
 
     /// @notice Thrown when vault is already whitelisted
-    error AlreadyWhitelisted();
+    error ALREADY_WHITELISTED();
 
     /// @notice Thrown when vault or token is not whitelisted
-    error NotWhitelisted();
+    error NOT_WHITELISTED();
 
     /// @notice Thrown when swap fee percentage is too high
-    error InvalidSwapFeePercentage();
+    error INVALID_SWAP_FEE_PERCENTAGE();
 
     /// @notice Thrown when amount is zero
-    error ZeroAmount();
+    error ZERO_AMOUNT();
 
     /// @notice Thrown when insufficient balance for operation
-    error InsufficientBalance();
+    error INSUFFICIENT_BALANCE();
 
     /// @notice Thrown when insufficient allowance for transfer
-    error InsufficientAllowance();
+    error INSUFFICIENT_ALLOWANCE();
 
     /// @notice Thrown when slippage tolerance is exceeded
-    error SlippageProtection();
+    error SLIPPAGE_PROTECTION();
 
     /// @notice Thrown when oracle price is invalid
-    error InvalidOraclePrice();
+    error INVALID_ORACLE_PRICE();
 
     /// @notice Thrown when allocation is invalid
-    error InvalidAllocation();
+    error INVALID_ALLOCATION();
 
     /// @notice Thrown when the contract is paused
-    error ContractPaused();
+    error CONTRACT_PAUSED();
 
     /// @notice Thrown when emergency price is not set
-    error EmergencyPriceNotSet();
+    error EMERGENCY_PRICE_NOT_SET();
 
     /// @notice Thrown when caller is not authorized
-    error Unauthorized();
+    error UNAUTHORIZED();
 
     /// @notice Thrown when operation would result in invalid state
-    error InvalidOperation();
+    error INVALID_OPERATION();
 
     /// @notice Thrown when incentive calculation fails
-    error IncentiveCalculationFailed();
+    error INCENTIVE_CALCULATION_FAILED();
 
     /// @notice Thrown when input arrays have mismatched lengths in batch operations
-    error InvalidInput();
+    error INVALID_INPUT();
 
     /// @notice Thrown when the sum of all allocations exceeds 100% (PRECISION)
-    error InvalidTotalAllocation();
+    error INVALID_TOTAL_ALLOCATION();
 
 
 
