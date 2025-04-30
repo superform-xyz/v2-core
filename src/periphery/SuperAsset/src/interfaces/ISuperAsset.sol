@@ -42,20 +42,21 @@ interface ISuperAsset is IERC20 {
      * @notice Gets the allocations before and after an operation
      * @param token The token address involved in the operation
      * @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
-     * @return absoluteCurrentAllocation Array of current absolute allocations
-     * @return totalCurrentAllocation Sum of all current allocations
+     * @return absoluteAllocationPreOperation Array of pre-operation absolute allocations
+     * @return totalAllocationPreOperation Sum of all pre-operation allocations
+     * @return absoluteAllocationPostOperation Array of post-operation absolute allocations
+     * @return totalAllocationPostOperation Sum of all post-operation allocations
      * @return absoluteTargetAllocation Array of target absolute allocations
      * @return totalTargetAllocation Sum of all target allocations
      */
-    function getAllocationsPrePostOperation(
-        address token,
-        int256 deltaToken
-    ) external view returns (
-        uint256[] memory absoluteCurrentAllocation,
-        uint256 totalCurrentAllocation,
-        uint256[] memory absoluteTargetAllocation,
-        uint256 totalTargetAllocation
-    );
+    function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (
+        uint256[] memory absoluteAllocationPreOperation, 
+        uint256 totalAllocationPreOperation, 
+        uint256[] memory absoluteAllocationPostOperation, 
+        uint256 totalAllocationPostOperation, 
+        uint256[] memory absoluteTargetAllocation, 
+        uint256 totalTargetAllocation,
+        uint256[] memory vaultWeights);
 
     /**
      * @notice Sets the swap fee percentage for deposits (input operations)
