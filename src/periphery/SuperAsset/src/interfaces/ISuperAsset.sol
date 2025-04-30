@@ -49,7 +49,7 @@ interface ISuperAsset is IERC20 {
      * @return absoluteTargetAllocation Array of target absolute allocations
      * @return totalTargetAllocation Sum of all target allocations
      */
-    function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (
+    function getAllocationsPrePostOperation(address token, int256 deltaToken) external view returns (
         uint256[] memory absoluteAllocationPreOperation, 
         uint256 totalAllocationPreOperation, 
         uint256[] memory absoluteAllocationPostOperation, 
