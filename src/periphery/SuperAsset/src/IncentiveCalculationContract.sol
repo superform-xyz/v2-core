@@ -22,7 +22,7 @@ contract IncentiveCalculationContract {
      * @param allocationTarget The target allocation.
      * @param totalAllocationTarget The total target allocation.
      * @param weights The weights for each allocation in the energy calculation.
-     * @return energy The calculated energy.
+     * @return res The calculated energy value.
      */
     function energy(
         uint256[] memory currentAllocation,
