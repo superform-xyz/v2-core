@@ -12,7 +12,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
-import { console } from "forge-std/console.sol";
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
