@@ -29,16 +29,12 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
             "ICC: Input arrays must have the same length");
 
         uint256 length = currentAllocation.length;
-        uint256 i;
-        for (; i < length; i++) {
-            //  Safe subtraction to avoid underflow
-            // Calculate Percentage just in time
+        for (uint256 i; i < length; i++) {
             uint256 _currentAllocation = Math.mulDiv(currentAllocation[i], PERC, totalCurrentAllocation);
-            // Calculate Percentage just in time
             uint256 _targetAllocation = Math.mulDiv(allocationTarget[i], PERC, totalAllocationTarget);
             int256 diff = int256(_currentAllocation) - int256(_targetAllocation);
             uint256 diff2 = uint256(diff * diff);
-            res += (diff2 * weights[i]); // Simplified square
+            res += (diff2 * weights[i]);
         }
         return res;
     }
