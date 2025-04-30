@@ -300,8 +300,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 externalCall: debridgeExternalCall, // Use the created envelope
                 allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
                 affiliateFee: "", //affiliateFee
-                referralCode: 0, //referralCode
-                permitEnvelope: "" //permitEnvelope
+                referralCode: 0 //referralCode
              })
         );
         srcHooksData[1] = debridgeData;
