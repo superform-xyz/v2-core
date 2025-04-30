@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
@@ -98,8 +98,8 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     {
         // Input validation
         if (
-            params.asset == address(0) || params.manager == address(0) || params.strategist == address(0)
-                || params.emergencyAdmin == address(0) || params.feeRecipient == address(0)
+            params.asset == address(0) || params.manager == address(0) || params.mainStrategist == address(0)
+                || params.feeRecipient == address(0)
         ) {
             revert ZERO_ADDRESS();
         }
@@ -120,7 +120,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Initialize strategy
         SuperVaultStrategy(strategy).initialize(
-            superVault, params.manager, params.emergencyAdmin, address(SUPER_GOVERNOR), params.superVaultCap
+            superVault, params.manager, address(SUPER_GOVERNOR), params.superVaultCap
         );
 
         // Store vault trio in registry
@@ -128,16 +128,15 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         _superVaultStrategies.add(strategy);
         _superVaultEscrows.add(escrow);
 
-        // Initialize StrategyData
-        _strategyData[strategy] = StrategyData({
-            pps: 10 ** PPS_DECIMALS, // 1.0 as initial PPS
-            lastUpdateTimestamp: block.timestamp,
-            minUpdateInterval: params.minUpdateInterval,
-            maxStaleness: params.maxStaleness,
-            isPaused: false,
-            strategist: params.strategist,
-            authorizedCallers: new address[](0)
-        });
+        // Initialize StrategyData individually to avoid mapping assignment issues
+        _strategyData[strategy].pps = 10 ** PPS_DECIMALS; // 1.0 as initial PPS
+        _strategyData[strategy].lastUpdateTimestamp = block.timestamp;
+        _strategyData[strategy].minUpdateInterval = params.minUpdateInterval;
+        _strategyData[strategy].maxStaleness = params.maxStaleness;
+        _strategyData[strategy].isPaused = false;
+        _strategyData[strategy].mainStrategist = params.mainStrategist;
+        _strategyData[strategy].authorizedCallers = new address[](0);
+        // Secondary strategists is handled through the AddressSet methods, not assignment
 
         emit VaultDeployed(superVault, strategy, escrow, params.asset, params.name, params.symbol);
         emit PPSUpdated(strategy, _strategyData[strategy].pps, _strategyData[strategy].lastUpdateTimestamp);
@@ -252,8 +251,10 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
     function addAuthorizedCaller(address strategy, address caller) external validStrategy(strategy) {
-        address strategist = _strategyData[strategy].strategist;
-        if (msg.sender != strategist) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        // Either primary or secondary strategist can add authorized callers
+        if (!isAnyStrategist(msg.sender, strategy)) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+
+        if (caller == address(0)) revert ZERO_ADDRESS();
 
         // Check if caller is already authorized
         address[] memory callers = _strategyData[strategy].authorizedCallers;
@@ -269,8 +270,8 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     /// @inheritdoc ISuperVaultAggregator
     function removeAuthorizedCaller(address strategy, address caller) external validStrategy(strategy) {
-        address strategist = _strategyData[strategy].strategist;
-        if (msg.sender != strategist) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        // Either primary or secondary strategist can remove authorized callers
+        if (!isAnyStrategist(msg.sender, strategy)) revert UNAUTHORIZED_UPDATE_AUTHORITY();
 
         // Find and remove the caller
         address[] storage callers = _strategyData[strategy].authorizedCallers;
@@ -288,6 +289,169 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         if (!found) revert CALLER_NOT_AUTHORIZED();
         emit AuthorizedCallerRemoved(strategy, caller);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       STRATEGIST MANAGEMENT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperVaultAggregator
+    function addSecondaryStrategist(address strategy, address strategist) external validStrategy(strategy) {
+        // Only the primary strategist can add secondary strategists
+        if (msg.sender != _strategyData[strategy].mainStrategist) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+
+        if (strategist == address(0)) revert ZERO_ADDRESS();
+
+        // Check if strategist is already the primary strategist
+        if (_strategyData[strategy].mainStrategist == strategist) revert STRATEGIST_ALREADY_EXISTS();
+
+        // Add as secondary strategist using EnumerableSet
+        if (!_strategyData[strategy].secondaryStrategists.add(strategist)) revert STRATEGIST_ALREADY_EXISTS();
+
+        emit SecondaryStrategistAdded(strategy, strategist);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function removeSecondaryStrategist(address strategy, address strategist) external validStrategy(strategy) {
+        // Only the primary strategist can remove secondary strategists
+        if (msg.sender != _strategyData[strategy].mainStrategist) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+
+        // Remove the strategist using EnumerableSet
+        if (!_strategyData[strategy].secondaryStrategists.remove(strategist)) revert STRATEGIST_NOT_FOUND();
+
+        emit SecondaryStrategistRemoved(strategy, strategist);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function changePrimaryStrategist(address strategy, address newStrategist) external validStrategy(strategy) {
+        // Only secondary strategists or Governor can change the primary strategist
+        if (!_strategyData[strategy].secondaryStrategists.contains(msg.sender) || msg.sender == address(SUPER_GOVERNOR))
+        {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        if (newStrategist == address(0)) revert ZERO_ADDRESS();
+
+        address oldStrategist = _strategyData[strategy].mainStrategist;
+
+        // If new strategist is already a secondary strategist, remove them
+        if (_strategyData[strategy].secondaryStrategists.contains(newStrategist)) {
+            _strategyData[strategy].secondaryStrategists.remove(newStrategist);
+        }
+
+        // Make the old primary strategist a secondary strategist
+        _strategyData[strategy].secondaryStrategists.add(oldStrategist);
+
+        // Set the new primary strategist
+        _strategyData[strategy].mainStrategist = newStrategist;
+
+        emit PrimaryStrategistChanged(strategy, oldStrategist, newStrategist);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                              VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getPPS(address strategy) external view returns (uint256 pps) {
+        return _strategyData[strategy].pps;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getLastUpdateTimestamp(address strategy) external view returns (uint256 timestamp) {
+        return _strategyData[strategy].lastUpdateTimestamp;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getMinUpdateInterval(address strategy) external view returns (uint256 interval) {
+        return _strategyData[strategy].minUpdateInterval;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getMaxStaleness(address strategy) external view returns (uint256 staleness) {
+        return _strategyData[strategy].maxStaleness;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function isStrategyPaused(address strategy) external view returns (bool isPaused) {
+        return _strategyData[strategy].isPaused;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getUpkeepBalance(address strategist) external view returns (uint256 balance) {
+        return _strategistUpkeepBalance[strategist];
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getAuthorizedCallers(address strategy) external view returns (address[] memory callers) {
+        return _strategyData[strategy].authorizedCallers;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getMainStrategist(address strategy) external view returns (address strategist) {
+        strategist = _strategyData[strategy].mainStrategist;
+        if (strategist == address(0)) revert ZERO_ADDRESS();
+
+        return strategist;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function isMainStrategist(address strategist, address strategy) external view returns (bool) {
+        return _strategyData[strategy].mainStrategist == strategist;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getSecondaryStrategists(address strategy) external view returns (address[] memory) {
+        return _strategyData[strategy].secondaryStrategists.values();
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function isSecondaryStrategist(address strategist, address strategy) external view returns (bool) {
+        return _strategyData[strategy].secondaryStrategists.contains(strategist);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function isAnyStrategist(address strategist, address strategy) public view returns (bool) {
+        // Check if primary strategist
+        if (_strategyData[strategy].mainStrategist == strategist) {
+            return true;
+        }
+
+        // Check if secondary strategist using EnumerableSet
+        return _strategyData[strategy].secondaryStrategists.contains(strategist);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getAllSuperVaults() external view returns (address[] memory) {
+        return _superVaults.values();
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function superVaults(uint256 index) external view returns (address) {
+        if (index >= _superVaults.length()) revert INDEX_OUT_OF_BOUNDS();
+        return _superVaults.at(index);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getAllSuperVaultStrategies() external view returns (address[] memory) {
+        return _superVaultStrategies.values();
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function superVaultStrategies(uint256 index) external view returns (address) {
+        if (index >= _superVaultStrategies.length()) revert INDEX_OUT_OF_BOUNDS();
+        return _superVaultStrategies.at(index);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getAllSuperVaultEscrows() external view returns (address[] memory) {
+        return _superVaultEscrows.values();
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function superVaultEscrows(uint256 index) external view returns (address) {
+        if (index >= _superVaultEscrows.length()) revert INDEX_OUT_OF_BOUNDS();
+        return _superVaultEscrows.at(index);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -346,7 +510,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         }
 
         // Get the strategy's strategist to deduct upkeep cost from
-        address strategist = _strategyData[strategy].strategist;
+        address strategist = _strategyData[strategy].mainStrategist;
 
         // If not exempt, deduct upkeep from strategist's balance
         if (!isExempt) {
@@ -363,103 +527,5 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         _strategyData[strategy].lastUpdateTimestamp = timestamp;
 
         emit PPSUpdated(strategy, pps, timestamp);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                              VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperVaultAggregator
-    function getStrategyData(address strategy) external view returns (StrategyData memory data) {
-        return _strategyData[strategy];
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function getPPS(address strategy) external view returns (uint256 pps) {
-        return _strategyData[strategy].pps;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function getLastUpdateTimestamp(address strategy) external view returns (uint256 timestamp) {
-        return _strategyData[strategy].lastUpdateTimestamp;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function getMinUpdateInterval(address strategy) external view returns (uint256 interval) {
-        return _strategyData[strategy].minUpdateInterval;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function getMaxStaleness(address strategy) external view returns (uint256 staleness) {
-        return _strategyData[strategy].maxStaleness;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function isStrategyPaused(address strategy) external view returns (bool isPaused) {
-        return _strategyData[strategy].isPaused;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function getAuthorizedCallers(address strategy) external view returns (address[] memory callers) {
-        return _strategyData[strategy].authorizedCallers;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function getStrategist(address strategy) external view returns (address strategist) {
-        strategist = _strategyData[strategy].strategist;
-        if (strategist == address(0)) revert ZERO_ADDRESS();
-
-        return strategist;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function isStrategist(address strategist, address strategy) external view returns (bool) {
-        return _strategyData[strategy].strategist == strategist;
-    }
-
-    /// @inheritdoc ISuperVaultAggregator
-    function getUpkeepBalance(address strategist) external view returns (uint256 balance) {
-        return _strategistUpkeepBalance[strategist];
-    }
-
-    /// @notice Gets all created SuperVaults
-    /// @return Array of SuperVault addresses
-    function getAllSuperVaults() external view returns (address[] memory) {
-        return _superVaults.values();
-    }
-
-    /// @notice Gets a SuperVault by index
-    /// @param index The index of the SuperVault
-    /// @return The SuperVault address at the given index
-    function superVaults(uint256 index) external view returns (address) {
-        if (index >= _superVaults.length()) revert INDEX_OUT_OF_BOUNDS();
-        return _superVaults.at(index);
-    }
-
-    /// @notice Gets a SuperVaultStrategy by index
-    /// @param index The index of the SuperVaultStrategy
-    /// @return The SuperVaultStrategy address at the given index
-    function superVaultStrategies(uint256 index) external view returns (address) {
-        if (index >= _superVaultStrategies.length()) revert INDEX_OUT_OF_BOUNDS();
-        return _superVaultStrategies.at(index);
-    }
-
-    /// @notice Gets a SuperVaultEscrow by index
-    /// @param index The index of the SuperVaultEscrow
-    /// @return The SuperVaultEscrow address at the given index
-    function superVaultEscrows(uint256 index) external view returns (address) {
-        if (index >= _superVaultEscrows.length()) revert INDEX_OUT_OF_BOUNDS();
-        return _superVaultEscrows.at(index);
-    }
-
-    /// @notice Gets all created SuperVaultStrategies
-    /// @return Array of SuperVaultStrategy addresses
-    function getAllSuperVaultStrategies() external view returns (address[] memory) {
-        return _superVaultStrategies.values();
-    }
-
-    /// @notice Gets all created SuperVaultEscrows
-    /// @return Array of SuperVaultEscrow addresses
-    function getAllSuperVaultEscrows() external view returns (address[] memory) {
-        return _superVaultEscrows.values();
     }
 }

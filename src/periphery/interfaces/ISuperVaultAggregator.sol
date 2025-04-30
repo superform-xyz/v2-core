@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+
 /// @title ISuperVaultAggregator
 /// @author Superform Labs
 /// @notice Interface for the SuperVaultAggregator contract
@@ -15,7 +17,8 @@ interface ISuperVaultAggregator {
     /// @param minUpdateInterval Minimum time interval between PPS updates
     /// @param maxStaleness Maximum time allowed between PPS updates before staleness
     /// @param isPaused Whether the strategy is paused
-    /// @param strategist Address of the strategist controlling the strategy
+    /// @param mainStrategist Address of the primary strategist controlling the strategy
+    /// @param secondaryStrategists Set of secondary strategists that can manage the strategy
     /// @param authorizedCallers List of callers authorized to update PPS without paying upkeep
     struct StrategyData {
         uint256 pps;
@@ -23,7 +26,8 @@ interface ISuperVaultAggregator {
         uint256 minUpdateInterval;
         uint256 maxStaleness;
         bool isPaused;
-        address strategist;
+        address mainStrategist;
+        EnumerableSet.AddressSet secondaryStrategists;
         address[] authorizedCallers;
     }
 
@@ -32,8 +36,7 @@ interface ISuperVaultAggregator {
     /// @param name Name of the vault token
     /// @param symbol Symbol of the vault token
     /// @param manager Address of the vault manager
-    /// @param strategist Address of the vault strategist
-    /// @param emergencyAdmin Address of the emergency admin
+    /// @param mainStrategist Address of the vault mainStrategist
     /// @param feeRecipient Address that will receive fees
     /// @param superVaultCap Maximum cap for the vault (in underlying asset)
     /// @param minUpdateInterval Minimum time interval between PPS updates
@@ -43,46 +46,12 @@ interface ISuperVaultAggregator {
         string name;
         string symbol;
         address manager;
-        address strategist;
-        address emergencyAdmin;
+        address mainStrategist;
         address feeRecipient;
         uint256 superVaultCap;
         uint256 minUpdateInterval;
         uint256 maxStaleness;
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Thrown when address provided is zero
-    error ZERO_ADDRESS();
-    /// @notice Thrown when array length is zero
-    error ZERO_ARRAY_LENGTH();
-    /// @notice Thrown when array length is zero
-    error ARRAY_LENGTH_MISMATCH();
-
-    /// @notice Thrown when insufficient upkeep balance for operation
-    error INSUFFICIENT_UPKEEP();
-    /// @notice Thrown when vault is paused but operation requires active state
-    error VAULT_PAUSED();
-    /// @notice Thrown when caller is not an approved PPS oracle
-    error UNAUTHORIZED_PPS_ORACLE();
-    /// @notice Thrown when PPS update is too frequent (before minUpdateInterval)
-    error UPDATE_TOO_FREQUENT();
-    /// @notice Thrown when PPS update is too stale (after maxStaleness)
-    error UPDATE_TOO_STALE();
-    /// @notice Thrown when caller is not authorized for update
-    error UNAUTHORIZED_UPDATE_AUTHORITY();
-    /// @notice Thrown when strategy address is not a known SuperVault strategy
-    error UNKNOWN_STRATEGY();
-    /// @notice Thrown when withdrawing more upkeep than available
-    error INSUFFICIENT_UPKEEP_BALANCE();
-    /// @notice Thrown when caller is already authorized
-    error CALLER_ALREADY_AUTHORIZED();
-    /// @notice Thrown when caller is not authorized
-    error CALLER_NOT_AUTHORIZED();
-    /// @notice Thrown when array index is out of bounds
-    error INDEX_OUT_OF_BOUNDS();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -137,10 +106,65 @@ interface ISuperVaultAggregator {
     /// @param caller Address of the removed caller
     event AuthorizedCallerRemoved(address indexed strategy, address indexed caller);
 
-    /*//////////////////////////////////////////////////////////////
-                            EXTERNAL FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
+    /// @notice Emitted when a secondary strategist is added to a strategy
+    /// @param strategy Address of the strategy
+    /// @param strategist Address of the strategist added
+    event SecondaryStrategistAdded(address indexed strategy, address indexed strategist);
 
+    /// @notice Emitted when a secondary strategist is removed from a strategy
+    /// @param strategy Address of the strategy
+    /// @param strategist Address of the strategist removed
+    event SecondaryStrategistRemoved(address indexed strategy, address indexed strategist);
+
+    /// @notice Emitted when the primary strategist is changed
+    /// @param strategy Address of the strategy
+    /// @param oldStrategist Address of the old primary strategist
+    /// @param newStrategist Address of the new primary strategist
+    event PrimaryStrategistChanged(
+        address indexed strategy, address indexed oldStrategist, address indexed newStrategist
+    );
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Thrown when address provided is zero
+    error ZERO_ADDRESS();
+    /// @notice Thrown when array length is zero
+    error ZERO_ARRAY_LENGTH();
+    /// @notice Thrown when array length is zero
+    error ARRAY_LENGTH_MISMATCH();
+    /// @notice Thrown when insufficient upkeep balance for operation
+    error INSUFFICIENT_UPKEEP();
+    /// @notice Thrown when vault is paused but operation requires active state
+    error VAULT_PAUSED();
+    /// @notice Thrown when caller is not an approved PPS oracle
+    error UNAUTHORIZED_PPS_ORACLE();
+    /// @notice Thrown when PPS update is too frequent (before minUpdateInterval)
+    error UPDATE_TOO_FREQUENT();
+    /// @notice Thrown when PPS update is too stale (after maxStaleness)
+    error UPDATE_TOO_STALE();
+    /// @notice Thrown when caller is not authorized for update
+    error UNAUTHORIZED_UPDATE_AUTHORITY();
+    /// @notice Thrown when strategy address is not a known SuperVault strategy
+    error UNKNOWN_STRATEGY();
+    /// @notice Thrown when withdrawing more upkeep than available
+    error INSUFFICIENT_UPKEEP_BALANCE();
+    /// @notice Thrown when caller is already authorized
+    error CALLER_ALREADY_AUTHORIZED();
+    /// @notice Thrown when caller is not authorized
+    error CALLER_NOT_AUTHORIZED();
+    /// @notice Thrown when array index is out of bounds
+    error INDEX_OUT_OF_BOUNDS();
+    /// @notice Thrown when attempting to remove the last strategist
+    error CANNOT_REMOVE_LAST_STRATEGIST();
+    /// @notice Thrown when attempting to add a strategist that already exists
+    error STRATEGIST_ALREADY_EXISTS();
+    /// @notice Thrown when strategist is not found
+    error STRATEGIST_NOT_FOUND();
+
+    /*//////////////////////////////////////////////////////////////
+                            VAULT CREATION
+    //////////////////////////////////////////////////////////////*/
     /// @notice Creates a new SuperVault trio (SuperVault, SuperVaultStrategy, SuperVaultEscrow)
     /// @param params Parameters for the new vault creation
     /// @return superVault Address of the created SuperVault
@@ -150,6 +174,9 @@ interface ISuperVaultAggregator {
         external
         returns (address superVault, address strategy, address escrow);
 
+    /*//////////////////////////////////////////////////////////////
+                          PPS UPDATE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /// @notice Forwards a validated PPS update from a trusted oracle
     /// @param updateAuthority Address that initiated the update (for upkeep tracking)
     /// @param strategy Address of the strategy to update
@@ -170,6 +197,10 @@ interface ISuperVaultAggregator {
     )
         external;
 
+    /*//////////////////////////////////////////////////////////////
+                        UPKEEP MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice Deposits UP tokens for strategist upkeep
     /// @param strategist Address of the strategist to deposit for
     /// @param amount Amount of UP tokens to deposit
@@ -179,10 +210,42 @@ interface ISuperVaultAggregator {
     /// @param amount Amount of UP tokens to withdraw
     function withdrawUpkeep(uint256 amount) external;
 
-    /// @notice Gets the full strategy data
+    /*//////////////////////////////////////////////////////////////
+                        AUTHORIZED CALLER MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Adds an authorized caller for a strategy
     /// @param strategy Address of the strategy
-    /// @return data The StrategyData struct containing all strategy information
-    function getStrategyData(address strategy) external view returns (StrategyData memory data);
+    /// @param caller Address of the caller to authorize
+    function addAuthorizedCaller(address strategy, address caller) external;
+
+    /// @notice Removes an authorized caller for a strategy
+    /// @param strategy Address of the strategy
+    /// @param caller Address of the caller to remove
+    function removeAuthorizedCaller(address strategy, address caller) external;
+
+    /*//////////////////////////////////////////////////////////////
+                       STRATEGIST MANAGEMENT FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Adds a secondary strategist to a strategy
+    /// @param strategy Address of the strategy
+    /// @param strategist Address of the strategist to add
+    function addSecondaryStrategist(address strategy, address strategist) external;
+
+    /// @notice Removes a secondary strategist from a strategy
+    /// @param strategy Address of the strategy
+    /// @param strategist Address of the strategist to remove
+    function removeSecondaryStrategist(address strategy, address strategist) external;
+
+    /// @notice Changes the primary strategist of a strategy
+    /// @param strategy Address of the strategy
+    /// @param newStrategist Address of the new primary strategist
+    function changePrimaryStrategist(address strategy, address newStrategist) external;
+
+    /*//////////////////////////////////////////////////////////////
+                              VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     /// @notice Gets the current PPS (price-per-share) for a strategy
     /// @param strategy Address of the strategy
@@ -209,34 +272,74 @@ interface ISuperVaultAggregator {
     /// @return isPaused True if paused, false otherwise
     function isStrategyPaused(address strategy) external view returns (bool isPaused);
 
-    /// @notice Gets all authorized callers for a strategy
-    /// @param strategy Address of the strategy
-    /// @return callers Array of authorized callers
-    function getAuthorizedCallers(address strategy) external view returns (address[] memory callers);
-
-    /// @notice Gets the strategist for a strategy
-    /// @param strategy Address of the strategy
-    /// @return strategist Address of the strategist
-    function getStrategist(address strategy) external view returns (address strategist);
-
-    /// @notice Checks if an address is the strategist for a strategy
-    /// @param strategist Address of the strategist
-    /// @param strategy Address of the strategy
-    /// @return isStrategist True if the address is the strategist, false otherwise
-    function isStrategist(address strategist, address strategy) external view returns (bool isStrategist);
-
     /// @notice Gets the current upkeep balance for a strategist
     /// @param strategist Address of the strategist
     /// @return balance Current upkeep balance in UP tokens
     function getUpkeepBalance(address strategist) external view returns (uint256 balance);
 
-    /// @notice Adds an authorized caller for a strategy
+    /// @notice Gets all authorized callers for a strategy
     /// @param strategy Address of the strategy
-    /// @param caller Address of the caller to authorize
-    function addAuthorizedCaller(address strategy, address caller) external;
+    /// @return callers Array of authorized callers
+    function getAuthorizedCallers(address strategy) external view returns (address[] memory callers);
 
-    /// @notice Removes an authorized caller for a strategy
+    /// @notice Gets the main strategist for a strategy
     /// @param strategy Address of the strategy
-    /// @param caller Address of the caller to remove
-    function removeAuthorizedCaller(address strategy, address caller) external;
+    /// @return strategist Address of the main strategist
+    function getMainStrategist(address strategy) external view returns (address strategist);
+
+    /// @notice Checks if an address is the main strategist for a strategy
+    /// @param strategist Address of the strategist
+    /// @param strategy Address of the strategy
+    /// @return isMainStrategist True if the address is the main strategist, false otherwise
+    function isMainStrategist(address strategist, address strategy) external view returns (bool isMainStrategist);
+
+    /// @notice Gets all secondary strategists for a strategy
+    /// @param strategy Address of the strategy
+    /// @return secondaryStrategists Array of secondary strategist addresses
+    function getSecondaryStrategists(address strategy) external view returns (address[] memory secondaryStrategists);
+
+    /// @notice Checks if an address is a secondary strategist for a strategy
+    /// @param strategist Address of the strategist
+    /// @param strategy Address of the strategy
+    /// @return isSecondaryStrategist True if the address is a secondary strategist, false otherwise
+    function isSecondaryStrategist(
+        address strategist,
+        address strategy
+    )
+        external
+        view
+        returns (bool isSecondaryStrategist);
+
+    /// @dev Internal helper function to check if an address is any kind of strategist (primary or secondary)
+    /// @param strategist Address to check
+    /// @param strategy The strategy to check against
+    /// @return True if the address is either the primary strategist or a secondary strategist
+    function isAnyStrategist(address strategist, address strategy) external view returns (bool);
+
+    /// @notice Gets all created SuperVaults
+    /// @return Array of SuperVault addresses
+    function getAllSuperVaults() external view returns (address[] memory);
+
+    /// @notice Gets a SuperVault by index
+    /// @param index The index of the SuperVault
+    /// @return The SuperVault address at the given index
+    function superVaults(uint256 index) external view returns (address);
+
+    /// @notice Gets all created SuperVaultStrategies
+    /// @return Array of SuperVaultStrategy addresses
+    function getAllSuperVaultStrategies() external view returns (address[] memory);
+
+    /// @notice Gets a SuperVaultStrategy by index
+    /// @param index The index of the SuperVaultStrategy
+    /// @return The SuperVaultStrategy address at the given index
+    function superVaultStrategies(uint256 index) external view returns (address);
+
+    /// @notice Gets all created SuperVaultEscrows
+    /// @return Array of SuperVaultEscrow addresses
+    function getAllSuperVaultEscrows() external view returns (address[] memory);
+
+    /// @notice Gets a SuperVaultEscrow by index
+    /// @param index The index of the SuperVaultEscrow
+    /// @return The SuperVaultEscrow address at the given index
+    function superVaultEscrows(uint256 index) external view returns (address);
 }

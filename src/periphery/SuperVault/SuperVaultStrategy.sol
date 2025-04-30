@@ -100,19 +100,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
-    function initialize(
-        address vault_,
-        address manager_,
-        address emergencyAdmin_,
-        address superGovernor_,
-        uint256 superVaultCap_
-    )
-        external
-    {
+    function initialize(address vault_, address manager_, address superGovernor_, uint256 superVaultCap_) external {
         if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
         if (manager_ == address(0)) revert INVALID_MANAGER();
-        if (emergencyAdmin_ == address(0)) revert INVALID_EMERGENCY_ADMIN();
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
         if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
 
@@ -121,9 +112,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         superGovernor = ISuperGovernor(superGovernor_);
         superVaultCap = superVaultCap_;
 
-        _initializeRoles(manager_, emergencyAdmin_);
+        _initializeRoles(manager_);
 
-        emit Initialized(_vault, manager_, emergencyAdmin_, superGovernor_, superVaultCap_);
+        emit Initialized(_vault, manager_, superGovernor_, superVaultCap_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -135,8 +126,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         _requireVault();
 
         if (operation == Operation.Deposit) {
-            _getAndCheckStrategist();
-
             _handleDeposit(controller, assets, shares);
         } else if (operation == Operation.RedeemRequest) {
             _handleRequestRedeem(controller, shares);
@@ -155,8 +144,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     /// @inheritdoc ISuperVaultStrategy
     function executeHooks(ExecuteArgs calldata args) external nonReentrant {
-        _getAndCheckStrategist();
-        // TODO check msg-sender to be a valid caller
+        _isStrategist(msg.sender);
 
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
@@ -176,10 +164,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     /// @inheritdoc ISuperVaultStrategy
     function fulfillRedeemRequests(FulfillArgs calldata args) external nonReentrant {
-        // note: this prevents users from exiting till strategist has a minimum stake
-        // todo: implement emergency procedure could allow an adjudicator to take over strategist and allow exit here?
-        _getAndCheckStrategist();
-        // todo check caller
+        _isStrategist(msg.sender);
 
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
@@ -281,11 +266,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function setAddress(bytes32 role, address account) external onlyRole(MANAGER_ROLE) {
         if (account == address(0)) revert ZERO_ADDRESS();
         if (role == MANAGER_ROLE && account != msg.sender) revert ACCESS_DENIED();
-        // STRATEGIST_ROLE is no longer set here - managed by SuperVaultAggregator
         addresses[role] = account;
     }
-
-    // PPS configuration is now managed by SuperVaultAggregator
 
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external {
         if (action == 1) {
@@ -364,9 +346,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     // --- Internal Initialization Helpers ---
-    function _initializeRoles(address manager_, address emergencyAdmin_) internal {
+    function _initializeRoles(address manager_) internal {
         addresses[MANAGER_ROLE] = manager_;
-        addresses[EMERGENCY_ADMIN_ROLE] = emergencyAdmin_;
     }
 
     // --- Hook Execution ---
@@ -627,12 +608,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // --- End Hook Execution ---
 
     // --- Internal Strategist Check Helpers ---
-    function _getAndCheckStrategist() internal view {
-        // Get the strategist from the aggregator
-        address strategist = _getStrategist();
-        // Check if strategist
-        _isStrategist(strategist);
-    }
 
     function _getSuperVaultAggregator() internal view returns (ISuperVaultAggregator) {
         address aggregatorAddress = superGovernor.getAddress(superGovernor.SUPER_VAULT_AGGREGATOR());
@@ -640,12 +615,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return ISuperVaultAggregator(aggregatorAddress);
     }
 
-    function _getStrategist() internal view returns (address) {
-        return _getSuperVaultAggregator().getStrategist(address(this));
-    }
-
     function _isStrategist(address strategist_) internal view {
-        if (!_getSuperVaultAggregator().isStrategist(strategist_, address(this))) {
+        if (!_getSuperVaultAggregator().isSecondaryStrategist(strategist_, address(this))) {
             revert STRATEGIST_NOT_AUTHORIZED();
         }
     }
@@ -695,7 +666,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
-    function _proposeEmergencyWithdraw() internal onlyRole(EMERGENCY_ADMIN_ROLE) {
+    function _proposeEmergencyWithdraw() internal {
+        _isStrategist(msg.sender);
+
         proposedEmergencyWithdrawable = true;
         emergencyWithdrawableEffectiveTime = block.timestamp + ONE_WEEK;
         emit EmergencyWithdrawableProposed(true, emergencyWithdrawableEffectiveTime);

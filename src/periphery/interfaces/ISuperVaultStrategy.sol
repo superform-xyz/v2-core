@@ -56,13 +56,7 @@ interface ISuperVaultStrategy {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Initialized(
-        address indexed vault,
-        address indexed manager,
-        address emergencyAdmin,
-        address superGovernor,
-        uint256 superVaultCap
-    );
+    event Initialized(address indexed vault, address indexed manager, address superGovernor, uint256 superVaultCap);
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceDeactivated(address indexed source);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
@@ -174,17 +168,9 @@ interface ISuperVaultStrategy {
     /// @notice Initializes the strategy with required parameters
     /// @param vault_ Address of the associated SuperVault
     /// @param manager_ Address of the strategy manager
-    /// @param emergencyAdmin_ Address of the emergency admin
     /// @param superGovernor_ Address of the SuperGovernor contract
     /// @param superVaultCap_ Maximum cap for the vault in underlying asset units
-    function initialize(
-        address vault_,
-        address manager_,
-        address emergencyAdmin_,
-        address superGovernor_,
-        uint256 superVaultCap_
-    )
-        external;
+    function initialize(address vault_, address manager_, address superGovernor_, uint256 superVaultCap_) external;
 
     /// @notice Handles asynchronous redeem operations initiated by the Vault.
     /// @param controller Controller address for the redeem operation.
