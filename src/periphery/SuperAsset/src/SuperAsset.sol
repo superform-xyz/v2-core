@@ -352,12 +352,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Calculate incentives (using ICC)
         amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             allocationPreOperation,
-            totalAllocationPreOperation,
             allocationPostOperation,
-            totalAllocationPostOperation,
             allocationTarget,
-            totalAllocationTarget,
             vaultWeights,
+            totalAllocationPreOperation,
+            totalAllocationPostOperation,
+            totalAllocationTarget,
             energyToUSDExchangeRatio
         );
     }
@@ -393,12 +393,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Calculate incentives (using ICC)
         amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             allocationPreOperation,
-            totalAllocationPreOperation,
             allocationPostOperation,
-            totalAllocationPostOperation,
             allocationTarget,
-            totalAllocationTarget,
             vaultWeights,
+            totalAllocationPreOperation,
+            totalAllocationPostOperation,
+            totalAllocationTarget,
             energyToUSDExchangeRatio
         );
     }
