@@ -36,7 +36,10 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         superAsset = SuperAsset(_superAsset);
     }
 
-    // --- External Functions ---
+
+    /*//////////////////////////////////////////////////////////////
+                EXTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     function setTokenInIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
@@ -47,12 +50,6 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
-    }
-
-    // --- Internal Functions ---
-    function _validateInput(address user, uint256 amount) internal pure {
-        if (user == address(0)) revert ZERO_ADDRESS();
-        if (amount == 0) revert ZERO_AMOUNT();
     }
 
     /**
@@ -120,5 +117,14 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
         IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
+    }
+
+
+    /*//////////////////////////////////////////////////////////////
+                INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function _validateInput(address user, uint256 amount) internal pure {
+        if (user == address(0)) revert ZERO_ADDRESS();
+        if (amount == 0) revert ZERO_AMOUNT();
     }
 }
