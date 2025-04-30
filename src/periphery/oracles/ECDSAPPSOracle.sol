@@ -8,13 +8,13 @@ import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptog
 // Superform
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
-import { IPPSOracle } from "../interfaces/IPPSOracle.sol";
+import { IECDSAPPSOracle } from "../interfaces/IECDSAPPSOracle.sol";
 
 /// @title ECDSAPPSOracle
 /// @author Superform Labs
 /// @notice PPS Oracle that validates price updates using ECDSA signatures
-/// @dev Implements the IPPSOracle interface for validating and forwarding PPS updates
-contract ECDSAPPSOracle is IPPSOracle {
+/// @dev Implements the IECDSAPPSOracle interface for validating and forwarding PPS updates
+contract ECDSAPPSOracle is IECDSAPPSOracle {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
@@ -27,16 +27,12 @@ contract ECDSAPPSOracle is IPPSOracle {
     /// @notice The SuperVaultAggregator contract for forwarding validated PPS updates
     ISuperVaultAggregator public immutable SUPER_VAULT_AGGREGATOR;
 
-    /// @notice Minimum number of validator signatures required
-    uint256 private _quorumRequirement;
-
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the ECDSAPPSOracle contract
     /// @param superGovernor_ Address of the SuperGovernor contract
-    /// @param quorumRequirement_ Initial quorum requirement
-    constructor(address superGovernor_, uint256 quorumRequirement_) {
+    constructor(address superGovernor_) {
         if (superGovernor_ == address(0)) revert INVALID_VALIDATOR();
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
@@ -46,18 +42,12 @@ contract ECDSAPPSOracle is IPPSOracle {
         if (superVaultAggregator == address(0)) revert INVALID_VALIDATOR(); // Reuse error for simplicity
 
         SUPER_VAULT_AGGREGATOR = ISuperVaultAggregator(superVaultAggregator);
-
-        // Set initial quorum requirement
-        if (quorumRequirement_ == 0) revert QUORUM_NOT_MET();
-        _quorumRequirement = quorumRequirement_;
-
-        emit QuorumUpdated(quorumRequirement_);
     }
 
     /*//////////////////////////////////////////////////////////////
                          PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc IPPSOracle
+    /// @inheritdoc IECDSAPPSOracle
     function updatePPS(address strategy, bytes[] calldata proofs, uint256 pps, uint256 timestamp) external {
         // Validate proofs and check quorum requirement
         _validateProofs(strategy, proofs, pps, timestamp);
@@ -69,7 +59,7 @@ contract ECDSAPPSOracle is IPPSOracle {
         SUPER_VAULT_AGGREGATOR.forwardPPS(msg.sender, strategy, pps, timestamp);
     }
 
-    /// @inheritdoc IPPSOracle
+    /// @inheritdoc IECDSAPPSOracle
     function batchUpdatePPS(
         address[] calldata strategies,
         bytes[][] calldata proofsArray,
@@ -100,30 +90,7 @@ contract ECDSAPPSOracle is IPPSOracle {
         }
 
         // Forward all validated updates to SuperVaultAggregator as a batch
-        SUPER_VAULT_AGGREGATOR.batchForwardPPS(msg.sender, strategies, ppss, timestamps);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            ADMIN FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Updates the quorum requirement
-    /// @param newQuorum The new quorum value
-    function setQuorumRequirement(uint256 newQuorum) external {
-        // Only authorized PPSOracle admin can update quorum
-        if (!SUPER_GOVERNOR.isPPSOracle(msg.sender)) revert INVALID_VALIDATOR(); // Reuse error for simplicity
-
-        if (newQuorum == 0) revert QUORUM_NOT_MET();
-        _quorumRequirement = newQuorum;
-
-        emit QuorumUpdated(newQuorum);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                             VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc IPPSOracle
-    function getQuorumRequirement() external view returns (uint256) {
-        return _quorumRequirement;
+        SUPER_VAULT_AGGREGATOR.batchForwardPPS(strategies, ppss, timestamps);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -136,6 +103,8 @@ contract ECDSAPPSOracle is IPPSOracle {
     /// @param timestamp Timestamp when the value was generated
     /// @dev Reverts immediately if duplicate signers are found or quorum is not met
     function _validateProofs(address strategy, bytes[] calldata proofs, uint256 pps, uint256 timestamp) internal view {
+        // Check if this oracle is the active PPS Oracle
+        if (!SUPER_GOVERNOR.isActivePPSOracle(address(this))) revert NOT_ACTIVE_PPS_ORACLE();
         // Create message hash
         bytes32 messageHash = keccak256(abi.encodePacked(strategy, pps, timestamp));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
@@ -167,6 +136,7 @@ contract ECDSAPPSOracle is IPPSOracle {
         }
 
         // Ensure we have enough valid signatures to meet quorum
-        if (validSignatureCount < _quorumRequirement) revert QUORUM_NOT_MET();
+        uint256 quorumRequirement = SUPER_GOVERNOR.getPPSOracleQuorum();
+        if (validSignatureCount < quorumRequirement) revert QUORUM_NOT_MET();
     }
 }

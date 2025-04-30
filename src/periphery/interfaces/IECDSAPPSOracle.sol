@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-/// @title IPPSOracle
+/// @title ECDSAPPSOracle
 /// @author Superform Labs
 /// @notice Interface for PPS oracles that provide price-per-share updates
 /// @dev All PPS oracle implementations must conform to this interface
-interface IPPSOracle {
+interface IECDSAPPSOracle {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -25,6 +25,8 @@ interface IPPSOracle {
     error STRATEGY_MISMATCH();
     /// @notice Thrown when the pps value in the proof does not match
     error PPS_MISMATCH();
+    /// @notice Thrown when the oracle is not set as the active PPS Oracle in SuperGovernor
+    error NOT_ACTIVE_PPS_ORACLE();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -35,10 +37,6 @@ interface IPPSOracle {
     /// @param timestamp Timestamp when the value was generated
     /// @param sender Address that submitted the update
     event PPSValidated(address indexed strategy, uint256 pps, uint256 timestamp, address indexed sender);
-
-    /// @notice Emitted when the validator quorum requirement is updated
-    /// @param newQuorum The new quorum value
-    event QuorumUpdated(uint256 newQuorum);
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -63,8 +61,4 @@ interface IPPSOracle {
         uint256[] calldata timestamps
     )
         external;
-
-    /// @notice Gets the current validator quorum requirement
-    /// @return The number of validators required for a valid proof
-    function getQuorumRequirement() external view returns (uint256);
 }

@@ -124,6 +124,12 @@ interface ISuperVaultAggregator {
         address indexed strategy, address indexed oldStrategist, address indexed newStrategist
     );
 
+    /// @notice Emitted when a PPS update is stale (Validators could get slashed for innactivity)
+    /// @param strategy Address of the strategy
+    /// @param updateAuthority Address of the update authority
+    /// @param timestamp Timestamp of the stale update
+    event StaleUpdate(address indexed strategy, address indexed updateAuthority, uint256 timestamp);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -178,19 +184,17 @@ interface ISuperVaultAggregator {
                           PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Forwards a validated PPS update from a trusted oracle
-    /// @param updateAuthority Address that initiated the update (for upkeep tracking)
+    /// @param updateAuthority Address that initiated the update (for upkeep tracking for single updates)
     /// @param strategy Address of the strategy to update
     /// @param pps New price-per-share value
     /// @param timestamp Timestamp when this value was generated
     function forwardPPS(address updateAuthority, address strategy, uint256 pps, uint256 timestamp) external;
 
     /// @notice Forwards multiple validated PPS updates from a trusted oracle
-    /// @param updateAuthority Address that initiated the updates (for upkeep tracking)
     /// @param strategies Array of strategy addresses to update
     /// @param ppss Array of new price-per-share values
     /// @param timestamps Array of timestamps when values were generated
     function batchForwardPPS(
-        address updateAuthority,
         address[] calldata strategies,
         uint256[] calldata ppss,
         uint256[] calldata timestamps

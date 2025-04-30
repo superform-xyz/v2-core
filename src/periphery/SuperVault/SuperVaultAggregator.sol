@@ -74,9 +74,9 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                               MODIFIERS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Validates that msg.sender is a registered PPS Oracle
+    /// @notice Validates that msg.sender is the active PPS Oracle
     modifier onlyPPSOracle() {
-        if (!SUPER_GOVERNOR.isPPSOracle(msg.sender)) {
+        if (!SUPER_GOVERNOR.isActivePPSOracle(msg.sender)) {
             revert UNAUTHORIZED_PPS_ORACLE();
         }
         _;
@@ -167,7 +167,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     /// @inheritdoc ISuperVaultAggregator
     function batchForwardPPS(
-        address updateAuthority,
         address[] calldata strategies,
         uint256[] calldata ppss,
         uint256[] calldata timestamps
@@ -183,26 +182,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         uint256 strategiesLength = strategies.length;
         if (strategiesLength == 0) revert ZERO_ARRAY_LENGTH();
 
-        // First, identify valid strategies and check exemption status
-        bool[] memory exemptStatus = new bool[](strategiesLength);
-        uint256 nonExemptCount = 0;
-
-        for (uint256 i; i < strategiesLength; i++) {
-            // Check if exempt from upkeep
-            bool isExempt = _isExemptFromUpkeep(strategies[i], updateAuthority, timestamps[i]);
-            exemptStatus[i] = isExempt;
-
-            if (!isExempt) {
-                nonExemptCount++;
-            }
-        }
-
-        // Calculate upkeep cost per non-exempt strategy
-        uint256 upkeepPerStrategy = nonExemptCount > 0 ? upkeepCostPerUpdate / nonExemptCount : 0;
+        // Calculate upkeep cost per strategy
+        uint256 upkeepPerStrategy = upkeepCostPerUpdate / strategiesLength;
 
         // Process all valid strategies
         for (uint256 i; i < strategiesLength; i++) {
-            _forwardPPS(strategies[i], exemptStatus[i], ppss[i], timestamps[i], upkeepPerStrategy);
+            _forwardPPS(strategies[i], false, ppss[i], timestamps[i], upkeepPerStrategy);
         }
     }
 
@@ -468,11 +453,11 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         uint256 timestamp
     )
         internal
-        view
         returns (bool)
     {
         // Update is exempt if it is stale
         if (block.timestamp - timestamp > _strategyData[strategy].maxStaleness) {
+            emit StaleUpdate(strategy, updateAuthority, timestamp);
             return true;
         }
 

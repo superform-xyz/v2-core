@@ -7,6 +7,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 
 // Superform
 import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
+import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperGovernor
 /// @author Superform Labs
@@ -30,9 +31,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Address registry
     mapping(bytes32 id => address address_) private _addressRegistry;
 
-    // PPS Oracle registry
-    mapping(address ppsOracle => bool isOracle) private _isPPSOracle;
-    address[] private _ppsOraclesList;
+    // PPS Oracle management
+    // Active PPS Oracle quorum requirement
+    uint256 private _activePPSOracleQuorum;
+    // Current active PPS Oracle
+    address private _activePPSOracle;
+    // Proposed new active PPS Oracle
+    address private _proposedActivePPSOracle;
+    // Effective time for proposed active PPS Oracle change
+    uint256 private _activePPSOracleEffectiveTime;
 
     // Hook registry
     EnumerableSet.AddressSet private _registeredHooks;
@@ -40,6 +47,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
     // SuperBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private superBankHooksMerkleRoots;
+
+    // Global freeze for strategist takeovers
+    bool private _strategistTakeoversFrozen;
 
     // Validator registry
     mapping(address validator => bool isValidator) private _isValidator;
@@ -99,10 +109,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _addressRegistry[TREASURY] = treasury_;
         emit AddressSet(TREASURY, treasury_);
     }
-
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc ISuperGovernor
     function setAddress(bytes32 key, address value) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         if (value == address(0)) revert INVALID_ADDRESS();
@@ -111,11 +121,39 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit AddressSet(key, value);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        SUPER VAULT AGGREGATOR MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc ISuperGovernor
-    function getAddress(bytes32 key) external view returns (address) {
-        address value = _addressRegistry[key];
-        if (value == address(0)) revert CONTRACT_NOT_FOUND();
-        return value;
+    function changePrimaryStrategist(
+        address strategy_,
+        address newStrategist_
+    )
+        external
+        onlyRole(_SUPER_GOVERNOR_ROLE)
+    {
+        // Check if takeovers are globally frozen
+        if (_strategistTakeoversFrozen) revert STRATEGIST_TAKEOVERS_FROZEN();
+
+        if (strategy_ == address(0) || newStrategist_ == address(0)) revert INVALID_ADDRESS();
+
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        // Call the interface method to change the strategist
+        ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function freezeStrategistTakeover() external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (_strategistTakeoversFrozen) revert STRATEGIST_TAKEOVERS_FROZEN();
+
+        // Set frozen status to true (permanent, cannot be undone)
+        _strategistTakeoversFrozen = true;
+
+        // Emit event for the frozen status
+        emit StrategistTakeoversFrozen();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,26 +185,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         } else {
             _unregisterRegularHook(hook_);
         }
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function isHookRegistered(address hook) external view returns (bool) {
-        return _registeredHooks.contains(hook);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function isFulfillRequestsHookRegistered(address hook) external view returns (bool) {
-        return _registeredFulfillRequestsHooks.contains(hook);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function getRegisteredHooks() external view returns (address[] memory) {
-        return _registeredHooks.values();
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function getRegisteredFulfillRequestsHooks() external view returns (address[] memory) {
-        return _registeredFulfillRequestsHooks.values();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -201,56 +219,58 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit ValidatorRemoved(validator);
     }
 
-    /// @inheritdoc ISuperGovernor
-    function isValidator(address validator) external view returns (bool) {
-        return _isValidator[validator];
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function getValidators() external view returns (address[] memory) {
-        return _validatorsList;
-    }
-
     /*//////////////////////////////////////////////////////////////
                        PPS ORACLE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
-    function addPPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+    function setActivePPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         if (oracle == address(0)) revert INVALID_ADDRESS();
-        if (_isPPSOracle[oracle]) revert PPS_ORACLE_ALREADY_REGISTERED();
 
-        _isPPSOracle[oracle] = true;
-        _ppsOraclesList.push(oracle);
-        emit PPSOracleAdded(oracle);
+        // If this is the first oracle or replacing a zero oracle, set it immediately
+        if (_activePPSOracle == address(0)) {
+            _activePPSOracle = oracle;
+            emit ActivePPSOracleSet(oracle);
+        } else {
+            // Otherwise require the timelock process
+            revert MUST_USE_TIMELOCK_FOR_CHANGE();
+        }
     }
 
     /// @inheritdoc ISuperGovernor
-    function removePPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
-        if (!_isPPSOracle[oracle]) revert PPS_ORACLE_NOT_REGISTERED();
+    function proposeActivePPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (oracle == address(0)) revert INVALID_ADDRESS();
 
-        _isPPSOracle[oracle] = false;
+        _proposedActivePPSOracle = oracle;
+        _activePPSOracleEffectiveTime = block.timestamp + TIMELOCK;
 
-        // Remove from oracles array
-        uint256 length = _ppsOraclesList.length;
-        for (uint256 i; i < length; i++) {
-            if (_ppsOraclesList[i] == oracle) {
-                _ppsOraclesList[i] = _ppsOraclesList[_ppsOraclesList.length - 1];
-                _ppsOraclesList.pop();
-                break;
-            }
+        emit ActivePPSOracleProposed(oracle, _activePPSOracleEffectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function executeActivePPSOracleChange() external {
+        if (_proposedActivePPSOracle == address(0)) revert NO_PROPOSED_PPS_ORACLE();
+
+        if (block.timestamp < _activePPSOracleEffectiveTime) {
+            revert TIMELOCK_NOT_EXPIRED();
         }
 
-        emit PPSOracleRemoved(oracle);
+        address oldOracle = _activePPSOracle;
+        _activePPSOracle = _proposedActivePPSOracle;
+
+        // Reset proposal data
+        _proposedActivePPSOracle = address(0);
+        _activePPSOracleEffectiveTime = 0;
+
+        emit ActivePPSOracleChanged(oldOracle, _activePPSOracle);
     }
 
     /// @inheritdoc ISuperGovernor
-    function isPPSOracle(address oracle) external view returns (bool) {
-        return _isPPSOracle[oracle];
-    }
+    function setPPSOracleQuorum(uint256 quorum) external onlyRole(_GOVERNOR_ROLE) {
+        if (_activePPSOracle == address(0)) revert NO_ACTIVE_PPS_ORACLE();
+        if (quorum == 0) revert INVALID_QUORUM();
 
-    /// @inheritdoc ISuperGovernor
-    function getPPSOracles() external view returns (address[] memory) {
-        return _ppsOraclesList;
+        _activePPSOracleQuorum = quorum;
+        emit PPSOracleQuorumUpdated(quorum);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -283,31 +303,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit FeeUpdated(feeType, _feeValues[feeType]);
     }
 
-    /// @inheritdoc ISuperGovernor
-    function getFee(FeeType feeType) external view returns (uint256) {
-        return _feeValues[feeType];
-    }
-
     /*//////////////////////////////////////////////////////////////
                            SUPERBANK HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc ISuperGovernor
-    function getSuperBankHookMerkleRoot(address hook) external view returns (bytes32) {
-        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
-        return superBankHooksMerkleRoots[hook].currentRoot;
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function getProposedSuperBankHookMerkleRoot(address hook)
-        external
-        view
-        returns (bytes32 proposedRoot, uint256 effectiveTime)
-    {
-        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
-        ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
-        return (data.proposedRoot, data.effectiveTime);
-    }
 
     /// @inheritdoc ISuperGovernor
     function proposeSuperBankHookMerkleRoot(
@@ -353,6 +351,94 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         return true;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                         EXTERNAL VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperGovernor
+    function getAddress(bytes32 key) external view returns (address) {
+        address value = _addressRegistry[key];
+        if (value == address(0)) revert CONTRACT_NOT_FOUND();
+        return value;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isStrategistTakeoverFrozen() external view returns (bool) {
+        return _strategistTakeoversFrozen;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isHookRegistered(address hook) external view returns (bool) {
+        return _registeredHooks.contains(hook);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isFulfillRequestsHookRegistered(address hook) external view returns (bool) {
+        return _registeredFulfillRequestsHooks.contains(hook);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getRegisteredHooks() external view returns (address[] memory) {
+        return _registeredHooks.values();
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getRegisteredFulfillRequestsHooks() external view returns (address[] memory) {
+        return _registeredFulfillRequestsHooks.values();
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isValidator(address validator) external view returns (bool) {
+        return _isValidator[validator];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getValidators() external view returns (address[] memory) {
+        return _validatorsList;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProposedActivePPSOracle() external view returns (address proposedOracle, uint256 effectiveTime) {
+        return (_proposedActivePPSOracle, _activePPSOracleEffectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getPPSOracleQuorum() external view returns (uint256) {
+        return _activePPSOracleQuorum;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getActivePPSOracle() external view returns (address) {
+        if (_activePPSOracle == address(0)) revert NO_ACTIVE_PPS_ORACLE();
+        return _activePPSOracle;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isActivePPSOracle(address oracle) external view returns (bool) {
+        return oracle == _activePPSOracle;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getFee(FeeType feeType) external view returns (uint256) {
+        return _feeValues[feeType];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getSuperBankHookMerkleRoot(address hook) external view returns (bytes32) {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+        return superBankHooksMerkleRoots[hook].currentRoot;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProposedSuperBankHookMerkleRoot(address hook)
+        external
+        view
+        returns (bytes32 proposedRoot, uint256 effectiveTime)
+    {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+        ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
+        return (data.proposedRoot, data.effectiveTime);
+    }
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
