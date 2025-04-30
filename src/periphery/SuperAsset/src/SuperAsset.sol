@@ -332,8 +332,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256 amountTokenInAfterFees = amountTokenToDeposit - swapFee;
 
         // Get price of underlying vault shares in USD
-        (uint256 priceUSDTokenIn, bool isDepegTokenIn, bool isDispersionTokenIn, bool isOracleOffTokenIn) = getPriceWithCircuitBreakers(tokenIn);
-        (uint256 priceUSDThisShares, bool isDepegShares, bool isDispersionShares, bool isOracleOffShares) = getPriceWithCircuitBreakers(address(this));
+        (uint256 priceUSDTokenIn, , , ) = getPriceWithCircuitBreakers(tokenIn);
+        (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
 
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDThisShares); // Adjust for decimals
@@ -370,8 +370,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
 
         // Get price of underlying vault shares in USD
-        (uint256 priceUSDThisShares, bool isDepegShares, bool isDispersionShares, bool isOracleOffShares) = getPriceWithCircuitBreakers(address(this));
-        (uint256 priceUSDTokenOut, bool isDepegTokenOut, bool isDispersionTokenOut, bool isOracleOffTokenOut) = getPriceWithCircuitBreakers(tokenOut);
+        (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
+        (uint256 priceUSDTokenOut, , , ) = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
         uint256 amountTokenOutBeforeFees = Math.mulDiv(amountSharesToRedeem, priceUSDThisShares, priceUSDTokenOut); // Adjust for decimals
