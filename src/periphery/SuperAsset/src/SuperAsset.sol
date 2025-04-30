@@ -335,6 +335,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         (uint256 priceUSDTokenIn, , , ) = getPriceWithCircuitBreakers(tokenIn);
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
 
+        if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
+
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDThisShares); // Adjust for decimals
 

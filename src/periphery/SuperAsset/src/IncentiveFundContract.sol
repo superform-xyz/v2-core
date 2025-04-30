@@ -71,6 +71,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
         // Revert if any circuit breaker is triggered
         if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
+        if (priceUSD == 0) revert PRICE_USD_ZERO();
 
         // Convert USD amount to token amount using price
         // amountToken = amountUSD / priceUSD
@@ -96,6 +97,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
         // Revert if any circuit breaker is triggered
         if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
+        if (priceUSD == 0) revert PRICE_USD_ZERO();
 
         // Convert USD amount to token amount using price
         // amountToken = amountUSD / priceUSD

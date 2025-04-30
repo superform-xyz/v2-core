@@ -101,4 +101,7 @@ interface IIncentiveFundContract {
 
     /// @notice Thrown when any circuit breaker is triggered during price check
     error CIRCUIT_BREAKER_TRIGGERED();
+
+    /// @notice Thrown when price in USD is zero
+    error PRICE_USD_ZERO();
 }

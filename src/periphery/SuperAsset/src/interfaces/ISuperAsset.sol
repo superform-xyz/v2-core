@@ -286,4 +286,7 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Thrown when the sum of all allocations exceeds 100% (PRECISION)
     error INVALID_TOTAL_ALLOCATION();
+
+    /// @notice Thrown when price in USD is zero
+    error PRICE_USD_ZERO();
 }
