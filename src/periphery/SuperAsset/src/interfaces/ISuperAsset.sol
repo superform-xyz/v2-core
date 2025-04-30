@@ -48,6 +48,7 @@ interface ISuperAsset is IERC20 {
      * @return totalAllocationPostOperation Sum of all post-operation allocations
      * @return absoluteTargetAllocation Array of target absolute allocations
      * @return totalTargetAllocation Sum of all target allocations
+     * @return vaultWeights Array of vault weights
      */
     function getAllocationsPrePostOperation(address token, int256 deltaToken) external view returns (
         uint256[] memory absoluteAllocationPreOperation, 
@@ -211,17 +212,17 @@ interface ISuperAsset is IERC20 {
     returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem);
 
     // --- Events ---
-    event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
-    event Redeem(address receiver, address tokenOut, uint256 amountSharesToRedeem, uint256 amountTokenOut, uint256 swapFee, int256 amountIncentives);
-    event Swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut);
-    event VaultWhitelisted(address vault);
-    event VaultRemoved(address vault);
-    event ERC20Whitelisted(address token);
-    event ERC20Removed(address token);
-    event SettlementTokenInSet(address token);
-    event SettlementTokenOutSet(address token);
-    event SuperOracleSet(address oracle);
-    event TargetAllocationSet(address token, uint256 allocation);
+    event Deposit(address indexed receiver, address indexed tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
+    event Redeem(address indexed receiver, address indexed tokenOut, uint256 amountSharesToRedeem, uint256 amountTokenOut, uint256 swapFee, int256 amountIncentives);
+    event Swap(address indexed receiver, address indexed tokenIn, uint256 amountTokenToDeposit, address indexed tokenOut, uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut);
+    event VaultWhitelisted(address indexed vault);
+    event VaultRemoved(address indexed vault);
+    event ERC20Whitelisted(address indexed token);
+    event ERC20Removed(address indexed token);
+    event SettlementTokenInSet(address indexed token);
+    event SettlementTokenOutSet(address indexed token);
+    event SuperOracleSet(address indexed oracle);
+    event TargetAllocationSet(address indexed token, uint256 allocation);
     event EnergyToUSDExchangeRatioSet(uint256 newRatio);
     event WeightSet(address indexed vault, uint256 weight);
 
@@ -285,7 +286,4 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Thrown when the sum of all allocations exceeds 100% (PRECISION)
     error INVALID_TOTAL_ALLOCATION();
-
-
-
 }

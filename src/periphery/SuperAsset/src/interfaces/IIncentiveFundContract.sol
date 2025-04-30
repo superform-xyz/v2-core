@@ -50,8 +50,8 @@ interface IIncentiveFundContract {
     function setTokenOutIncentive(address token) external;
 
     // --- Events ---
-    event TokenInIncentiveSet(address token);
-    event TokenOutIncentiveSet(address token);
+    event TokenInIncentiveSet(address indexed token);
+    event TokenOutIncentiveSet(address indexed token);
 
     /**
      * @notice Emitted when incentives are paid to a receiver
@@ -59,7 +59,7 @@ interface IIncentiveFundContract {
      * @param tokenOut Token that was paid
      * @param amount Amount that was paid
      */
-    event IncentivePaid(address receiver, address tokenOut, uint256 amount);
+    event IncentivePaid(address indexed receiver, address indexed tokenOut, uint256 amount);
 
     /**
      * @notice Emitted when incentives are taken from a sender
@@ -67,7 +67,7 @@ interface IIncentiveFundContract {
      * @param tokenIn Token that was taken
      * @param amount Amount that was taken
      */
-    event IncentiveTaken(address sender, address tokenIn, uint256 amount);
+    event IncentiveTaken(address indexed sender, address indexed tokenIn, uint256 amount);
 
     /**
      * @notice Emitted when tokens are withdrawn during rebalancing
@@ -75,19 +75,19 @@ interface IIncentiveFundContract {
      * @param tokenOut Token that was withdrawn
      * @param amount Amount that was withdrawn
      */
-    event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
+    event RebalanceWithdrawal(address indexed receiver, address indexed tokenOut, uint256 amount);
 
     /**
      * @notice Emitted when settlement token for incoming incentives is set
      * @param token Address of the token
      */
-    event SettlementTokenInSet(address token);
+    event SettlementTokenInSet(address indexed token);
 
     /**
      * @notice Emitted when settlement token for outgoing incentives is set
      * @param token Address of the token
      */
-    event SettlementTokenOutSet(address token);
+    event SettlementTokenOutSet(address indexed token);
 
     // --- Errors ---
     /// @notice Thrown when an address parameter is zero

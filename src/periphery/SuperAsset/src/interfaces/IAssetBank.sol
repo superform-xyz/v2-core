@@ -28,7 +28,7 @@ interface IAssetBank {
      */
 
     // --- Events ---
-    event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
+    event RebalanceWithdrawal(address indexed receiver, address indexed tokenOut, uint256 amount);
 
     // --- Errors ---
     /// @notice Thrown when an address parameter is zero
