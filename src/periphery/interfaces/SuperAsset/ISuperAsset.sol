@@ -199,6 +199,22 @@ interface ISuperAsset is IERC20 {
     view
     returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem);
 
+    /**
+     * @notice Gets the price of a token in USD with circuit breakers
+     * @param tokenIn The address of the token to get the price of
+     * @return priceUSD The price of the token in USD
+     * @return isDepeg Whether the token is depegged
+     * @return isDispersion Whether the token is dispersed
+     * @return isOracleOff Whether the oracle is off
+     */
+    function getPriceWithCircuitBreakers(address tokenIn) external view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff);
+
+    /**
+     * @notice Gets the precision constant used for percentage calculations
+     * @return The precision constant (e.g., 10000 for 4 decimal places)
+     */
+    function getPrecision() external pure returns (uint256);
+
     // --- Events ---
     event Deposit(address indexed receiver, address indexed tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
     event Redeem(address indexed receiver, address indexed tokenOut, uint256 amountSharesToRedeem, uint256 amountTokenOut, uint256 swapFee, int256 amountIncentives);

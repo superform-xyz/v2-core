@@ -2,7 +2,7 @@
 pragma solidity ^0.8.28;
 
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./interfaces/IIncentiveCalculationContract.sol";
+import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 
 /**
  * @author Superform Labs

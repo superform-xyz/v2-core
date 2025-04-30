@@ -6,13 +6,13 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "./IncentiveCalculationContract.sol";
-import "./IncentiveFundContract.sol";
-import "./interfaces/IIncentiveCalculationContract.sol";
-import "./interfaces/IIncentiveFundContract.sol";
-import "./interfaces/IAssetBank.sol";
-import "./interfaces/ISuperAsset.sol";
-import "../../interfaces/ISuperOracle.sol";
+// import "./IncentiveCalculationContract.sol";
+// import "./IncentiveFundContract.sol";
+import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
+import "../interfaces/SuperAsset/IAssetBank.sol";
+import "../interfaces/SuperAsset/ISuperAsset.sol";
+import "../interfaces/ISuperOracle.sol";
 
 /**
  * @author Superform Labs
@@ -126,7 +126,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _burn(from, amount);
     }
 
-
+    function getPrecision() external pure returns (uint256) {
+        return PRECISION;
+    }
 
     /**
      * @notice Sets the swap fee percentage for deposits (input operations)

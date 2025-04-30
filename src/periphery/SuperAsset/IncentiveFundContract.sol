@@ -5,9 +5,9 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "./interfaces/IIncentiveFundContract.sol";
-import "./IncentiveCalculationContract.sol";
-import "./SuperAsset.sol";
+import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
+import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+import "../interfaces/SuperAsset/ISuperAsset.sol";
 
 /**
  * @author Superform Labs
@@ -26,14 +26,14 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     // --- State Variables ---
     address public tokenInIncentive;
     address public tokenOutIncentive;
-    SuperAsset public superAsset;
+    ISuperAsset public superAsset;
 
     // --- Constructor ---
     constructor(address _superAsset) {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
         if (_superAsset == address(0)) revert ZERO_ADDRESS();
-        superAsset = SuperAsset(_superAsset);
+        superAsset = ISuperAsset(_superAsset);
     }
 
 
@@ -72,7 +72,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
         // Convert USD amount to token amount using price
         // amountToken = amountUSD / priceUSD
-        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.PRECISION(), priceUSD);
+        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
 
         IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
         emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
@@ -98,7 +98,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
         // Convert USD amount to token amount using price
         // amountToken = amountUSD / priceUSD
-        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.PRECISION(), priceUSD);
+        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
 
         IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
         emit IncentiveTaken(sender, tokenInIncentive, amountToken);
