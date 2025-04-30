@@ -223,6 +223,7 @@ interface ISuperAsset is IERC20 {
     event SuperOracleSet(address oracle);
     event TargetAllocationSet(address token, uint256 allocation);
     event EnergyToUSDExchangeRatioSet(uint256 newRatio);
+    event WeightSet(address indexed vault, uint256 weight);
 
     // --- Errors ---
     /// @notice Thrown when an address parameter is zero
