@@ -396,7 +396,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
-    public
+    external
     view
     returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem)
     {
