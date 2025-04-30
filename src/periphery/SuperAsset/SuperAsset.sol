@@ -64,7 +64,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Addresses ---
     // TODO: Fix it accordingly
-    address public constant USD = 0x0000000000000000000000000000000000000001;
+    address public constant USD = address(840);
 
     // SuperOracle related 
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
@@ -558,10 +558,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // NOTE: We need to pass oneUnit to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
         (priceUSD, stddev, N, M) = superOracle.getQuoteFromProvider(
-            one,  
+            one,
             tokenIn,
-            USD,                    // TODO: Add USD definition
-            AVERAGE_PROVIDER        // TODO: Add AVERAGE_PROVIDER definition, taking it from SuperOracle
+            USD,
+            AVERAGE_PROVIDER
         );
 
         // Circuit Breaker for Oracle Off
