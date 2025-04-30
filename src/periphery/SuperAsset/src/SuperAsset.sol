@@ -47,11 +47,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     address public immutable incentiveCalculationContract;  // Address of the ICC
     address public immutable incentiveFundContract;      // Address of the Incentive Fund Contract
     address public immutable assetBank;        // Address of the Asset Bank Contract
+
+    mapping(address => uint256) public targetAllocations;
+    mapping(address => uint256) public weights;  // Weights for each vault in energy calculation
+
     address public settlementTokenIn;
     address public settlementTokenOut;
     ISuperOracle public superOracle;
-
-    mapping(address => uint256) public targetAllocations;
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
@@ -156,14 +158,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256[] memory absoluteAllocationPostOperation, 
         uint256 totalAllocationPostOperation, 
         uint256[] memory absoluteTargetAllocation, 
-        uint256 totalTargetAllocation) {
-        // Placeholder for the current allocation normalized
-        // This function should return the current allocation of assets in the SuperUSD contract
-        // For now, we return an empty array
+        uint256 totalTargetAllocation,
+        uint256[] memory vaultWeights) {
         uint256 length = _supportedVaults.length();
         absoluteAllocationPreOperation = new uint256[](length);
         absoluteAllocationPostOperation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
+        vaultWeights = new uint256[](length);
         for (uint256 i; i < length; i++) {
             address vault = _supportedVaults.at(i);
             absoluteAllocationPreOperation[i] = IERC20(vault).balanceOf(address(this));
@@ -178,6 +179,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             totalAllocationPostOperation += absoluteAllocationPostOperation[i];
             absoluteTargetAllocation[i] = targetAllocations[vault];
             totalTargetAllocation += absoluteTargetAllocation[i];
+            vaultWeights[i] = weights[vault];
         }
     }
 
@@ -343,7 +345,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             uint256 totalAllocationPostOperation,
             uint256[] memory allocationTarget,
             uint256 totalAllocationTarget,
-            uint256[] memory weights
+            uint256[] memory vaultWeights
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit));
 
         // Calculate incentives (using ICC)
@@ -354,7 +356,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             totalAllocationPostOperation,
             allocationTarget,
             totalAllocationTarget,
-            weights,
+            vaultWeights,
             energyToUSDExchangeRatio
         );
     }
@@ -386,7 +388,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             uint256 totalAllocationPostOperation,
             uint256[] memory allocationTarget,
             uint256 totalAllocationTarget,
-            uint256[] memory weights
+            uint256[] memory vaultWeights
         ) = getAllocationsPrePostOperation(tokenOut, int256(-amountTokenOutBeforeFees));
 
         // Calculate incentives (using ICC)
@@ -397,7 +399,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             totalAllocationPostOperation,
             allocationTarget,
             totalAllocationTarget,
-            weights,
+            vaultWeights,
             energyToUSDExchangeRatio
         );
     }
@@ -473,6 +475,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         emit SuperOracleSet(oracle);
     }
 
+    // --- Admin Functions ---
+    function setWeight(address vault, uint256 weight) external onlyRole(VAULT_MANAGER_ROLE) {
+        if (vault == address(0)) revert ZeroAddress();
+        if (!isVault[vault]) revert NotVault();
+        weights[vault] = weight;
+        emit WeightSet(vault, weight);
+    }
+
     // --- Internal Functions ---
     function _settleIncentive(address user, int256 amountIncentiveUSD) internal {
         // Pay or take incentives based on the sign of amountIncentive
@@ -538,3 +548,15 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         emit EnergyToUSDExchangeRatioSet(newRatio);
     }
 }
+
+// --- Events ---
+event VaultWhitelisted(address vault);
+event VaultRemoved(address vault);
+event ERC20Whitelisted(address token);
+event ERC20Removed(address token);
+event SettlementTokenInSet(address token);
+event SettlementTokenOutSet(address token);
+event SuperOracleSet(address oracle);
+event TargetAllocationSet(address token, uint256 allocation);
+event EnergyToUSDExchangeRatioSet(uint256 newRatio);
+event WeightSet(address indexed vault, uint256 weight);
