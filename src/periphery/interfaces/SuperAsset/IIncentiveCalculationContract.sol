@@ -41,4 +41,8 @@ interface IIncentiveCalculationContract {
         uint256 totalAllocationTarget,
         uint256 energyToUSDExchangeRatio
     ) external pure returns (int256 incentiveUSD);
+
+    // --- Errors ---
+    /// @notice Thrown when input arrays have different lengths
+    error INVALID_ARRAY_LENGTH();
 }

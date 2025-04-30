@@ -24,9 +24,9 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         uint256 totalCurrentAllocation,
         uint256 totalAllocationTarget
     ) public pure returns (uint256 res) {
-        require(currentAllocation.length == allocationTarget.length &&
-        currentAllocation.length == weights.length,
-            "ICC: Input arrays must have the same length");
+        if (currentAllocation.length != allocationTarget.length || currentAllocation.length != weights.length) {
+            revert INVALID_ARRAY_LENGTH();
+        }
 
         uint256 length = currentAllocation.length;
         for (uint256 i; i < length; i++) {
@@ -49,9 +49,9 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         uint256 totalAllocationTarget,
         uint256 energyToUSDExchangeRatio
     ) public pure returns (int256 incentiveUSD) {
-        require(allocationPreOperation.length == allocationPostOperation.length &&
-        allocationPreOperation.length == allocationTarget.length,
-            "ICC: Input arrays must have the same length");
+        if (allocationPreOperation.length != allocationPostOperation.length || allocationPreOperation.length != allocationTarget.length) {
+            revert INVALID_ARRAY_LENGTH();
+        }
 
         uint256 energyBefore = energy(
             allocationPreOperation, 
