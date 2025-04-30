@@ -32,15 +32,15 @@ interface IAssetBank {
 
     // --- Errors ---
     /// @notice Thrown when an address parameter is zero
-    error ZeroAddress();
+    error ZERO_ADDRESS();
 
     /// @notice Thrown when caller is not authorized
-    error Unauthorized();
+    error UNAUTHORIZED();
 
     /// @notice Thrown when transfer fails
-    error TransferFailed();
+    error TRANSFER_FAILED();
 
     /// @notice Thrown when amount is zero
-    error ZeroAmount();
+    error ZERO_AMOUNT();
 
 }

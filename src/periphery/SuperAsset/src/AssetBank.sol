@@ -30,8 +30,8 @@ contract AssetBank is AccessControl, IAssetBank {
         address tokenOut,
         uint256 amount
     ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
-        if (receiver == address(0) || tokenOut == address(0)) revert ZeroAddress();
-        if (amount == 0) revert ZeroAmount();
+        if (receiver == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
+        if (amount == 0) revert ZERO_AMOUNT();
 
         IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
