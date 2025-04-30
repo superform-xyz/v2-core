@@ -71,7 +71,7 @@ contract IncentiveCalculationContract {
         uint256 totalAllocationTarget,
         uint256[] memory weights,
         uint256 energyToUSDExchangeRatio
-    ) public view returns (int256 incentiveUSD) {
+    ) public pure returns (int256 incentiveUSD) {
         require(allocationPreOperation.length == allocationPostOperation.length &&
         allocationPreOperation.length == allocationTarget.length,
             "ICC: Input arrays must have the same length");
