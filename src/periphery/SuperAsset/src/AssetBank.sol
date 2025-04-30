@@ -36,4 +36,9 @@ contract AssetBank is AccessControl, IAssetBank {
         IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
     }
+
+    /**
+     * @notice Allows the contract to receive ETH
+     */
+    receive() external payable {}
 }
