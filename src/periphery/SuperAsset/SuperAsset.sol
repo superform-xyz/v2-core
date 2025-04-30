@@ -41,16 +41,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     uint256 public constant SWAP_FEE_PERC = 10**6; 
 
     // --- State ---
-    mapping(address => bool) public isSupportedUnderlyingVault;
-    mapping(address => bool) public isSupportedERC20;
+    mapping(address token => bool isSupported) public isSupportedUnderlyingVault;
+    mapping(address token => bool isSupported) public isSupportedERC20;
     
     EnumerableSet.AddressSet private _supportedVaults;
     address public immutable incentiveCalculationContract;  // Address of the ICC
     address public immutable incentiveFundContract;      // Address of the Incentive Fund Contract
     address public immutable assetBank;        // Address of the Asset Bank Contract
 
-    mapping(address => uint256) public targetAllocations;
-    mapping(address => uint256) public weights;  // Weights for each vault in energy calculation
+    mapping(address token => uint256 allocation) public targetAllocations;
+    mapping(address token => uint256 allocation) public weights;  // Weights for each vault in energy calculation
 
     ISuperOracle public superOracle;
 
@@ -58,7 +58,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public energyToUSDExchangeRatio;
 
-    mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
+    mapping(address token => uint256 priceUSD) public emergencyPrices; // Used when an oracle is down, managed by us
 
     // --- Addresses ---
     // TODO: Fix it accordingly
