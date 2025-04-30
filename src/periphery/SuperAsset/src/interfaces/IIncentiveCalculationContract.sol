@@ -18,17 +18,23 @@ interface IIncentiveCalculationContract {
     /**
      * @notice Calculates the incentive.
      * @param allocationPreOperation The allocation before the operation.
+     * @param totalAllocationPreOperation The total allocation before the operation.
      * @param allocationPostOperation The allocation after the operation.
+     * @param totalAllocationPostOperation The total allocation after the operation.
      * @param allocationTarget The target allocation.
-     * @param weights The weights for each asset.
-     * @param energyToTokenExchangeRatio The ratio for energy to token exchange.
-     * @return incentive The calculated incentive.
+     * @param totalAllocationTarget The total target allocation.
+     * @param weights The weights for each allocation in the energy calculation.
+     * @param energyToUSDExchangeRatio The ratio to convert energy units to USD (scaled by PRECISION).
+     * @return incentiveUSD The calculated incentive in USD (scaled by PRECISION).
      */
     function calculateIncentive(
         uint256[] memory allocationPreOperation,
+        uint256 totalAllocationPreOperation,
         uint256[] memory allocationPostOperation,
+        uint256 totalAllocationPostOperation,
         uint256[] memory allocationTarget,
+        uint256 totalAllocationTarget,
         uint256[] memory weights,
-        uint256 energyToTokenExchangeRatio
-    ) external view returns (int256 incentive);
+        uint256 energyToUSDExchangeRatio
+    ) external view returns (int256 incentiveUSD);
 }
