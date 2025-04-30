@@ -150,17 +150,32 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     }
 
 
-    function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
+    function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (
+        uint256[] memory absoluteAllocationPreOperation, 
+        uint256 totalAllocationPreOperation, 
+        uint256[] memory absoluteAllocationPostOperation, 
+        uint256 totalAllocationPostOperation, 
+        uint256[] memory absoluteTargetAllocation, 
+        uint256 totalTargetAllocation) {
         // Placeholder for the current allocation normalized
         // This function should return the current allocation of assets in the SuperUSD contract
         // For now, we return an empty array
         uint256 length = _supportedVaults.length();
-        absoluteCurrentAllocation = new uint256[](length);
+        absoluteAllocationPreOperation = new uint256[](length);
+        absoluteAllocationPostOperation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
         for (uint256 i; i < length; i++) {
             address vault = _supportedVaults.at(i);
-            absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
-            totalCurrentAllocation += absoluteCurrentAllocation[i];
+            absoluteAllocationPreOperation[i] = IERC20(vault).balanceOf(address(this));
+            totalAllocationPreOperation += absoluteAllocationPreOperation[i];
+            absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
+            if(token == vault) {
+                if (deltaToken < 0 && uint256(-deltaToken) > absoluteAllocationPreOperation[i]) {
+                    revert InsufficientBalance();
+                }
+                absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + deltaToken);
+            }
+            totalAllocationPostOperation += absoluteAllocationPostOperation[i];
             absoluteTargetAllocation[i] = targetAllocations[vault];
             totalTargetAllocation += absoluteTargetAllocation[i];
         }
