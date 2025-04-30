@@ -214,7 +214,7 @@ interface ISuperAsset is IERC20 {
      * @return The precision constant (e.g., 10000 for 4 decimal places)
      */
     function getPrecision() external pure returns (uint256);
-    
+
     /**
      * @notice Sets the weight for a vault
      * @param vault The vault address
@@ -235,6 +235,14 @@ interface ISuperAsset is IERC20 {
      * @param allocation The target allocation percentage (scaled by PRECISION)
      */
     function setTargetAllocation(address token, uint256 allocation) external;
+
+    /**
+     * @notice Sets the exchange ratio between energy units and USD
+     * @param newRatio The new exchange ratio (scaled by PRECISION)
+     * @dev This is the ratio between energy units and USD
+     * @dev No checks on zero on purpose in case we want to disable incentives
+     */
+    function setEnergyToUSDExchangeRatio(uint256 newRatio) external;
 
     // --- Events ---
     event Deposit(address indexed receiver, address indexed tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
