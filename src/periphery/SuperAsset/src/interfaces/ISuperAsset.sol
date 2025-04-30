@@ -55,10 +55,16 @@ interface ISuperAsset is IERC20 {
     );
 
     /**
-     * @notice Sets the swap fee percentage
-     * @param _swapFeePercentage New fee percentage (max 10%)
+     * @notice Sets the swap fee percentage for deposits (input operations)
+     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
      */
-    function setSwapFeePercentage(uint256 _swapFeePercentage) external;
+    function setSwapFeeInPercentage(uint256 _feePercentage) external;
+
+    /**
+     * @notice Sets the swap fee percentage for redemptions (output operations)
+     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
+     */
+    function setSwapFeeOutPercentage(uint256 _feePercentage) external;
 
     /**
      * @notice Deposits an underlying asset and mints SuperAsset shares
@@ -73,7 +79,7 @@ interface ISuperAsset is IERC20 {
         address tokenIn,
         uint256 amountTokenToDeposit,
         uint256 minSharesOut
-    ) external returns (uint256 amountSharesOut);
+    ) external returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit);
 
     /**
      * @notice Redeems SuperAsset shares for underlying assets
@@ -88,26 +94,24 @@ interface ISuperAsset is IERC20 {
         uint256 amountSharesToRedeem,
         address tokenOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountTokenOut);
+    ) external returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem);
 
     /**
-     * @notice Swaps one underlying asset for another through SuperAsset shares
-     * @param receiver The address to receive the output tokens
-     * @param tokenIn Input token address
-     * @param amountTokenToDeposit Amount of input tokens
-     * @param tokenOut Output token address
-     * @param minSharesOut Minimum shares to receive in intermediate step
-     * @param minTokenOut Minimum output tokens to receive
-     * @return amountTokenOut The amount of output tokens received
+     * @notice Swaps an underlying asset for another.
+     * @param receiver The address to receive the output assets.
+     * @param tokenIn The address of the input asset.
+     * @param amountTokenToDeposit The amount of the input asset to deposit.
+     * @param tokenOut The address of the output asset.
+     * @param minTokenOut The minimum amount of the output asset to receive.
+     * @return amountTokenOut The amount of the output asset received.
      */
     function swap(
         address receiver,
         address tokenIn,
         uint256 amountTokenToDeposit,
         address tokenOut,
-        uint256 minSharesOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountTokenOut);
+    ) external returns (uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut);
 
     /**
      * @notice Whitelists a vault
@@ -161,7 +165,7 @@ interface ISuperAsset is IERC20 {
     function previewDeposit(
         address tokenIn,
         uint256 amountTokenToDeposit
-    ) external view returns (uint256 amountSharesOut, uint256 amountIncentives);
+    ) external view returns (uint256 amountSharesOut, uint256 swapFee, int256 amountIncentiveUSDDeposit);
 
     /**
      * @notice Previews a redeem operation
@@ -173,7 +177,7 @@ interface ISuperAsset is IERC20 {
     function previewRedeem(
         address tokenOut,
         uint256 amountSharesToRedeem
-    ) external view returns (uint256 amountTokenOut, uint256 amountIncentives);
+    ) external view returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem);
 
     /**
      * @notice Previews a swap operation
@@ -187,12 +191,12 @@ interface ISuperAsset is IERC20 {
         address tokenIn,
         uint256 amountTokenToDeposit,
         address tokenOut
-    ) external view returns (uint256 amountSharesOut, uint256 amountIncentives);
+    ) external view returns (uint256 amountSharesOut, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDIn, int256 amountIncentiveUSDOut);
 
     // --- Events ---
-    event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut);
-    event Redeem(address receiver, uint256 amountSharesToRedeem, address tokenOut, uint256 amountTokenOut);
-    event Swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 amountSharesOut, uint256 amountTokenOut);
+    event Deposit(address receiver, address tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
+    event Redeem(address receiver, address tokenOut, uint256 amountSharesToRedeem, uint256 amountTokenOut, uint256 swapFee, int256 amountIncentives);
+    event Swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut);
     event VaultWhitelisted(address vault);
     event VaultRemoved(address vault);
     event ERC20Whitelisted(address token);
@@ -200,4 +204,6 @@ interface ISuperAsset is IERC20 {
     event SettlementTokenInSet(address token);
     event SettlementTokenOutSet(address token);
     event SuperOracleSet(address oracle);
+    event TargetAllocationSet(address token, uint256 allocation);
+    event EnergyToUSDExchangeRatioSet(uint256 newRatio);
 }
