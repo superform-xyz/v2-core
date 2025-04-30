@@ -329,7 +329,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
             uint256[] memory allocationTarget,
             uint256 totalAllocationTarget,
             uint256[] memory weights
-        ) = getAllocationsPrePostOperation(tokenIn, amountTokenToDeposit);
+        ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit));
 
         // Calculate incentives (using ICC)
         amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
