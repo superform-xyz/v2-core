@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
 import "./interfaces/ISuperAssetErrors.sol";
@@ -421,7 +422,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
 
         // Get token decimals
-        uint256 oneUnit = 10**IERC20(tokenIn).decimals();
+        uint256 oneUnit = 10**IERC20Metadata(tokenIn).decimals();
         uint256 stddev;
         uint256 N;
         uint256 M;
