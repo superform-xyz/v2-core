@@ -9,7 +9,7 @@ import "./IncentiveFundContract.sol";
 import "./interfaces/ISuperAssetErrors.sol";
 import "./interfaces/IIncentiveCalculationContract.sol";
 import "./interfaces/IIncentiveFundContract.sol";
-import "./interfaces/IAsetBank.sol";
+import "./interfaces/IAssetBank.sol";
 import "./interfaces/ISuperAsset.sol";
 import "../../interfaces/ISuperOracle.sol";
 
