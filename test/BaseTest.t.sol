@@ -2090,7 +2090,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes allowedCancelBeneficiarySrc;
         bytes affiliateFee;
         uint32 referralCode;
-        bytes permitEnvelope;
     }
 
     function _createDebridgeSendFundsAndExecuteHookData(DebridgeOrderData memory d)
@@ -2134,9 +2133,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             d.allowedCancelBeneficiarySrc,
             d.affiliateFee.length,
             d.affiliateFee,
-            d.referralCode,
-            d.permitEnvelope.length,
-            d.permitEnvelope
+            d.referralCode
         );
     }
 
