@@ -6,6 +6,7 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { Clones } from "openzeppelin-contracts/contracts/proxy/Clones.sol";
+import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 
 // Superform
 import { SuperVault } from "./SuperVault.sol";
@@ -22,6 +23,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     using Clones for address;
     using SafeERC20 for IERC20;
     using Math for uint256;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -41,9 +43,9 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     mapping(address strategist => uint256 upkeep) private _strategistUpkeepBalance;
 
     // Registry of created vaults
-    address[] public superVaults;
-    address[] public superVaultStrategies;
-    address[] public superVaultEscrows;
+    EnumerableSet.AddressSet private _superVaults;
+    EnumerableSet.AddressSet private _superVaultStrategies;
+    EnumerableSet.AddressSet private _superVaultEscrows;
 
     // Constant for PPS decimals
     uint256 public constant PPS_DECIMALS = 18;
@@ -82,15 +84,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     /// @notice Validates that a strategy exists (has been created by this aggregator)
     modifier validStrategy(address strategy) {
-        bool found = false;
-        uint256 length = superVaultStrategies.length;
-        for (uint256 i; i < length; i++) {
-            if (superVaultStrategies[i] == strategy) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) revert UNKNOWN_STRATEGY();
+        if (!_superVaultStrategies.contains(strategy)) revert UNKNOWN_STRATEGY();
         _;
     }
 
@@ -110,10 +104,8 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             revert ZERO_ADDRESS();
         }
 
-        // Ensure strategist is registered
-        if (!SUPER_GOVERNOR.isStrategist(params.strategist)) {
-            revert STRATEGIST_NOT_REGISTERED();
-        }
+        // Strategist is now handled directly within the vault creation flow
+        // No need for external registration
 
         // Create minimal proxies
         superVault = VAULT_IMPLEMENTATION.clone();
@@ -132,9 +124,9 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         );
 
         // Store vault trio in registry
-        superVaults.push(superVault);
-        superVaultStrategies.push(strategy);
-        superVaultEscrows.push(escrow);
+        _superVaults.add(superVault);
+        _superVaultStrategies.add(strategy);
+        _superVaultEscrows.add(escrow);
 
         // Initialize StrategyData
         _strategyData[strategy] = StrategyData({
@@ -220,7 +212,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
     function depositUpkeep(address strategist, uint256 amount) external {
-        if (!SUPER_GOVERNOR.isStrategist(strategist)) revert STRATEGIST_NOT_REGISTERED();
         if (amount == 0) revert ZERO_ADDRESS(); // Reusing error code for consistency
 
         // Get the UP token address from SUPER_GOVERNOR
@@ -236,13 +227,11 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     }
 
     /// @inheritdoc ISuperVaultAggregator
-    function withdrawUpkeep(address strategist, uint256 amount) external {
-        // Only the strategist can withdraw their own upkeep
-        if (msg.sender != strategist) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+    function withdrawUpkeep(uint256 amount) external {
         if (amount == 0) revert ZERO_ADDRESS(); // Reusing error code for consistency
 
         // Check sufficient balance
-        if (_strategistUpkeepBalance[strategist] < amount) {
+        if (_strategistUpkeepBalance[msg.sender] < amount) {
             revert INSUFFICIENT_UPKEEP_BALANCE();
         }
 
@@ -250,12 +239,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         address upToken = SUPER_GOVERNOR.getAddress(SUPER_GOVERNOR.UP());
 
         // Update upkeep balance
-        _strategistUpkeepBalance[strategist] -= amount;
+        _strategistUpkeepBalance[msg.sender] -= amount;
 
         // Transfer UP tokens to strategist
-        IERC20(upToken).safeTransfer(strategist, amount);
+        IERC20(upToken).safeTransfer(msg.sender, amount);
 
-        emit UpkeepWithdrawn(strategist, amount);
+        emit UpkeepWithdrawn(msg.sender, amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -423,6 +412,11 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     }
 
     /// @inheritdoc ISuperVaultAggregator
+    function isStrategist(address strategist, address strategy) external view returns (bool) {
+        return _strategyData[strategy].strategist == strategist;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
     function getUpkeepBalance(address strategist) external view returns (uint256 balance) {
         return _strategistUpkeepBalance[strategist];
     }
@@ -430,18 +424,42 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @notice Gets all created SuperVaults
     /// @return Array of SuperVault addresses
     function getAllSuperVaults() external view returns (address[] memory) {
-        return superVaults;
+        return _superVaults.values();
+    }
+
+    /// @notice Gets a SuperVault by index
+    /// @param index The index of the SuperVault
+    /// @return The SuperVault address at the given index
+    function superVaults(uint256 index) external view returns (address) {
+        if (index >= _superVaults.length()) revert INDEX_OUT_OF_BOUNDS();
+        return _superVaults.at(index);
+    }
+
+    /// @notice Gets a SuperVaultStrategy by index
+    /// @param index The index of the SuperVaultStrategy
+    /// @return The SuperVaultStrategy address at the given index
+    function superVaultStrategies(uint256 index) external view returns (address) {
+        if (index >= _superVaultStrategies.length()) revert INDEX_OUT_OF_BOUNDS();
+        return _superVaultStrategies.at(index);
+    }
+
+    /// @notice Gets a SuperVaultEscrow by index
+    /// @param index The index of the SuperVaultEscrow
+    /// @return The SuperVaultEscrow address at the given index
+    function superVaultEscrows(uint256 index) external view returns (address) {
+        if (index >= _superVaultEscrows.length()) revert INDEX_OUT_OF_BOUNDS();
+        return _superVaultEscrows.at(index);
     }
 
     /// @notice Gets all created SuperVaultStrategies
     /// @return Array of SuperVaultStrategy addresses
     function getAllSuperVaultStrategies() external view returns (address[] memory) {
-        return superVaultStrategies;
+        return _superVaultStrategies.values();
     }
 
     /// @notice Gets all created SuperVaultEscrows
     /// @return Array of SuperVaultEscrow addresses
     function getAllSuperVaultEscrows() external view returns (address[] memory) {
-        return superVaultEscrows;
+        return _superVaultEscrows.values();
     }
 }

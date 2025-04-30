@@ -10,6 +10,7 @@ interface ISuperBank {
     //////////////////////////////////////////////////////////////*/
 
     error ZERO_LENGTH_ARRAY();
+    error INVALID_ARRAY_LENGTH();
     error INVALID_ADDRESS();
     error INVALID_MERKLE_PROOF();
     error HOOK_EXECUTION_FAILED();
@@ -46,5 +47,4 @@ interface ISuperBank {
     /// @dev Hooks must implement the ISuperHook interface (preExecute, build, postExecute).
     /// @param executionData HookExecutionData struct containing arrays of hooks, data, and Merkle proofs.
     function executeHooks(HookExecutionData calldata executionData) external;
-
 }

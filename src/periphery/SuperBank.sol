@@ -31,7 +31,7 @@ contract SuperBank is ISuperBank, Ownable2Step {
 
         // Validate arrays have matching lengths
         if (hooksLength != executionData.data.length || hooksLength != executionData.merkleProofs.length) {
-            revert ZERO_LENGTH_ARRAY();
+            revert INVALID_ARRAY_LENGTH();
         }
 
         address prevHook;

@@ -22,7 +22,7 @@ import { IYieldSourceOracle } from "../core/interfaces/accounting/IYieldSourceOr
 import { ISuperVault } from "./interfaces/ISuperVault.sol";
 import { HookDataDecoder } from "../core/libraries/HookDataDecoder.sol";
 import { ISuperVaultStrategy } from "./interfaces/ISuperVaultStrategy.sol";
-import { ISuperGovernor } from "./interfaces/ISuperGovernor.sol";
+import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperVaultStrategy
@@ -577,8 +577,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             uint256 totalFee = profit.mulDiv(performanceFeeBps, BPS_PRECISION, Math.Rounding.Floor);
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
-                uint256 superformFee =
-                    totalFee.mulDiv(superGovernor.getRevenueShare(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
+                uint256 superformFee = totalFee.mulDiv(
+                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), ONE_HUNDRED_PERCENT, Math.Rounding.Floor
+                );
                 uint256 recipientFee = totalFee - superformFee;
 
                 // Transfer fees
@@ -644,7 +645,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     function _isStrategist(address strategist_) internal view {
-        if (!superGovernor.isStrategist(strategist_)) {
+        if (!_getSuperVaultAggregator().isStrategist(strategist_, address(this))) {
             revert STRATEGIST_NOT_AUTHORIZED();
         }
     }

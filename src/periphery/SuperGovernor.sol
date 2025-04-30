@@ -2,15 +2,28 @@
 pragma solidity ^0.8.28;
 
 // external
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 // Superform
-import { ISuperGovernor } from "./interfaces/ISuperGovernor.sol";
+import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
 
 /// @title SuperGovernor
 /// @author Superform Labs
 /// @notice Central registry for all deployed contracts in the Superform periphery
-contract SuperGovernor is ISuperGovernor, Ownable2Step {
+contract SuperGovernor is ISuperGovernor, AccessControl {
+    using EnumerableSet for EnumerableSet.AddressSet;
+    /// @inheritdoc ISuperGovernor
+
+    function SUPER_GOVERNOR_ROLE() external pure returns (bytes32) {
+        return _SUPER_GOVERNOR_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function GOVERNOR_ROLE() external pure returns (bytes32) {
+        return _GOVERNOR_ROLE;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -22,30 +35,31 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
     address[] private _ppsOraclesList;
 
     // Hook registry
-    mapping(address hook => bool isRegistered) private _isHookRegistered;
-    mapping(address hook => bool isRegistered) private _isFulfillRequestsHookRegistered;
-    address[] private _registeredHooks;
-    address[] private _registeredFulfillRequestsHooks;
+    EnumerableSet.AddressSet private _registeredHooks;
+    EnumerableSet.AddressSet private _registeredFulfillRequestsHooks;
 
     // SuperBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private superBankHooksMerkleRoots;
-
-    // Strategist registry
-    mapping(address strategist => bool isStrategist) private _isStrategist;
-    address[] private _strategistsList;
 
     // Validator registry
     mapping(address validator => bool isValidator) private _isValidator;
     address[] private _validatorsList;
 
-    // Revenue share
-    uint256 private revenueShare;
-    uint256 private proposedRevenueShare;
-    uint256 private revenueShareEffectiveTime;
+    // Fee management
+    // Current fee values
+    mapping(FeeType => uint256) private _feeValues;
+    // Proposed fee values
+    mapping(FeeType => uint256) private _proposedFeeValues;
+    // Effective times for proposed fee updates
+    mapping(FeeType => uint256) private _feeEffectiveTimes;
 
     // Timelock configuration
-    uint256 private constant ONE_WEEK = 7 days;
-    uint256 private constant MAX_REVENUE_SHARE = 10_000; // 100% in basis points
+    uint256 private constant TIMELOCK = 7 days;
+    uint256 private constant BPS_MAX = 10_000; // 100% in basis points
+
+    // Role definitions
+    bytes32 private constant _SUPER_GOVERNOR_ROLE = keccak256("SUPER_GOVERNOR_ROLE");
+    bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
 
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
@@ -61,14 +75,25 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the SuperGovernor contract
-    /// @param owner_ Address of the owner
+    /// @param admin Address of the default admin (will have SUPER_GOVERNOR_ROLE)
+    /// @param governor Address that will have the GOVERNOR_ROLE for daily operations
     /// @param treasury_ Address of the treasury
-    constructor(address owner_, address treasury_) Ownable(owner_) {
-        if (owner_ == address(0)) revert INVALID_ADDRESS();
-        if (treasury_ == address(0)) revert INVALID_ADDRESS();
+    constructor(address admin, address governor, address treasury_) {
+        if (admin == address(0) || treasury_ == address(0) || governor == address(0)) revert INVALID_ADDRESS();
 
-        // Initialize with a default revenue share of 20% (2000 basis points)
-        revenueShare = 2000;
+        // Set up roles
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(_SUPER_GOVERNOR_ROLE, admin);
+        _grantRole(_GOVERNOR_ROLE, governor);
+
+        // Set role admins
+        _setRoleAdmin(_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(_SUPER_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
+
+        // Initialize with default fees
+        _feeValues[FeeType.REVENUE_SHARE] = 2000; // 20% revenue share
+        _feeValues[FeeType.SUPER_VAULT_PERFORMANCE_FEE] = 2000; // 20% performance fee
+        _feeValues[FeeType.SUPER_ASSET_SWAP_FEE] = 4000; // 40% swap fee
 
         // Set treasury in address registry
         _addressRegistry[TREASURY] = treasury_;
@@ -79,20 +104,11 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
-    function setAddress(bytes32 key, address value) external onlyOwner {
+    function setAddress(bytes32 key, address value) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         if (value == address(0)) revert INVALID_ADDRESS();
-        if (_addressRegistry[key] != address(0)) revert CONTRACT_ALREADY_REGISTERED();
 
         _addressRegistry[key] = value;
         emit AddressSet(key, value);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function removeAddress(bytes32 key) external onlyOwner {
-        if (_addressRegistry[key] == address(0)) revert CONTRACT_NOT_FOUND();
-
-        delete _addressRegistry[key];
-        emit AddressRemoved(key);
     }
 
     /// @inheritdoc ISuperGovernor
@@ -106,129 +122,58 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
                          HOOK MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
-    function registerHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
+    function registerHook(address hook_, bool isFulfillRequestsHook_) external onlyRole(_GOVERNOR_ROLE) {
         if (hook_ == address(0)) revert INVALID_ADDRESS();
 
         if (isFulfillRequestsHook_) {
-            if (_isFulfillRequestsHookRegistered[hook_]) revert FULFILL_REQUESTS_HOOK_ALREADY_REGISTERED();
-            _isFulfillRequestsHookRegistered[hook_] = true;
-            _registeredFulfillRequestsHooks.push(hook_);
+            if (_registeredFulfillRequestsHooks.contains(hook_)) {
+                revert FULFILL_REQUESTS_HOOK_ALREADY_REGISTERED();
+            }
+            _registeredFulfillRequestsHooks.add(hook_);
             emit FulfillRequestsHookRegistered(hook_);
-        }
-
-        if (!_isHookRegistered[hook_]) {
-            _isHookRegistered[hook_] = true;
-            _registeredHooks.push(hook_);
+        } else {
+            if (_registeredHooks.contains(hook_)) {
+                revert HOOK_ALREADY_APPROVED();
+            }
+            _registeredHooks.add(hook_);
             emit HookApproved(hook_);
-        } else if (!isFulfillRequestsHook_) {
-            revert HOOK_ALREADY_APPROVED();
         }
     }
 
     /// @inheritdoc ISuperGovernor
-    function unregisterHook(address hook_, bool isFulfillRequestsHook_) external onlyOwner {
+    function unregisterHook(address hook_, bool isFulfillRequestsHook_) external onlyRole(_GOVERNOR_ROLE) {
         if (isFulfillRequestsHook_) {
-            if (!_isFulfillRequestsHookRegistered[hook_]) revert FULFILL_REQUESTS_HOOK_NOT_REGISTERED();
-            _isFulfillRequestsHookRegistered[hook_] = false;
-
-            // Find the hook in the registered fulfill requests hooks array and remove it
-            uint256 length = _registeredFulfillRequestsHooks.length;
-            for (uint256 i; i < length; i++) {
-                if (_registeredFulfillRequestsHooks[i] == hook_) {
-                    _registeredFulfillRequestsHooks[i] =
-                        _registeredFulfillRequestsHooks[_registeredFulfillRequestsHooks.length - 1];
-                    _registeredFulfillRequestsHooks.pop();
-                    break;
-                }
-            }
-            emit FulfillRequestsHookUnregistered(hook_);
-        }
-
-        if (_isHookRegistered[hook_]) {
-            _isHookRegistered[hook_] = false;
-
-            // Find the hook in the registered hooks array and remove it
-            uint256 length = _registeredHooks.length;
-            for (uint256 i; i < length; i++) {
-                if (_registeredHooks[i] == hook_) {
-                    _registeredHooks[i] = _registeredHooks[_registeredHooks.length - 1];
-                    _registeredHooks.pop();
-                    break;
-                }
-            }
-            emit HookRemoved(hook_);
-        } else if (!isFulfillRequestsHook_) {
-            revert HOOK_NOT_APPROVED();
+            _unregisterFulfillRequestsHook(hook_);
+        } else {
+            _unregisterRegularHook(hook_);
         }
     }
 
     /// @inheritdoc ISuperGovernor
     function isHookRegistered(address hook) external view returns (bool) {
-        return _isHookRegistered[hook];
+        return _registeredHooks.contains(hook);
     }
 
     /// @inheritdoc ISuperGovernor
     function isFulfillRequestsHookRegistered(address hook) external view returns (bool) {
-        return _isFulfillRequestsHookRegistered[hook];
+        return _registeredFulfillRequestsHooks.contains(hook);
     }
 
     /// @inheritdoc ISuperGovernor
     function getRegisteredHooks() external view returns (address[] memory) {
-        return _registeredHooks;
+        return _registeredHooks.values();
     }
 
     /// @inheritdoc ISuperGovernor
     function getRegisteredFulfillRequestsHooks() external view returns (address[] memory) {
-        return _registeredFulfillRequestsHooks;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                      STRATEGIST MANAGEMENT
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperGovernor
-    function addStrategist(address strategist) external onlyOwner {
-        if (strategist == address(0)) revert INVALID_ADDRESS();
-        if (_isStrategist[strategist]) revert STRATEGIST_ALREADY_REGISTERED();
-
-        _isStrategist[strategist] = true;
-        _strategistsList.push(strategist);
-        emit StrategistAdded(strategist);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function removeStrategist(address strategist) external onlyOwner {
-        if (!_isStrategist[strategist]) revert STRATEGIST_NOT_REGISTERED();
-
-        _isStrategist[strategist] = false;
-
-        // Remove from strategists array
-        uint256 length = _strategistsList.length;
-        for (uint256 i; i < length; i++) {
-            if (_strategistsList[i] == strategist) {
-                _strategistsList[i] = _strategistsList[_strategistsList.length - 1];
-                _strategistsList.pop();
-                break;
-            }
-        }
-
-        emit StrategistRemoved(strategist);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function isStrategist(address strategist) external view returns (bool) {
-        return _isStrategist[strategist];
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function getStrategists() external view returns (address[] memory) {
-        return _strategistsList;
+        return _registeredFulfillRequestsHooks.values();
     }
 
     /*//////////////////////////////////////////////////////////////
                       VALIDATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
-    function addValidator(address validator) external onlyOwner {
+    function addValidator(address validator) external onlyRole(_GOVERNOR_ROLE) {
         if (validator == address(0)) revert INVALID_ADDRESS();
         if (_isValidator[validator]) revert VALIDATOR_ALREADY_REGISTERED();
 
@@ -238,7 +183,7 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
     }
 
     /// @inheritdoc ISuperGovernor
-    function removeValidator(address validator) external onlyOwner {
+    function removeValidator(address validator) external onlyRole(_GOVERNOR_ROLE) {
         if (!_isValidator[validator]) revert VALIDATOR_NOT_REGISTERED();
 
         _isValidator[validator] = false;
@@ -270,7 +215,7 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
                        PPS ORACLE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
-    function addPPSOracle(address oracle) external onlyOwner {
+    function addPPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         if (oracle == address(0)) revert INVALID_ADDRESS();
         if (_isPPSOracle[oracle]) revert PPS_ORACLE_ALREADY_REGISTERED();
 
@@ -280,7 +225,7 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
     }
 
     /// @inheritdoc ISuperGovernor
-    function removePPSOracle(address oracle) external onlyOwner {
+    function removePPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         if (!_isPPSOracle[oracle]) revert PPS_ORACLE_NOT_REGISTERED();
 
         _isPPSOracle[oracle] = false;
@@ -312,31 +257,35 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
                       REVENUE SHARE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
-    function proposeRevenueShare(uint256 share) external onlyOwner {
-        if (share > MAX_REVENUE_SHARE) revert INVALID_REVENUE_SHARE();
+    function proposeFee(FeeType feeType, uint256 value) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (value > BPS_MAX) revert INVALID_FEE_VALUE();
 
-        proposedRevenueShare = share;
-        revenueShareEffectiveTime = block.timestamp + ONE_WEEK;
+        _proposedFeeValues[feeType] = value;
+        _feeEffectiveTimes[feeType] = block.timestamp + TIMELOCK;
 
-        emit RevenueShareProposed(share, revenueShareEffectiveTime);
+        emit FeeProposed(feeType, value, _feeEffectiveTimes[feeType]);
     }
 
     /// @inheritdoc ISuperGovernor
-    function executeRevenueShareUpdate() external {
-        uint256 effectiveTime = revenueShareEffectiveTime;
+    function executeFeeUpdate(FeeType feeType) external {
+        uint256 effectiveTime = _feeEffectiveTimes[feeType];
         if (effectiveTime == 0 || block.timestamp < effectiveTime) {
             revert TIMELOCK_NOT_EXPIRED();
         }
-        revenueShare = proposedRevenueShare;
-        proposedRevenueShare = 0;
-        revenueShareEffectiveTime = 0;
 
-        emit RevenueShareUpdated(revenueShare);
+        // Update the fee value
+        _feeValues[feeType] = _proposedFeeValues[feeType];
+
+        // Reset proposal data
+        _proposedFeeValues[feeType] = 0;
+        _feeEffectiveTimes[feeType] = 0;
+
+        emit FeeUpdated(feeType, _feeValues[feeType]);
     }
 
     /// @inheritdoc ISuperGovernor
-    function getRevenueShare() external view returns (uint256) {
-        return revenueShare;
+    function getFee(FeeType feeType) external view returns (uint256) {
+        return _feeValues[feeType];
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -345,7 +294,7 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
 
     /// @inheritdoc ISuperGovernor
     function getSuperBankHookMerkleRoot(address hook) external view returns (bytes32) {
-        if (!_isHookRegistered[hook]) revert HOOK_NOT_APPROVED();
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
         return superBankHooksMerkleRoots[hook].currentRoot;
     }
 
@@ -355,14 +304,21 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
         view
         returns (bytes32 proposedRoot, uint256 effectiveTime)
     {
-        if (!_isHookRegistered[hook]) revert HOOK_NOT_APPROVED();
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
         ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
         return (data.proposedRoot, data.effectiveTime);
     }
 
     /// @inheritdoc ISuperGovernor
-    function proposeSuperBankHookMerkleRoot(address hook, bytes32 proposedRoot, uint256 delay) external onlyOwner {
-        if (!_isHookRegistered[hook]) revert HOOK_NOT_APPROVED();
+    function proposeSuperBankHookMerkleRoot(
+        address hook,
+        bytes32 proposedRoot,
+        uint256 delay
+    )
+        external
+        onlyRole(_GOVERNOR_ROLE)
+    {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
         if (delay == 0) revert INVALID_TIMESTAMP();
 
         uint256 effectiveTime = block.timestamp + delay;
@@ -375,7 +331,7 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
 
     /// @inheritdoc ISuperGovernor
     function executeSuperBankHookMerkleRootUpdate(address hook) external returns (bool) {
-        if (!_isHookRegistered[hook]) revert HOOK_NOT_APPROVED();
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
 
         ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
 
@@ -395,5 +351,27 @@ contract SuperGovernor is ISuperGovernor, Ownable2Step {
 
         emit SuperBankHookMerkleRootUpdated(hook, proposedRoot);
         return true;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           INTERNAL FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Internal function to unregister a fulfill requests hook
+    function _unregisterFulfillRequestsHook(address hook_) internal {
+        if (!_registeredFulfillRequestsHooks.contains(hook_)) {
+            revert FULFILL_REQUESTS_HOOK_NOT_REGISTERED();
+        }
+        _registeredFulfillRequestsHooks.remove(hook_);
+        emit FulfillRequestsHookUnregistered(hook_);
+    }
+
+    /// @dev Internal function to unregister a regular hook
+    function _unregisterRegularHook(address hook_) internal {
+        if (!_registeredHooks.contains(hook_)) {
+            revert HOOK_NOT_APPROVED();
+        }
+        _registeredHooks.remove(hook_);
+        emit HookRemoved(hook_);
     }
 }

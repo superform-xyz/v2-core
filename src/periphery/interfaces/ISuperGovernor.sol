@@ -1,10 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+/*//////////////////////////////////////////////////////////////
+                                  ENUMS
+    //////////////////////////////////////////////////////////////*/
+/// @notice Enum representing different types of fees that can be managed
+enum FeeType {
+    REVENUE_SHARE,
+    SUPER_VAULT_PERFORMANCE_FEE,
+    SUPER_ASSET_SWAP_FEE
+}
 /// @title ISuperGovernor
 /// @author Superform Labs
 /// @notice Interface for the SuperGovernor contract
 /// @dev Central registry for all deployed contracts in the Superform periphery
+
 interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
@@ -38,6 +48,8 @@ interface ISuperGovernor {
     error FULFILL_REQUESTS_HOOK_NOT_REGISTERED();
     /// @notice Thrown when provided revenue share is invalid (exceeds 100%)
     error INVALID_REVENUE_SHARE();
+    /// @notice Thrown when an invalid fee value is proposed (must be <= BPS_MAX)
+    error INVALID_FEE_VALUE();
     /// @notice Thrown when timelock period has not expired
     error TIMELOCK_NOT_EXPIRED();
     /// @notice Thrown when a validator is not registered
@@ -48,24 +60,27 @@ interface ISuperGovernor {
     error PPS_ORACLE_NOT_REGISTERED();
     /// @notice Thrown when a PPS oracle is already registered
     error PPS_ORACLE_ALREADY_REGISTERED();
-    /// @notice Thrown when strategist is already registered
-    error STRATEGIST_ALREADY_REGISTERED();
-    /// @notice Thrown when strategist is not registered but expected to be
-    error STRATEGIST_NOT_REGISTERED();
+
     /// @notice Thrown when a SuperBank hook Merkle root is not registered but expected to be
     error INVALID_TIMESTAMP();
 
     /*//////////////////////////////////////////////////////////////
-                                 EVENTS
+                                  ROLES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The identifier of the role that grants access to critical governance functions
+    function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to daily operations like hooks and validators
+    function GOVERNOR_ROLE() external view returns (bytes32);
+
+    /*//////////////////////////////////////////////////////////////
+                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     /// @notice Emitted when an address is set in the registry
     /// @param key The key used to reference the address
     /// @param value The address value
     event AddressSet(bytes32 indexed key, address indexed value);
-
-    /// @notice Emitted when an address is removed from the registry
-    /// @param key The key of the removed address
-    event AddressRemoved(bytes32 indexed key);
 
     /// @notice Emitted when a hook is approved
     /// @param hook The address of the approved hook
@@ -111,16 +126,22 @@ interface ISuperGovernor {
     /// @param share The new revenue share percentage
     event RevenueShareUpdated(uint256 share);
 
-    /// @notice Emitted when revenue share update is proposed
-    /// @param share The proposed revenue share percentage
-    /// @param effectiveTime The time when the update will be effective
-    event RevenueShareProposed(uint256 share, uint256 effectiveTime);
+    /// @notice Emitted when a new fee is proposed
+    /// @param feeType The type of fee being proposed
+    /// @param value The proposed fee value (in basis points)
+    /// @param effectiveTime The timestamp when the fee will be effective
+    event FeeProposed(FeeType indexed feeType, uint256 value, uint256 effectiveTime);
 
-    /// @notice Emitted when a new SuperBank hook Merkle root is proposed.
-    /// @param hook The hook address for which the Merkle root is being proposed.
-    /// @param proposedRoot The proposed new Merkle root.
-    /// @param effectiveTime The timestamp when the proposed root will become effective.
-    event SuperBankHookMerkleRootProposed(address indexed hook, bytes32 proposedRoot, uint256 effectiveTime);
+    /// @notice Emitted when a fee is updated
+    /// @param feeType The type of fee being updated
+    /// @param value The new fee value (in basis points)
+    event FeeUpdated(FeeType indexed feeType, uint256 value);
+
+    /// @notice Emitted when a new SuperBank hook Merkle root is proposed
+    /// @param hook The hook address for which the Merkle root is being proposed
+    /// @param newRoot The new Merkle root
+    /// @param effectiveTime The timestamp when the new root will be effective
+    event SuperBankHookMerkleRootProposed(address indexed hook, bytes32 newRoot, uint256 effectiveTime);
 
     /// @notice Emitted when the SuperBank hook Merkle root is updated.
     /// @param hook The hook address for which the Merkle root was updated.
@@ -135,10 +156,6 @@ interface ISuperGovernor {
     /// @param key The key to associate with the address
     /// @param value The address value
     function setAddress(bytes32 key, address value) external;
-
-    /// @notice Removes an address from the registry
-    /// @param key The key of the address to remove
-    function removeAddress(bytes32 key) external;
 
     /// @notice Gets an address from the registry
     /// @param key The key of the address to get
@@ -172,23 +189,6 @@ interface ISuperGovernor {
     /// @notice Gets all registered fulfill requests hooks
     /// @return An array of registered fulfill requests hook addresses
     function getRegisteredFulfillRequestsHooks() external view returns (address[] memory);
-
-    /// @notice Adds a strategist to the approved list
-    /// @param strategist The address of the strategist to add
-    function addStrategist(address strategist) external;
-
-    /// @notice Removes a strategist from the approved list
-    /// @param strategist The address of the strategist to remove
-    function removeStrategist(address strategist) external;
-
-    /// @notice Checks if an address is an approved strategist
-    /// @param strategist The address to check
-    /// @return True if the address is an approved strategist, false otherwise
-    function isStrategist(address strategist) external view returns (bool);
-
-    /// @notice Returns all registered strategists
-    /// @return List of strategist addresses
-    function getStrategists() external view returns (address[] memory);
 
     /// @notice Adds a validator to the approved list
     /// @param validator The address of the validator to add
@@ -224,16 +224,19 @@ interface ISuperGovernor {
     /// @return List of PPS oracle addresses
     function getPPSOracles() external view returns (address[] memory);
 
-    /// @notice Proposes a new revenue share to be set after timelock
-    /// @param share The share to be set (in basis points)
-    function proposeRevenueShare(uint256 share) external;
+    /// @notice Proposes a new fee value
+    /// @param feeType The type of fee to propose
+    /// @param value The proposed fee value (in basis points)
+    function proposeFee(FeeType feeType, uint256 value) external;
 
-    /// @notice Executes a previously proposed revenue share update after timelock
-    function executeRevenueShareUpdate() external;
+    /// @notice Executes a previously proposed fee update after timelock has expired
+    /// @param feeType The type of fee to execute the update for
+    function executeFeeUpdate(FeeType feeType) external;
 
-    /// @notice Gets the current revenue share
-    /// @return The current revenue share (in basis points)
-    function getRevenueShare() external view returns (uint256);
+    /// @notice Gets the current fee value for a specific fee type
+    /// @param feeType The type of fee to get
+    /// @return The current fee value (in basis points)
+    function getFee(FeeType feeType) external view returns (uint256);
 
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token

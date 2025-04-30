@@ -60,8 +60,7 @@ interface ISuperVaultAggregator {
     error ZERO_ARRAY_LENGTH();
     /// @notice Thrown when array length is zero
     error ARRAY_LENGTH_MISMATCH();
-    /// @notice Thrown when an operation requires strategist to be registered
-    error STRATEGIST_NOT_REGISTERED();
+
     /// @notice Thrown when insufficient upkeep balance for operation
     error INSUFFICIENT_UPKEEP();
     /// @notice Thrown when vault is paused but operation requires active state
@@ -82,6 +81,8 @@ interface ISuperVaultAggregator {
     error CALLER_ALREADY_AUTHORIZED();
     /// @notice Thrown when caller is not authorized
     error CALLER_NOT_AUTHORIZED();
+    /// @notice Thrown when array index is out of bounds
+    error INDEX_OUT_OF_BOUNDS();
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -175,9 +176,8 @@ interface ISuperVaultAggregator {
     function depositUpkeep(address strategist, uint256 amount) external;
 
     /// @notice Withdraws UP tokens from strategist upkeep balance
-    /// @param strategist Address of the strategist making the withdrawal
     /// @param amount Amount of UP tokens to withdraw
-    function withdrawUpkeep(address strategist, uint256 amount) external;
+    function withdrawUpkeep(uint256 amount) external;
 
     /// @notice Gets the full strategy data
     /// @param strategy Address of the strategy
@@ -218,6 +218,12 @@ interface ISuperVaultAggregator {
     /// @param strategy Address of the strategy
     /// @return strategist Address of the strategist
     function getStrategist(address strategy) external view returns (address strategist);
+
+    /// @notice Checks if an address is the strategist for a strategy
+    /// @param strategist Address of the strategist
+    /// @param strategy Address of the strategy
+    /// @return isStrategist True if the address is the strategist, false otherwise
+    function isStrategist(address strategist, address strategy) external view returns (bool isStrategist);
 
     /// @notice Gets the current upkeep balance for a strategist
     /// @param strategist Address of the strategist
