@@ -16,9 +16,6 @@ contract AssetBank is AccessControl, IAssetBank, IAssetBankErrors {
     // --- Roles ---
     bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
-    // --- Events ---
-    event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
-
     // --- Constructor ---
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
