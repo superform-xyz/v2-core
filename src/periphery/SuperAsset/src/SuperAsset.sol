@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
 import "./interfaces/ISuperAssetErrors.sol";
@@ -57,6 +58,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
     uint256 public energyToUSDExchangeRatio;
 
     mapping(address => uint256) public emergencyPrices; // Used when an oracle is down, managed by us
+
+    // --- Addresses ---
+    // TODO: Fix it accordingly
+    address public constant USD = 0x0000000000000000000000000000000000000001;
+
+    // SuperOracle related 
+    bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
+
 
     // --- Errors ---
 
@@ -208,7 +217,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         address tokenIn,
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
-    ) external returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
+    ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
         // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZeroAmount();
         if (!isVault[tokenIn] && !isERC20[tokenIn]) revert NotSupportedToken();
@@ -251,7 +260,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
         uint256 amountSharesToRedeem,
         address tokenOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) {
+    ) public returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) {
         if (amountSharesToRedeem == 0) revert ZeroAmount();
         if (!isVault[tokenOut] && !isERC20[tokenOut]) revert NotSupportedToken();
         if (receiver == address(0)) revert ZeroAddress();
