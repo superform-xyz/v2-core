@@ -88,4 +88,17 @@ interface IIncentiveFundContract {
      * @param token Address of the token
      */
     event SettlementTokenOutSet(address token);
+
+    // --- Errors ---
+    /// @notice Thrown when an address parameter is zero
+    error ZERO_ADDRESS();
+
+    /// @notice Thrown when amount is zero
+    error ZERO_AMOUNT();
+
+    /// @notice Thrown when incentive token is not configured
+    error TOKEN_NOT_CONFIGURED();
+
+    /// @notice Thrown when any circuit breaker is triggered during price check
+    error CIRCUIT_BREAKER_TRIGGERED();
 }

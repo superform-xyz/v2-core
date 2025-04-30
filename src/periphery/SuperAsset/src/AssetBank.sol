@@ -4,13 +4,12 @@ pragma solidity ^0.8.28;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./interfaces/IAssetBank.sol";
-import "./interfaces/IAssetBankErrors.sol";
 
 /**
  * @title AssetBank
  * @notice Manages asset holdings and withdrawals for the SuperAsset system
  */
-contract AssetBank is AccessControl, IAssetBank, IAssetBankErrors {
+contract AssetBank is AccessControl, IAssetBank {
     using SafeERC20 for IERC20;
 
     // --- Roles ---

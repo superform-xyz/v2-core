@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "./IncentiveCalculationContract.sol";
 import "./IncentiveFundContract.sol";
-import "./interfaces/ISuperAssetErrors.sol";
 import "./interfaces/IIncentiveCalculationContract.sol";
 import "./interfaces/IIncentiveFundContract.sol";
 import "./interfaces/IAssetBank.sol";
@@ -20,7 +19,7 @@ import "../../interfaces/ISuperOracle.sol";
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
  * Implements ERC20 standard for better compatibility with integrators.
  */
-contract SuperAsset is AccessControl, ERC20, ISuperAssetErrors, ISuperAsset {
+contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
     using Math for uint256;

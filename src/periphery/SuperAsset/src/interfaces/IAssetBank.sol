@@ -29,4 +29,18 @@ interface IAssetBank {
 
     // --- Events ---
     event RebalanceWithdrawal(address receiver, address tokenOut, uint256 amount);
+
+    // --- Errors ---
+    /// @notice Thrown when an address parameter is zero
+    error ZeroAddress();
+
+    /// @notice Thrown when caller is not authorized
+    error Unauthorized();
+
+    /// @notice Thrown when transfer fails
+    error TransferFailed();
+
+    /// @notice Thrown when amount is zero
+    error ZeroAmount();
+
 }

@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "./interfaces/IIncentiveFundContract.sol";
-import "./interfaces/IIncentiveFundErrors.sol";
 import "./IncentiveCalculationContract.sol";
 import "./SuperAsset.sol";
 
@@ -17,7 +16,7 @@ import "./SuperAsset.sol";
  * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
  * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
  */
-contract IncentiveFundContract is IIncentiveFundContract, IIncentiveFundErrors, AccessControl {
+contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     using SafeERC20 for IERC20;
 
     // --- Constants ---
