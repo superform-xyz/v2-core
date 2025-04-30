@@ -12,8 +12,8 @@ import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/En
 import { SuperVault } from "./SuperVault.sol";
 import { SuperVaultStrategy } from "./SuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "./SuperVaultEscrow.sol";
-import { ISuperGovernor } from "./interfaces/ISuperGovernor.sol";
-import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
+import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperVaultAggregator
 /// @author SuperForm Labs
