@@ -395,7 +395,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
-            vaultWeights,
+            vaultWeights,   
             totalAllocationPreOperation,
             totalAllocationPostOperation,
             totalAllocationTarget,
@@ -539,16 +539,5 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         energyToUSDExchangeRatio = newRatio;
         emit EnergyToUSDExchangeRatioSet(newRatio);
     }
-}
 
-// --- Events ---
-event VaultWhitelisted(address vault);
-event VaultRemoved(address vault);
-event ERC20Whitelisted(address token);
-event ERC20Removed(address token);
-event SettlementTokenInSet(address token);
-event SettlementTokenOutSet(address token);
-event SuperOracleSet(address oracle);
-event TargetAllocationSet(address token, uint256 allocation);
-event EnergyToUSDExchangeRatioSet(uint256 newRatio);
-event WeightSet(address indexed vault, uint256 weight);
+}
