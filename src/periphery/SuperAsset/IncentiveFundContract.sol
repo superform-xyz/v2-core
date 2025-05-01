@@ -34,11 +34,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /**
-     * @notice Initializes the IncentiveFundContract
-     * @param superAsset_ Address of the SuperAsset contract
-     * @param assetBank_ Address of the AssetBank contract
-     */
+    /// @inheritdoc IIncentiveFundContract
     function initialize(address superAsset_, address assetBank_) external {
         // Ensure this can only be called once
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
@@ -53,27 +49,21 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /**
-     * @inheritdoc IIncentiveFundContract
-     */
+    /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
     }
 
-    /**
-     * @inheritdoc IIncentiveFundContract
-     */
+    /// @inheritdoc IIncentiveFundContract
     function setTokenOutIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
     }
 
-    /**
-     * @inheritdoc IIncentiveFundContract
-     */
+    /// @inheritdoc IIncentiveFundContract
     function payIncentive(
         address receiver,
         uint256 amountUSD
@@ -97,9 +87,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
     }
 
-    /**
-     * @inheritdoc IIncentiveFundContract
-     */
+    /// @inheritdoc IIncentiveFundContract
     function takeIncentive(
         address sender,
         uint256 amountUSD
@@ -123,9 +111,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         emit IncentiveTaken(sender, tokenInIncentive, amountToken);
     }
 
-    /**
-     * @inheritdoc IIncentiveFundContract
-     */
+    /// @inheritdoc IIncentiveFundContract
     function withdraw(
         address receiver,
         address tokenOut,

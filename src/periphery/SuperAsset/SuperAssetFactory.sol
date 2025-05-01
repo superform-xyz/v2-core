@@ -21,9 +21,11 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
                                 STATE
     //////////////////////////////////////////////////////////////*/
     address public immutable superAssetImplementation;
-    address public immutable assetBankImplementation;
     address public immutable incentiveFundImplementation;
-    address public immutable incentiveCalcImplementation;
+    
+    // Single instances
+    address public immutable assetBank;
+    address public immutable incentiveCalculationContract;
 
     // --- Roles ---
     bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
@@ -33,9 +35,11 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     //////////////////////////////////////////////////////////////*/
     constructor() {
         superAssetImplementation = address(new SuperAsset());
-        assetBankImplementation = address(new AssetBank());
         incentiveFundImplementation = address(new IncentiveFundContract());
-        incentiveCalcImplementation = address(new IncentiveCalculationContract());
+        
+        // Deploy single instances
+        assetBank = address(new AssetBank());
+        incentiveCalculationContract = address(new IncentiveCalculationContract());
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(DEPLOYER_ROLE, msg.sender);
@@ -45,22 +49,18 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @inheritdoc ISuperAssetFactory
-     */
+    /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
         onlyRole(DEPLOYER_ROLE)
         returns (
             address superAsset,
-            address assetBank,
+            address assetBank_,
             address incentiveFund,
             address incentiveCalc
         )
     {
-        // Deploy dependencies first
-        incentiveCalc = incentiveCalcImplementation.clone();
-        assetBank = assetBankImplementation.clone();
+        // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
         incentiveFund = incentiveFundImplementation.clone();
 
         // Deploy SuperAsset with its dependencies
@@ -68,25 +68,27 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         SuperAsset(superAsset).initialize(
             params.name,
             params.symbol,
-            incentiveCalc,
+            incentiveCalculationContract, // Use single instance
             incentiveFund,
-            assetBank,
+            assetBank, // Use single instance
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
         );
 
-        // Initialize IncentiveFundContract with SuperAsset address
+        // Initialize IncentiveFund
         IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank);
+
+        // Return addresses (using existing instances for ICC and AssetBank)
+        assetBank_ = assetBank;
+        incentiveCalc = incentiveCalculationContract;
 
         emit SuperAssetCreated(
             superAsset,
             assetBank,
             incentiveFund,
-            incentiveCalc,
+            incentiveCalculationContract,
             params.name,
             params.symbol
         );
-
-        return (superAsset, assetBank, incentiveFund, incentiveCalc);
     }
 }

@@ -63,7 +63,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     mapping(address token => uint256 priceUSD) public emergencyPrices; // Used when an oracle is down, managed by us
 
     // --- Addresses ---
-    // TODO: Fix it accordingly
     address public constant USD = address(840);
 
     // SuperOracle related 
@@ -80,36 +79,21 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _;
     }
 
-    /**
-     * @dev Empty constructor since we're using initialize pattern with Clones
-     */
+
     constructor() ERC20("", "") {
     }
 
-    /**
-     * @dev Override name() to use storage variable
-     */
+    /// @inheritdoc ERC20
     function name() public view override returns (string memory) {
         return tokenName;
     }
 
-    /**
-     * @dev Override symbol() to use storage variable
-     */
+    /// @inheritdoc ERC20
     function symbol() public view override returns (string memory) {
         return tokenSymbol;
     }
 
-    /**
-     * @notice Initializes the SuperAsset contract
-     * @param name_ Name of the token
-     * @param symbol_ Symbol of the token
-     * @param icc_ Address of the IncentiveCalculationContract
-     * @param ifc_ Address of the IncentiveFundContract
-     * @param assetBank_ Address of the AssetBank contract
-     * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
-     * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
-     */
+    /// @inheritdoc ISuperAsset
     function initialize(
         string memory name_,
         string memory symbol_,
@@ -120,7 +104,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 swapFeeOutPercentage_
     ) external {
         // Ensure this can only be called once
-        require(incentiveCalculationContract == address(0), "Already initialized");
+        if (incentiveCalculationContract != address(0)) revert ALREADY_INITIALIZED();
 
         if (icc_ == address(0)) revert ZERO_ADDRESS();
         if (ifc_ == address(0)) revert ZERO_ADDRESS();
@@ -147,55 +131,41 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
         _mint(to, amount);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function burn(address from, uint256 amount) external onlyRole(BURNER_ROLE) {
         _burn(from, amount);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function getPrecision() external pure returns (uint256) {
         return PRECISION;
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function setSwapFeeInPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeInPercentage = _feePercentage;
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeOutPercentage = _feePercentage;
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function setSuperOracle(address oracle) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (oracle == address(0)) revert ZERO_ADDRESS();
         superOracle = ISuperOracle(oracle);
         emit SuperOracleSet(oracle);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function setWeight(address vault, uint256 weight) external onlyRole(VAULT_MANAGER_ROLE) {
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[vault]) revert NOT_VAULT();
@@ -203,9 +173,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit WeightSet(vault, weight);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (tokens.length != allocations.length) revert INVALID_INPUT();
         
@@ -222,9 +190,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function setTargetAllocation(address token, uint256 allocation) external onlyRole(DEFAULT_ADMIN_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
@@ -236,10 +202,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit TargetAllocationSet(token, allocation);
     }
 
-
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyRole(DEFAULT_ADMIN_ROLE) {
         energyToUSDExchangeRatio = newRatio;
         emit EnergyToUSDExchangeRatioSet(newRatio);
@@ -248,9 +211,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Token Movement Functions ---
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function deposit(
         address receiver,
         address tokenIn,
@@ -286,9 +247,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function redeem(
         address receiver,
         uint256 amountSharesToRedeem,
@@ -323,9 +282,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit Redeem(receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function swap(
         address receiver,
         address tokenIn,
@@ -340,9 +297,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         return (amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function whitelistVault(address vault) external onlyRole(VAULT_MANAGER_ROLE) {
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (isSupportedUnderlyingVault[vault]) revert ALREADY_WHITELISTED();
@@ -351,9 +306,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit VaultWhitelisted(vault);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function removeVault(address vault) external onlyRole(VAULT_MANAGER_ROLE) {
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[vault]) revert NOT_WHITELISTED();
@@ -362,9 +315,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit VaultRemoved(vault);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function whitelistERC20(address token) external onlyRole(VAULT_MANAGER_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (isSupportedERC20[token]) revert ALREADY_WHITELISTED();
@@ -372,9 +323,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit ERC20Whitelisted(token);
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function removeERC20(address token) external onlyRole(VAULT_MANAGER_ROLE) {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedERC20[token]) revert NOT_WHITELISTED();
@@ -382,15 +331,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit ERC20Removed(token);
     }
 
-    // --- View Functions ---
-    // @dev This is equivalent to also returning the normalized amount since it can be obtained just by doing absoluteAllocation[i] / totalAllocation
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function getAllocations() public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
-        // Placeholder for the current allocation normalized
-        // This function should return the current allocation of assets in the SuperUSD contract
-        // For now, we return an empty array
         uint256 length = _supportedVaults.length();
         absoluteCurrentAllocation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
@@ -403,9 +345,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function getAllocationsPrePostOperation(address token, int256 deltaToken) public view returns (
         uint256[] memory absoluteAllocationPreOperation, 
         uint256 totalAllocationPreOperation, 
@@ -437,9 +377,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
     public
     view
@@ -484,9 +422,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         );
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function previewRedeem(address tokenOut, uint256 amountSharesToRedeem)
     public
     view
@@ -528,9 +464,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         );
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
     external
     view
@@ -542,11 +476,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     
-    // @dev: This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
-    // @dev: Getting only single unit price
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function getPriceWithCircuitBreakers(address tokenIn) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
 

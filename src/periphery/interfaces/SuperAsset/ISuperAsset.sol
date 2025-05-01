@@ -10,6 +10,27 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * fee handling, and incentive calculations.
  */
 interface ISuperAsset is IERC20 {
+
+    /**
+     * @notice Initializes the SuperAsset contract
+     * @param name_ Name of the token
+     * @param symbol_ Symbol of the token
+     * @param icc_ Address of the IncentiveCalculationContract
+     * @param ifc_ Address of the IncentiveFundContract
+     * @param assetBank_ Address of the AssetBank contract
+     * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
+     * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
+     */
+    function initialize(
+        string memory name_,
+        string memory symbol_,
+        address icc_,
+        address ifc_,
+        address assetBank_,
+        uint256 swapFeeInPercentage_,
+        uint256 swapFeeOutPercentage_
+    ) external;
+
     /**
      * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
      * @param to The address that will receive the minted tokens
@@ -201,6 +222,8 @@ interface ISuperAsset is IERC20 {
 
     /**
      * @notice Gets the price of a token in USD with circuit breakers
+     * @dev This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
+     * @dev Getting only single unit price
      * @param tokenIn The address of the token to get the price of
      * @return priceUSD The price of the token in USD
      * @return isDepeg Whether the token is depegged
@@ -274,6 +297,9 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Thrown when vault is already whitelisted
     error ALREADY_WHITELISTED();
+
+    /// @notice Thrown when contract is already initialized
+    error ALREADY_INITIALIZED();
 
     /// @notice Thrown when vault or token is not whitelisted
     error NOT_WHITELISTED();
