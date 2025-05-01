@@ -134,10 +134,7 @@ interface ISuperVaultAggregator {
     /// @param newStrategist Address of the proposed new primary strategist
     /// @param effectiveTime Timestamp when the proposal can be executed
     event PrimaryStrategistChangeProposed(
-        address indexed strategy, 
-        address indexed proposer, 
-        address indexed newStrategist, 
-        uint256 effectiveTime
+        address indexed strategy, address indexed proposer, address indexed newStrategist, uint256 effectiveTime
     );
 
     /// @notice Emitted when a PPS update is stale (Validators could get slashed for innactivity)
@@ -146,7 +143,12 @@ interface ISuperVaultAggregator {
     /// @param timestamp Timestamp of the stale update
     event StaleUpdate(address indexed strategy, address indexed updateAuthority, uint256 timestamp);
 
-    /*//////////////////////////////////////////////////////////////
+    /// @notice Emitted when the upkeep cost per update is changed
+    /// @param oldCost Previous upkeep cost per update
+    /// @param newCost New upkeep cost per update
+    event UpkeepCostUpdated(uint256 oldCost, uint256 newCost);
+
+    /*///////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when address provided is zero
@@ -185,6 +187,8 @@ interface ISuperVaultAggregator {
     error STRATEGIST_NOT_FOUND();
     /// @notice Thrown when there is no pending strategist change proposal
     error NO_PENDING_STRATEGIST_CHANGE();
+    /// @notice Thrown when caller is not authorized to update settings
+    error UNAUTHORIZED_CALLER();
     /// @notice Thrown when the timelock for a proposed change has not expired
     error TIMELOCK_NOT_EXPIRED();
 
@@ -266,12 +270,12 @@ interface ISuperVaultAggregator {
     /// @param strategy Address of the strategy
     /// @param newStrategist Address of the new primary strategist
     function changePrimaryStrategist(address strategy, address newStrategist) external;
-    
+
     /// @notice Proposes a change to the primary strategist (callable by secondary strategists)
     /// @param strategy Address of the strategy
     /// @param newStrategist Address of the proposed new primary strategist
     function proposeChangePrimaryStrategist(address strategy, address newStrategist) external;
-    
+
     /// @notice Executes a previously proposed change to the primary strategist after timelock
     /// @param strategy Address of the strategy
     function executeChangePrimaryStrategist(address strategy) external;

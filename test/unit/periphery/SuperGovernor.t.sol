@@ -59,7 +59,7 @@ contract SuperGovernorTest is BaseTest {
         newStrategist = _deployAccount(0xF, "NewStrategist");
 
         superGovernor = new SuperGovernor(sGovernor, governor, treasury);
-        superVaultAggregator = address(new SuperVaultAggregator(address(superGovernor), 0));
+        superVaultAggregator = address(new SuperVaultAggregator(address(superGovernor)));
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
                 asset: existingUnderlyingTokens[ETH][USDC_KEY],

@@ -584,11 +584,16 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[29].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.yearnClaimOneRewardHook =
             Strings.equal(hooks[30].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[30] : address(0);
-        hookAddresses.ethenaCooldownSharesHook = address(0); // Experimental Placeholder
-        hookAddresses.ethenaUnstakeHook = address(0); // Experimental Placeholder
-        hookAddresses.spectraExchangeHook = address(0); // Experimental Placeholder
-        hookAddresses.pendleRouterSwapHook = address(0); // Experimental Placeholder
-        hookAddresses.pendleRouterRedeemHook = address(0); // New Experimental Placeholder
+        hookAddresses.ethenaCooldownSharesHook =
+            Strings.equal(hooks[31].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[31] : address(0);
+        hookAddresses.ethenaUnstakeHook =
+            Strings.equal(hooks[32].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[32] : address(0);
+        hookAddresses.spectraExchangeHook =
+            Strings.equal(hooks[33].name, SPECTRA_EXCHANGE_HOOK_KEY) ? addresses[33] : address(0);
+        hookAddresses.pendleRouterSwapHook =
+            Strings.equal(hooks[34].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[34] : address(0);
+        hookAddresses.pendleRouterRedeemHook =
+            Strings.equal(hooks[35].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[35] : address(0);
         hookAddresses.cancelDepositRequest7540Hook =
             Strings.equal(hooks[36].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[36] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
@@ -598,13 +603,13 @@ contract DeployV2 is Script, Configuration {
         hookAddresses.claimCancelRedeemRequest7540Hook =
             Strings.equal(hooks[39].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
         hookAddresses.cancelRedeemHook =
-            Strings.equal(hooks[40].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[41] : address(0);
+            Strings.equal(hooks[40].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[40] : address(0);
         hookAddresses.morphoBorrowHook =
-            Strings.equal(hooks[41].name, MORPHO_BORROW_HOOK_KEY) ? addresses[42] : address(0);
+            Strings.equal(hooks[41].name, MORPHO_BORROW_HOOK_KEY) ? addresses[41] : address(0);
         hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[42].name, MORPHO_REPAY_HOOK_KEY) ? addresses[43] : address(0);
+            Strings.equal(hooks[42].name, MORPHO_REPAY_HOOK_KEY) ? addresses[42] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
-            Strings.equal(hooks[43].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[44] : address(0);
+            Strings.equal(hooks[43].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[43] : address(0);
 
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -712,10 +717,10 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.morphoBorrowHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoRepayHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoRepayAndWithdrawHook), false);
-        superGovernor.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false); // Placeholder
-        superGovernor.registerHook(address(hookAddresses.spectraExchangeHook), false); // Placeholder
-        superGovernor.registerHook(address(hookAddresses.pendleRouterSwapHook), false); // Placeholder
-        superGovernor.registerHook(address(hookAddresses.pendleRouterRedeemHook), false); // New Placeholder
+        superGovernor.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false);
+        superGovernor.registerHook(address(hookAddresses.spectraExchangeHook), false);
+        superGovernor.registerHook(address(hookAddresses.pendleRouterSwapHook), false);
+        superGovernor.registerHook(address(hookAddresses.pendleRouterRedeemHook), false);
     }
 
     function _deployOracles(
