@@ -85,15 +85,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the SuperGovernor contract
-    /// @param admin Address of the default admin (will have SUPER_GOVERNOR_ROLE)
+    /// @param superGovernor Address of the default admin (will have SUPER_GOVERNOR_ROLE)
     /// @param governor Address that will have the GOVERNOR_ROLE for daily operations
     /// @param treasury_ Address of the treasury
-    constructor(address admin, address governor, address treasury_) {
-        if (admin == address(0) || treasury_ == address(0) || governor == address(0)) revert INVALID_ADDRESS();
+    constructor(address superGovernor, address governor, address treasury_) {
+        if (superGovernor == address(0) || treasury_ == address(0) || governor == address(0)) revert INVALID_ADDRESS();
 
         // Set up roles
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(_SUPER_GOVERNOR_ROLE, admin);
+        _grantRole(DEFAULT_ADMIN_ROLE, superGovernor);
+        _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
         _grantRole(_GOVERNOR_ROLE, governor);
 
         // Set role admins
@@ -267,7 +267,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
     /// @inheritdoc ISuperGovernor
     function setPPSOracleQuorum(uint256 quorum) external onlyRole(_GOVERNOR_ROLE) {
-        if (_activePPSOracle == address(0)) revert NO_ACTIVE_PPS_ORACLE();
         if (quorum == 0) revert INVALID_QUORUM();
 
         _activePPSOracleQuorum = quorum;
@@ -290,7 +289,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function executeFeeUpdate(FeeType feeType) external {
         uint256 effectiveTime = _feeEffectiveTimes[feeType];
-        if (effectiveTime == 0 || block.timestamp < effectiveTime) {
+        if (effectiveTime == 0) revert NO_PROPOSED_FEE(feeType);
+        if (block.timestamp < effectiveTime) {
             revert TIMELOCK_NOT_EXPIRED();
         }
 
@@ -298,8 +298,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _feeValues[feeType] = _proposedFeeValues[feeType];
 
         // Reset proposal data
-        _proposedFeeValues[feeType] = 0;
-        _feeEffectiveTimes[feeType] = 0;
+        delete _proposedFeeValues[feeType];
+        delete _feeEffectiveTimes[feeType];
 
         emit FeeUpdated(feeType, _feeValues[feeType]);
     }
@@ -309,18 +309,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperGovernor
-    function proposeSuperBankHookMerkleRoot(
-        address hook,
-        bytes32 proposedRoot,
-        uint256 delay
-    )
-        external
-        onlyRole(_GOVERNOR_ROLE)
-    {
+    function proposeSuperBankHookMerkleRoot(address hook, bytes32 proposedRoot) external onlyRole(_GOVERNOR_ROLE) {
         if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
-        if (delay == 0) revert INVALID_TIMESTAMP();
 
-        uint256 effectiveTime = block.timestamp + delay;
+        uint256 effectiveTime = block.timestamp + TIMELOCK;
         ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
         data.proposedRoot = proposedRoot;
         data.effectiveTime = effectiveTime;
@@ -329,17 +321,17 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /// @inheritdoc ISuperGovernor
-    function executeSuperBankHookMerkleRootUpdate(address hook) external returns (bool) {
+    function executeSuperBankHookMerkleRootUpdate(address hook) external {
         if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
 
         ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
 
         // Check if there's a proposed update
         bytes32 proposedRoot = data.proposedRoot;
-        if (proposedRoot == bytes32(0)) return false;
+        if (proposedRoot == bytes32(0)) revert NO_PROPOSED_MERKLE_ROOT();
 
         // Check if the effective time has passed
-        if (block.timestamp < data.effectiveTime) return false;
+        if (block.timestamp < data.effectiveTime) revert TIMELOCK_NOT_EXPIRED();
 
         // Update the Merkle root
         data.currentRoot = proposedRoot;
@@ -349,7 +341,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         data.effectiveTime = 0;
 
         emit SuperBankHookMerkleRootUpdated(hook, proposedRoot);
-        return true;
     }
 
     /*//////////////////////////////////////////////////////////////

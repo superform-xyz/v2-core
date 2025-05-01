@@ -70,7 +70,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.selectFork(FORKS[ETH]);
         accInstances = randomAccountInstances[ETH];
         assertEq(accInstances.length, ACCOUNT_COUNT);
-        peripheryRegistry = PeripheryRegistry(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
+        peripheryRegistry = PeripheryRegistry(_getContract(ETH, SUPER_GOVERNOR_KEY));
 
         // Set up accounts
         accountEth = accountInstances[ETH].account;
@@ -82,7 +82,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
         // Deploy factory
-        factory = new SuperVaultFactory(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
+        factory = new SuperVaultFactory(_getContract(ETH, SUPER_GOVERNOR_KEY));
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);

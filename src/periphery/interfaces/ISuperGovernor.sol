@@ -50,6 +50,8 @@ interface ISuperGovernor {
     error INVALID_REVENUE_SHARE();
     /// @notice Thrown when an invalid fee value is proposed (must be <= BPS_MAX)
     error INVALID_FEE_VALUE();
+    /// @notice Thrown when no proposed fee exists but one is expected
+    error NO_PROPOSED_FEE(FeeType feeType);
     /// @notice Thrown when timelock period has not expired
     error TIMELOCK_NOT_EXPIRED();
     /// @notice Thrown when a validator is not registered
@@ -68,6 +70,8 @@ interface ISuperGovernor {
     error NO_PROPOSED_PPS_ORACLE();
     /// @notice Error thrown when strategist takeovers are frozen
     error STRATEGIST_TAKEOVERS_FROZEN();
+    /// @notice Thrown when no proposed Merkle root exists but one is expected
+    error NO_PROPOSED_MERKLE_ROOT();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -251,13 +255,11 @@ interface ISuperGovernor {
     /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
     /// @param hook The address of the hook to update the Merkle root for.
     /// @param proposedRoot The proposed new Merkle root.
-    /// @param delay The time delay in seconds before the new root becomes effective.
-    function proposeSuperBankHookMerkleRoot(address hook, bytes32 proposedRoot, uint256 delay) external;
+    function proposeSuperBankHookMerkleRoot(address hook, bytes32 proposedRoot) external;
 
     /// @notice Executes a previously proposed Merkle root update for a specific hook if the effective time has passed.
     /// @param hook The address of the hook to execute the update for.
-    /// @return success True if the update was executed successfully.
-    function executeSuperBankHookMerkleRootUpdate(address hook) external returns (bool success);
+    function executeSuperBankHookMerkleRootUpdate(address hook) external;
 
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS

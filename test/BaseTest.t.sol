@@ -53,7 +53,6 @@ import { CancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/Canc
 import { CancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
 import { ClaimCancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
-import { CancelDepositHook } from "../src/core/hooks/vaults/super-vault/CancelDepositHook.sol";
 import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
@@ -145,7 +144,7 @@ import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
-import { PeripheryRegistry } from "../src/periphery/PeripheryRegistry.sol";
+import { SuperGovernor } from "../src/periphery/SuperGovernor.sol";
 
 // SuperformNativePaymaster
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
@@ -202,7 +201,6 @@ struct Addresses {
     CancelRedeemRequest7540Hook cancelRedeemRequest7540Hook;
     ClaimCancelDepositRequest7540Hook claimCancelDepositRequest7540Hook;
     ClaimCancelRedeemRequest7540Hook claimCancelRedeemRequest7540Hook;
-    CancelDepositHook cancelDepositHook;
     CancelRedeemHook cancelRedeemHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendOrderAndExecuteOnDstHook deBridgeSendOrderAndExecuteOnDstHook;
@@ -230,7 +228,7 @@ struct Addresses {
     SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
     SuperDestinationValidator superDestinationValidator;
-    PeripheryRegistry peripheryRegistry;
+    SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
     MockTargetExecutor mockTargetExecutor;
 }
@@ -471,9 +469,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.makePersistent(debridgeDlnHelper);
             contractAddresses[chainIds[i]][DEBRIDGE_DLN_HELPER_KEY] = debridgeDlnHelper;
 
-            A[i].peripheryRegistry = new PeripheryRegistry{ salt: SALT }(address(this), TREASURY);
-            vm.label(address(A[i].peripheryRegistry), PERIPHERY_REGISTRY_KEY);
-            contractAddresses[chainIds[i]][PERIPHERY_REGISTRY_KEY] = address(A[i].peripheryRegistry);
+            A[i].superGovernor = new SuperGovernor{ salt: SALT }(address(this), address(this), TREASURY);
+            vm.label(address(A[i].superGovernor), SUPER_GOVERNOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_GOVERNOR_KEY] = address(A[i].superGovernor);
 
             A[i].oracleRegistry = new SuperOracle{ salt: SALT }(
                 address(this), new address[](0), new address[](0), new bytes32[](0), new address[](0)
@@ -580,7 +578,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](47);
+            address[] memory hooksAddresses = new address[](46);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1137,21 +1135,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[41] = address(A[i].claimCancelRedeemRequest7540Hook);
 
-            A[i].cancelDepositHook = new CancelDepositHook{ salt: SALT }();
-            vm.label(address(A[i].cancelDepositHook), CANCEL_DEPOSIT_HOOK_KEY);
-            hookAddresses[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY] = address(A[i].cancelDepositHook);
-            hooks[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY] = Hook(
-                CANCEL_DEPOSIT_HOOK_KEY,
-                HookCategory.VaultWithdrawals,
-                HookCategory.VaultDeposits,
-                address(A[i].cancelDepositHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][CANCEL_DEPOSIT_HOOK_KEY]
-            );
-            hooksAddresses[42] = address(A[i].cancelDepositHook);
-
             A[i].cancelRedeemHook = new CancelRedeemHook{ salt: SALT }();
             vm.label(address(A[i].cancelRedeemHook), CANCEL_REDEEM_HOOK_KEY);
             hookAddresses[chainIds[i]][CANCEL_REDEEM_HOOK_KEY] = address(A[i].cancelRedeemHook);
@@ -1163,7 +1146,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
-            hooksAddresses[43] = address(A[i].cancelRedeemHook);
+            hooksAddresses[42] = address(A[i].cancelRedeemHook);
 
             A[i].morphoBorrowHook = new MorphoBorrowHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoBorrowHook), MORPHO_BORROW_HOOK_KEY);
@@ -1171,7 +1154,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] =
                 Hook(MORPHO_BORROW_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoBorrowHook), "");
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
-            hooksAddresses[44] = address(A[i].morphoBorrowHook);
+            hooksAddresses[43] = address(A[i].morphoBorrowHook);
 
             A[i].morphoRepayHook = new MorphoRepayHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
@@ -1179,12 +1162,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY] =
                 Hook(MORPHO_REPAY_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoRepayHook), "");
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_REPAY_HOOK_KEY]);
-            hooksAddresses[45] = address(A[i].morphoRepayHook);
+            hooksAddresses[44] = address(A[i].morphoRepayHook);
 
             A[i].morphoRepayAndWithdrawHook = new MorphoRepayAndWithdrawHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayAndWithdrawHook), MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY);
             hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] = address(A[i].morphoRepayAndWithdrawHook);
-            hooksAddresses[46] = address(A[i].morphoRepayAndWithdrawHook);
+            hooksAddresses[45] = address(A[i].morphoRepayAndWithdrawHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
@@ -1203,7 +1186,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainIds[i], PERIPHERY_REGISTRY_KEY));
+            SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
 
             console2.log("Registering hooks for chain", chainIds[i]);
             if (DEBUG) {
@@ -1242,55 +1225,53 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 console2.log(address(A[i].cancelRedeemRequest7540Hook));
                 console2.log(address(A[i].claimCancelDepositRequest7540Hook));
                 console2.log(address(A[i].claimCancelRedeemRequest7540Hook));
-                console2.log(address(A[i].cancelDepositHook));
                 console2.log(address(A[i].cancelRedeemHook));
             }
 
             // Register fulfillRequests hooks
-            peripheryRegistry.registerHook(address(A[i].deposit4626VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].redeem4626VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].approveAndRedeem4626VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].deposit5115VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].redeem5115VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].requestDeposit7540VaultHook), false);
-            peripheryRegistry.registerHook(address(A[i].requestRedeem7540VaultHook), false);
+            superGovernor.registerHook(address(A[i].deposit4626VaultHook), true);
+            superGovernor.registerHook(address(A[i].redeem4626VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndRedeem4626VaultHook), true);
+            superGovernor.registerHook(address(A[i].deposit5115VaultHook), true);
+            superGovernor.registerHook(address(A[i].redeem5115VaultHook), true);
+            superGovernor.registerHook(address(A[i].requestDeposit7540VaultHook), false);
+            superGovernor.registerHook(address(A[i].requestRedeem7540VaultHook), false);
 
             // Register remaining hooks
-            peripheryRegistry.registerHook(address(A[i].approveAndDeposit4626VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].approveAndDeposit5115VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].approveAndRedeem5115VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].approveAndRequestDeposit7540VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].approveErc20Hook), false);
-            peripheryRegistry.registerHook(address(A[i].transferErc20Hook), false);
-            peripheryRegistry.registerHook(address(A[i].deposit7540VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].withdraw7540VaultHook), false);
-            peripheryRegistry.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
-            peripheryRegistry.registerHook(address(A[i].swap1InchHook), false);
-            peripheryRegistry.registerHook(address(A[i].swapOdosHook), false);
-            peripheryRegistry.registerHook(address(A[i].approveAndSwapOdosHook), false);
-            peripheryRegistry.registerHook(address(A[i].acrossSendFundsAndExecuteOnDstHook), false);
-            peripheryRegistry.registerHook(address(A[i].fluidClaimRewardHook), false);
-            peripheryRegistry.registerHook(address(A[i].fluidStakeHook), false);
-            peripheryRegistry.registerHook(address(A[i].approveAndFluidStakeHook), false);
-            peripheryRegistry.registerHook(address(A[i].fluidUnstakeHook), false);
-            peripheryRegistry.registerHook(address(A[i].gearboxClaimRewardHook), false);
-            peripheryRegistry.registerHook(address(A[i].gearboxStakeHook), false);
-            peripheryRegistry.registerHook(address(A[i].approveAndGearboxStakeHook), false);
-            peripheryRegistry.registerHook(address(A[i].gearboxUnstakeHook), false);
-            peripheryRegistry.registerHook(address(A[i].yearnClaimOneRewardHook), false);
-            peripheryRegistry.registerHook(address(A[i].cancelDepositRequest7540Hook), false);
-            peripheryRegistry.registerHook(address(A[i].cancelRedeemRequest7540Hook), false);
-            peripheryRegistry.registerHook(address(A[i].claimCancelDepositRequest7540Hook), false);
-            peripheryRegistry.registerHook(address(A[i].claimCancelRedeemRequest7540Hook), false);
-            peripheryRegistry.registerHook(address(A[i].cancelDepositHook), false);
-            peripheryRegistry.registerHook(address(A[i].cancelRedeemHook), false);
+            superGovernor.registerHook(address(A[i].approveAndDeposit4626VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndDeposit5115VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndRedeem5115VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndRequestDeposit7540VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveErc20Hook), false);
+            superGovernor.registerHook(address(A[i].transferErc20Hook), false);
+            superGovernor.registerHook(address(A[i].deposit7540VaultHook), true);
+            superGovernor.registerHook(address(A[i].withdraw7540VaultHook), false);
+            superGovernor.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
+            superGovernor.registerHook(address(A[i].swap1InchHook), false);
+            superGovernor.registerHook(address(A[i].swapOdosHook), false);
+            superGovernor.registerHook(address(A[i].approveAndSwapOdosHook), false);
+            superGovernor.registerHook(address(A[i].acrossSendFundsAndExecuteOnDstHook), false);
+            superGovernor.registerHook(address(A[i].fluidClaimRewardHook), false);
+            superGovernor.registerHook(address(A[i].fluidStakeHook), false);
+            superGovernor.registerHook(address(A[i].approveAndFluidStakeHook), false);
+            superGovernor.registerHook(address(A[i].fluidUnstakeHook), false);
+            superGovernor.registerHook(address(A[i].gearboxClaimRewardHook), false);
+            superGovernor.registerHook(address(A[i].gearboxStakeHook), false);
+            superGovernor.registerHook(address(A[i].approveAndGearboxStakeHook), false);
+            superGovernor.registerHook(address(A[i].gearboxUnstakeHook), false);
+            superGovernor.registerHook(address(A[i].yearnClaimOneRewardHook), false);
+            superGovernor.registerHook(address(A[i].cancelDepositRequest7540Hook), false);
+            superGovernor.registerHook(address(A[i].cancelRedeemRequest7540Hook), false);
+            superGovernor.registerHook(address(A[i].claimCancelDepositRequest7540Hook), false);
+            superGovernor.registerHook(address(A[i].claimCancelRedeemRequest7540Hook), false);
+            superGovernor.registerHook(address(A[i].cancelRedeemHook), false);
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
-            peripheryRegistry.registerHook(address(A[i].ethenaCooldownSharesHook), false);
-            peripheryRegistry.registerHook(address(A[i].ethenaUnstakeHook), true);
-            peripheryRegistry.registerHook(address(A[i].morphoBorrowHook), false);
-            peripheryRegistry.registerHook(address(A[i].morphoRepayHook), false);
-            peripheryRegistry.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
-            peripheryRegistry.registerHook(address(A[i].pendleRouterRedeemHook), false);
+            superGovernor.registerHook(address(A[i].ethenaCooldownSharesHook), false);
+            superGovernor.registerHook(address(A[i].ethenaUnstakeHook), true);
+            superGovernor.registerHook(address(A[i].morphoBorrowHook), false);
+            superGovernor.registerHook(address(A[i].morphoRepayHook), false);
+            superGovernor.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
+            superGovernor.registerHook(address(A[i].pendleRouterRedeemHook), false);
         }
 
         return A;
@@ -1586,35 +1567,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             vm.startPrank(MANAGER);
 
-            PeripheryRegistry peripheryRegistry = PeripheryRegistry(_getContract(chainIds[i], PERIPHERY_REGISTRY_KEY));
+            SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: peripheryRegistry.getTreasury(),
+                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: peripheryRegistry.getTreasury(),
+                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: peripheryRegistry.getTreasury(),
+                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
                 yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], STAKING_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: peripheryRegistry.getTreasury(),
+                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
