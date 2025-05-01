@@ -63,7 +63,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     mapping(address token => uint256 priceUSD) public emergencyPrices; // Used when an oracle is down, managed by us
 
     // --- Addresses ---
-    // TODO: Fix it accordingly
     address public constant USD = address(840);
 
     // SuperOracle related 
@@ -101,14 +100,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /**
-     * @notice Initializes the SuperAsset contract
-     * @param name_ Name of the token
-     * @param symbol_ Symbol of the token
-     * @param icc_ Address of the IncentiveCalculationContract
-     * @param ifc_ Address of the IncentiveFundContract
-     * @param assetBank_ Address of the AssetBank contract
-     * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
-     * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
+     * @inheritdoc ISuperAsset
      */
     function initialize(
         string memory name_,
@@ -382,15 +374,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit ERC20Removed(token);
     }
 
-    // --- View Functions ---
-    // @dev This is equivalent to also returning the normalized amount since it can be obtained just by doing absoluteAllocation[i] / totalAllocation
     /**
      * @inheritdoc ISuperAsset
+     * @dev This is equivalent to also returning the normalized amount since it can be obtained just by doing absoluteAllocation[i] / totalAllocation
      */
     function getAllocations() public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
-        // Placeholder for the current allocation normalized
-        // This function should return the current allocation of assets in the SuperUSD contract
-        // For now, we return an empty array
         uint256 length = _supportedVaults.length();
         absoluteCurrentAllocation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
@@ -542,8 +530,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     
-    // @dev: This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
-    // @dev: Getting only single unit price
     /**
      * @inheritdoc ISuperAsset
      */
