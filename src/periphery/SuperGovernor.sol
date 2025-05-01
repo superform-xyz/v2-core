@@ -63,6 +63,13 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Effective times for proposed fee updates
     mapping(FeeType => uint256) private _feeEffectiveTimes;
 
+    // Upkeep cost per update for PPS updates
+    uint256 private _upkeepCostPerUpdate;
+    // Proposed new upkeep cost
+    uint256 private _proposedUpkeepCostPerUpdate;
+    // Effective time for proposed upkeep cost change
+    uint256 private _upkeepCostEffectiveTime;
+
     // Timelock configuration
     uint256 private constant TIMELOCK = 7 days;
     uint256 private constant BPS_MAX = 10_000; // 100% in basis points
@@ -104,10 +111,18 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _feeValues[FeeType.REVENUE_SHARE] = 2000; // 20% revenue share
         _feeValues[FeeType.SUPER_VAULT_PERFORMANCE_FEE] = 2000; // 20% performance fee
         _feeValues[FeeType.SUPER_ASSET_SWAP_FEE] = 4000; // 40% swap fee
+        emit FeeUpdated(FeeType.REVENUE_SHARE, _feeValues[FeeType.REVENUE_SHARE]);
+        emit FeeUpdated(FeeType.SUPER_VAULT_PERFORMANCE_FEE, _feeValues[FeeType.SUPER_VAULT_PERFORMANCE_FEE]);
+        emit FeeUpdated(FeeType.SUPER_ASSET_SWAP_FEE, _feeValues[FeeType.SUPER_ASSET_SWAP_FEE]);
 
         // Set treasury in address registry
         _addressRegistry[TREASURY] = treasury_;
         emit AddressSet(TREASURY, treasury_);
+
+        // Initialize upkeep cost
+        _upkeepCostPerUpdate = 1e18; // 1 UP token
+
+        emit UpkeepCostPerUpdateChanged(_upkeepCostPerUpdate);
     }
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
@@ -305,6 +320,32 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
+                      UPKEEP COST MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    function proposeUpkeepCostPerUpdate(uint256 newCost_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        _proposedUpkeepCostPerUpdate = newCost_;
+        _upkeepCostEffectiveTime = block.timestamp + TIMELOCK;
+
+        emit UpkeepCostPerUpdateProposed(newCost_, _upkeepCostEffectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function executeUpkeepCostPerUpdateChange() external {
+        uint256 upkeepCostEffectiveTime = _upkeepCostEffectiveTime;
+        if (upkeepCostEffectiveTime == 0) revert NO_PROPOSED_UPKEEP_COST();
+        if (block.timestamp < upkeepCostEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        _upkeepCostPerUpdate = _proposedUpkeepCostPerUpdate;
+
+        // Reset proposal data
+        _proposedUpkeepCostPerUpdate = 0;
+        _upkeepCostEffectiveTime = 0;
+
+        emit UpkeepCostPerUpdateChanged(_upkeepCostPerUpdate);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                            SUPERBANK HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
 
@@ -413,6 +454,16 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function getFee(FeeType feeType) external view returns (uint256) {
         return _feeValues[feeType];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getUpkeepCostPerUpdate() external view returns (uint256) {
+        return _upkeepCostPerUpdate;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProposedUpkeepCostPerUpdate() external view returns (uint256 proposedCost, uint256 effectiveTime) {
+        return (_proposedUpkeepCostPerUpdate, _upkeepCostEffectiveTime);
     }
 
     /// @inheritdoc ISuperGovernor

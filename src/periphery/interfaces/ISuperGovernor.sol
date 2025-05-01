@@ -72,6 +72,8 @@ interface ISuperGovernor {
     error STRATEGIST_TAKEOVERS_FROZEN();
     /// @notice Thrown when no proposed Merkle root exists but one is expected
     error NO_PROPOSED_MERKLE_ROOT();
+    /// @notice Thrown when no proposed upkeep cost exists but one is expected
+    error NO_PROPOSED_UPKEEP_COST();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -161,6 +163,15 @@ interface ISuperGovernor {
     /// @notice Event emitted when strategist takeovers are permanently frozen
     event StrategistTakeoversFrozen();
 
+    /// @notice Emitted when a new upkeep cost per update is proposed
+    /// @param newCost The proposed upkeep cost
+    /// @param effectiveTime The timestamp when the new cost will be effective
+    event UpkeepCostPerUpdateProposed(uint256 newCost, uint256 effectiveTime);
+
+    /// @notice Emitted when the upkeep cost per update is changed
+    /// @param newCost The new upkeep cost
+    event UpkeepCostPerUpdateChanged(uint256 newCost);
+
     /*//////////////////////////////////////////////////////////////
                                    ROLES
     //////////////////////////////////////////////////////////////*/
@@ -246,8 +257,19 @@ interface ISuperGovernor {
     function proposeFee(FeeType feeType, uint256 value) external;
 
     /// @notice Executes a previously proposed fee update after timelock has expired
-    /// @param feeType The type of fee to execute the update for
+    /// @param feeType The type of ffee to execute the update for
     function executeFeeUpdate(FeeType feeType) external;
+
+    /*//////////////////////////////////////////////////////////////
+                      UPKEEP COST MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Proposes a new upkeep cost per update (for PPS updates)
+    /// @param newCost The proposed new upkeep cost per update
+    function proposeUpkeepCostPerUpdate(uint256 newCost) external;
+
+    /// @notice Executes a previously proposed upkeep cost change after timelock has expired
+    function executeUpkeepCostPerUpdateChange() external;
 
     /*//////////////////////////////////////////////////////////////
                            SUPERBANK HOOKS MGMT
@@ -323,6 +345,15 @@ interface ISuperGovernor {
     /// @param feeType The type of fee to get
     /// @return The current fee value (in basis points)
     function getFee(FeeType feeType) external view returns (uint256);
+
+    /// @notice Gets the current upkeep cost per update for PPS updates
+    /// @return The current upkeep cost per update in UP tokens
+    function getUpkeepCostPerUpdate() external view returns (uint256);
+
+    /// @notice Gets the proposed upkeep cost per update and its effective time
+    /// @return proposedCost The proposed new upkeep cost
+    /// @return effectiveTime The timestamp when the new cost will become effective
+    function getProposedUpkeepCostPerUpdate() external view returns (uint256 proposedCost, uint256 effectiveTime);
 
     /// @notice Returns the current Merkle root for a specific hook's allowed targets.
     /// @param hook The address of the hook to get the Merkle root for.
