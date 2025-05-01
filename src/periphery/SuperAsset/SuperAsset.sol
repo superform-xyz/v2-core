@@ -79,29 +79,21 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _;
     }
 
-    /**
-     * @dev Empty constructor since we're using initialize pattern with Clones
-     */
+
     constructor() ERC20("", "") {
     }
 
-    /**
-     * @dev Override name() to use storage variable
-     */
+    /// @inheritdoc ERC20
     function name() public view override returns (string memory) {
         return tokenName;
     }
 
-    /**
-     * @dev Override symbol() to use storage variable
-     */
+    /// @inheritdoc ERC20
     function symbol() public view override returns (string memory) {
         return tokenSymbol;
     }
 
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function initialize(
         string memory name_,
         string memory symbol_,
@@ -484,9 +476,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     
-    /**
-     * @inheritdoc ISuperAsset
-     */
+    /// @inheritdoc ISuperAsset
     function getPriceWithCircuitBreakers(address tokenIn) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
 

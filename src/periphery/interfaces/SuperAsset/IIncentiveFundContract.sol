@@ -16,6 +16,13 @@ interface IIncentiveFundContract {
     function tokenOutIncentive() external view returns (address);
 
     /**
+     * @notice Initializes the IncentiveFundContract
+     * @param superAsset_ Address of the SuperAsset contract
+     * @param assetBank_ Address of the AssetBank contract
+     */
+    function initialize(address superAsset_, address assetBank_) external;
+
+    /**
      * @notice Pays incentives to a receiver
      * @param receiver Address to receive the incentives
      * @param amount Amount of incentives to pay

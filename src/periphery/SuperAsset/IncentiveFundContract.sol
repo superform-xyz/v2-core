@@ -34,11 +34,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    /**
-     * @notice Initializes the IncentiveFundContract
-     * @param superAsset_ Address of the SuperAsset contract
-     * @param assetBank_ Address of the AssetBank contract
-     */
+    /// @inheritdoc IIncentiveFundContract
     function initialize(address superAsset_, address assetBank_) external {
         // Ensure this can only be called once
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
